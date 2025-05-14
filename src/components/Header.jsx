@@ -1,0 +1,208 @@
+import { useState, useEffect } from "react";
+import { FaBell, FaBars, FaChevronDown, FaSearch } from "react-icons/fa";
+import { SiProbot } from "react-icons/si";
+
+export default function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [hideAnnouncement, setHideAnnouncement] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+      setHideAnnouncement(window.scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  return (
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        isScrolled
+          ? "shadow-md bg-white"
+          : "bg-gradient-to-r from-[#f8f9fa] to-[#ffffff]"
+      }`}
+    >
+      <div
+        className={`text-sm px-4 py-2 flex items-center justify-center bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] text-white transition-all duration- overflow-hidden ${
+          hideAnnouncement ? "max-h-0 py-0 opacity-0" : "max-h-20 opacity-100"
+        }`}
+      >
+        <FaBell className="mr-2 text-yellow-300 animate-pulse" />
+        <span className="font-medium tracking-wide">
+          Khám phá sức mạnh của AI trong quảng cáo – Hãy tạo quảng cáo của bạn
+          ngay hôm nay!
+        </span>
+      </div>
+
+      <div
+        className={`px-6 py-3 flex items-center justify-between transition-all duration-300 ${
+          isScrolled ? "bg-white" : "bg-transparent"
+        }`}
+      >
+        <div className="flex items-center space-x-2">
+          <SiProbot className="text-[#2B2F4A] text-2xl transform hover:rotate-12 transition-all duration-300" />
+          <span className="font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-[#2B2F4A] to-[#505694]">
+            Song Tạo ADS
+          </span>
+        </div>
+
+        <div className="md:hidden">
+          <button
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <FaBars size={20} className="text-[#2B2F4A]" />
+          </button>
+        </div>
+
+        <nav className="hidden md:flex space-x-1 items-center">
+          <a
+            href="/"
+            className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
+          >
+            Trang chủ
+          </a>
+          <div className="relative group">
+            <button className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium flex items-center space-x-1 transition-colors">
+              <span>Giải pháp</span>
+              <FaChevronDown
+                size={12}
+                className="text-gray-500 group-hover:rotate-180 transition-transform duration-300"
+              />
+            </button>
+            <div className="absolute left-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 transform translate-y-2 group-hover:translate-y-0">
+              <div className="py-1">
+                <a
+                  href="#"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Quảng cáo AI
+                </a>
+                <a
+                  href="#"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Phân tích dữ liệu
+                </a>
+                <a
+                  href="#"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Tối ưu hóa quảng cáo
+                </a>
+              </div>
+            </div>
+          </div>
+          <a
+            href="#"
+            className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
+          >
+            Dịch vụ
+          </a>
+          <a
+            href="#"
+            className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
+          >
+            Về chúng tôi
+          </a>
+          <a
+            href="#"
+            className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
+          >
+            Blog
+          </a>
+        </nav>
+
+        <div className="hidden md:flex items-center space-x-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Tìm kiếm..."
+              className="pl-8 pr-4 py-1.5 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent text-sm w-36 transition-all duration-300 focus:w-48"
+            />
+            <FaSearch
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={14}
+            />
+          </div>
+          <button className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">
+            Đăng nhập
+          </button>
+          <button className="px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm">
+            Đăng ký
+          </button>
+        </div>
+      </div>
+
+      {menuOpen && (
+        <div className="md:hidden px-6 pb-4 bg-white space-y-3 text-gray-700 text-sm font-medium border-t border-gray-100 animate-fadeIn">
+          <a href="/" className="block py-2 hover:text-[#2B2F4A]">
+            Trang chủ
+          </a>
+          <div className="py-2">
+            <details className="group">
+              <summary className="flex justify-between items-center cursor-pointer hover:text-[#2B2F4A]">
+                Giải pháp
+                <FaChevronDown
+                  size={12}
+                  className="text-gray-500 group-open:rotate-180 transition-transform"
+                />
+              </summary>
+              <div className="mt-2 ml-4 space-y-2">
+                <a
+                  href="#"
+                  className="block py-1 text-gray-600 hover:text-[#2B2F4A]"
+                >
+                  Quảng cáo AI
+                </a>
+                <a
+                  href="#"
+                  className="block py-1 text-gray-600 hover:text-[#2B2F4A]"
+                >
+                  Phân tích dữ liệu
+                </a>
+                <a
+                  href="#"
+                  className="block py-1 text-gray-600 hover:text-[#2B2F4A]"
+                >
+                  Tối ưu hóa quảng cáo
+                </a>
+              </div>
+            </details>
+          </div>
+          <a href="#" className="block py-2 hover:text-[#2B2F4A]">
+            Dịch vụ
+          </a>
+          <a href="#" className="block py-2 hover:text-[#2B2F4A]">
+            Về chúng tôi
+          </a>
+          <a href="#" className="block py-2 hover:text-[#2B2F4A]">
+            Blog
+          </a>
+          <div className="pt-3  mt-3">
+            <div className="relative mb-3">
+              <input
+                type="text"
+                placeholder="Tìm kiếm..."
+                className="w-full pl-8 pr-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent text-sm"
+              />
+              <FaSearch
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={14}
+              />
+            </div>
+            <button className="w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2">
+              Đăng nhập
+            </button>
+            <button className="w-full px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity">
+              Đăng ký
+            </button>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
