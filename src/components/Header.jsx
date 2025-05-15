@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaBell, FaBars, FaChevronDown, FaSearch } from "react-icons/fa";
 import { SiProbot } from "react-icons/si";
+import { Link } from "react-router-dom";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -128,12 +129,18 @@ export default function Header() {
               size={14}
             />
           </div>
-          <button className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">
+          <Link
+            to="/auth/login"
+            className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
             Đăng nhập
-          </button>
-          <button className="px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm">
+          </Link>
+          <Link
+            to="/auth/signup"
+            className="px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+          >
             Đăng ký
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -194,12 +201,18 @@ export default function Header() {
                 size={14}
               />
             </div>
-            <button className="w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2">
+            <Link
+              to="/auth/login"
+              className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+            >
               Đăng nhập
-            </button>
-            <button className="w-full px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity">
+            </Link>
+            <Link
+              to="/auth/signup"
+              className="block w-full px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center"
+            >
               Đăng ký
-            </button>
+            </Link>
           </div>
         </div>
       )}
