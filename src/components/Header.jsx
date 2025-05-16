@@ -98,19 +98,19 @@ export default function Header() {
             </div>
           </div>
           <a
-            href="#"
+            href="/service"
             className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
           >
             Dịch vụ
           </a>
           <a
-            href="#"
+            href="/aboutus"
             className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
           >
             Về chúng tôi
           </a>
           <a
-            href="#"
+            href="/blog"
             className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
           >
             Blog
