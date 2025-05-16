@@ -6,12 +6,12 @@ const AuthLayout = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left side - Brand info and visual */}
-      <div className="w-full md:w-1/2 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] text-white p-8 md:p-12 lg:p-16 flex flex-col justify-between">
+      <div className="w-full md:w-1/2 bg-custom-primary text-white p-8 md:p-12 lg:p-16 flex flex-col justify-between">
         <div>
           {/* Logo and brand name */}
           <div className="flex items-center space-x-3 mb-12">
-            <SiProbot className="text-3xl text-yellow-300" />
-            <span className="font-extrabold text-transparent text-2xl bg-clip-text bg-gradient-to-r from-white to-yellow-300">
+            <SiProbot className="text-3xl text-custom-secondary" />
+            <span className="font-extrabold text-transparent text-2xl bg-clip-text bg-gradient-to-r from-white to-[#FF5F13]">
               Song Tạo ADS
             </span>
           </div>
@@ -20,7 +20,7 @@ const AuthLayout = () => {
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-4">
               Đột phá quảng cáo <br />
-              <span className="text-yellow-300">với trí tuệ nhân tạo</span>
+              <span className="text-custom-secondary">với trí tuệ nhân tạo</span>
             </h1>
             <p className="text-lg opacity-80 max-w-md">
               Tạo ra những quảng cáo thu hút và chuyển đổi cao với sự hỗ trợ của
@@ -34,7 +34,7 @@ const AuthLayout = () => {
               <div className="w-10 h-10 rounded-full bg-yellow-300/20 flex items-center justify-center mr-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-yellow-300"
+                  className="h-5 w-5 text-custom-secondary"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -53,7 +53,7 @@ const AuthLayout = () => {
               <div className="w-10 h-10 rounded-full bg-yellow-300/20 flex items-center justify-center mr-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-yellow-300"
+                  className="h-5 w-5 text-custom-secondary"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -68,7 +68,7 @@ const AuthLayout = () => {
               <div className="w-10 h-10 rounded-full bg-yellow-300/20 flex items-center justify-center mr-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-yellow-300"
+                  className="h-5 w-5 text-custom-secondary"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >

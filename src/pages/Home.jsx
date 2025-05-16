@@ -26,20 +26,20 @@ const Home = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <section className="relative bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] py-20 px-6">
+      <section className="relative bg-custom-primary py-20 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center">
             <div className="md:w-1/2 text-white mb-10 md:mb-0">
               <h1 className="text-4xl md:text-5xl font-bold leading-tight">
                 Tạo quảng cáo đột phá với{" "}
-                <span className="text-yellow-300">trí tuệ nhân tạo</span>
+                <span className="text-custom-secondary">trí tuệ nhân tạo</span>
               </h1>
               <p className="mt-6 text-lg opacity-90">
                 Song Tạo ADS giúp doanh nghiệp tạo ra các quảng cáo hấp dẫn và
                 hiệu quả thông qua công nghệ AI tiên tiến nhất.
               </p>
               <div className="mt-8 space-x-4 flex flex-wrap gap-3">
-                <button className="px-6 py-3 bg-yellow-400 text-gray-900 font-medium rounded-md hover:bg-yellow-300 transition-colors shadow-lg">
+                <button className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg">
                   Dùng AI
                 </button>
                 <button className="px-6 py-3 border border-white text-white font-medium rounded-md hover:bg-white hover:text-[#2B2F4A] transition-colors">
@@ -253,7 +253,7 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-16 px-6 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] text-white">
+      <section className="py-16 px-6 bg-custom-primary text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             Sẵn sàng nâng cao hiệu quả quảng cáo?
@@ -263,7 +263,7 @@ const Home = () => {
             AI trong quảng cáo
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <button className="px-8 py-3 bg-yellow-400 text-gray-900 font-medium rounded-md hover:bg-yellow-300 transition-colors shadow-lg">
+            <button className="px-8 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-yellow-300 transition-colors shadow-lg">
               Bắt đầu miễn phí
             </button>
             <button className="px-8 py-3 border border-white text-white font-medium rounded-md hover:bg-white hover:text-[#2B2F4A] transition-colors">

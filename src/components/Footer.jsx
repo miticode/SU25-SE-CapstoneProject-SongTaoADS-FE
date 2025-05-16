@@ -100,7 +100,7 @@ export default function Footer() {
           {/* Map section */}
           <div className="md:w-1/2 mt-10 md:mt-0">
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-              <div className="p-4 bg-[#2B2F4A] text-white flex items-center">
+              <div className="p-4 bg-custom-primary text-white flex items-center">
                 <FaMapPin className="mr-2" />
                 <h3 className="font-semibold">Vị trí của chúng tôi</h3>
               </div>
@@ -133,12 +133,12 @@ export default function Footer() {
         </div>
 
         {/* Newsletter section - MOVED UP */}
-        <div className="bg-blue-50 rounded-xl shadow-md p-8 mb-12 border border-blue-100">
+        <div className="bg-custom-primary rounded-xl shadow-md p-8 mb-12 border border-blue-100">
           <div className="max-w-xl mx-auto text-center">
-            <h3 className="font-bold text-xl text-[#2B2F4A] mb-4">
+            <h3 className="font-bold text-xl text-white mb-4">
               Đăng Ký Nhận Thông Báo
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-white mb-6">
               Nhận các bản cập nhật mới nhất về các tính năng AI và khuyến mãi đặc biệt
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -147,7 +147,7 @@ export default function Footer() {
                 placeholder="Email của bạn"
                 className="flex-1 px-4 py-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent bg-white"
               />
-              <button className="bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm font-medium">
+              <button className="bg-custom-secondary text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm font-medium">
                 Đăng Ký
               </button>
             </div>
@@ -303,7 +303,7 @@ export default function Footer() {
       </div>
 
       {/* Copyright section */}
-      <div className="bg-[#2B2F4A] text-white py-6">
+      <div className="bg-custom-primary text-white py-6">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm">
             © 2024 Song Tạo ADS. Tất cả quyền được bảo lưu.
