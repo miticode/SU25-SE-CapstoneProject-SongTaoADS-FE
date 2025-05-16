@@ -5,6 +5,9 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AuthLayout from "./layouts/AuthLayout";
 import Signup from "./pages/SignUp";
+import Service from "./pages/Service";
+import Blog from "./pages/Blog";
+import Aboutus from "./pages/Aboutus";
 
 const App = () => {
   const location = useLocation();
@@ -14,6 +17,9 @@ const App = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
+          <Route path="service" element={<Service />} />
+          <Route path="blog" element={<Blog />} />
+          <Route path="aboutus" element={<Aboutus />} />
         </Route>
 
         <Route path="/auth" element={<AuthLayout />}>
