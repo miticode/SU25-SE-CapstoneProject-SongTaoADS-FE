@@ -27,11 +27,11 @@ export default function Header() {
       }`}
     >
       <div
-        className={`text-sm px-4 py-2 flex items-center justify-center bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] text-white transition-all duration- overflow-hidden ${
+        className={`text-sm px-4 py-2 flex items-center justify-center bg-custom-primary text-white transition-all duration- overflow-hidden ${
           hideAnnouncement ? "max-h-0 py-0 opacity-0" : "max-h-20 opacity-100"
         }`}
       >
-        <FaBell className="mr-2 text-yellow-300 animate-pulse" />
+        <FaBell className="mr-2 text-custom-secondary animate-pulse" />
         <span className="font-medium tracking-wide">
           Khám phá sức mạnh của AI trong quảng cáo – Hãy tạo quảng cáo của bạn
           ngay hôm nay!
@@ -44,8 +44,8 @@ export default function Header() {
         }`}
       >
         <div className="flex items-center space-x-2">
-          <SiProbot className="text-[#2B2F4A] text-2xl transform hover:rotate-12 transition-all duration-300" />
-          <span className="font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-[#2B2F4A] to-[#505694]">
+          <SiProbot className="text-custom-primary text-2xl transform hover:rotate-12 transition-all duration-300" />
+          <span className="font-extrabold text-transparent text-xl bg-clip-text bg-gradient-to-r from-[#040C20] to-[#323768]">
             Song Tạo ADS
           </span>
         </div>
@@ -137,7 +137,7 @@ export default function Header() {
           </Link>
           <Link
             to="/auth/signup"
-            className="px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+            className="px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
           >
             Đăng ký
           </Link>
@@ -209,7 +209,7 @@ export default function Header() {
             </Link>
             <Link
               to="/auth/signup"
-              className="block w-full px-4 py-2 bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center"
+              className="block w-full px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center"
             >
               Đăng ký
             </Link>

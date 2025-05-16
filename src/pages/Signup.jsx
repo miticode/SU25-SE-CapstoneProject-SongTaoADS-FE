@@ -101,7 +101,7 @@ const Signup = () => {
 
         <button
           type="submit"
-          className="w-full bg-gradient-to-r from-[#2B2F4A] to-[#505694] text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium"
+          className="w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium"
         >
           Đăng ký
         </button>
