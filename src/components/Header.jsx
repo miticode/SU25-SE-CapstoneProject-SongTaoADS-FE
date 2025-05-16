@@ -180,13 +180,13 @@ export default function Header() {
               </div>
             </details>
           </div>
-          <a href="#" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/service" className="block py-2 hover:text-[#2B2F4A]">
             Dịch vụ
           </a>
-          <a href="#" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/aboutus" className="block py-2 hover:text-[#2B2F4A]">
             Về chúng tôi
           </a>
-          <a href="#" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/blog" className="block py-2 hover:text-[#2B2F4A]">
             Blog
           </a>
           <div className="pt-3  mt-3">

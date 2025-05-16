@@ -49,7 +49,7 @@ const Home = () => {
             </div>
             <div className="md:w-1/2 flex justify-center">
               <img
-                src="https://placehold.co/600x400/2B2F4A/FFF?text=AI+Advertising"
+                src="/src/assets/images/SongTao.png"
                 alt="AI Advertising"
                 className="rounded-lg shadow-2xl max-w-full h-auto"
               />
