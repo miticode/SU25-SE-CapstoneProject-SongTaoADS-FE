@@ -38,11 +38,11 @@ const Service = () => {
     <div className="bg-gray-100 min-h-screen py-10">
       <div className="text-center mb-10">
         <h2 className="text-4xl font-bold">
-          DỊCH VỤ <span className="text-yellow-400">CỦA CHÚNG TÔI</span>
+          DỊCH VỤ <span className="text-custom-secondary">CỦA CHÚNG TÔI</span>
         </h2>
-        <div className="w-20 h-1 bg-yellow-400 mx-auto mt-4"></div>
+        <div className="w-20 h-1 bg-custom-secondary mx-auto mt-4"></div>
       </div>
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-36">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((service, idx) => (
             <div
@@ -57,7 +57,7 @@ const Service = () => {
               <div className="p-6 flex flex-col flex-1">
                 <h3 className="text-xl font-bold mb-2">{service.title}</h3>
                 <p className="text-gray-600 flex-1">{service.desc}</p>
-                <button className="mt-4 bg-yellow-400 text-white font-semibold py-2 px-4 rounded hover:bg-yellow-500 transition">
+                <button className="mt-4 bg-custom-secondary text-white font-semibold py-2 px-4 rounded hover:bg-yellow-500 transition">
                   CHI TIẾT
                 </button>
               </div>
@@ -66,9 +66,9 @@ const Service = () => {
         </div>
       </div>
 
-      <section className="py-14 not-only-of-type:px-6 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] text-white mt-5">
+      <section className="py-14 not-only-of-type:px-6 bg-custom-primary text-white mt-5">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl text-yellow-400 font-bold mb-6">
+          <h2 className="text-3xl md:text-4xl text-custom-secondary font-bold mb-6">
             Nhận thông tin mới từ chúng tôi
           </h2>
           <p className="text-xl mb-8 opacity-90">
@@ -109,7 +109,7 @@ const Service = () => {
             />
             <button
               type="submit"
-              className="bg-black text-white font-bold px-8 py-4 rounded-sm hover:bg-gray-800 transition"
+              className="bg-custom-secondary text-white font-bold px-8 py-4 rounded-sm cur  transition"
             >
               ĐĂNG KÝ
             </button>
