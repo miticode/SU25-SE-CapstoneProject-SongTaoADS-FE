@@ -107,7 +107,7 @@ export default function Header() {
             href="/aboutus"
             className="px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
           >
-            Về chúng tôi
+            Giới thiệu
           </a>
           <a
             href="/blog"
