@@ -1,6 +1,9 @@
 import React from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Navigation, Autoplay } from "swiper/modules";
+// eslint-disable-next-line no-unused-vars
+import { motion } from "framer-motion";
+import { FaStar, FaEnvelope, FaArrowRight } from "react-icons/fa";
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
@@ -45,7 +48,7 @@ const testimonials = [
     image:
       "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
     content:
-      "Dịch vụ rất chuyên nghiệp, đội ngũ nhân viên nhiệt tình và tận tâm. Chúng tôi rất hài lòng với kết quả đạt được. Biển quảng cáo được thiết kế đẹp mắt, chất lượng cao và đúng tiến độ.",
+      "Dịch vụ rất chuyên nghiệp, đội ngũ nhân viên nhiệt tình và tận tâm. Chúng tôi rất hài lòng với kết quả đạt được. Biển quảng cáo được thiết kế đẹp mắt.",
   },
   {
     name: "Trần Thị B",
@@ -77,7 +80,7 @@ const testimonials = [
     image:
       "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
     content:
-      "Chúng tôi đã hợp tác với Song Tạo để thiết kế bộ nhận diện thương hiệu cho chuỗi cafe. Kết quả vượt ngoài mong đợi, thiết kế độc đáo và chuyên nghiệp. Đội ngũ tư vấn rất nhiệt tình và sáng tạo.",
+      "Chúng tôi đã hợp tác với Song Tạo để thiết kế bộ nhận diện thương hiệu cho chuỗi cafe. Kết quả vượt ngoài mong đợi, thiết kế độc đáo và chuyên nghiệp.",
   },
   {
     name: "Ngô Thị F",
@@ -93,7 +96,7 @@ const testimonials = [
     image:
       "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
     content:
-      "Thiết kế nội thất và biển hiệu cho spa của chúng tôi được thực hiện rất chuyên nghiệp. Không gian trở nên sang trọng và đẳng cấp hơn. Khách hàng rất ấn tượng với thiết kế tổng thể.",
+      "Thiết kế nội thất và biển hiệu cho spa của chúng tôi được thực hiện rất chuyên nghiệp. Không gian trở nên sang trọng và đẳng cấp hơn.",
   },
   {
     name: "Lý Thị H",
@@ -101,7 +104,7 @@ const testimonials = [
     image:
       "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
     content:
-      "Song Tạo đã giúp chúng tôi xây dựng hình ảnh thương hiệu chuyên nghiệp. Từ logo đến biển hiệu, tất cả đều được thiết kế với phong cách hiện đại và trẻ trung. Phụ huynh và học viên rất thích.",
+      "Song Tạo đã giúp chúng tôi xây dựng hình ảnh thương hiệu chuyên nghiệp. Từ logo đến biển hiệu, tất cả đều được thiết kế với phong cách hiện đại và trẻ trung.",
   },
   {
     name: "Vũ Văn I",
@@ -117,162 +120,201 @@ const testimonials = [
     image:
       "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
     content:
-      "Song Tạo đã giúp chúng tôi thiết kế và thi công biển quảng cáo cho dự án bất động sản. Thiết kế sang trọng, chất lượng cao cấp. Khách hàng rất ấn tượng với hình ảnh thương hiệu của dự án.",
+      "Song Tạo đã giúp chúng tôi thiết kế và thi công biển quảng cáo cho dự án bất động sản. Thiết kế sang trọng, chất lượng cao cấp. Khách hàng rất ấn tượng.",
   },
 ];
 
 const Service = () => {
   return (
-    <div className="bg-gray-100 min-h-screen py-10">
-      <div className="text-center mb-10">
-        <h2 className="text-4xl font-bold">
-          DỊCH VỤ <span className="text-custom-secondary">CỦA CHÚNG TÔI</span>
-        </h2>
-        <div className="w-20 h-1 bg-custom-secondary mx-auto mt-4"></div>
-      </div>
-      <div className="container mx-auto px-36">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {services.map((service, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col"
-            >
-              <img
-                src={service.img}
-                alt={service.title}
-                className="h-56 w-full object-cover"
-              />
-              <div className="p-6 flex flex-col flex-1">
-                <h3 className="text-xl font-bold mb-2">{service.title}</h3>
-                <p className="text-gray-600 flex-1">{service.desc}</p>
-                <button className="mt-4 bg-custom-secondary text-white font-semibold py-2 px-4 rounded hover:bg-yellow-500 transition">
-                  CHI TIẾT
-                </button>
-              </div>
-            </div>
-          ))}
+    <div className="bg-gray-50 min-h-screen">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-gradient-to-r bg-custom-primary text-white py-20 relative overflow-hidden"
+      >
+        {/* Ảnh nền phủ toàn bộ section */}
+        <img
+          src="https://images.unsplash.com/photo-1557858310-9052820906f7?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Decorative"
+          className="absolute inset-0 w-full h-full object-cover opacity-60 z-0 pointer-events-none select-none"
+        />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              Dịch Vụ{" "}
+              <span className="text-custom-secondary">Chuyên Nghiệp</span>
+            </h1>
+            <p className="text-xl text-blue-100 max-w-2xl mx-auto">
+              Chúng tôi cung cấp các giải pháp quảng cáo toàn diện, từ thiết kế
+              đến thi công, đảm bảo mang lại hiệu quả tối đa cho doanh nghiệp
+              của bạn.
+            </p>
+          </div>
         </div>
-      </div>
+      </motion.section>
 
-      <section id="testimonials" className="testimonials section-bg py-14">
-        <div className="container mx-auto px-36" data-aos="fade-up">
-          <div className="text-center mb-10">
-            <h2 className="text-4xl font-bold">
-              ĐÁNH GIÁ{" "}
-              <span className="text-custom-secondary">TỪ KHÁCH HÀNG</span>
+     
+      <section className="py-20">
+        <div className="container mx-auto px-36">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Dịch Vụ{" "}
+              <span className="text-custom-secondary">Của Chúng Tôi</span>
             </h2>
-            <div className="w-20 h-1 bg-custom-secondary mx-auto mt-4"></div>
-            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
+            <div className="w-20 h-1 bg-custom-secondary mx-auto mb-6"></div>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Khám phá các dịch vụ chuyên nghiệp của chúng tôi, được thiết kế để
+              đáp ứng mọi nhu cầu quảng cáo của bạn
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {services.map((service, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300"
+              >
+                <div className="relative overflow-hidden">
+                  <img
+                    src={service.img}
+                    alt={service.title}
+                    className="w-full h-64 object-cover transform hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    {service.title}
+                  </h3>
+                  <p className="text-gray-600 mb-4 min-h-[56px]">
+                    {service.desc}
+                  </p>
+                  <button className="inline-flex items-center bg-custom-secondary text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-300 hover:translate-x-1">
+                    Chi tiết <FaArrowRight className="ml-2" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20 bg-gray-100">
+        <div className="container mx-auto px-36">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Đánh Giá{" "}
+              <span className="text-custom-secondary">Từ Khách Hàng</span>
+            </h2>
+            <div className="w-20 h-1 bg-custom-secondary mx-auto mb-6"></div>
+            <p className="text-gray-600 max-w-2xl mx-auto">
               Những phản hồi và đánh giá từ khách hàng đã sử dụng dịch vụ của
               chúng tôi
             </p>
-          </div>
+          </motion.div>
 
           <div className="relative">
             <Swiper
               modules={[Pagination, Navigation, Autoplay]}
-              spaceBetween={40}
+              spaceBetween={30}
               slidesPerView={1}
               pagination={{ clickable: true }}
-              navigation={false}
-              autoplay={{ delay: 2000, disableOnInteraction: false }}
+              navigation={true}
+              autoplay={{ delay: 3000, disableOnInteraction: false }}
               breakpoints={{
                 640: { slidesPerView: 1 },
                 1024: { slidesPerView: 2 },
+                1280: { slidesPerView: 3 },
               }}
               className="testimonials-swiper"
             >
               {testimonials.map((testimonial, index) => (
                 <SwiperSlide key={index}>
-                  <div className="bg-white p-8 rounded-lg shadow-lg mx-4 h-full">
-                    <div className="flex items-center mb-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="bg-white p-8 rounded-xl shadow-lg h-full"
+                  >
+                    <div className="flex items-center mb-6">
                       <img
                         src={testimonial.image}
-                        className="w-20 h-20 rounded-full mr-4"
-                        alt="Khách hàng"
+                        className="w-16 h-16 rounded-full object-cover border-4 border-blue-100"
+                        alt={testimonial.name}
                       />
-                      <div>
-                        <h3 className="text-xl font-bold">
+                      <div className="ml-4">
+                        <h3 className="text-lg font-bold text-gray-900">
                           {testimonial.name}
                         </h3>
-                        <h4 className="text-gray-600">
+                        <p className="text-custom-secondary">
                           {testimonial.position}
-                        </h4>
+                        </p>
                       </div>
                     </div>
                     <div className="flex text-yellow-400 mb-4">
                       {[...Array(5)].map((_, i) => (
-                        <svg
-                          key={i}
-                          className="w-5 h-5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
+                        <FaStar key={i} className="w-5 h-5" />
                       ))}
                     </div>
-                    <p className="text-gray-600 italic">
+                    <p className="text-gray-600 italic leading-relaxed">
                       {testimonial.content}
                     </p>
-                  </div>
+                  </motion.div>
                 </SwiperSlide>
               ))}
             </Swiper>
-
-            <div className="swiper-pagination !bottom-0"></div>
           </div>
         </div>
       </section>
 
-      <section className="py-14 bg-custom-primary text-white mt-5">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl text-custom-secondary font-bold mb-6">
-            Nhận thông tin mới từ chúng tôi
-          </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Đăng ký nhận tư vấn ngay hôm nay và trải nghiệm sức mạnh của AI
-            trong quảng cáo
-          </p>
+      <section className="py-20 bg-custom-primary">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-4xl mx-auto text-center"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+              Nhận Thông Tin Mới Từ Chúng Tôi
+            </h2>
+            <p className="text-xl text-blue-100 mb-8">
+              Đăng ký nhận tư vấn ngay hôm nay và trải nghiệm sức mạnh của quảng
+              cáo chuyên nghiệp
+            </p>
 
-          <div className="flex w-full md:w-auto flex-1">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="white"
-              className="w-16 h-16 mx-auto md:mx-0"
-            >
-              <rect
-                x="3"
-                y="6"
-                width="18"
-                height="12"
-                rx="2"
-                stroke="white"
-                strokeWidth="2"
-                fill="none"
-              />
-              <path
-                d="M3 6l9 7 9-7"
-                stroke="white"
-                strokeWidth="2"
-                fill="none"
-              />
-            </svg>
-            <input
-              type="email"
-              placeholder="Nhập email nhận tin"
-              className="flex-1 px-4 py-4 rounded-sm outline-none text-gray-700 text-base bg-white placeholder-gray-400"
-            />
-            <button
-              type="submit"
-              className="bg-custom-secondary text-white font-bold px-8 py-4 rounded-sm cur  transition"
-            >
-              ĐĂNG KÝ
-            </button>
-          </div>
+            <div className="flex flex-col md:flex-row gap-4 max-w-2xl mx-auto">
+              <div className="flex-1 relative">
+                <FaEnvelope className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="email"
+                  placeholder="Nhập email của bạn"
+                  className="w-full pl-12 pr-4 py-4 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-custom-secondary hover:bg-custom-secondary/90 text-white font-bold px-8 py-4 rounded-lg transition-colors duration-300"
+              >
+                Tư Vấn Nhanh
+              </button>
+            </div>
+          </motion.div>
         </div>
       </section>
     </div>
