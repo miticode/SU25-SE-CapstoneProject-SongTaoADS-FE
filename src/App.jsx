@@ -8,6 +8,7 @@ import Signup from "./pages/SignUp";
 import Service from "./pages/Service";
 import Blog from "./pages/Blog";
 import Aboutus from "./pages/Aboutus";
+import AIDesign from "./pages/AiDesign";
 
 const App = () => {
   const location = useLocation();
@@ -20,6 +21,7 @@ const App = () => {
           <Route path="service" element={<Service />} />
           <Route path="blog" element={<Blog />} />
           <Route path="aboutus" element={<Aboutus />} />
+          <Route path="ai-design" element={<AIDesign />} />
         </Route>
 
         <Route path="/auth" element={<AuthLayout />}>

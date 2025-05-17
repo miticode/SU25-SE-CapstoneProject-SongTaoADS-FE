@@ -225,7 +225,7 @@ const Blog = () => {
                 hiệu.
               </p>
               <Link
-                to="/about"
+                to="/aboutus"
                 className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors"
               >
                 Tìm Hiểu Thêm Về Chúng Tôi

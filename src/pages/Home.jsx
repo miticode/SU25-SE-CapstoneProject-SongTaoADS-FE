@@ -1,8 +1,10 @@
 import { FaChartLine, FaRegLightbulb } from "react-icons/fa";
 import { SiProbot } from "react-icons/si";
 import Carousel from "../components/Carousel";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
+  const navigate = useNavigate();
   const carouselItems = [
     {
       image: "https://placehold.co/1200x600/2B2F4A/FFF?text=AI+Marketing+Tool",
@@ -39,7 +41,10 @@ const Home = () => {
                 hiệu quả thông qua công nghệ AI tiên tiến nhất.
               </p>
               <div className="mt-8 space-x-4 flex flex-wrap gap-3">
-                <button className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg">
+                <button
+                  onClick={() => navigate("/ai-design")}
+                  className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer"
+                >
                   Dùng AI
                 </button>
                 <button className="px-6 py-3 border border-white text-white font-medium rounded-md hover:bg-white hover:text-[#2B2F4A] transition-colors">
