@@ -133,7 +133,7 @@ const Service = () => {
         transition={{ duration: 0.5 }}
         className="bg-gradient-to-r bg-custom-primary text-white py-20 relative overflow-hidden"
       >
-        {/* Ảnh nền phủ toàn bộ section */}
+    
         <img
           src="https://images.unsplash.com/photo-1557858310-9052820906f7?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Decorative"
@@ -154,7 +154,6 @@ const Service = () => {
         </div>
       </motion.section>
 
-     
       <section className="py-20">
         <div className="container mx-auto px-36">
           <motion.div
