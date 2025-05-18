@@ -1,16 +1,111 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { register, resetAuthStatus } from "../store/features/auth/authSlice";
+import { isAuthenticated } from "../utils/cookieManager";
 import PageTransition from "../components/PageTransition";
 
+// Import MUI components
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+
+// Import React Icons
+import { FaExclamationCircle } from "react-icons/fa";
+import { FaExclamationTriangle } from "react-icons/fa";
+
 const Signup = () => {
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
 
-  const handleSubmit = (e) => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { status, error, isAuthenticated: reduxAuth } = useSelector(
+    (state) => state.auth
+  );
+
+  useEffect(() => {
+    // Reset auth status khi component mount
+    dispatch(resetAuthStatus());
+
+    // Chuyển hướng nếu đã đăng nhập
+    if (reduxAuth || isAuthenticated()) {
+      navigate("/"); // hoặc trang mà bạn muốn chuyển hướng sau khi đăng nhập
+    }
+  }, [dispatch, reduxAuth, navigate]);
+
+  const validatePassword = (password) => {
+    // Kiểm tra mật khẩu có ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{6,}$/;
+    return passwordRegex.test(password);
+  };
+
+  const validatePhone = (phone) => {
+    // Kiểm tra số điện thoại Việt Nam
+    const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+    return phoneRegex.test(phone);
+  };
+
+  const validateForm = () => {
+    setFormError("");
+    setPasswordError("");
+
+    // Kiểm tra mật khẩu và xác nhận mật khẩu
+    if (password !== confirmPassword) {
+      setPasswordError("Mật khẩu xác nhận không khớp");
+      return false;
+    }
+
+    // Kiểm tra độ mạnh của mật khẩu
+    if (!validatePassword(password)) {
+      setPasswordError(
+        "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt"
+      );
+      return false;
+    }
+
+    // Kiểm tra số điện thoại
+    if (phone && !validatePhone(phone)) {
+      setFormError("Số điện thoại không hợp lệ");
+      return false;
+    }
+
+    // Kiểm tra đồng ý điều khoản
+    if (!agreeTerms) {
+      setFormError("Bạn phải đồng ý với điều khoản sử dụng");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Xử lý đăng ký
-    console.log("Register with:", { name, email, password });
+
+    if (validateForm()) {
+      try {
+        // Dispatch register action và đợi kết quả
+        await dispatch(
+          register({
+            email,
+            password,
+            fullName,
+            phone,
+          })
+        ).unwrap();
+
+        // Chuyển hướng đến trang đăng nhập với thông báo thành công
+        navigate("/auth/login?registered=success");
+      } catch (err) {
+        // Lỗi đã được xử lý trong slice
+        console.error("Registration failed:", err);
+      }
+    }
   };
 
   return (
@@ -22,22 +117,36 @@ const Signup = () => {
         </p>
       </div>
 
+      {/* Hiển thị thông báo lỗi từ Redux hoặc form validation sử dụng MUI Alert */}
+      {(status === "failed" || formError) && (
+        <Box sx={{ width: '100%', mb: 3 }}>
+          <Alert 
+            severity="error"
+            icon={<FaExclamationCircle className="text-xl" />}
+            sx={{ mb: 2, alignItems: 'center' }}
+          >
+            {error || formError || "Đăng ký thất bại. Vui lòng thử lại."}
+          </Alert>
+        </Box>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label
-            htmlFor="name"
+            htmlFor="fullName"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
             Họ và tên
           </label>
           <input
-            id="name"
+            id="fullName"
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             required
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="Nguyễn Văn A"
+            disabled={status === "loading"}
           />
         </div>
 
@@ -56,6 +165,26 @@ const Signup = () => {
             required
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="your.email@example.com"
+            disabled={status === "loading"}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="phone"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Số điện thoại
+          </label>
+          <input
+            id="phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
+            placeholder="0901234567"
+            disabled={status === "loading"}
           />
         </div>
 
@@ -74,18 +203,52 @@ const Signup = () => {
             required
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="••••••••"
+            disabled={status === "loading"}
           />
           <p className="mt-1 text-xs text-gray-500">
             Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt
           </p>
         </div>
 
+        <div>
+          <label
+            htmlFor="confirmPassword"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Xác nhận mật khẩu
+          </label>
+          <input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
+            placeholder="••••••••"
+            disabled={status === "loading"}
+          />
+          {passwordError && (
+            <Box sx={{ width: '100%', mt: 1 }}>
+              <Alert 
+                severity="warning"
+                icon={<FaExclamationTriangle className="text-lg" />}
+                sx={{ py: 0, alignItems: 'center' }}
+              >
+                {passwordError}
+              </Alert>
+            </Box>
+          )}
+        </div>
+
         <div className="flex items-center">
           <input
             id="terms"
             type="checkbox"
+            checked={agreeTerms}
+            onChange={(e) => setAgreeTerms(e.target.checked)}
             required
             className="h-4 w-4 text-[#2B2F4A] border-gray-300 rounded focus:ring-[#2B2F4A]"
+            disabled={status === "loading"}
           />
           <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
             Tôi đồng ý với{" "}
@@ -101,9 +264,12 @@ const Signup = () => {
 
         <button
           type="submit"
-          className="w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium"
+          disabled={status === "loading"}
+          className={`w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium ${
+            status === "loading" ? "opacity-70 cursor-not-allowed" : ""
+          }`}
         >
-          Đăng ký
+          {status === "loading" ? "Đang xử lý..." : "Đăng ký"}
         </button>
       </form>
 
@@ -132,7 +298,11 @@ const Signup = () => {
         </div>
 
         <div className="mt-6 flex justify-center">
-          <button className="flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <button 
+            type="button"
+            className="flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            disabled={status === "loading"}
+          >
             <svg
               className="h-5 w-5 mr-2"
               viewBox="0 0 24 24"
@@ -155,7 +325,7 @@ const Signup = () => {
                 fill="#EA4335"
               />
             </svg>
-            Đăng nhập với Google
+            Đăng ký với Google
           </button>
         </div>
       </div>

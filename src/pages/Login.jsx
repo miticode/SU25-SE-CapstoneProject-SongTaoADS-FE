@@ -1,15 +1,61 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { login, resetAuthStatus } from "../store/features/auth/authSlice";
+import { isAuthenticated } from "../utils/cookieManager";
 import PageTransition from "../components/PageTransition";
 
+// Import MUI components
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Collapse from "@mui/material/Collapse";
+
+// Import React Icons
+import { FaCheckCircle } from "react-icons/fa";
+import { FaExclamationCircle } from "react-icons/fa";
+import { IoClose } from "react-icons/io5";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [openAlert, setOpenAlert] = useState(true);
 
-  const handleSubmit = (e) => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const {
+    status,
+    error,
+    isAuthenticated: reduxAuth,
+  } = useSelector((state) => state.auth);
+
+  // Kiểm tra xem người dùng vừa đăng ký thành công hay không
+  const [searchParams] = useSearchParams();
+  const registrationSuccess = searchParams.get("registered") === "success";
+
+  useEffect(() => {
+    // Reset auth status khi component mount
+    dispatch(resetAuthStatus());
+
+    // Chuyển hướng nếu đã đăng nhập
+    if (reduxAuth || isAuthenticated()) {
+      navigate("/"); // hoặc trang mà bạn muốn chuyển hướng sau khi đăng nhập
+    }
+  }, [dispatch, reduxAuth, navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("Login with:", { email, password });
+    try {
+      // Dispatch login action và đợi kết quả
+      await dispatch(login({ email, password, rememberMe })).unwrap();
+
+      // Nếu thành công, chuyển hướng đến dashboard
+      navigate("/"); // hoặc trang mà bạn muốn chuyển hướng sau khi đăng nhập
+    } catch (err) {
+      // Lỗi đã được xử lý trong slice
+      console.error("Login failed:", err);
+    }
   };
 
   return (
@@ -20,6 +66,43 @@ const Login = () => {
           Chào mừng bạn quay trở lại! Hãy đăng nhập để tiếp tục.
         </p>
       </div>
+      {registrationSuccess && (
+        <Box sx={{ width: "100%", mb: 3 }}>
+          <Collapse in={openAlert}>
+            <Alert
+              severity="success"
+              icon={<FaCheckCircle className="text-xl" />}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setOpenAlert(false);
+                  }}
+                >
+                  <IoClose />
+                </IconButton>
+              }
+              sx={{ mb: 2, alignItems: "center" }}
+            >
+              Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục.
+            </Alert>
+          </Collapse>
+        </Box>
+      )}
+      {/* Hiển thị thông báo lỗi nếu có */}
+      {status === "failed" && (
+        <Box sx={{ width: "100%", mb: 3 }}>
+          <Alert
+            severity="error"
+            icon={<FaExclamationCircle className="text-xl" />}
+            sx={{ mb: 2, alignItems: "center" }}
+          >
+            {error || "Đăng nhập thất bại. Vui lòng thử lại."}
+          </Alert>
+        </Box>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -37,6 +120,7 @@ const Login = () => {
             required
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="your.email@example.com"
+            disabled={status === "loading"}
           />
         </div>
 
@@ -63,6 +147,7 @@ const Login = () => {
             required
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="••••••••"
+            disabled={status === "loading"}
           />
         </div>
 
@@ -70,6 +155,8 @@ const Login = () => {
           <input
             id="remember-me"
             type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
             className="h-4 w-4 text-[#2B2F4A] border-gray-300 rounded focus:ring-[#2B2F4A]"
           />
           <label
@@ -82,9 +169,12 @@ const Login = () => {
 
         <button
           type="submit"
-          className="w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium"
+          disabled={status === "loading"}
+          className={`cursor-pointer w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium ${
+            status === "loading" ? "opacity-70 cursor-not-allowed" : ""
+          }`}
         >
-          Đăng nhập
+          {status === "loading" ? "Đang xử lý..." : "Đăng nhập"}
         </button>
       </form>
 
@@ -113,7 +203,11 @@ const Login = () => {
         </div>
 
         <div className="mt-6 flex justify-center">
-          <button className="flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            type="button"
+            className="flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            disabled={status === "loading"}
+          >
             <svg
               className="h-5 w-5 mr-2"
               viewBox="0 0 24 24"

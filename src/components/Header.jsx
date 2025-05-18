@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
-import { FaBell, FaBars, FaChevronDown, FaSearch } from "react-icons/fa";
+import { FaBell, FaBars, FaChevronDown, FaSearch, FaUserCircle } from "react-icons/fa";
 import { SiProbot } from "react-icons/si";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { logout } from "../store/features/auth/authSlice";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [hideAnnouncement, setHideAnnouncement] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  
+  const { isAuthenticated, user } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,6 +24,33 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logout()).unwrap();
+      navigate('/auth/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const toggleUserMenu = () => {
+    setUserMenuOpen(!userMenuOpen);
+  };
+
+  useEffect(() => {
+    const closeUserMenu = () => {
+      setUserMenuOpen(false);
+    };
+
+    if (userMenuOpen) {
+      document.addEventListener('click', closeUserMenu);
+    }
+
+    return () => {
+      document.removeEventListener('click', closeUserMenu);
+    };
+  }, [userMenuOpen]);
 
   return (
     <header
@@ -129,18 +163,66 @@ export default function Header() {
               size={14}
             />
           </div>
-          <Link
-            to="/auth/login"
-            className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Đăng nhập
-          </Link>
-          <Link
-            to="/auth/signup"
-            className="px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
-          >
-            Đăng ký
-          </Link>
+          
+          {isAuthenticated ? (
+            <div className="relative">
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  toggleUserMenu();
+                }}
+                className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
+              >
+                <FaUserCircle size={20} className="text-[#2B2F4A]" />
+                <span className="font-medium text-gray-700">
+                  {user?.fullName || user?.email || "Tài khoản"}
+                </span>
+                <FaChevronDown size={12} className="text-gray-500" />
+              </button>
+              
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link
+                      to="/dashboard"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      Bảng điều khiển
+                    </Link>
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      Thông tin cá nhân
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link
+                to="/auth/login"
+                className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Đăng nhập
+              </Link>
+              <Link
+                to="/auth/signup"
+                className="px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
+              >
+                Đăng ký
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -189,7 +271,8 @@ export default function Header() {
           <a href="/blog" className="block py-2 hover:text-[#2B2F4A]">
             Blog
           </a>
-          <div className="pt-3  mt-3">
+          
+          <div className="pt-3 mt-3">
             <div className="relative mb-3">
               <input
                 type="text"
@@ -201,18 +284,44 @@ export default function Header() {
                 size={14}
               />
             </div>
-            <Link
-              to="/auth/login"
-              className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              to="/auth/signup"
-              className="block w-full px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center"
-            >
-              Đăng ký
-            </Link>
+            
+            {isAuthenticated ? (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md mb-2">
+                  <FaUserCircle size={18} className="text-[#2B2F4A]" />
+                  <span className="font-medium text-gray-700 text-sm">
+                    {user?.fullName || user?.email || "Tài khoản"}
+                  </span>
+                </div>
+                <Link
+                  to="/dashboard"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                >
+                  Bảng điều khiển
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="block w-full px-4 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition-colors text-center"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  to="/auth/login"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  to="/auth/signup"
+                  className="block w-full px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center"
+                >
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
