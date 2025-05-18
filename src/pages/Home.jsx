@@ -1,3 +1,4 @@
+import React from "react";
 import { FaChartLine, FaRegLightbulb } from "react-icons/fa";
 import { SiProbot } from "react-icons/si";
 import Carousel from "../components/Carousel";
@@ -43,11 +44,11 @@ const Home = () => {
               <div className="mt-8 space-x-4 flex flex-wrap gap-3">
                 <button
                   onClick={() => navigate("/ai-design")}
-                  className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer"
+                  className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer z-50 relative"
                 >
                   Dùng AI
                 </button>
-                <button className="px-6 py-3 border border-white text-white font-medium rounded-md hover:bg-white hover:text-[#2B2F4A] transition-colors">
+                <button className="px-6 py-3 border border-white text-white font-medium rounded-md hover:bg-white hover:text-[#2B2F4A] transition-colors z-50 relative">
                   Dùng thủ công
                 </button>
               </div>
@@ -66,7 +67,7 @@ const Home = () => {
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1440 120"
-            className="fill-white"
+            className="fill-white pointer-events-none"
           >
             <path d="M0,64L60,80C120,96,240,128,360,128C480,128,600,96,720,80C840,64,960,64,1080,69.3C1200,75,1320,85,1380,90.7L1440,96L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path>
           </svg>

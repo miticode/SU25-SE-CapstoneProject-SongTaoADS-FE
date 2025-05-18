@@ -13,7 +13,129 @@ import {
   Typography,
   Grid,
   Box,
+  Snackbar,
+  Alert,
+  Backdrop,
+  CircularProgress,
 } from "@mui/material";
+import { FaCheck, FaRedo, FaCheckCircle, FaRobot } from "react-icons/fa";
+
+// Cấu trúc dữ liệu cho các options
+const formOptions = {
+  frame: {
+    label: "Chọn khung bảng",
+    options: [
+      { value: "aluminum", label: "Nhôm" },
+      { value: "steel", label: "Thép" },
+      { value: "composite", label: "Composite" },
+    ],
+  },
+  background: {
+    label: "Nền Bảng",
+    options: [
+      { value: "acrylic", label: "Acrylic" },
+      { value: "aluminum", label: "Nhôm" },
+      { value: "composite", label: "Composite" },
+    ],
+  },
+  border: {
+    label: "Chọn viền bảng",
+    options: [
+      { value: "none", label: "Không viền" },
+      { value: "thin", label: "Viền mỏng" },
+      { value: "thick", label: "Viền dày" },
+    ],
+  },
+  textAndLogo: {
+    label: "Chọn chữ & logo",
+    options: [
+      { value: "cutout", label: "Chữ cắt" },
+      { value: "printed", label: "Chữ in" },
+      { value: "led", label: "LED" },
+    ],
+  },
+  textStyle: {
+    label: "Chọn quy cách chữ",
+    options: [
+      { value: "uppercase", label: "Chữ in hoa" },
+      { value: "lowercase", label: "Chữ thường" },
+      { value: "mixed", label: "Hỗn hợp" },
+    ],
+  },
+  mountingStyle: {
+    label: "Chọn quy cách gắn",
+    options: [
+      { value: "wall", label: "Gắn tường" },
+      { value: "stand", label: "Đứng độc lập" },
+      { value: "hanging", label: "Treo" },
+    ],
+  },
+};
+
+// Cấu trúc dữ liệu cho các trường số
+const numberFields = [
+  { name: "height", label: "Chiều cao (cm)" },
+  { name: "width", label: "Chiều ngang (cm)" },
+  { name: "textLogoSize", label: "Kích thước chữ & logo (cm)" },
+];
+
+// Cấu trúc dữ liệu cho các options của biển hiệu truyền thống
+const traditionalFormOptions = {
+  frame: {
+    label: "Khung bảng",
+    options: [
+      { value: "wood", label: "Gỗ" },
+      { value: "iron", label: "Sắt" },
+      { value: "steel", label: "Thép" },
+    ],
+  },
+  background: {
+    label: "Nền bảng",
+    options: [
+      { value: "wood", label: "Gỗ" },
+      { value: "mica", label: "Mica" },
+      { value: "composite", label: "Composite" },
+    ],
+  },
+  border: {
+    label: "Viền bảng",
+    options: [
+      { value: "none", label: "Không viền" },
+      { value: "thin", label: "Viền mỏng" },
+      { value: "thick", label: "Viền dày" },
+    ],
+  },
+  surface: {
+    label: "Mặt bảng",
+    options: [
+      { value: "single", label: "Một mặt" },
+      { value: "double", label: "Hai mặt" },
+      { value: "triple", label: "Ba mặt" },
+    ],
+  },
+  mountingStyle: {
+    label: "Quy cách gắn",
+    options: [
+      { value: "wall", label: "Gắn tường" },
+      { value: "stand", label: "Đứng độc lập" },
+      { value: "hanging", label: "Treo" },
+    ],
+  },
+  faces: {
+    label: "Số mặt",
+    options: [
+      { value: "1", label: "1 mặt" },
+      { value: "2", label: "2 mặt" },
+      { value: "3", label: "3 mặt" },
+    ],
+  },
+};
+
+// Cấu trúc dữ liệu cho các trường số
+const traditionalNumberFields = [
+  { name: "height", label: "Chiều cao (cm)" },
+  { name: "width", label: "Chiều ngang (cm)" },
+];
 
 const ModernBillboardForm = () => {
   const [formData, setFormData] = useState({
@@ -36,6 +158,45 @@ const ModernBillboardForm = () => {
     }));
   };
 
+  // Hàm render Select field
+  const renderSelectField = (fieldName) => {
+    const field = formOptions[fieldName];
+    return (
+      <FormControl fullWidth variant="outlined">
+        <Select
+          labelId={`${fieldName}-label`}
+          name={fieldName}
+          value={formData[fieldName]}
+          onChange={handleChange}
+          displayEmpty
+        >
+          <MenuItem value="" disabled>
+            <em>{field.label}</em>
+          </MenuItem>
+          {field.options.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    );
+  };
+
+  // Hàm render Number field
+  const renderNumberField = (field) => (
+    <TextField
+      fullWidth
+      label={field.label}
+      name={field.name}
+      type="number"
+      value={formData[field.name]}
+      onChange={handleChange}
+      InputProps={{ inputProps: { min: 0 } }}
+      variant="outlined"
+    />
+  );
+
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={4}>
       <Paper
@@ -56,155 +217,26 @@ const ModernBillboardForm = () => {
         >
           Thông số kỹ thuật
         </Typography>
+
+        {/* Select Fields */}
         <Grid container spacing={3} mb={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                labelId="frame-label"
-                name="frame"
-                value={formData.frame}
-                onChange={handleChange}
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  <em>Chọn khung bảng</em>
-                </MenuItem>
-                <MenuItem value="aluminum">Nhôm</MenuItem>
-                <MenuItem value="steel">Thép</MenuItem>
-                <MenuItem value="composite">Composite</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                labelId="background-label"
-                name="background"
-                value={formData.background}
-                onChange={handleChange}
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  Nền Bảng
-                </MenuItem>
-                <MenuItem value="acrylic">Acrylic</MenuItem>
-                <MenuItem value="aluminum">Nhôm</MenuItem>
-                <MenuItem value="composite">Composite</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                labelId="border-label"
-                name="border"
-                value={formData.border}
-                onChange={handleChange}
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  <em>Chọn viền bảng</em>
-                </MenuItem>
-                <MenuItem value="none">Không viền</MenuItem>
-                <MenuItem value="thin">Viền mỏng</MenuItem>
-                <MenuItem value="thick">Viền dày</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                labelId="textAndLogo-label"
-                name="textAndLogo"
-                value={formData.textAndLogo}
-                onChange={handleChange}
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  <em>Chọn chữ & logo</em>
-                </MenuItem>
-                <MenuItem value="cutout">Chữ cắt</MenuItem>
-                <MenuItem value="printed">Chữ in</MenuItem>
-                <MenuItem value="led">LED</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                labelId="textStyle-label"
-                name="textStyle"
-                value={formData.textStyle}
-                onChange={handleChange}
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  <em>Chọn quy cách chữ</em>
-                </MenuItem>
-                <MenuItem value="uppercase">Chữ in hoa</MenuItem>
-                <MenuItem value="lowercase">Chữ thường</MenuItem>
-                <MenuItem value="mixed">Hỗn hợp</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                labelId="mountingStyle-label"
-                name="mountingStyle"
-                value={formData.mountingStyle}
-                onChange={handleChange}
-                displayEmpty
-              >
-                <MenuItem value="" disabled>
-                  <em>Chọn quy cách gắn</em>
-                </MenuItem>
-                <MenuItem value="wall">Gắn tường</MenuItem>
-                <MenuItem value="stand">Đứng độc lập</MenuItem>
-                <MenuItem value="hanging">Treo</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
+          {Object.keys(formOptions).map((fieldName) => (
+            <Grid item xs={12} sm={6} md={4} key={fieldName}>
+              {renderSelectField(fieldName)}
+            </Grid>
+          ))}
         </Grid>
+
+        {/* Number Fields */}
         <Grid container spacing={3} mb={2}>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Chiều cao (cm)"
-              name="height"
-              type="number"
-              value={formData.height}
-              onChange={handleChange}
-              InputProps={{ inputProps: { min: 0 } }}
-              variant="outlined"
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Chiều ngang (cm)"
-              name="width"
-              type="number"
-              value={formData.width}
-              onChange={handleChange}
-              InputProps={{ inputProps: { min: 0 } }}
-              variant="outlined"
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Kích thước chữ & logo (cm)"
-              name="textLogoSize"
-              type="number"
-              value={formData.textLogoSize}
-              onChange={handleChange}
-              InputProps={{ inputProps: { min: 0 } }}
-              variant="outlined"
-            />
-          </Grid>
+          {numberFields.map((field) => (
+            <Grid item xs={12} sm={4} key={field.name}>
+              {renderNumberField(field)}
+            </Grid>
+          ))}
         </Grid>
       </Paper>
+
       <Paper
         elevation={2}
         sx={{
@@ -250,6 +282,46 @@ const TraditionalBillboardForm = () => {
     }));
   };
 
+  // Hàm render Select field
+  const renderSelectField = (fieldName) => {
+    const field = traditionalFormOptions[fieldName];
+    return (
+      <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
+        <InputLabel id={`${fieldName}-label`}>{field.label}</InputLabel>
+        <Select
+          labelId={`${fieldName}-label`}
+          name={fieldName}
+          value={formData[fieldName]}
+          onChange={handleChange}
+          label={field.label}
+        >
+          <MenuItem value="" disabled>
+            Chọn {field.label.toLowerCase()}
+          </MenuItem>
+          {field.options.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    );
+  };
+
+  // Hàm render Number field
+  const renderNumberField = (field) => (
+    <TextField
+      fullWidth
+      label={field.label}
+      name={field.name}
+      type="number"
+      value={formData[field.name]}
+      onChange={handleChange}
+      InputProps={{ inputProps: { min: 0 } }}
+      variant="outlined"
+    />
+  );
+
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={4}>
       <Paper
@@ -270,147 +342,23 @@ const TraditionalBillboardForm = () => {
         >
           Thông số kỹ thuật
         </Typography>
+
+        {/* Select Fields */}
         <Grid container spacing={3} mb={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-              <InputLabel id="frame-label">Khung bảng</InputLabel>
-              <Select
-                labelId="frame-label"
-                name="frame"
-                value={formData.frame}
-                onChange={handleChange}
-                label="Khung bảng"
-              >
-                <MenuItem value="" disabled>
-                  Chọn khung bảng
-                </MenuItem>
-                <MenuItem value="wood">Gỗ</MenuItem>
-                <MenuItem value="iron">Sắt</MenuItem>
-                <MenuItem value="steel">Thép</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-              <InputLabel id="background-label">Nền bảng</InputLabel>
-              <Select
-                labelId="background-label"
-                name="background"
-                value={formData.background}
-                onChange={handleChange}
-                label="Nền bảng"
-              >
-                <MenuItem value="" disabled>
-                  Chọn nền bảng
-                </MenuItem>
-                <MenuItem value="wood">Gỗ</MenuItem>
-                <MenuItem value="mica">Mica</MenuItem>
-                <MenuItem value="composite">Composite</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-              <InputLabel id="border-label">Viền bảng</InputLabel>
-              <Select
-                labelId="border-label"
-                name="border"
-                value={formData.border}
-                onChange={handleChange}
-                label="Viền bảng"
-              >
-                <MenuItem value="" disabled>
-                  Chọn viền bảng
-                </MenuItem>
-                <MenuItem value="none">Không viền</MenuItem>
-                <MenuItem value="thin">Viền mỏng</MenuItem>
-                <MenuItem value="thick">Viền dày</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-              <InputLabel id="surface-label">Mặt bảng</InputLabel>
-              <Select
-                labelId="surface-label"
-                name="surface"
-                value={formData.surface}
-                onChange={handleChange}
-                label="Mặt bảng"
-              >
-                <MenuItem value="" disabled>
-                  Chọn mặt bảng
-                </MenuItem>
-                <MenuItem value="single">Một mặt</MenuItem>
-                <MenuItem value="double">Hai mặt</MenuItem>
-                <MenuItem value="triple">Ba mặt</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-              <InputLabel id="mountingStyle-label">Quy cách gắn</InputLabel>
-              <Select
-                labelId="mountingStyle-label"
-                name="mountingStyle"
-                value={formData.mountingStyle}
-                onChange={handleChange}
-                label="Quy cách gắn"
-              >
-                <MenuItem value="" disabled>
-                  Chọn quy cách gắn
-                </MenuItem>
-                <MenuItem value="wall">Gắn tường</MenuItem>
-                <MenuItem value="stand">Đứng độc lập</MenuItem>
-                <MenuItem value="hanging">Treo</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-              <InputLabel id="faces-label">Số mặt</InputLabel>
-              <Select
-                labelId="faces-label"
-                name="faces"
-                value={formData.faces}
-                onChange={handleChange}
-                label="Số mặt"
-              >
-                <MenuItem value="" disabled>
-                  Chọn số mặt
-                </MenuItem>
-                <MenuItem value="1">1 mặt</MenuItem>
-                <MenuItem value="2">2 mặt</MenuItem>
-                <MenuItem value="3">3 mặt</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
+          {Object.keys(traditionalFormOptions).map((fieldName) => (
+            <Grid item xs={12} sm={6} md={4} key={fieldName}>
+              {renderSelectField(fieldName)}
+            </Grid>
+          ))}
         </Grid>
+
+        {/* Number Fields */}
         <Grid container spacing={3} mb={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Chiều cao (cm)"
-              name="height"
-              type="number"
-              value={formData.height}
-              onChange={handleChange}
-              InputProps={{ inputProps: { min: 0 } }}
-              variant="outlined"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Chiều ngang (cm)"
-              name="width"
-              type="number"
-              value={formData.width}
-              onChange={handleChange}
-              InputProps={{ inputProps: { min: 0 } }}
-              variant="outlined"
-            />
-          </Grid>
+          {traditionalNumberFields.map((field) => (
+            <Grid item xs={12} sm={6} key={field.name}>
+              {renderNumberField(field)}
+            </Grid>
+          ))}
         </Grid>
       </Paper>
     </Box>
@@ -420,14 +368,41 @@ const TraditionalBillboardForm = () => {
 const AIDesign = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentStep, setCurrentStep] = useState(1); // 1: Start, 2: Business, 3: Billboard Type, 4: Billboard Form
+  const [currentStep, setCurrentStep] = useState(1); // 1: Start, 2: Business, 3: Billboard Type, 4: Billboard Form, 5: Preview
   const [billboardType, setBillboardType] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
     contactInfo: "",
     logo: null,
   });
+
+  // Tạm thời sử dụng 4 ảnh mẫu
+  const previewImages = [
+    {
+      id: 1,
+      url: "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
+      title: "Mẫu 1",
+    },
+    {
+      id: 2,
+      url: "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
+      title: "Mẫu 2",
+    },
+    {
+      id: 3,
+      url: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
+      title: "Mẫu 3",
+    },
+    {
+      id: 4,
+      url: "https://bienquangcao247.com/wp-content/uploads/2024/07/bang-hieu-quang-cao-01.jpg",
+      title: "Mẫu 4",
+    },
+  ];
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -465,7 +440,6 @@ const AIDesign = () => {
 
   const handleBusinessSubmit = async (e) => {
     e.preventDefault();
-
     console.log("Business Info:", businessInfo);
     setCurrentStep(3);
     navigate("/ai-design?step=billboard");
@@ -473,10 +447,32 @@ const AIDesign = () => {
 
   const handleBillboardSubmit = async (e) => {
     e.preventDefault();
-
     console.log("Billboard Type:", billboardType);
-    setCurrentStep(1);
-    navigate("/ai-design");
+    setIsGenerating(true);
+
+    // Giả lập thời gian AI tạo hình ảnh (3 giây)
+    setTimeout(() => {
+      setIsGenerating(false);
+      setCurrentStep(5);
+    }, 3000);
+  };
+
+  const handleImageSelect = (imageId) => {
+    setSelectedImage(imageId);
+  };
+
+  const handleRegenerate = () => {
+    setCurrentStep(3); // Quay lại bước chọn loại biển hiệu
+    navigate("/ai-design?step=billboard");
+  };
+
+  const handleConfirm = () => {
+    setShowSuccess(true);
+    // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
+    setTimeout(() => {
+      setShowSuccess(false);
+      navigate("/");
+    }, 3000);
   };
 
   const handleBillboardTypeSelect = (type) => {
@@ -517,6 +513,7 @@ const AIDesign = () => {
     { number: 2, label: "Thông tin doanh nghiệp" },
     { number: 3, label: "Chọn loại biển hiệu" },
     { number: 4, label: "Thông tin biển hiệu" },
+    { number: 5, label: "Xem trước" },
   ];
 
   const containerVariants = {
@@ -958,6 +955,100 @@ const AIDesign = () => {
           </motion.div>
         );
 
+      case 5:
+        return (
+          <motion.div
+            className="max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-8 text-center"
+              variants={itemVariants}
+            >
+              Xem trước thiết kế
+            </motion.h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+              {previewImages.map((image) => (
+                <motion.div
+                  key={image.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transform transition-all duration-300 ${
+                    selectedImage === image.id
+                      ? "ring-4 ring-custom-secondary scale-105"
+                      : "hover:scale-105"
+                  }`}
+                  onClick={() => handleImageSelect(image.id)}
+                >
+                  <img
+                    src={image.url}
+                    alt={image.title}
+                    className="w-full h-64 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                    <div className="bg-white rounded-full p-2">
+                      <FaCheck className="w-6 h-6 text-custom-secondary" />
+                    </div>
+                  </div>
+                  {selectedImage === image.id && (
+                    <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                      <FaCheckCircle className="w-6 h-6" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="flex justify-center space-x-6">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRegenerate}
+                className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center"
+              >
+                <FaRedo className="mr-2" />
+                Tạo lại
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleConfirm}
+                disabled={!selectedImage}
+                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+                  selectedImage
+                    ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                <FaCheck className="mr-2" />
+                Xác nhận
+              </motion.button>
+            </div>
+
+            {/* Success Snackbar */}
+            <Snackbar
+              open={showSuccess}
+              anchorOrigin={{ vertical: "top", horizontal: "right" }}
+              autoHideDuration={3000}
+              onClose={() => setShowSuccess(false)}
+            >
+              <Alert
+                onClose={() => setShowSuccess(false)}
+                severity="success"
+                variant="filled"
+                sx={{ width: "100%" }}
+              >
+                Đặt hàng thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.
+              </Alert>
+            </Snackbar>
+          </motion.div>
+        );
+
       default:
         return null;
     }
@@ -973,6 +1064,32 @@ const AIDesign = () => {
         />
         {renderContent()}
       </div>
+
+      {/* AI Generation Loading Backdrop */}
+      <Backdrop
+        sx={{
+          color: "#fff",
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+        }}
+        open={isGenerating}
+      >
+        <div className="flex flex-col items-center">
+          <CircularProgress color="secondary" size={60} />
+          <div className="mt-6 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <FaRobot className="w-8 h-8 text-custom-secondary mr-3 animate-bounce" />
+              <h3 className="text-2xl font-bold text-white">
+                AI đang tạo hình ảnh
+              </h3>
+            </div>
+            <p className="text-gray-300 max-w-md">
+              Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù
+              hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát...
+            </p>
+          </div>
+        </div>
+      </Backdrop>
     </div>
   );
 };

@@ -114,28 +114,34 @@ const Blog = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-gradient-to-r bg-custom-primary text-white py-20 relative overflow-hidden"
+        className="bg-gradient-to-r bg-custom-primary text-white py-24 relative overflow-hidden"
       >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 to-indigo-900/70 z-0"></div>
         <img
           src="https://media.istockphoto.com/id/2052899752/vi/anh/%C4%91%C3%A1m-%C4%91%C3%B4ng-qu%E1%BA%A3ng-tr%C6%B0%E1%BB%9Dng-xi%E1%BA%BFc-london-piccadilly-c%E1%BB%A7a-v%C6%B0%C6%A1ng-qu%E1%BB%91c-anh.jpg?s=2048x2048&w=is&k=20&c=h0kCV1DGRCmRP61DLvv-Sr8oIrKjWmGWCJs7P6YiNu0="
           alt="Decorative"
-          className="absolute inset-0 w-full h-full object-cover opacity-60 z-0 pointer-events-none select-none"
+          className="absolute inset-0 w-full h-full object-cover opacity-40 z-0 pointer-events-none select-none"
         />
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              <span className="text-white">Tin Tức</span>
-            </h1>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto">
-              THIẾT KẾ SÁNG TẠO | THỰC HIỆN CHUẨN MỰC | THI CÔNG TỐC HÀNH
-            </p>
+          <div className="text-center max-w-3xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+            >
+              <h1 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
+                Tin {""}
+                <span className="text-custom-secondary">Tức</span>
+              </h1>
+              <p className="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto font-light">
+                THIẾT KẾ SÁNG TẠO | THỰC HIỆN CHUẨN MỰC | THI CÔNG TỐC HÀNH
+              </p>
+            </motion.div>
           </div>
         </div>
       </motion.section>
-
       <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-3 gap-10">
-          {/* Blog Posts - 2/3 width */}
           <div className="lg:col-span-2">
             <h2 className="text-3xl font-bold text-gray-900 mb-8">
               Tin Tức Mới Nhất
