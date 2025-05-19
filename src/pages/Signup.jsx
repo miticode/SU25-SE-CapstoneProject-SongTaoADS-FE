@@ -265,7 +265,7 @@ const Signup = () => {
         <button
           type="submit"
           disabled={status === "loading"}
-          className={`w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium ${
+          className={`cursor-pointer w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium ${
             status === "loading" ? "opacity-70 cursor-not-allowed" : ""
           }`}
         >
@@ -300,7 +300,7 @@ const Signup = () => {
         <div className="mt-6 flex justify-center">
           <button 
             type="button"
-            className="flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="cursor-pointer flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             disabled={status === "loading"}
           >
             <svg
