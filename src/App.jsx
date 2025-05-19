@@ -1,10 +1,11 @@
 import { Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Snackbar, Alert } from "@mui/material";
 
 import { syncAuthState } from "./store/features/auth/authSlice";
-import { getAuthState } from "./api/authService";
+import { checkAuthStatus } from "./api/authService";
 
 import MainLayout from "./layouts/MainLayout";
 import Home from "./pages/Home";
@@ -16,6 +17,14 @@ import Blog from "./pages/Blog";
 import Aboutus from "./pages/Aboutus";
 import AIDesign from "./pages/AiDesign";
 import Dashboard from "./pages/Dashboard";
+
+// Custom event để theo dõi đăng nhập thành công
+const loginSuccessEvent = new CustomEvent("loginSuccess");
+
+// Export hàm để component khác có thể gọi khi đăng nhập thành công
+export const notifyLoginSuccess = () => {
+  window.dispatchEvent(loginSuccessEvent);
+};
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -31,41 +40,93 @@ const ProtectedRoute = ({ children }) => {
 const App = () => {
   const location = useLocation();
   const dispatch = useDispatch();
+  const [showLoginSuccess, setShowLoginSuccess] = useState(false);
 
+  // Xử lý sự kiện đăng nhập thành công
   useEffect(() => {
-    // Đồng bộ trạng thái từ authService khi ứng dụng khởi động
-    dispatch(syncAuthState(getAuthState()));
+    const handleLoginSuccess = () => {
+      setShowLoginSuccess(true);
+    };
+
+    window.addEventListener("loginSuccess", handleLoginSuccess);
+
+    return () => {
+      window.removeEventListener("loginSuccess", handleLoginSuccess);
+    };
+  }, []);
+
+  // Kiểm tra trạng thái đăng nhập khi tải trang
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // Kiểm tra trạng thái đăng nhập với backend khi trang được tải
+        const authStatus = await checkAuthStatus();
+        dispatch(syncAuthState(authStatus));
+      } catch (error) {
+        console.error("Failed to check authentication status:", error);
+        dispatch(syncAuthState({ isAuthenticated: false, user: null }));
+      }
+    };
+    
+    initializeAuth();
   }, [dispatch]);
 
+  // Xử lý đóng thông báo
+  const handleCloseAlert = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setShowLoginSuccess(false);
+  };
+
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<MainLayout />}>
-          {/* Public routes - có thể truy cập mà không cần đăng nhập */}
-          <Route index element={<Home />} />
-          <Route path="service" element={<Service />} />
-          <Route path="blog" element={<Blog />} />
-          <Route path="aboutus" element={<Aboutus />} />
-          <Route path="ai-design" element={<AIDesign />} />
+    <>
+      {/* Thông báo đăng nhập thành công */}
+      <Snackbar 
+        open={showLoginSuccess} 
+        autoHideDuration={4000} 
+        onClose={handleCloseAlert}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseAlert}
+          severity="success"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          Đăng nhập thành công!
+        </Alert>
+      </Snackbar>
 
-          {/* Protected routes - cần đăng nhập để truy cập */}
-          <Route
-            path="dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          {/* Thêm các protected routes khác ở đây */}
-        </Route>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<MainLayout />}>
+            {/* Public routes - có thể truy cập mà không cần đăng nhập */}
+            <Route index element={<Home />} />
+            <Route path="service" element={<Service />} />
+            <Route path="blog" element={<Blog />} />
+            <Route path="aboutus" element={<Aboutus />} />
+            <Route path="ai-design" element={<AIDesign />} />
 
-        <Route path="/auth" element={<AuthLayout />}>
-          <Route path="login" element={<Login />} />
-          <Route path="signup" element={<Signup />} />
-        </Route>
-      </Routes>
-    </AnimatePresence>
+            {/* Protected routes - cần đăng nhập để truy cập */}
+            <Route
+              path="dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            {/* Thêm các protected routes khác ở đây */}
+          </Route>
+
+          <Route path="/auth" element={<AuthLayout />}>
+            <Route path="login" element={<Login />} />
+            <Route path="signup" element={<Signup />} />
+          </Route>
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 };
 

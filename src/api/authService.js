@@ -101,12 +101,7 @@ export const logoutApi = async () => {
 };
 
 // Đơn giản hóa checkAuthStatus - chỉ trả về trạng thái hiện tại
-export const checkAuthStatus = async () => {
-  return { 
-    isAuthenticated: authState.isAuthenticated, 
-    user: authState.user 
-  };
-};
+
 
 // Hàm cập nhật trạng thái đăng nhập
 export const updateAuthState = (status, user = null) => {
@@ -119,6 +114,42 @@ export const updateAuthState = (status, user = null) => {
 // Hàm lấy trạng thái đăng nhập hiện tại
 export const getAuthState = () => {
   return { ...authState };
+};
+
+export const checkAuthStatus = async () => {
+  try {
+    // API này có thể là API hiện có mà yêu cầu xác thực để truy cập
+    // Cookies sẽ tự động được gửi đi nhờ withCredentials: true
+    const response = await authService.post('/api/v1/auth/refresh-token');
+    
+    const { success, result } = response.data;
+    
+    if (success) {
+      // Cập nhật trạng thái đăng nhập
+      authState.isAuthenticated = true;
+      
+      // Nếu API trả về thông tin user
+      if (result && (result.user || result.email)) {
+        authState.user = result.user || { email: result.email };
+      }
+      
+      return { 
+        isAuthenticated: true, 
+        user: authState.user 
+      };
+    } else {
+      authState.isAuthenticated = false;
+      authState.user = null;
+      return { isAuthenticated: false, user: null };
+    }
+  } catch (error) {
+    console.log("Auth check failed:", error);
+    
+    // Nếu API trả về lỗi (có thể là 401), đánh dấu là chưa đăng nhập
+    authState.isAuthenticated = false;
+    authState.user = null;
+    return { isAuthenticated: false, user: null };
+  }
 };
 
 export default authService;

@@ -59,10 +59,12 @@ const authSlice = createSlice({
       state.status = 'idle';
       state.error = null;
     },
-    syncAuthState: (state, action) => {
-      const { isAuthenticated, user } = action.payload || {};
-      if (isAuthenticated !== undefined) state.isAuthenticated = isAuthenticated;
+  syncAuthState: (state, action) => {
+      const { isAuthenticated, user } = action.payload;
+      state.isAuthenticated = isAuthenticated;
       if (user) state.user = user;
+      state.status = 'idle';
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
