@@ -60,4 +60,23 @@ export const getProductTypeByIdApi = async (id) => {
   }
 };
 
+// Hàm lấy product type sizes theo product type ID
+export const getProductTypeSizesByProductTypeIdApi = async (productTypeId) => {
+  try {
+    const response = await productTypeService.get(`/api/product-types/${productTypeId}/product-type-sizes`);
+    
+    const { success, result, message } = response.data;
+    
+    if (success) {
+      return { success, data: result || [] };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch product type sizes'
+    };
+  }
+};
 export default productTypeService;
