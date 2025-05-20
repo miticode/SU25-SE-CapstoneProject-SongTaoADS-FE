@@ -22,7 +22,11 @@ import { FaCheck, FaRedo, FaCheckCircle, FaRobot } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
   fetchProductTypes,
+  fetchProductTypeSizesByProductTypeId,
   selectAllProductTypes,
+  selectProductTypeSizes,
+  selectProductTypeSizesError,
+  selectProductTypeSizesStatus,
   selectProductTypeStatus,
 } from "../store/features/productType/productTypeSlice";
 import {
@@ -57,7 +61,7 @@ const traditionalNumberFields = [
   { name: "width", label: "Chiều ngang (cm)" },
 ];
 
-const ModernBillboardForm = ({ attributes, status }) => {
+const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
   const attributeValuesState = useSelector(
@@ -66,6 +70,9 @@ const ModernBillboardForm = ({ attributes, status }) => {
   const attributeValuesStatusState = useSelector(
     (state) => state.attribute.attributeValuesStatus
   );
+  const productTypeSizes = useSelector(selectProductTypeSizes);
+  const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
+  const productTypeSizesError = useSelector(selectProductTypeSizesError);
 
   useEffect(() => {
     if (attributes && attributes.length > 0) {
@@ -81,7 +88,11 @@ const ModernBillboardForm = ({ attributes, status }) => {
         }
       });
     }
-  }, [attributes, dispatch, attributeValuesStatusState]);
+    // Fetch product type sizes khi component được mount hoặc productTypeId thay đổi
+    if (productTypeId) {
+      dispatch(fetchProductTypeSizesByProductTypeId(productTypeId));
+    }
+  }, [attributes, dispatch, attributeValuesStatusState, productTypeId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -93,12 +104,10 @@ const ModernBillboardForm = ({ attributes, status }) => {
 
   if (status === "loading") {
     return (
-      <div className="flex justify-center items-center py-16">
+      <div className="flex justify-center items-center py-8">
         <div className="text-center">
-          <CircularProgress color="primary" size={60} />
-          <p className="mt-4 text-gray-600 font-medium">
-            Đang tải thông số kỹ thuật...
-          </p>
+          <CircularProgress color="primary" size={40} />
+          <p className="mt-2 text-gray-600 text-sm">Đang tải...</p>
         </div>
       </div>
     );
@@ -106,25 +115,9 @@ const ModernBillboardForm = ({ attributes, status }) => {
 
   if (status === "failed") {
     return (
-      <div className="text-center py-12 px-4 bg-red-50 rounded-xl border border-red-100">
-        <svg
-          className="w-12 h-12 text-red-500 mx-auto mb-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <p className="text-red-600 font-medium text-lg">
-          Không thể tải thông số kỹ thuật
-        </p>
-        <p className="text-gray-600 mt-2">
-          Vui lòng thử lại sau hoặc liên hệ với quản trị viên.
+      <div className="text-center py-6 px-4 bg-red-50 rounded-lg border border-red-100">
+        <p className="text-red-600 text-sm">
+          Không thể tải thông số kỹ thuật. Vui lòng thử lại.
         </p>
       </div>
     );
@@ -142,216 +135,331 @@ const ModernBillboardForm = ({ attributes, status }) => {
   }, {});
 
   return (
-    <Box display="flex" flexDirection="column" alignItems="center" gap={6}>
+    <Box display="flex" flexDirection="column" alignItems="center">
       <Paper
-        elevation={3}
+        elevation={2}
         sx={{
-          p: { xs: 3, md: 5 },
-          borderRadius: 3,
+          p: { xs: 2, md: 3 }, // Giảm padding
+          borderRadius: 2,
           maxWidth: 900,
           width: "100%",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
         }}
       >
         <Typography
-          variant="h5"
+          variant="h6" // Giảm từ h5 xuống h6
           align="center"
-          fontWeight={700}
+          fontWeight={600}
           color="primary"
-          mb={4}
+          mb={2} // Giảm margin bottom
           sx={{
-            borderBottom: "2px solid #f0f0f0",
-            paddingBottom: 2,
+            borderBottom: "1px solid #f0f0f0", // Giảm độ dày border
+            paddingBottom: 1, // Giảm padding
+            fontSize: "1.1rem", // Giảm kích thước font
           }}
         >
           Thông Số Kỹ Thuật Biển Hiệu
         </Typography>
 
-        {Object.entries(attributesByName).map(([name, attrs]) => (
-          <Box
-            key={name}
-            mb={3}
-            sx={{
-              background: "#fafafa",
-              borderRadius: 2,
-              padding: { xs: 2, md: 2.5 },
-              border: "1px solid #eaeaea",
-               maxWidth: '100%',
-            }}
-          >
-            <Typography
-              variant="subtitle1"
-              fontWeight={600}
-              mb={2} 
+        {/* Section: Product Type Sizes (kích thước) */}
+        {productTypeSizesStatus === "succeeded" &&
+          productTypeSizes.length > 0 && (
+            <Box
+              mb={2} // Giảm margin bottom
               sx={{
-                color: "#2c3e50",
-                display: "flex",
-                alignItems: "center",
-                 fontSize: '0.95rem',
+                background: "#f8faff", // Làm nhạt màu nền
+                borderRadius: 2,
+                padding: 1.5, // Giảm padding
+                border: "1px solid #e0e8ff",
+                maxWidth: "100%",
               }}
             >
-              <span ></span>
-              {name}
-            </Typography>
+              <Typography
+                variant="subtitle2" // Giảm xuống subtitle2
+                fontWeight={600}
+                mb={1} // Giảm margin
+                sx={{
+                  color: "#2c3e50",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "0.85rem", // Giảm font size
+                }}
+              >
+                <span className="inline-block w-1 h-4 bg-blue-500 mr-2 rounded"></span>
+                KÍCH THƯỚC
+              </Typography>
 
-            <Box mb={3}>
-              {attrs.map((attr) => {
-                const attributeValues = attributeValuesState[attr.id] || [];
-                const isLoadingValues =
-                  attributeValuesStatusState[attr.id] === "loading";
-
-                return (
-                  <Box
-                    key={attr.id}
-                    mb={3}
-                    sx={{
-                      transition: "all 0.3s ease",
-                    }}
-                  >
-                    {attributeValues.length > 0 ? (
-                      <FormControl
-                        fullWidth
-                        variant="outlined"
-                        sx={{ minWidth: "100%" }}
-                      >
-                        <InputLabel id={`${attr.id}-label`}>
-                          {attr.name}
-                        </InputLabel>
-                        <Select
-                          labelId={`${attr.id}-label`}
-                          name={attr.id}
-                          value={formData[attr.id] || ""}
-                          onChange={handleChange}
-                          label={attr.name}
-                          disabled={isLoadingValues}
-                          sx={{
-                            "&.MuiOutlinedInput-root": {
-                              borderRadius: "8px",
-                            },
-                          }}
-                        >
-                          <MenuItem value="" disabled>
-                            Chọn {(attr.name || "").toLowerCase()}
-                          </MenuItem>
-                          {attributeValues.map((value) => (
-                            <MenuItem key={value.id} value={value.id}>
-                              {value.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                        {isLoadingValues && (
-                          <Box display="flex" justifyContent="center" mt={1}>
-                            <CircularProgress size={20} />
-                          </Box>
-                        )}
-                      </FormControl>
-                    ) : attr.type === "number" ? (
-                      <TextField
-                        fullWidth
-                        label={attr.name}
-                        name={attr.id}
-                        type="number"
-                        value={formData[attr.id] || ""}
-                        onChange={handleChange}
-                        InputProps={{
-                          inputProps: { min: 0 },
-                          startAdornment: (
-                            <span className="text-gray-400 mr-2">#</span>
-                          ),
-                        }}
-                        variant="outlined"
-                        sx={{
-                          width: "100%",
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px",
-                          },
-                        }}
-                      />
-                    ) : (
-                      <TextField
-                        fullWidth
-                        label={attr.name}
-                        name={attr.id}
-                        value={formData[attr.id] || ""}
-                        onChange={handleChange}
-                        variant="outlined"
-                        sx={{
-                          width: "100%",
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px",
-                          },
-                        }}
-                      />
-                    )}
-                  </Box>
-                );
-              })}
+              <Grid container spacing={1.5}>
+                {" "}
+                {/* Giảm spacing */}
+                {productTypeSizes.map((ptSize) => (
+                  <Grid item xs={6} sm={4} md={3} key={ptSize.id}>
+                    {" "}
+                    {/* Thay đổi grid để hiển thị nhiều cột hơn */}
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={ptSize.size.name}
+                      name={`size_${ptSize.size.id}`}
+                      type="number"
+                      value={formData[`size_${ptSize.size.id}`] || ""}
+                      onChange={handleChange}
+                      InputProps={{
+                        inputProps: { min: 0, step: 0.01 },
+                        startAdornment: (
+                          <span className="text-gray-400 mr-1 text-xs">#</span>
+                        ),
+                        endAdornment: (
+                          <span className="text-gray-500 text-xs">m</span>
+                        ),
+                        style: { fontSize: "0.8rem", height: "36px" }, // Giảm font và chiều cao
+                      }}
+                      InputLabelProps={{ style: { fontSize: "0.8rem" } }}
+                      variant="outlined"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "4px", // Giảm border radius
+                        },
+                      }}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
             </Box>
-          </Box>
-        ))}
-      </Paper>
+          )}
 
-      <Paper
-        elevation={2}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 3,
-          maxWidth: 900,
-          width: "100%",
-          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.05)",
-        }}
-      >
-        <Typography
-          variant="h6"
-          fontWeight={600}
-          mb={3}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <svg
-            className="w-5 h-5 mr-2 text-custom-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        {/* Section: Attribute Groups */}
+        <Grid container spacing={2}>
+          {Object.entries(attributesByName).map(([name, attrs]) => (
+            <Grid item xs={12} key={name}>
+              <Box
+                mb={1.5}
+                sx={{
+                  background: "#fafafa",
+                  borderRadius: 1.5,
+                  padding: 1.5,
+                  border: "1px solid #eaeaea",
+                  height: "100%",
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={600}
+                  mb={1}
+                  sx={{
+                    color: "#2c3e50",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  <span className="inline-block w-1 h-4 bg-custom-primary mr-2 rounded"></span>
+                  {name}
+                </Typography>
+
+                <Grid container spacing={2}>
+                  {attrs.map((attr) => {
+                    const attributeValues = attributeValuesState[attr.id] || [];
+                    const isLoadingValues =
+                      attributeValuesStatusState[attr.id] === "loading";
+
+                    return (
+                      <Grid item xs={12} sm={6} md={6} key={attr.id}>
+                        {" "}
+                        {/* Thay đổi md từ 4 thành 6 để làm rộng hơn */}
+                        {attributeValues.length > 0 ? (
+                          <FormControl
+                            fullWidth
+                            size="small"
+                            variant="outlined"
+                          >
+                            <InputLabel
+                              id={`${attr.id}-label`}
+                              sx={{ fontSize: "0.8rem" }}
+                            >
+                              {attr.name}
+                            </InputLabel>
+                            <Select
+                              labelId={`${attr.id}-label`}
+                              name={attr.id}
+                              value={formData[attr.id] || ""}
+                              onChange={handleChange}
+                              label={attr.name}
+                              disabled={isLoadingValues}
+                              sx={{
+                                display: "block",
+                                width: "100%",
+                                fontSize: "0.8rem",
+                                height: "36px",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                "& .MuiSelect-select": {
+                                  minWidth: "150px", // Đặt chiều rộng tối thiểu
+                                  paddingRight: "32px",
+                                },
+                              }}
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 300,
+                                    width: "auto",
+                                    minWidth: "250px",
+                                  },
+                                },
+                                anchorOrigin: {
+                                  vertical: "bottom",
+                                  horizontal: "left",
+                                },
+                                transformOrigin: {
+                                  vertical: "top",
+                                  horizontal: "left",
+                                },
+                                getContentAnchorEl: null, // Đảm bảo menu mở đúng vị trí
+                              }}
+                            >
+                              <MenuItem value="" disabled>
+                                {attr.name}
+                              </MenuItem>
+                              {attributeValues.map((value) => (
+                                <MenuItem
+                                  key={value.id}
+                                  value={value.id}
+                                  sx={{
+                                    fontSize: "0.8rem",
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {value.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                            {isLoadingValues && (
+                              <Box
+                                display="flex"
+                                justifyContent="center"
+                                mt={0.5}
+                              >
+                                <CircularProgress size={14} />
+                              </Box>
+                            )}
+                          </FormControl>
+                        ) : attr.type === "number" ? (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label={attr.name}
+                            name={attr.id}
+                            type="number"
+                            value={formData[attr.id] || ""}
+                            onChange={handleChange}
+                            InputProps={{
+                              inputProps: { min: 0 },
+                              startAdornment: (
+                                <span className="text-gray-400 mr-1 text-xs">
+                                  #
+                                </span>
+                              ),
+                              style: { fontSize: "0.8rem", height: "36px" },
+                            }}
+                            InputLabelProps={{
+                              style: { fontSize: "0.8rem" },
+                              shrink: true, // Đảm bảo label luôn hiển thị đúng
+                            }}
+                            variant="outlined"
+                            sx={{
+                              display: "block",
+                              width: "100%",
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "4px",
+                              },
+                              "& .MuiInputBase-input": {
+                                minWidth: "150px", // Đặt chiều rộng tối thiểu
+                              },
+                            }}
+                          />
+                        ) : (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label={attr.name}
+                            name={attr.id}
+                            value={formData[attr.id] || ""}
+                            onChange={handleChange}
+                            InputProps={{
+                              style: { fontSize: "0.8rem", height: "36px" },
+                            }}
+                            InputLabelProps={{
+                              style: { fontSize: "0.8rem" },
+                              shrink: true, // Đảm bảo label luôn hiển thị đúng
+                            }}
+                            variant="outlined"
+                            sx={{
+                              display: "block",
+                              width: "100%",
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "4px",
+                              },
+                              "& .MuiInputBase-input": {
+                                minWidth: "150px", // Đặt chiều rộng tối thiểu
+                              },
+                            }}
+                          />
+                        )}
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Ghi chú thiết kế - làm nhỏ gọn */}
+        <Box mt={2}>
+          <Typography
+            variant="subtitle2"
+            fontWeight={600}
+            mb={1}
+            sx={{
+              color: "#2c3e50",
+              display: "flex",
+              alignItems: "center",
+              fontSize: "0.85rem",
+            }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-            />
-          </svg>
-          Ghi chú thiết kế
-        </Typography>
+            <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
+            GHI CHÚ THIẾT KẾ
+          </Typography>
 
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          name="designNotes"
-          placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn, bao gồm màu sắc, phong cách, hoặc nội dung cụ thể muốn hiển thị trên biển hiệu..."
-          variant="outlined"
-          value={formData.designNotes || ""}
-          onChange={handleChange}
-          sx={{
-            width: "100%",
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "8px",
-            },
-          }}
-        />
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          mt={2}
-          sx={{ fontStyle: "italic" }}
-        >
-          Thông tin chi tiết sẽ giúp AI tạo ra thiết kế phù hợp hơn với nhu cầu
-          của bạn.
-        </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={2} // Giảm số dòng
+            name="designNotes"
+            placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
+            variant="outlined"
+            value={formData.designNotes || ""}
+            onChange={handleChange}
+            size="small"
+            InputProps={{
+              style: { fontSize: "0.8rem" },
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "4px",
+              },
+            }}
+          />
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontStyle: "italic", display: "block", mt: 0.5 }}
+          >
+            Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
+          </Typography>
+        </Box>
       </Paper>
     </Box>
   );
@@ -1041,6 +1149,7 @@ const AIDesign = () => {
               <ModernBillboardForm
                 attributes={attributes}
                 status={attributeStatus}
+                productTypeId={billboardType}
               />
 
               <motion.div
