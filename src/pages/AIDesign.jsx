@@ -29,59 +29,18 @@ import {
   createCustomer,
   selectCustomerStatus,
   selectCustomerError,
+  linkCustomerToProductType,
+  selectCurrentOrder,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
+import {
+  fetchAttributesByProductTypeId,
+  fetchAttributeValuesByAttributeId,
+  selectAllAttributes,
+  selectAttributeError,
+  selectAttributeStatus,
+} from "../store/features/attribute/attributeSlice";
 // Cấu trúc dữ liệu cho các options
-const formOptions = {
-  frame: {
-    label: "Chọn khung bảng",
-    options: [
-      { value: "aluminum", label: "Nhôm" },
-      { value: "steel", label: "Thép" },
-      { value: "composite", label: "Composite" },
-    ],
-  },
-  background: {
-    label: "Nền Bảng",
-    options: [
-      { value: "acrylic", label: "Acrylic" },
-      { value: "aluminum", label: "Nhôm" },
-      { value: "composite", label: "Composite" },
-    ],
-  },
-  border: {
-    label: "Chọn viền bảng",
-    options: [
-      { value: "none", label: "Không viền" },
-      { value: "thin", label: "Viền mỏng" },
-      { value: "thick", label: "Viền dày" },
-    ],
-  },
-  textAndLogo: {
-    label: "Chọn chữ & logo",
-    options: [
-      { value: "cutout", label: "Chữ cắt" },
-      { value: "printed", label: "Chữ in" },
-      { value: "led", label: "LED" },
-    ],
-  },
-  textStyle: {
-    label: "Chọn quy cách chữ",
-    options: [
-      { value: "uppercase", label: "Chữ in hoa" },
-      { value: "lowercase", label: "Chữ thường" },
-      { value: "mixed", label: "Hỗn hợp" },
-    ],
-  },
-  mountingStyle: {
-    label: "Chọn quy cách gắn",
-    options: [
-      { value: "wall", label: "Gắn tường" },
-      { value: "stand", label: "Đứng độc lập" },
-      { value: "hanging", label: "Treo" },
-    ],
-  },
-};
 
 // Cấu trúc dữ liệu cho các trường số
 const numberFields = [
@@ -91,56 +50,6 @@ const numberFields = [
 ];
 
 // Cấu trúc dữ liệu cho các options của biển hiệu truyền thống
-const traditionalFormOptions = {
-  frame: {
-    label: "Khung bảng",
-    options: [
-      { value: "wood", label: "Gỗ" },
-      { value: "iron", label: "Sắt" },
-      { value: "steel", label: "Thép" },
-    ],
-  },
-  background: {
-    label: "Nền bảng",
-    options: [
-      { value: "wood", label: "Gỗ" },
-      { value: "mica", label: "Mica" },
-      { value: "composite", label: "Composite" },
-    ],
-  },
-  border: {
-    label: "Viền bảng",
-    options: [
-      { value: "none", label: "Không viền" },
-      { value: "thin", label: "Viền mỏng" },
-      { value: "thick", label: "Viền dày" },
-    ],
-  },
-  surface: {
-    label: "Mặt bảng",
-    options: [
-      { value: "single", label: "Một mặt" },
-      { value: "double", label: "Hai mặt" },
-      { value: "triple", label: "Ba mặt" },
-    ],
-  },
-  mountingStyle: {
-    label: "Quy cách gắn",
-    options: [
-      { value: "wall", label: "Gắn tường" },
-      { value: "stand", label: "Đứng độc lập" },
-      { value: "hanging", label: "Treo" },
-    ],
-  },
-  faces: {
-    label: "Số mặt",
-    options: [
-      { value: "1", label: "1 mặt" },
-      { value: "2", label: "2 mặt" },
-      { value: "3", label: "3 mặt" },
-    ],
-  },
-};
 
 // Cấu trúc dữ liệu cho các trường số
 const traditionalNumberFields = [
@@ -148,18 +57,31 @@ const traditionalNumberFields = [
   { name: "width", label: "Chiều ngang (cm)" },
 ];
 
-const ModernBillboardForm = () => {
-  const [formData, setFormData] = useState({
-    frame: "",
-    background: "",
-    border: "",
-    textAndLogo: "",
-    textStyle: "",
-    mountingStyle: "",
-    height: "",
-    width: "",
-    textLogoSize: "",
-  });
+const ModernBillboardForm = ({ attributes, status }) => {
+  const dispatch = useDispatch();
+  const [formData, setFormData] = useState({});
+  const attributeValuesState = useSelector(
+    (state) => state.attribute.attributeValues
+  );
+  const attributeValuesStatusState = useSelector(
+    (state) => state.attribute.attributeValuesStatus
+  );
+
+  useEffect(() => {
+    if (attributes && attributes.length > 0) {
+      const initialData = {};
+      attributes.forEach((attr) => {
+        initialData[attr.id] = "";
+      });
+      setFormData(initialData);
+
+      attributes.forEach((attr) => {
+        if (attributeValuesStatusState[attr.id] === "idle") {
+          dispatch(fetchAttributeValuesByAttributeId(attr.id));
+        }
+      });
+    }
+  }, [attributes, dispatch, attributeValuesStatusState]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -169,54 +91,66 @@ const ModernBillboardForm = () => {
     }));
   };
 
-  // Hàm render Select field
-  const renderSelectField = (fieldName) => {
-    const field = formOptions[fieldName];
+  if (status === "loading") {
     return (
-      <FormControl fullWidth variant="outlined">
-        <Select
-          labelId={`${fieldName}-label`}
-          name={fieldName}
-          value={formData[fieldName]}
-          onChange={handleChange}
-          displayEmpty
-        >
-          <MenuItem value="" disabled>
-            <em>{field.label}</em>
-          </MenuItem>
-          {field.options.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <div className="flex justify-center items-center py-16">
+        <div className="text-center">
+          <CircularProgress color="primary" size={60} />
+          <p className="mt-4 text-gray-600 font-medium">
+            Đang tải thông số kỹ thuật...
+          </p>
+        </div>
+      </div>
     );
-  };
+  }
 
-  // Hàm render Number field
-  const renderNumberField = (field) => (
-    <TextField
-      fullWidth
-      label={field.label}
-      name={field.name}
-      type="number"
-      value={formData[field.name]}
-      onChange={handleChange}
-      InputProps={{ inputProps: { min: 0 } }}
-      variant="outlined"
-    />
-  );
+  if (status === "failed") {
+    return (
+      <div className="text-center py-12 px-4 bg-red-50 rounded-xl border border-red-100">
+        <svg
+          className="w-12 h-12 text-red-500 mx-auto mb-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <p className="text-red-600 font-medium text-lg">
+          Không thể tải thông số kỹ thuật
+        </p>
+        <p className="text-gray-600 mt-2">
+          Vui lòng thử lại sau hoặc liên hệ với quản trị viên.
+        </p>
+      </div>
+    );
+  }
+
+  // Group attributes by name
+  const attributesByName = attributes.reduce((acc, attr) => {
+    const categoryName = attr.name;
+
+    if (!acc[categoryName]) {
+      acc[categoryName] = [];
+    }
+    acc[categoryName].push(attr);
+    return acc;
+  }, {});
 
   return (
-    <Box display="flex" flexDirection="column" alignItems="center" gap={4}>
+    <Box display="flex" flexDirection="column" alignItems="center" gap={6}>
       <Paper
         elevation={3}
         sx={{
-          p: { xs: 2, md: 4 },
-          borderRadius: 4,
+          p: { xs: 3, md: 5 },
+          borderRadius: 3,
           maxWidth: 900,
           width: "100%",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
         }}
       >
         <Typography
@@ -224,153 +158,200 @@ const ModernBillboardForm = () => {
           align="center"
           fontWeight={700}
           color="primary"
-          mb={3}
+          mb={4}
+          sx={{
+            borderBottom: "2px solid #f0f0f0",
+            paddingBottom: 2,
+          }}
         >
-          Thông số kỹ thuật
+          Thông Số Kỹ Thuật Biển Hiệu
         </Typography>
 
-        {/* Select Fields */}
-        <Grid container spacing={3} mb={2}>
-          {Object.keys(formOptions).map((fieldName) => (
-            <Grid item xs={12} sm={6} md={4} key={fieldName}>
-              {renderSelectField(fieldName)}
-            </Grid>
-          ))}
-        </Grid>
+        {Object.entries(attributesByName).map(([name, attrs]) => (
+          <Box
+            key={name}
+            mb={3}
+            sx={{
+              background: "#fafafa",
+              borderRadius: 2,
+              padding: { xs: 2, md: 2.5 },
+              border: "1px solid #eaeaea",
+               maxWidth: '100%',
+            }}
+          >
+            <Typography
+              variant="subtitle1"
+              fontWeight={600}
+              mb={2} 
+              sx={{
+                color: "#2c3e50",
+                display: "flex",
+                alignItems: "center",
+                 fontSize: '0.95rem',
+              }}
+            >
+              <span ></span>
+              {name}
+            </Typography>
 
-        {/* Number Fields */}
-        <Grid container spacing={3} mb={2}>
-          {numberFields.map((field) => (
-            <Grid item xs={12} sm={4} key={field.name}>
-              {renderNumberField(field)}
-            </Grid>
-          ))}
-        </Grid>
+            <Box mb={3}>
+              {attrs.map((attr) => {
+                const attributeValues = attributeValuesState[attr.id] || [];
+                const isLoadingValues =
+                  attributeValuesStatusState[attr.id] === "loading";
+
+                return (
+                  <Box
+                    key={attr.id}
+                    mb={3}
+                    sx={{
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    {attributeValues.length > 0 ? (
+                      <FormControl
+                        fullWidth
+                        variant="outlined"
+                        sx={{ minWidth: "100%" }}
+                      >
+                        <InputLabel id={`${attr.id}-label`}>
+                          {attr.name}
+                        </InputLabel>
+                        <Select
+                          labelId={`${attr.id}-label`}
+                          name={attr.id}
+                          value={formData[attr.id] || ""}
+                          onChange={handleChange}
+                          label={attr.name}
+                          disabled={isLoadingValues}
+                          sx={{
+                            "&.MuiOutlinedInput-root": {
+                              borderRadius: "8px",
+                            },
+                          }}
+                        >
+                          <MenuItem value="" disabled>
+                            Chọn {(attr.name || "").toLowerCase()}
+                          </MenuItem>
+                          {attributeValues.map((value) => (
+                            <MenuItem key={value.id} value={value.id}>
+                              {value.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                        {isLoadingValues && (
+                          <Box display="flex" justifyContent="center" mt={1}>
+                            <CircularProgress size={20} />
+                          </Box>
+                        )}
+                      </FormControl>
+                    ) : attr.type === "number" ? (
+                      <TextField
+                        fullWidth
+                        label={attr.name}
+                        name={attr.id}
+                        type="number"
+                        value={formData[attr.id] || ""}
+                        onChange={handleChange}
+                        InputProps={{
+                          inputProps: { min: 0 },
+                          startAdornment: (
+                            <span className="text-gray-400 mr-2">#</span>
+                          ),
+                        }}
+                        variant="outlined"
+                        sx={{
+                          width: "100%",
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px",
+                          },
+                        }}
+                      />
+                    ) : (
+                      <TextField
+                        fullWidth
+                        label={attr.name}
+                        name={attr.id}
+                        value={formData[attr.id] || ""}
+                        onChange={handleChange}
+                        variant="outlined"
+                        sx={{
+                          width: "100%",
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px",
+                          },
+                        }}
+                      />
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        ))}
       </Paper>
 
       <Paper
         elevation={2}
         sx={{
-          p: { xs: 2, md: 4 },
-          borderRadius: 4,
+          p: { xs: 3, md: 4 },
+          borderRadius: 3,
           maxWidth: 900,
           width: "100%",
+          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.05)",
         }}
       >
-        <Typography variant="h6" fontWeight={600} text-yellow mb={2}>
+        <Typography
+          variant="h6"
+          fontWeight={600}
+          mb={3}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <svg
+            className="w-5 h-5 mr-2 text-custom-primary"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            />
+          </svg>
           Ghi chú thiết kế
         </Typography>
+
         <TextField
           fullWidth
           multiline
           rows={4}
           name="designNotes"
-          placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
+          placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn, bao gồm màu sắc, phong cách, hoặc nội dung cụ thể muốn hiển thị trên biển hiệu..."
           variant="outlined"
-        />
-      </Paper>
-    </Box>
-  );
-};
-
-const TraditionalBillboardForm = () => {
-  const [formData, setFormData] = useState({
-    frame: "",
-    background: "",
-    border: "",
-    surface: "",
-    mountingStyle: "",
-    faces: "",
-    height: "",
-    width: "",
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // Hàm render Select field
-  const renderSelectField = (fieldName) => {
-    const field = traditionalFormOptions[fieldName];
-    return (
-      <FormControl fullWidth variant="outlined" sx={{ minWidth: 180 }}>
-        <InputLabel id={`${fieldName}-label`}>{field.label}</InputLabel>
-        <Select
-          labelId={`${fieldName}-label`}
-          name={fieldName}
-          value={formData[fieldName]}
+          value={formData.designNotes || ""}
           onChange={handleChange}
-          label={field.label}
-        >
-          <MenuItem value="" disabled>
-            Chọn {field.label.toLowerCase()}
-          </MenuItem>
-          {field.options.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    );
-  };
+          sx={{
+            width: "100%",
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "8px",
+            },
+          }}
+        />
 
-  // Hàm render Number field
-  const renderNumberField = (field) => (
-    <TextField
-      fullWidth
-      label={field.label}
-      name={field.name}
-      type="number"
-      value={formData[field.name]}
-      onChange={handleChange}
-      InputProps={{ inputProps: { min: 0 } }}
-      variant="outlined"
-    />
-  );
-
-  return (
-    <Box display="flex" flexDirection="column" alignItems="center" gap={4}>
-      <Paper
-        elevation={3}
-        sx={{
-          p: { xs: 2, md: 4 },
-          borderRadius: 4,
-          maxWidth: 900,
-          width: "100%",
-        }}
-      >
         <Typography
-          variant="h5"
-          align="center"
-          fontWeight={700}
-          color="primary"
-          mb={3}
+          variant="body2"
+          color="text.secondary"
+          mt={2}
+          sx={{ fontStyle: "italic" }}
         >
-          Thông số kỹ thuật
+          Thông tin chi tiết sẽ giúp AI tạo ra thiết kế phù hợp hơn với nhu cầu
+          của bạn.
         </Typography>
-
-        {/* Select Fields */}
-        <Grid container spacing={3} mb={2}>
-          {Object.keys(traditionalFormOptions).map((fieldName) => (
-            <Grid item xs={12} sm={6} md={4} key={fieldName}>
-              {renderSelectField(fieldName)}
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* Number Fields */}
-        <Grid container spacing={3} mb={2}>
-          {traditionalNumberFields.map((field) => (
-            <Grid item xs={12} sm={6} key={field.name}>
-              {renderNumberField(field)}
-            </Grid>
-          ))}
-        </Grid>
       </Paper>
     </Box>
   );
@@ -390,6 +371,12 @@ const AIDesign = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
+  const [customerDetail, setCustomerDetail] = useState(null);
+  const currentOrder = useSelector(selectCurrentOrder);
+  const attributes = useSelector(selectAllAttributes);
+  const attributeStatus = useSelector(selectAttributeStatus);
+  const attributeError = useSelector(selectAttributeError);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -442,7 +429,11 @@ const AIDesign = () => {
       dispatch(fetchProductTypes());
     }
   }, [currentStep, dispatch, productTypeStatus]);
-
+  useEffect(() => {
+    if (currentStep === 4 && billboardType && attributeStatus === "idle") {
+      dispatch(fetchAttributesByProductTypeId(billboardType));
+    }
+  }, [currentStep, billboardType, dispatch, attributeStatus]);
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -491,6 +482,7 @@ const AIDesign = () => {
     try {
       const result = await dispatch(createCustomer(customerDetail)).unwrap();
       console.log("Customer created successfully:", result);
+      setCustomerDetail(result);
       setCurrentStep(3);
     } catch (error) {
       console.error("Failed to create customer. Full error:", error);
@@ -536,10 +528,50 @@ const AIDesign = () => {
     }, 3000);
   };
 
-  const handleBillboardTypeSelect = (type) => {
-    setBillboardType(type);
-    setCurrentStep(4);
-    navigate(`/ai-design?step=billboard&type=${type}`);
+  const handleBillboardTypeSelect = async (productTypeId) => {
+    // First check if we have the customer details
+    if (!user?.id) {
+      console.error("No user ID found.");
+      setError("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    try {
+      // Find the appropriate customer ID to use
+      const userId = user.id;
+      console.log(`Linking user ${userId} to product type ${productTypeId}`);
+      // Dispatch the action to link customer with product type
+      const resultAction = await dispatch(
+        linkCustomerToProductType({
+          customerId: userId, // Always use the user ID from authentication
+          productTypeId,
+        })
+      ).unwrap();
+
+      console.log("Customer linked to product type:", resultAction);
+
+      // After successful API call, update UI and navigate
+      setBillboardType(productTypeId);
+
+      // Fetch attributes for the selected product type
+      dispatch(fetchAttributesByProductTypeId(productTypeId));
+
+      setCurrentStep(4);
+      navigate(`/ai-design?step=billboard&type=${productTypeId}`);
+    } catch (error) {
+      console.error("Failed to link customer to product type:", error);
+      // Handle error - maybe show a notification to the user
+      if (error?.message?.includes("User not found")) {
+        setError(
+          "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
+        );
+      } else {
+        setError(
+          error?.message ||
+            "Có lỗi xảy ra khi chọn loại biển hiệu. Vui lòng thử lại."
+        );
+      }
+    }
   };
 
   const handleBackToTypeSelection = () => {
@@ -837,8 +869,15 @@ const AIDesign = () => {
             >
               Chọn loại biển hiệu
             </motion.h2>
-
-            {productTypeStatus === "loading" ? (
+            {error && (
+              <motion.div
+                className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center"
+                variants={itemVariants}
+              >
+                {error}
+              </motion.div>
+            )}
+            {productTypeStatus === "loading" || customerStatus === "loading" ? (
               <div className="flex justify-center items-center py-12">
                 <CircularProgress color="primary" />
               </div>
@@ -899,21 +938,35 @@ const AIDesign = () => {
                           className="w-full py-3 px-4 bg-custom-light text-custom-primary font-medium rounded-lg hover:bg-custom-tertiary hover:text-white transition-all flex items-center justify-center"
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
+                          disabled={customerStatus === "loading"}
                         >
-                          Chọn
-                          <svg
-                            className="w-5 h-5 ml-1"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M14 5l7 7m0 0l-7 7m7-7H3"
-                            />
-                          </svg>
+                          {customerStatus === "loading" ? (
+                            <>
+                              <CircularProgress
+                                size={20}
+                                color="inherit"
+                                className="mr-2"
+                              />
+                              Đang xử lý...
+                            </>
+                          ) : (
+                            <>
+                              Chọn
+                              <svg
+                                className="w-5 h-5 ml-1"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                                />
+                              </svg>
+                            </>
+                          )}
                         </motion.button>
                       </div>
                     </motion.div>
@@ -969,20 +1022,26 @@ const AIDesign = () => {
               className="text-3xl font-bold text-custom-dark mb-8 text-center"
               variants={itemVariants}
             >
-              {billboardType === "modern"
-                ? "Biển hiệu hiện đại"
-                : "Biển hiệu truyền thống"}
+              Thông tin biển hiệu
             </motion.h2>
+
+            {attributeError && (
+              <motion.div
+                className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center"
+                variants={itemVariants}
+              >
+                {attributeError}
+              </motion.div>
+            )}
 
             <motion.form
               onSubmit={handleBillboardSubmit}
               variants={containerVariants}
             >
-              {billboardType === "modern" ? (
-                <ModernBillboardForm />
-              ) : (
-                <TraditionalBillboardForm />
-              )}
+              <ModernBillboardForm
+                attributes={attributes}
+                status={attributeStatus}
+              />
 
               <motion.div
                 className="flex justify-between mt-8"
@@ -1016,21 +1075,35 @@ const AIDesign = () => {
                   className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  disabled={attributeStatus === "loading"}
                 >
-                  Hoàn thành
-                  <svg
-                    className="w-5 h-5 ml-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
+                  {attributeStatus === "loading" ? (
+                    <>
+                      <CircularProgress
+                        size={20}
+                        color="inherit"
+                        className="mr-2"
+                      />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      Hoàn thành
+                      <svg
+                        className="w-5 h-5 ml-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </>
+                  )}
                 </motion.button>
               </motion.div>
             </motion.form>

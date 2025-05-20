@@ -45,5 +45,17 @@ export const createCustomerApi = async (customerData) => {
     };
   }
 };
+export const linkCustomerToProductTypeApi = async (customerId, productTypeId) => {
+  try {
+    const response = await customerService.post(`/api/customers/${customerId}/product-types/${productTypeId}`);
+    
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to link customer to product type'
+    };
+  }
+};
 
 export default customerService;
