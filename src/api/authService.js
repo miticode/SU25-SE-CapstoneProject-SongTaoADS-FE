@@ -139,34 +139,35 @@ export const getAuthState = () => {
 
 export const checkAuthStatus = async () => {
   try {
-    // API này có thể là API hiện có mà yêu cầu xác thực để truy cập
-    // Cookies sẽ tự động được gửi đi nhờ withCredentials: true
+    // Kiểm tra xem có access token không
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      return { isAuthenticated: false, user: null };
+    }
+
+    // Thử gọi API refresh token chỉ khi có access token
     const response = await authService.post('/api/auth/refresh-token');
-    
     const { success, result } = response.data;
     
     if (success) {
-      // Cập nhật trạng thái đăng nhập
       authState.isAuthenticated = true;
-      
-      // Nếu API trả về thông tin user
       if (result && (result.user || result.email)) {
         authState.user = result.user || { email: result.email };
       }
-      
       return { 
         isAuthenticated: true, 
         user: authState.user 
       };
-    } else {
-      authState.isAuthenticated = false;
-      authState.user = null;
-      return { isAuthenticated: false, user: null };
     }
+    
+    // Nếu refresh thất bại, xóa token và trả về trạng thái chưa đăng nhập
+    localStorage.removeItem('accessToken');
+    authState.isAuthenticated = false;
+    authState.user = null;
+    return { isAuthenticated: false, user: null };
   } catch (error) {
     console.log("Auth check failed:", error);
-    
-    // Nếu API trả về lỗi (có thể là 401), đánh dấu là chưa đăng nhập
+    localStorage.removeItem('accessToken');
     authState.isAuthenticated = false;
     authState.user = null;
     return { isAuthenticated: false, user: null };
