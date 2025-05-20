@@ -34,7 +34,7 @@ authService.interceptors.response.use(
 // Hàm helper để login - đơn giản hóa
 export const loginApi = async (credentials) => {
   try {
-    const response = await authService.post('/api/v1/auth/login', {
+    const response = await authService.post('/api/auth/login', {
       email: credentials.email,
       password: credentials.password
     });
@@ -61,7 +61,7 @@ export const loginApi = async (credentials) => {
 // Hàm helper để register - giữ nguyên
 export const registerApi = async (userData) => {
   try {
-    const response = await authService.post('/api/v1/auth/register', {
+    const response = await authService.post('/api/auth/register', {
       email: userData.email,
       password: userData.password,
       fullName: userData.fullName,
@@ -81,7 +81,7 @@ export const registerApi = async (userData) => {
 // Hàm helper để logout - đơn giản hóa
 export const logoutApi = async () => {
   try {
-    const response = await authService.post('/api/v1/auth/logout');
+    const response = await authService.post('/api/auth/logout');
     
     // Reset trạng thái đăng nhập
     authState.isAuthenticated = false;
@@ -120,7 +120,7 @@ export const checkAuthStatus = async () => {
   try {
     // API này có thể là API hiện có mà yêu cầu xác thực để truy cập
     // Cookies sẽ tự động được gửi đi nhờ withCredentials: true
-    const response = await authService.post('/api/v1/auth/refresh-token');
+    const response = await authService.post('/api/auth/refresh-token');
     
     const { success, result } = response.data;
     
