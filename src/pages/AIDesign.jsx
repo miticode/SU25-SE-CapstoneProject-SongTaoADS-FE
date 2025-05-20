@@ -19,7 +19,12 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { FaCheck, FaRedo, FaCheckCircle, FaRobot } from "react-icons/fa";
-
+import { useSelector, useDispatch } from "react-redux";
+import {
+  fetchProductTypes,
+  selectAllProductTypes,
+  selectProductTypeStatus,
+} from "../store/features/productType/productTypeSlice";
 // Cấu trúc dữ liệu cho các options
 const formOptions = {
   frame: {
@@ -368,6 +373,9 @@ const TraditionalBillboardForm = () => {
 const AIDesign = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  const productTypes = useSelector(selectAllProductTypes);
+  const productTypeStatus = useSelector(selectProductTypeStatus);
   const [currentStep, setCurrentStep] = useState(1); // 1: Start, 2: Business, 3: Billboard Type, 4: Billboard Form, 5: Preview
   const [billboardType, setBillboardType] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
@@ -419,6 +427,12 @@ const AIDesign = () => {
       }
     }
   }, [location]);
+
+  useEffect(() => {
+    if (currentStep === 3 && productTypeStatus === "idle") {
+      dispatch(fetchProductTypes());
+    }
+  }, [currentStep, dispatch, productTypeStatus]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -740,43 +754,73 @@ const AIDesign = () => {
         );
 
       case 3:
-        return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-8 text-center"
-              variants={itemVariants}
-            >
-              Chọn loại biển hiệu
-            </motion.h2>
+  return (
+    <motion.div
+      className="max-w-4xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.h2
+        className="text-3xl font-bold text-custom-dark mb-8 text-center"
+        variants={itemVariants}
+      >
+        Chọn loại biển hiệu
+      </motion.h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {productTypeStatus === 'loading' ? (
+        <div className="flex justify-center items-center py-12">
+          <CircularProgress color="primary" />
+        </div>
+      ) : productTypes.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {productTypes.map((productType, index) => {
+            // Tạo mapping để mỗi product type có một ảnh khác nhau
+            const getProductTypeImage = (id, index) => {
+              const imageUrls = [
+                "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
+                "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
+               
+              ];
+              
+              // Sử dụng index để đảm bảo mỗi sản phẩm có một ảnh riêng
+              return imageUrls[index % imageUrls.length];
+            };
+            
+            // Tạo mô tả mẫu cho từng loại biển hiệu
+            const getProductTypeDescription = (name) => {
+              const descriptions = {
+                "Biển hiệu hiện đại": "Thiết kế biển hiệu hiện đại, thanh lịch và nổi bật.",
+                "Biển hiệu truyền thống": "Thiết kế biển hiệu mang phong cách truyền thống, trang nhã.",
+              
+              };
+              
+              return descriptions[name] || "Thiết kế biển hiệu chuyên nghiệp cho doanh nghiệp của bạn.";
+            };
+            
+            return (
               <motion.div
+                key={productType.id}
                 variants={cardVariants}
                 whileHover="hover"
                 className="rounded-xl overflow-hidden shadow-md bg-white border border-gray-100"
               >
                 <div className="h-48 bg-gradient-to-r from-custom-primary to-custom-secondary flex items-center justify-center">
                   <img
-                    src="https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg"
-                    alt="Biển hiệu hiện đại"
+                    src={getProductTypeImage(productType.id, index)}
+                    alt={productType.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-custom-dark mb-2">
-                    Biển hiệu hiện đại
+                    {productType.name}
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    Thiết kế hiện đại, phù hợp với không gian đương đại, sử dụng
-                    công nghệ mới nhất.
+                    {getProductTypeDescription(productType.name)}
                   </p>
                   <motion.button
-                    onClick={() => handleBillboardTypeSelect("modern")}
+                    onClick={() => handleBillboardTypeSelect(productType.id)}
                     className="w-full py-3 px-4 bg-custom-light text-custom-primary font-medium rounded-lg hover:bg-custom-tertiary hover:text-white transition-all flex items-center justify-center"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -798,82 +842,45 @@ const AIDesign = () => {
                   </motion.button>
                 </div>
               </motion.div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <p>Không tìm thấy loại biển hiệu nào. Vui lòng thử lại sau.</p>
+        </div>
+      )}
 
-              <motion.div
-                variants={cardVariants}
-                whileHover="hover"
-                className="rounded-xl overflow-hidden shadow-md bg-white border border-gray-100"
-              >
-                <div className="h-48 bg-gradient-to-r from-amber-600 to-amber-400 flex items-center justify-center">
-                  <img
-                    src="https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg"
-                    alt="Biển hiệu truyền thống"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-custom-dark mb-2">
-                    Biển hiệu truyền thống
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Thiết kế cổ điển, mang đậm nét truyền thống, sử dụng các vật
-                    liệu tự nhiên.
-                  </p>
-                  <motion.button
-                    onClick={() => handleBillboardTypeSelect("traditional")}
-                    className="w-full py-3 px-4 bg-custom-light text-custom-primary font-medium rounded-lg hover:bg-custom-tertiary hover:text-white transition-all flex items-center justify-center"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Chọn
-                    <svg
-                      className="w-5 h-5 ml-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
-                  </motion.button>
-                </div>
-              </motion.div>
-            </div>
-
-            <div className="mt-8 flex justify-center">
-              <motion.button
-                type="button"
-                onClick={() => {
-                  setCurrentStep(2);
-                  navigate("/ai-design?step=business");
-                }}
-                className="px-6 py-2 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-                variants={itemVariants}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
-                </svg>
-                Quay lại
-              </motion.button>
-            </div>
-          </motion.div>
-        );
+      <div className="mt-8 flex justify-center">
+        <motion.button
+          type="button"
+          onClick={() => {
+            setCurrentStep(2);
+            navigate("/ai-design?step=business");
+          }}
+          className="px-6 py-2 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <svg
+            className="w-5 h-5 mr-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Quay lại
+        </motion.button>
+      </div>
+    </motion.div>
+  );
 
       case 4:
         return (

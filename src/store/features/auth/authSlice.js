@@ -11,7 +11,7 @@ const initialState = {
 
 // Async thunks
 export const login = createAsyncThunk(
-  '/api/v1/auth/login',
+  '/api/auth/login',
   async (credentials, { rejectWithValue }) => {
     const response = await loginApi(credentials);
     
@@ -24,7 +24,7 @@ export const login = createAsyncThunk(
 );
 
 export const register = createAsyncThunk(
-  '/api/v1/auth/register',
+  '/api/auth/register',
   async (userData, { rejectWithValue }) => {
     const response = await registerApi(userData);
     
@@ -38,7 +38,7 @@ export const register = createAsyncThunk(
 );
 
 export const logout = createAsyncThunk(
-  '/api/v1/auth/logout',
+  '/api/auth/logout',
   async (_, { rejectWithValue }) => {
     const response = await logoutApi();
     
