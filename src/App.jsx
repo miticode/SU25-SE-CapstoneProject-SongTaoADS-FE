@@ -2,7 +2,7 @@ import { Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useState } from "react";
-import { Snackbar, Alert } from "@mui/material";
+import { Snackbar, Alert, CircularProgress } from "@mui/material";
 
 import { syncAuthState } from "./store/features/auth/authSlice";
 import { checkAuthStatus } from "./api/authService";
@@ -17,6 +17,7 @@ import Blog from "./pages/Blog";
 import Aboutus from "./pages/Aboutus";
 import AIDesign from "./pages/AiDesign";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -28,12 +29,9 @@ export const notifyLoginSuccess = () => {
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
-
   if (!isAuthenticated) {
-    // Redirect to login if not authenticated
     return <Navigate to="/auth/login" />;
   }
-
   return children;
 };
 
@@ -41,6 +39,7 @@ const App = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Xử lý sự kiện đăng nhập thành công
   useEffect(() => {
@@ -59,40 +58,66 @@ const App = () => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Kiểm tra trạng thái đăng nhập với backend khi trang được tải
         const authStatus = await checkAuthStatus();
-        dispatch(syncAuthState(authStatus));
-      } catch (error) {
-        console.error("Failed to check authentication status:", error);
-        dispatch(syncAuthState({ isAuthenticated: false, user: null }));
+        dispatch(
+          syncAuthState({
+            ...authStatus,
+            accessToken: localStorage.getItem("accessToken"),
+          })
+        );
+      } catch {
+        dispatch(
+          syncAuthState({
+            isAuthenticated: false,
+            user: null,
+            accessToken: null,
+          })
+        );
       }
+      setAuthLoading(false);
     };
-    
     initializeAuth();
   }, [dispatch]);
 
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
-    if (reason === 'clickaway') {
+    if (reason === "clickaway") {
       return;
     }
     setShowLoginSuccess(false);
   };
 
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <CircularProgress color="primary" size={48} />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Thông báo đăng nhập thành công */}
-      <Snackbar 
-        open={showLoginSuccess} 
-        autoHideDuration={4000} 
+      <Snackbar
+        open={showLoginSuccess}
+        autoHideDuration={4000}
         onClose={handleCloseAlert}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <Alert
           onClose={handleCloseAlert}
           severity="success"
           variant="filled"
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           Đăng nhập thành công!
         </Alert>
@@ -114,6 +139,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

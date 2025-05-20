@@ -5,6 +5,7 @@ import { loginApi, registerApi, logoutApi, updateAuthState } from '../../../api/
 const initialState = {
   user: null,
   isAuthenticated: false,
+  accessToken: localStorage.getItem('accessToken'), // Lấy token từ localStorage nếu có
   status: 'idle',
   error: null
 };
@@ -17,6 +18,11 @@ export const login = createAsyncThunk(
     
     if (!response.success) {
       return rejectWithValue(response.error || 'Login failed');
+    }
+    
+    // Lưu token vào localStorage
+    if (response.data.accessToken) {
+      localStorage.setItem('accessToken', response.data.accessToken);
     }
     
     return response.data;
@@ -32,7 +38,6 @@ export const register = createAsyncThunk(
       return rejectWithValue(response.error || 'Registration failed');
     }
     
-    // Tự động đăng nhập sau khi đăng ký
     return { registered: true };
   }
 );
@@ -45,6 +50,9 @@ export const logout = createAsyncThunk(
     if (!response.success) {
       return rejectWithValue(response.error || 'Logout failed');
     }
+    
+    // Xóa token khỏi localStorage
+    localStorage.removeItem('accessToken');
     
     return null;
   }
@@ -59,10 +67,14 @@ const authSlice = createSlice({
       state.status = 'idle';
       state.error = null;
     },
-  syncAuthState: (state, action) => {
-      const { isAuthenticated, user } = action.payload;
+    syncAuthState: (state, action) => {
+      const { isAuthenticated, user, accessToken } = action.payload;
       state.isAuthenticated = isAuthenticated;
       if (user) state.user = user;
+      if (accessToken) {
+        state.accessToken = accessToken;
+        localStorage.setItem('accessToken', accessToken);
+      }
       state.status = 'idle';
       state.error = null;
     }
@@ -77,6 +89,7 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.accessToken = action.payload.accessToken;
         state.error = null;
         // Cập nhật trạng thái trong authService
         updateAuthState(true, action.payload);
@@ -85,17 +98,16 @@ const authSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
         state.isAuthenticated = false;
+        state.accessToken = null;
       })
       
       // Register cases
      .addCase(register.pending, (state) => {
       state.status = 'loading';
     })
-    .addCase(register.fulfilled, (state, action) => {
+    .addCase(register.fulfilled, (state) => {
       state.status = 'succeeded';
-      // Không cần cập nhật user và isAuthenticated vì không tự động đăng nhập
       state.error = null;
-      // Có thể thêm một flag để biết đã đăng ký thành công
       state.registrationSuccess = true;
     })
     .addCase(register.rejected, (state, action) => {
@@ -108,6 +120,7 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
+        state.accessToken = null;
         state.status = 'idle';
         state.error = null;
       })
