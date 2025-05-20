@@ -25,6 +25,12 @@ import {
   selectAllProductTypes,
   selectProductTypeStatus,
 } from "../store/features/productType/productTypeSlice";
+import {
+  createCustomer,
+  selectCustomerStatus,
+  selectCustomerError,
+} from "../store/features/customer/customerSlice";
+import { getProfileApi } from "../api/authService";
 // Cấu trúc dữ liệu cho các options
 const formOptions = {
   frame: {
@@ -376,16 +382,19 @@ const AIDesign = () => {
   const dispatch = useDispatch();
   const productTypes = useSelector(selectAllProductTypes);
   const productTypeStatus = useSelector(selectProductTypeStatus);
-  const [currentStep, setCurrentStep] = useState(1); // 1: Start, 2: Business, 3: Billboard Type, 4: Billboard Form, 5: Preview
+  const customerStatus = useSelector(selectCustomerStatus);
+  const customerError = useSelector(selectCustomerError);
+  const [currentStep, setCurrentStep] = useState(1);
   const [billboardType, setBillboardType] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [user, setUser] = useState(null);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
     contactInfo: "",
-    logo: null,
+    logoUrl: "",
   });
 
   // Tạm thời sử dụng 4 ảnh mẫu
@@ -434,6 +443,25 @@ const AIDesign = () => {
     }
   }, [currentStep, dispatch, productTypeStatus]);
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await getProfileApi();
+        console.log("Profile API Response:", res);
+        if (res.success && res.data) {
+          console.log("User data from data:", res.data);
+          setUser(res.data);
+        } else {
+          console.error("Profile API response missing data:", res);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setBusinessInfo((prev) => ({
@@ -442,21 +470,40 @@ const AIDesign = () => {
     }));
   };
 
-  const handleLogoUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setBusinessInfo((prev) => ({
-        ...prev,
-        logo: file,
-      }));
-    }
-  };
-
   const handleBusinessSubmit = async (e) => {
     e.preventDefault();
-    console.log("Business Info:", businessInfo);
-    setCurrentStep(3);
-    navigate("/ai-design?step=billboard");
+    console.log("Current user state:", user);
+    if (!user?.id) {
+      console.error("No user ID found in user state:", user);
+      return;
+    }
+
+    const customerDetail = {
+      logoUrl: businessInfo.logoUrl,
+      companyName: businessInfo.companyName,
+      tagLine: businessInfo.address,
+      contactInfo: businessInfo.contactInfo,
+      userId: user.id,
+    };
+
+    console.log("Customer detail to be sent:", customerDetail);
+
+    try {
+      const result = await dispatch(createCustomer(customerDetail)).unwrap();
+      console.log("Customer created successfully:", result);
+      setCurrentStep(3);
+    } catch (error) {
+      console.error("Failed to create customer. Full error:", error);
+      if (error.response) {
+        console.error("Error response data:", error.response.data);
+        console.error("Error response status:", error.response.status);
+        console.error("Error response headers:", error.response.headers);
+      } else if (error.request) {
+        console.error("Error request:", error.request);
+      } else {
+        console.error("Error message:", error.message);
+      }
+    }
   };
 
   const handleBillboardSubmit = async (e) => {
@@ -632,6 +679,15 @@ const AIDesign = () => {
               Thông tin doanh nghiệp
             </motion.h2>
 
+            {customerError && (
+              <motion.div
+                className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg"
+                variants={itemVariants}
+              >
+                {customerError}
+              </motion.div>
+            )}
+
             <motion.form
               onSubmit={handleBusinessSubmit}
               className="space-y-6 bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
@@ -693,22 +749,21 @@ const AIDesign = () => {
 
               <motion.div variants={itemVariants}>
                 <label
-                  htmlFor="logo"
+                  htmlFor="logoUrl"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Logo công ty
+                  URL Logo công ty
                 </label>
-                <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
-                  <input
-                    type="file"
-                    id="logo"
-                    name="logo"
-                    onChange={handleLogoUpload}
-                    accept="image/*"
-                    className="w-full"
-                    required
-                  />
-                </div>
+                <input
+                  type="url"
+                  id="logoUrl"
+                  name="logoUrl"
+                  value={businessInfo.logoUrl}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
+                  placeholder="https://example.com/logo.png"
+                  required
+                />
               </motion.div>
 
               <motion.div
@@ -724,29 +779,44 @@ const AIDesign = () => {
                   className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  disabled={customerStatus === "loading"}
                 >
                   Hủy
                 </motion.button>
                 <motion.button
                   type="submit"
-                  className="px-6 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg"
+                  className="px-6 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  disabled={customerStatus === "loading"}
                 >
-                  Tiếp tục
-                  <svg
-                    className="w-5 h-5 ml-1 inline"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14 5l7 7m0 0l-7 7m7-7H3"
-                    />
-                  </svg>
+                  {customerStatus === "loading" ? (
+                    <>
+                      <CircularProgress
+                        size={20}
+                        color="inherit"
+                        className="mr-2"
+                      />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      Tiếp tục
+                      <svg
+                        className="w-5 h-5 ml-1 inline"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M14 5l7 7m0 0l-7 7m7-7H3"
+                        />
+                      </svg>
+                    </>
+                  )}
                 </motion.button>
               </motion.div>
             </motion.form>
@@ -754,133 +824,138 @@ const AIDesign = () => {
         );
 
       case 3:
-  return (
-    <motion.div
-      className="max-w-4xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      <motion.h2
-        className="text-3xl font-bold text-custom-dark mb-8 text-center"
-        variants={itemVariants}
-      >
-        Chọn loại biển hiệu
-      </motion.h2>
-
-      {productTypeStatus === 'loading' ? (
-        <div className="flex justify-center items-center py-12">
-          <CircularProgress color="primary" />
-        </div>
-      ) : productTypes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {productTypes.map((productType, index) => {
-            // Tạo mapping để mỗi product type có một ảnh khác nhau
-            const getProductTypeImage = (id, index) => {
-              const imageUrls = [
-                "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
-                "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
-               
-              ];
-              
-              // Sử dụng index để đảm bảo mỗi sản phẩm có một ảnh riêng
-              return imageUrls[index % imageUrls.length];
-            };
-            
-            // Tạo mô tả mẫu cho từng loại biển hiệu
-            const getProductTypeDescription = (name) => {
-              const descriptions = {
-                "Biển hiệu hiện đại": "Thiết kế biển hiệu hiện đại, thanh lịch và nổi bật.",
-                "Biển hiệu truyền thống": "Thiết kế biển hiệu mang phong cách truyền thống, trang nhã.",
-              
-              };
-              
-              return descriptions[name] || "Thiết kế biển hiệu chuyên nghiệp cho doanh nghiệp của bạn.";
-            };
-            
-            return (
-              <motion.div
-                key={productType.id}
-                variants={cardVariants}
-                whileHover="hover"
-                className="rounded-xl overflow-hidden shadow-md bg-white border border-gray-100"
-              >
-                <div className="h-48 bg-gradient-to-r from-custom-primary to-custom-secondary flex items-center justify-center">
-                  <img
-                    src={getProductTypeImage(productType.id, index)}
-                    alt={productType.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-custom-dark mb-2">
-                    {productType.name}
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    {getProductTypeDescription(productType.name)}
-                  </p>
-                  <motion.button
-                    onClick={() => handleBillboardTypeSelect(productType.id)}
-                    className="w-full py-3 px-4 bg-custom-light text-custom-primary font-medium rounded-lg hover:bg-custom-tertiary hover:text-white transition-all flex items-center justify-center"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Chọn
-                    <svg
-                      className="w-5 h-5 ml-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
-                  </motion.button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <p>Không tìm thấy loại biển hiệu nào. Vui lòng thử lại sau.</p>
-        </div>
-      )}
-
-      <div className="mt-8 flex justify-center">
-        <motion.button
-          type="button"
-          onClick={() => {
-            setCurrentStep(2);
-            navigate("/ai-design?step=business");
-          }}
-          className="px-6 py-2 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-          variants={itemVariants}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <svg
-            className="w-5 h-5 mr-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        return (
+          <motion.div
+            className="max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Quay lại
-        </motion.button>
-      </div>
-    </motion.div>
-  );
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-8 text-center"
+              variants={itemVariants}
+            >
+              Chọn loại biển hiệu
+            </motion.h2>
+
+            {productTypeStatus === "loading" ? (
+              <div className="flex justify-center items-center py-12">
+                <CircularProgress color="primary" />
+              </div>
+            ) : productTypes.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {productTypes.map((productType, index) => {
+                  // Tạo mapping để mỗi product type có một ảnh khác nhau
+                  const getProductTypeImage = (id, index) => {
+                    const imageUrls = [
+                      "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
+                      "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
+                    ];
+
+                    // Sử dụng index để đảm bảo mỗi sản phẩm có một ảnh riêng
+                    return imageUrls[index % imageUrls.length];
+                  };
+
+                  // Tạo mô tả mẫu cho từng loại biển hiệu
+                  const getProductTypeDescription = (name) => {
+                    const descriptions = {
+                      "Biển hiệu hiện đại":
+                        "Thiết kế biển hiệu hiện đại, thanh lịch và nổi bật.",
+                      "Biển hiệu truyền thống":
+                        "Thiết kế biển hiệu mang phong cách truyền thống, trang nhã.",
+                    };
+
+                    return (
+                      descriptions[name] ||
+                      "Thiết kế biển hiệu chuyên nghiệp cho doanh nghiệp của bạn."
+                    );
+                  };
+
+                  return (
+                    <motion.div
+                      key={productType.id}
+                      variants={cardVariants}
+                      whileHover="hover"
+                      className="rounded-xl overflow-hidden shadow-md bg-white border border-gray-100"
+                    >
+                      <div className="h-48 bg-gradient-to-r from-custom-primary to-custom-secondary flex items-center justify-center">
+                        <img
+                          src={getProductTypeImage(productType.id, index)}
+                          alt={productType.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="p-6">
+                        <h3 className="text-xl font-semibold text-custom-dark mb-2">
+                          {productType.name}
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                          {getProductTypeDescription(productType.name)}
+                        </p>
+                        <motion.button
+                          onClick={() =>
+                            handleBillboardTypeSelect(productType.id)
+                          }
+                          className="w-full py-3 px-4 bg-custom-light text-custom-primary font-medium rounded-lg hover:bg-custom-tertiary hover:text-white transition-all flex items-center justify-center"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          Chọn
+                          <svg
+                            className="w-5 h-5 ml-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M14 5l7 7m0 0l-7 7m7-7H3"
+                            />
+                          </svg>
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p>Không tìm thấy loại biển hiệu nào. Vui lòng thử lại sau.</p>
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-center">
+              <motion.button
+                type="button"
+                onClick={() => {
+                  setCurrentStep(2);
+                  navigate("/ai-design?step=business");
+                }}
+                className="px-6 py-2 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+                variants={itemVariants}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg
+                  className="w-5 h-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Quay lại
+              </motion.button>
+            </div>
+          </motion.div>
+        );
 
       case 4:
         return (
