@@ -87,6 +87,31 @@ export const linkSizeToCustomerChoiceApi = async (customerChoiceId, sizeId, size
       error: error.response?.data?.message || 'Failed to link size to customer choice'
     };
   }
+  
 };
-
+export const getCustomerChoiceDetailApi = async (customerChoiceDetailId) => {
+  try {
+    // Log the ID to verify it's a string
+    console.log("Fetching customer choice detail with ID:", customerChoiceDetailId);
+    
+    // Make sure customerChoiceDetailId is a string
+    if (typeof customerChoiceDetailId !== 'string') {
+      console.error("Invalid customerChoiceDetailId type:", typeof customerChoiceDetailId);
+      return {
+        success: false,
+        error: 'Invalid customer choice detail ID'
+      };
+    }
+    
+    const response = await customerService.get(`/api/customer-choice-details/${customerChoiceDetailId}`);
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching customer choice detail:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choice detail'
+    };
+  }
+};
 export default customerService;

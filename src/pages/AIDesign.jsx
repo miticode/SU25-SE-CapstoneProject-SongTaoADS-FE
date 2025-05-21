@@ -39,6 +39,7 @@ import {
   selectAttributeValuesStatus,
   linkAttributeValueToCustomerChoice,
   linkSizeToCustomerChoice,
+  selectCustomerChoiceDetails,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -65,6 +66,8 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
   const attributeValuesStatus = useSelector(selectAttributeValuesStatus);
   const sizesStatus = useSelector(selectSizesStatus);
   const customerError = useSelector(selectCustomerError);
+  const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
+  const currentOrder = useSelector(selectCurrentOrder);
   useEffect(() => {
     if (attributes && attributes.length > 0) {
       const initialData = {};
@@ -91,11 +94,30 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
       ...prev,
       [name]: value,
     }));
+
+    // Clear validation errors
     if (validationErrors[name]) {
       setValidationErrors((prev) => ({
         ...prev,
         [name]: null,
       }));
+    }
+
+    // If this is an attribute selection and we have a customerChoiceId, call the API
+    if (
+      attributes.some((attr) => attr.id === name) &&
+      value &&
+      currentOrder?.id
+    ) {
+      console.log(`Selected attribute ${name} with value ${value}`);
+
+      dispatch(
+        linkAttributeValueToCustomerChoice({
+          customerChoiceId: currentOrder.id,
+          attributeValueId: value,
+          attributeId: name,
+        })
+      );
     }
   };
 
@@ -261,91 +283,110 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                     const attributeValues = attributeValuesState[attr.id] || [];
                     const isLoadingValues =
                       attributeValuesStatusState[attr.id] === "loading";
-
+                    // Get price for this attribute if available
+                    const attributePrice =
+                      customerChoiceDetails[attr.id]?.subTotal;
+                    const hasPrice = attributePrice !== undefined;
                     return (
                       <Grid item xs={12} sm={6} md={6} key={attr.id}>
                         {attributeValues.length > 0 ? (
-                          <FormControl
-                            fullWidth
-                            size="small"
-                            variant="outlined"
-                          >
-                            <InputLabel
-                              id={`${attr.id}-label`}
-                              sx={{ fontSize: "0.8rem" }}
+                          <div>
+                            <FormControl
+                              fullWidth
+                              size="small"
+                              variant="outlined"
                             >
-                              {attr.name}
-                            </InputLabel>
-                            <Select
-                              labelId={`${attr.id}-label`}
-                              name={attr.id}
-                              value={formData[attr.id] || ""}
-                              onChange={handleChange}
-                              label={attr.name}
-                              disabled={isLoadingValues}
-                              sx={{
-                                display: "block",
-                                width: "100%",
-                                fontSize: "0.8rem",
-                                height: "36px",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                "& .MuiSelect-select": {
-                                  minWidth: "150px", // Đặt chiều rộng tối thiểu
-                                  paddingRight: "32px",
-                                },
-                              }}
-                              MenuProps={{
-                                PaperProps: {
-                                  style: {
-                                    maxHeight: 300,
-                                    width: "auto",
-                                    minWidth: "250px",
-                                  },
-                                },
-                                anchorOrigin: {
-                                  vertical: "bottom",
-                                  horizontal: "left",
-                                },
-                                transformOrigin: {
-                                  vertical: "top",
-                                  horizontal: "left",
-                                },
-                              }}
-                            >
-                              <MenuItem value="" disabled>
+                              <InputLabel
+                                id={`${attr.id}-label`}
+                                sx={{ fontSize: "0.8rem" }}
+                              >
                                 {attr.name}
-                              </MenuItem>
-                              {attributeValues.map((value) => (
-                                <MenuItem
-                                  key={value.id}
-                                  value={value.id}
-                                  sx={{
-                                    fontSize: "0.8rem",
-                                    whiteSpace: "normal",
-                                    wordBreak: "break-word",
-                                  }}
-                                >
-                                  {value.name}
+                              </InputLabel>
+                              <Select
+                                labelId={`${attr.id}-label`}
+                                name={attr.id}
+                                value={formData[attr.id] || ""}
+                                onChange={handleChange}
+                                label={attr.name}
+                                disabled={isLoadingValues}
+                                sx={{
+                                  display: "block",
+                                  width: "100%",
+                                  fontSize: "0.8rem",
+                                  height: "36px",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  "& .MuiSelect-select": {
+                                    minWidth: "150px", // Đặt chiều rộng tối thiểu
+                                    paddingRight: "32px",
+                                  },
+                                }}
+                                MenuProps={{
+                                  PaperProps: {
+                                    style: {
+                                      maxHeight: 300,
+                                      width: "auto",
+                                      minWidth: "250px",
+                                    },
+                                  },
+                                  anchorOrigin: {
+                                    vertical: "bottom",
+                                    horizontal: "left",
+                                  },
+                                  transformOrigin: {
+                                    vertical: "top",
+                                    horizontal: "left",
+                                  },
+                                }}
+                              >
+                                <MenuItem value="" disabled>
+                                  {attr.name}
                                 </MenuItem>
-                              ))}
-                            </Select>
-                            {validationErrors[attr.id] && (
-                              <Typography color="error" variant="caption">
-                                {validationErrors[attr.id]}
+                                {attributeValues.map((value) => (
+                                  <MenuItem
+                                    key={value.id}
+                                    value={value.id}
+                                    sx={{
+                                      fontSize: "0.8rem",
+                                      whiteSpace: "normal",
+                                      wordBreak: "break-word",
+                                    }}
+                                  >
+                                    {value.name}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                              {validationErrors[attr.id] && (
+                                <Typography color="error" variant="caption">
+                                  {validationErrors[attr.id]}
+                                </Typography>
+                              )}
+                              {isLoadingValues && (
+                                <Box
+                                  display="flex"
+                                  justifyContent="center"
+                                  mt={0.5}
+                                >
+                                  <CircularProgress size={14} />
+                                </Box>
+                              )}
+                            </FormControl>
+                            {hasPrice && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  display: "block",
+                                  mt: 0.5,
+                                  color: "green.700",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                Giá: {attributePrice.toLocaleString("vi-VN")}{" "}
+                                VNĐ
                               </Typography>
                             )}
-                            {isLoadingValues && (
-                              <Box
-                                display="flex"
-                                justifyContent="center"
-                                mt={0.5}
-                              >
-                                <CircularProgress size={14} />
-                              </Box>
-                            )}
-                          </FormControl>
+                          </div>
                         ) : attr.type === "number" ? (
                           <TextField
                             fullWidth
@@ -655,13 +696,13 @@ const AIDesign = () => {
           // You can update your state to show these errors
         } else {
           // Ensure the value is a valid number
-      const numValue = parseFloat(value);
-      if (isNaN(numValue)) {
-        hasErrors = true;
-        console.error(`Size value "${value}" is not a valid number`);
-      } else {
-        sizeInputs[sizeId] = numValue; // Store as number, not string
-      }
+          const numValue = parseFloat(value);
+          if (isNaN(numValue)) {
+            hasErrors = true;
+            console.error(`Size value "${value}" is not a valid number`);
+          } else {
+            sizeInputs[sizeId] = numValue; // Store as number, not string
+          }
         }
       } else if (!key.startsWith("designNotes")) {
         // This is an attribute input
