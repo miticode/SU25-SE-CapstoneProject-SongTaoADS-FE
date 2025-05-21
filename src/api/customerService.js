@@ -57,5 +57,36 @@ export const linkCustomerToProductTypeApi = async (customerId, productTypeId) =>
     };
   }
 };
+// API to link attribute value to customer choice
+export const linkAttributeValueToCustomerChoiceApi = async (customerChoiceId, attributeValueId) => {
+  try {
+    const response = await customerService.post(`/api/customer-choices/${customerChoiceId}/attribute-values/${attributeValueId}`);
+    
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to link attribute value to customer choice'
+    };
+  }
+};
+// API to link size to customer choice
+export const linkSizeToCustomerChoiceApi = async (customerChoiceId, sizeId, sizeValue) => {
+  try {
+     console.log(`API call with customerChoiceId: ${customerChoiceId}, sizeId: ${sizeId}, sizeValue: ${sizeValue} (type: ${typeof sizeValue})`);
+     const numericSizeValue = parseFloat(sizeValue);
+    const response = await customerService.post(`/api/customer-choices/${customerChoiceId}/sizes/${sizeId}`, {
+      sizeValue: numericSizeValue
+    });
+   console.log("API response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("API error:", error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to link size to customer choice'
+    };
+  }
+};
 
 export default customerService;

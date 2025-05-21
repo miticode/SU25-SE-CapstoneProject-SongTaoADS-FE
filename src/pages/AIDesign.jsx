@@ -35,6 +35,10 @@ import {
   selectCustomerError,
   linkCustomerToProductType,
   selectCurrentOrder,
+  selectSizesStatus,
+  selectAttributeValuesStatus,
+  linkAttributeValueToCustomerChoice,
+  linkSizeToCustomerChoice,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -44,26 +48,11 @@ import {
   selectAttributeError,
   selectAttributeStatus,
 } from "../store/features/attribute/attributeSlice";
-// Cấu trúc dữ liệu cho các options
-
-// Cấu trúc dữ liệu cho các trường số
-const numberFields = [
-  { name: "height", label: "Chiều cao (cm)" },
-  { name: "width", label: "Chiều ngang (cm)" },
-  { name: "textLogoSize", label: "Kích thước chữ & logo (cm)" },
-];
-
-// Cấu trúc dữ liệu cho các options của biển hiệu truyền thống
-
-// Cấu trúc dữ liệu cho các trường số
-const traditionalNumberFields = [
-  { name: "height", label: "Chiều cao (cm)" },
-  { name: "width", label: "Chiều ngang (cm)" },
-];
 
 const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
+  const [validationErrors, setValidationErrors] = useState({});
   const attributeValuesState = useSelector(
     (state) => state.attribute.attributeValues
   );
@@ -73,7 +62,9 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
   const productTypeSizesError = useSelector(selectProductTypeSizesError);
-
+  const attributeValuesStatus = useSelector(selectAttributeValuesStatus);
+  const sizesStatus = useSelector(selectSizesStatus);
+  const customerError = useSelector(selectCustomerError);
   useEffect(() => {
     if (attributes && attributes.length > 0) {
       const initialData = {};
@@ -100,6 +91,12 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
       ...prev,
       [name]: value,
     }));
+    if (validationErrors[name]) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [name]: null,
+      }));
+    }
   };
 
   if (status === "loading") {
@@ -204,6 +201,8 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                       type="number"
                       value={formData[`size_${ptSize.size.id}`] || ""}
                       onChange={handleChange}
+                      error={!!validationErrors[`size_${ptSize.size.id}`]}
+                      helperText={validationErrors[`size_${ptSize.size.id}`]}
                       InputProps={{
                         inputProps: { min: 0, step: 0.01 },
                         startAdornment: (
@@ -265,8 +264,6 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
 
                     return (
                       <Grid item xs={12} sm={6} md={6} key={attr.id}>
-                        {" "}
-                        {/* Thay đổi md từ 4 thành 6 để làm rộng hơn */}
                         {attributeValues.length > 0 ? (
                           <FormControl
                             fullWidth
@@ -315,7 +312,6 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                                   vertical: "top",
                                   horizontal: "left",
                                 },
-                                getContentAnchorEl: null, // Đảm bảo menu mở đúng vị trí
                               }}
                             >
                               <MenuItem value="" disabled>
@@ -335,6 +331,11 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                                 </MenuItem>
                               ))}
                             </Select>
+                            {validationErrors[attr.id] && (
+                              <Typography color="error" variant="caption">
+                                {validationErrors[attr.id]}
+                              </Typography>
+                            )}
                             {isLoadingValues && (
                               <Box
                                 display="flex"
@@ -354,6 +355,8 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                             type="number"
                             value={formData[attr.id] || ""}
                             onChange={handleChange}
+                            error={!!validationErrors[attr.id]}
+                            helperText={validationErrors[attr.id]}
                             InputProps={{
                               inputProps: { min: 0 },
                               startAdornment: (
@@ -387,6 +390,8 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                             name={attr.id}
                             value={formData[attr.id] || ""}
                             onChange={handleChange}
+                            error={!!validationErrors[attr.id]}
+                            helperText={validationErrors[attr.id]}
                             InputProps={{
                               style: { fontSize: "0.8rem", height: "36px" },
                             }}
@@ -460,6 +465,24 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
             Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
           </Typography>
         </Box>
+        {/* Display API error messages if any */}
+        {customerError && (
+          <Box mt={2} p={1} bgcolor="error.light" borderRadius={1}>
+            <Typography color="error" variant="body2">
+              {customerError}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Show loading indicators */}
+        {(attributeValuesStatus === "loading" || sizesStatus === "loading") && (
+          <Box mt={2} display="flex" justifyContent="center">
+            <CircularProgress size={20} />
+            <Typography variant="body2" ml={1}>
+              Đang xử lý...
+            </Typography>
+          </Box>
+        )}
       </Paper>
     </Box>
   );
@@ -608,14 +631,111 @@ const AIDesign = () => {
 
   const handleBillboardSubmit = async (e) => {
     e.preventDefault();
-    console.log("Billboard Type:", billboardType);
+    console.log("Form submitted with billboardType:", billboardType);
+
+    // Validate the form data
+    const formData = new FormData(e.target);
+    console.log("Form data entries:");
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}: ${value}`);
+    }
+
+    // Find all attribute value inputs and size inputs
+    const attributeInputs = {};
+    const sizeInputs = {};
+    let hasErrors = false;
+
+    // Process form data and separate attributes and sizes
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("size_")) {
+        const sizeId = key.replace("size_", "");
+        if (!value) {
+          hasErrors = true;
+          // Display validation error for this field
+          // You can update your state to show these errors
+        } else {
+          // Ensure the value is a valid number
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        hasErrors = true;
+        console.error(`Size value "${value}" is not a valid number`);
+      } else {
+        sizeInputs[sizeId] = numValue; // Store as number, not string
+      }
+        }
+      } else if (!key.startsWith("designNotes")) {
+        // This is an attribute input
+        if (!value) {
+          hasErrors = true;
+          // Display validation error for this field
+        } else {
+          attributeInputs[key] = value;
+        }
+      }
+    }
+
+    if (hasErrors) {
+      setError("Vui lòng điền đầy đủ thông tin thuộc tính và kích thước.");
+      return;
+    }
+
+    // Get the customer choice ID from the state
+    // This should be available after linking customer to product type
+    const customerChoiceId = currentOrder?.id;
+
+    if (!customerChoiceId) {
+      setError("Không tìm thấy thông tin khách hàng. Vui lòng thử lại.");
+      return;
+    }
+
     setIsGenerating(true);
 
-    // Giả lập thời gian AI tạo hình ảnh (3 giây)
-    setTimeout(() => {
+    try {
+      // Process attribute values
+      console.log("Calling API for attribute values:", attributeInputs);
+      for (const [attributeId, attributeValueId] of Object.entries(
+        attributeInputs
+      )) {
+        console.log(
+          `Linking attribute value ${attributeValueId} for attribute ${attributeId}`
+        );
+        await dispatch(
+          linkAttributeValueToCustomerChoice({
+            customerChoiceId,
+            attributeValueId,
+          })
+        ).unwrap();
+      }
+
+      // Process sizes
+      console.log("Calling API for sizes:", sizeInputs);
+      for (const [sizeId, sizeValue] of Object.entries(sizeInputs)) {
+        console.log(
+          `Linking size ${sizeId} with value ${sizeValue} (type: ${typeof sizeValue})`
+        );
+        // Convert sizeValue to a number explicitly
+        const numericSizeValue = parseFloat(sizeValue);
+        console.log(
+          `Numeric value: ${numericSizeValue}, type: ${typeof numericSizeValue}`
+        );
+        await dispatch(
+          linkSizeToCustomerChoice({
+            customerChoiceId,
+            sizeId,
+            sizeValue: numericSizeValue,
+          })
+        ).unwrap();
+      }
+
+      // APIs called successfully
       setIsGenerating(false);
-      setCurrentStep(5);
-    }, 3000);
+      setCurrentStep(5); // Move to the next step
+      setShowSuccess(true);
+    } catch (error) {
+      console.error("Failed to submit customer choices:", error);
+      setIsGenerating(false);
+      setError("Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.");
+    }
   };
 
   const handleImageSelect = (imageId) => {
