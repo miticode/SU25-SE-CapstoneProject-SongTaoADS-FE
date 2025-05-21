@@ -40,6 +40,11 @@ import {
   linkAttributeValueToCustomerChoice,
   linkSizeToCustomerChoice,
   selectCustomerChoiceDetails,
+  deleteCustomerChoice,
+  updateCustomerChoiceDetail,
+  fetchCustomerDetailByUserId,
+  updateCustomerDetail,
+  selectCustomerDetail,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -51,10 +56,17 @@ import {
 } from "../store/features/attribute/attributeSlice";
 import { createOrderApi } from "../api/orderService";
 
-const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
+const ModernBillboardForm = ({
+  attributes,
+  status,
+  productTypeId,
+  productTypeName,
+}) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
+  const [sizesConfirmed, setSizesConfirmed] = useState(false);
+  const [sizeValidationError, setSizeValidationError] = useState("");
   const attributeValuesState = useSelector(
     (state) => state.attribute.attributeValues
   );
@@ -69,6 +81,12 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
   const customerError = useSelector(selectCustomerError);
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const currentOrder = useSelector(selectCurrentOrder);
+
+  // Reset sizesConfirmed when productTypeId changes
+  useEffect(() => {
+    setSizesConfirmed(false);
+  }, [productTypeId]);
+
   useEffect(() => {
     if (attributes && attributes.length > 0) {
       const initialData = {};
@@ -77,17 +95,21 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
       });
       setFormData(initialData);
 
+      // Fetch attribute values only once per attribute
       attributes.forEach((attr) => {
         if (attributeValuesStatusState[attr.id] === "idle") {
           dispatch(fetchAttributeValuesByAttributeId(attr.id));
         }
       });
     }
-    // Fetch product type sizes khi component được mount hoặc productTypeId thay đổi
+  }, [attributes, dispatch, attributeValuesStatusState]);
+
+  // Separate effect for fetching product type sizes
+  useEffect(() => {
     if (productTypeId) {
       dispatch(fetchProductTypeSizesByProductTypeId(productTypeId));
     }
-  }, [attributes, dispatch, attributeValuesStatusState, productTypeId]);
+  }, [productTypeId, dispatch]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,7 +126,7 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
       }));
     }
 
-    // If this is an attribute selection and we have a customerChoiceId, call the API
+    // Handle attribute selection changes if we have a customerChoiceId
     if (
       attributes.some((attr) => attr.id === name) &&
       value &&
@@ -112,12 +134,105 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
     ) {
       console.log(`Selected attribute ${name} with value ${value}`);
 
-      dispatch(
-        linkAttributeValueToCustomerChoice({
-          customerChoiceId: currentOrder.id,
-          attributeValueId: value,
-          attributeId: name,
-        })
+      // Check if we already have customer choice detail for this attribute
+      const existingChoiceDetail = customerChoiceDetails[name];
+
+      if (existingChoiceDetail) {
+        // If we already have a choice detail, update it
+        console.log(
+          `Updating existing choice detail ${existingChoiceDetail.id} with new value ${value}`
+        );
+        dispatch(
+          updateCustomerChoiceDetail({
+            customerChoiceDetailId: existingChoiceDetail.id,
+            attributeValueId: value,
+            attributeId: name,
+          })
+        );
+      } else {
+        // If we don't have a choice detail yet, create one
+        console.log(
+          `Creating new choice detail for attribute ${name} with value ${value}`
+        );
+        dispatch(
+          linkAttributeValueToCustomerChoice({
+            customerChoiceId: currentOrder.id,
+            attributeValueId: value,
+            attributeId: name,
+          })
+        );
+      }
+    }
+  };
+
+  const handleConfirmSizes = async () => {
+    // Validate that size values are entered
+    const sizeInputs = {};
+    let hasErrors = false;
+
+    // Check all size fields
+    for (const ptSize of productTypeSizes) {
+      const fieldName = `size_${ptSize.size.id}`;
+      const value = formData[fieldName];
+
+      if (!value) {
+        hasErrors = true;
+        setSizeValidationError("Vui lòng nhập đầy đủ thông tin kích thước");
+        return;
+      } else {
+        // Ensure the value is a valid number
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+          hasErrors = true;
+          setSizeValidationError("Giá trị kích thước không hợp lệ");
+          return;
+        } else {
+          sizeInputs[ptSize.size.id] = numValue;
+        }
+      }
+    }
+
+    if (hasErrors) {
+      return;
+    }
+
+    // Clear validation error if successful
+    setSizeValidationError("");
+
+    // Get the customer choice ID from the state
+    const customerChoiceId = currentOrder?.id;
+
+    if (!customerChoiceId) {
+      setSizeValidationError(
+        "Không tìm thấy thông tin khách hàng. Vui lòng thử lại."
+      );
+      return;
+    }
+
+    try {
+      // Process sizes
+      console.log("Calling API for sizes:", sizeInputs);
+      for (const [sizeId, sizeValue] of Object.entries(sizeInputs)) {
+        console.log(
+          `Linking size ${sizeId} with value ${sizeValue} (type: ${typeof sizeValue})`
+        );
+        // Convert sizeValue to a number explicitly
+        const numericSizeValue = parseFloat(sizeValue);
+        await dispatch(
+          linkSizeToCustomerChoice({
+            customerChoiceId,
+            sizeId,
+            sizeValue: numericSizeValue,
+          })
+        ).unwrap();
+      }
+
+      // Mark sizes as confirmed
+      setSizesConfirmed(true);
+    } catch (error) {
+      console.error("Failed to submit sizes:", error);
+      setSizeValidationError(
+        "Có lỗi xảy ra khi lưu thông tin kích thước. Vui lòng thử lại."
       );
     }
   };
@@ -159,7 +274,7 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
       <Paper
         elevation={2}
         sx={{
-          p: { xs: 2, md: 3 }, // Giảm padding
+          p: { xs: 2, md: 3 },
           borderRadius: 2,
           maxWidth: 900,
           width: "100%",
@@ -167,42 +282,43 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
         }}
       >
         <Typography
-          variant="h6" // Giảm từ h5 xuống h6
+          className="uppercase"
+          variant="h6"
           align="center"
           fontWeight={600}
           color="primary"
-          mb={2} // Giảm margin bottom
+          mb={2}
           sx={{
-            borderBottom: "1px solid #f0f0f0", // Giảm độ dày border
-            paddingBottom: 1, // Giảm padding
-            fontSize: "1.1rem", // Giảm kích thước font
+            borderBottom: "1px solid #f0f0f0",
+            paddingBottom: 1,
+            fontSize: "1.1rem",
           }}
         >
-          Thông Số Kỹ Thuật Biển Hiệu
+          Thông Số {productTypeName || ""}
         </Typography>
 
         {/* Section: Product Type Sizes (kích thước) */}
         {productTypeSizesStatus === "succeeded" &&
           productTypeSizes.length > 0 && (
             <Box
-              mb={2} // Giảm margin bottom
+              mb={2}
               sx={{
-                background: "#f8faff", // Làm nhạt màu nền
+                background: "#f8faff",
                 borderRadius: 2,
-                padding: 1.5, // Giảm padding
+                padding: 1.5,
                 border: "1px solid #e0e8ff",
                 maxWidth: "100%",
               }}
             >
               <Typography
-                variant="subtitle2" // Giảm xuống subtitle2
+                variant="subtitle2"
                 fontWeight={600}
-                mb={1} // Giảm margin
+                mb={1}
                 sx={{
                   color: "#2c3e50",
                   display: "flex",
                   alignItems: "center",
-                  fontSize: "0.85rem", // Giảm font size
+                  fontSize: "0.85rem",
                 }}
               >
                 <span className="inline-block w-1 h-4 bg-blue-500 mr-2 rounded"></span>
@@ -210,12 +326,8 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
               </Typography>
 
               <Grid container spacing={1.5}>
-                {" "}
-                {/* Giảm spacing */}
                 {productTypeSizes.map((ptSize) => (
-                  <Grid item xs={6} sm={4} md={3} key={ptSize.id}>
-                    {" "}
-                    {/* Thay đổi grid để hiển thị nhiều cột hơn */}
+                  <Grid xs={6} sm={4} md={3} key={ptSize.id}>
                     <TextField
                       fullWidth
                       size="small"
@@ -224,6 +336,7 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                       type="number"
                       value={formData[`size_${ptSize.size.id}`] || ""}
                       onChange={handleChange}
+                      disabled={sizesConfirmed}
                       error={!!validationErrors[`size_${ptSize.size.id}`]}
                       helperText={validationErrors[`size_${ptSize.size.id}`]}
                       InputProps={{
@@ -234,279 +347,365 @@ const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
                         endAdornment: (
                           <span className="text-gray-500 text-xs">m</span>
                         ),
-                        style: { fontSize: "0.8rem", height: "36px" }, // Giảm font và chiều cao
+                        style: { fontSize: "0.8rem", height: "36px" },
                       }}
                       InputLabelProps={{ style: { fontSize: "0.8rem" } }}
                       variant="outlined"
                       sx={{
                         "& .MuiOutlinedInput-root": {
-                          borderRadius: "4px", // Giảm border radius
+                          borderRadius: "4px",
                         },
                       }}
                     />
                   </Grid>
                 ))}
               </Grid>
+
+              {/* Size validation error message */}
+              {sizeValidationError && (
+                <Typography
+                  color="error"
+                  variant="caption"
+                  sx={{ display: "block", mt: 1, textAlign: "center" }}
+                >
+                  {sizeValidationError}
+                </Typography>
+              )}
+
+              {/* Confirm Size Button */}
+              {!sizesConfirmed ? (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                  <motion.button
+                    type="button"
+                    onClick={handleConfirmSizes}
+                    className="px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-all shadow-md hover:shadow-lg flex items-center"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={sizesStatus === "loading"}
+                  >
+                    {sizesStatus === "loading" ? (
+                      <>
+                        <CircularProgress
+                          size={16}
+                          color="inherit"
+                          className="mr-2"
+                        />
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        Xác nhận kích thước
+                        <svg
+                          className="w-4 h-4 ml-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </>
+                    )}
+                  </motion.button>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                  <Typography
+                    variant="caption"
+                    color="success.main"
+                    sx={{ display: "flex", alignItems: "center" }}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1 text-green-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Kích thước đã được xác nhận
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
 
-        {/* Section: Attribute Groups */}
-        <Grid container spacing={2}>
-          {Object.entries(attributesByName).map(([name, attrs]) => (
-            <Grid item xs={12} key={name}>
-              <Box
-                mb={1.5}
-                sx={{
-                  background: "#fafafa",
-                  borderRadius: 1.5,
-                  padding: 1.5,
-                  border: "1px solid #eaeaea",
-                  height: "100%",
-                }}
-              >
-                <Typography
-                  variant="subtitle2"
-                  fontWeight={600}
-                  mb={1}
-                  sx={{
-                    color: "#2c3e50",
-                    display: "flex",
-                    alignItems: "center",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  <span className="inline-block w-1 h-4 bg-custom-primary mr-2 rounded"></span>
-                  {name}
-                </Typography>
+        {/* Section: Attribute Groups - Show only if sizes are confirmed */}
+        {sizesConfirmed && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Grid container spacing={2}>
+              {Object.entries(attributesByName).map(([name, attrs]) => (
+                <Grid item xs={12} key={name}>
+                  <Box
+                    mb={1.5}
+                    sx={{
+                      background: "#fafafa",
+                      borderRadius: 1.5,
+                      padding: 1.5,
+                      border: "1px solid #eaeaea",
+                      height: "100%",
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={600}
+                      mb={1}
+                      sx={{
+                        color: "#2c3e50",
+                        display: "flex",
+                        alignItems: "center",
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      <span className="inline-block w-1 h-4 bg-custom-primary mr-2 rounded"></span>
+                      {name}
+                    </Typography>
 
-                <Grid container spacing={2}>
-                  {attrs.map((attr) => {
-                    const attributeValues = attributeValuesState[attr.id] || [];
-                    const isLoadingValues =
-                      attributeValuesStatusState[attr.id] === "loading";
-                    // Get price for this attribute if available
-                    const attributePrice =
-                      customerChoiceDetails[attr.id]?.subTotal;
-                    const hasPrice = attributePrice !== undefined;
-                    return (
-                      <Grid item xs={12} sm={6} md={6} key={attr.id}>
-                        {attributeValues.length > 0 ? (
-                          <div>
-                            <FormControl
-                              fullWidth
-                              size="small"
-                              variant="outlined"
-                            >
-                              <InputLabel
-                                id={`${attr.id}-label`}
-                                sx={{ fontSize: "0.8rem" }}
-                              >
-                                {attr.name}
-                              </InputLabel>
-                              <Select
-                                labelId={`${attr.id}-label`}
+                    <Grid container spacing={2}>
+                      {attrs.map((attr) => {
+                        const attributeValues =
+                          attributeValuesState[attr.id] || [];
+                        const isLoadingValues =
+                          attributeValuesStatusState[attr.id] === "loading";
+                        // Get price for this attribute if available
+                        const attributePrice =
+                          customerChoiceDetails[attr.id]?.subTotal;
+                        const hasPrice = attributePrice !== undefined;
+                        return (
+                          <Grid item xs={12} sm={6} md={6} key={attr.id}>
+                            {attributeValues.length > 0 ? (
+                              <div>
+                                <FormControl
+                                  fullWidth
+                                  size="small"
+                                  variant="outlined"
+                                >
+                                  <InputLabel
+                                    id={`${attr.id}-label`}
+                                    sx={{ fontSize: "0.8rem" }}
+                                  >
+                                    {attr.name}
+                                  </InputLabel>
+                                  <Select
+                                    labelId={`${attr.id}-label`}
+                                    name={attr.id}
+                                    value={formData[attr.id] || ""}
+                                    onChange={handleChange}
+                                    label={attr.name}
+                                    disabled={isLoadingValues}
+                                    sx={{
+                                      display: "block",
+                                      width: "100%",
+                                      fontSize: "0.8rem",
+                                      height: "36px",
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      "& .MuiSelect-select": {
+                                        minWidth: "150px",
+                                        paddingRight: "32px",
+                                      },
+                                    }}
+                                    MenuProps={{
+                                      PaperProps: {
+                                        style: {
+                                          maxHeight: 300,
+                                          width: "auto",
+                                          minWidth: "250px",
+                                        },
+                                      },
+                                      anchorOrigin: {
+                                        vertical: "bottom",
+                                        horizontal: "left",
+                                      },
+                                      transformOrigin: {
+                                        vertical: "top",
+                                        horizontal: "left",
+                                      },
+                                    }}
+                                  >
+                                    <MenuItem value="" disabled>
+                                      {attr.name}
+                                    </MenuItem>
+                                    {attributeValues.map((value) => (
+                                      <MenuItem
+                                        key={value.id}
+                                        value={value.id}
+                                        sx={{
+                                          fontSize: "0.8rem",
+                                          whiteSpace: "normal",
+                                          wordBreak: "break-word",
+                                        }}
+                                      >
+                                        {value.name}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                  {validationErrors[attr.id] && (
+                                    <Typography color="error" variant="caption">
+                                      {validationErrors[attr.id]}
+                                    </Typography>
+                                  )}
+                                  {isLoadingValues && (
+                                    <Box
+                                      display="flex"
+                                      justifyContent="center"
+                                      mt={0.5}
+                                    >
+                                      <CircularProgress size={14} />
+                                    </Box>
+                                  )}
+                                </FormControl>
+                                {hasPrice && (
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: "block",
+                                      mt: 0.5,
+                                      color: "green.700",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    Giá:{" "}
+                                    {attributePrice.toLocaleString("vi-VN")} VNĐ
+                                  </Typography>
+                                )}
+                              </div>
+                            ) : attr.type === "number" ? (
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label={attr.name}
                                 name={attr.id}
+                                type="number"
                                 value={formData[attr.id] || ""}
                                 onChange={handleChange}
-                                label={attr.name}
-                                disabled={isLoadingValues}
+                                error={!!validationErrors[attr.id]}
+                                helperText={validationErrors[attr.id]}
+                                InputProps={{
+                                  inputProps: { min: 0 },
+                                  startAdornment: (
+                                    <span className="text-gray-400 mr-1 text-xs">
+                                      #
+                                    </span>
+                                  ),
+                                  style: { fontSize: "0.8rem", height: "36px" },
+                                }}
+                                InputLabelProps={{
+                                  style: { fontSize: "0.8rem" },
+                                  shrink: true,
+                                }}
+                                variant="outlined"
                                 sx={{
                                   display: "block",
                                   width: "100%",
-                                  fontSize: "0.8rem",
-                                  height: "36px",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  "& .MuiSelect-select": {
-                                    minWidth: "150px", // Đặt chiều rộng tối thiểu
-                                    paddingRight: "32px",
+                                  "& .MuiOutlinedInput-root": {
+                                    borderRadius: "4px",
+                                  },
+                                  "& .MuiInputBase-input": {
+                                    minWidth: "150px",
                                   },
                                 }}
-                                MenuProps={{
-                                  PaperProps: {
-                                    style: {
-                                      maxHeight: 300,
-                                      width: "auto",
-                                      minWidth: "250px",
-                                    },
-                                  },
-                                  anchorOrigin: {
-                                    vertical: "bottom",
-                                    horizontal: "left",
-                                  },
-                                  transformOrigin: {
-                                    vertical: "top",
-                                    horizontal: "left",
-                                  },
+                              />
+                            ) : (
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label={attr.name}
+                                name={attr.id}
+                                value={formData[attr.id] || ""}
+                                onChange={handleChange}
+                                error={!!validationErrors[attr.id]}
+                                helperText={validationErrors[attr.id]}
+                                InputProps={{
+                                  style: { fontSize: "0.8rem", height: "36px" },
                                 }}
-                              >
-                                <MenuItem value="" disabled>
-                                  {attr.name}
-                                </MenuItem>
-                                {attributeValues.map((value) => (
-                                  <MenuItem
-                                    key={value.id}
-                                    value={value.id}
-                                    sx={{
-                                      fontSize: "0.8rem",
-                                      whiteSpace: "normal",
-                                      wordBreak: "break-word",
-                                    }}
-                                  >
-                                    {value.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                              {validationErrors[attr.id] && (
-                                <Typography color="error" variant="caption">
-                                  {validationErrors[attr.id]}
-                                </Typography>
-                              )}
-                              {isLoadingValues && (
-                                <Box
-                                  display="flex"
-                                  justifyContent="center"
-                                  mt={0.5}
-                                >
-                                  <CircularProgress size={14} />
-                                </Box>
-                              )}
-                            </FormControl>
-                            {hasPrice && (
-                              <Typography
-                                variant="caption"
+                                InputLabelProps={{
+                                  style: { fontSize: "0.8rem" },
+                                  shrink: true,
+                                }}
+                                variant="outlined"
                                 sx={{
                                   display: "block",
-                                  mt: 0.5,
-                                  color: "green.700",
-                                  fontWeight: "bold",
+                                  width: "100%",
+                                  "& .MuiOutlinedInput-root": {
+                                    borderRadius: "4px",
+                                  },
+                                  "& .MuiInputBase-input": {
+                                    minWidth: "150px",
+                                  },
                                 }}
-                              >
-                                Giá: {attributePrice.toLocaleString("vi-VN")}{" "}
-                                VNĐ
-                              </Typography>
+                              />
                             )}
-                          </div>
-                        ) : attr.type === "number" ? (
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label={attr.name}
-                            name={attr.id}
-                            type="number"
-                            value={formData[attr.id] || ""}
-                            onChange={handleChange}
-                            error={!!validationErrors[attr.id]}
-                            helperText={validationErrors[attr.id]}
-                            InputProps={{
-                              inputProps: { min: 0 },
-                              startAdornment: (
-                                <span className="text-gray-400 mr-1 text-xs">
-                                  #
-                                </span>
-                              ),
-                              style: { fontSize: "0.8rem", height: "36px" },
-                            }}
-                            InputLabelProps={{
-                              style: { fontSize: "0.8rem" },
-                              shrink: true, // Đảm bảo label luôn hiển thị đúng
-                            }}
-                            variant="outlined"
-                            sx={{
-                              display: "block",
-                              width: "100%",
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "4px",
-                              },
-                              "& .MuiInputBase-input": {
-                                minWidth: "150px", // Đặt chiều rộng tối thiểu
-                              },
-                            }}
-                          />
-                        ) : (
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label={attr.name}
-                            name={attr.id}
-                            value={formData[attr.id] || ""}
-                            onChange={handleChange}
-                            error={!!validationErrors[attr.id]}
-                            helperText={validationErrors[attr.id]}
-                            InputProps={{
-                              style: { fontSize: "0.8rem", height: "36px" },
-                            }}
-                            InputLabelProps={{
-                              style: { fontSize: "0.8rem" },
-                              shrink: true, // Đảm bảo label luôn hiển thị đúng
-                            }}
-                            variant="outlined"
-                            sx={{
-                              display: "block",
-                              width: "100%",
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "4px",
-                              },
-                              "& .MuiInputBase-input": {
-                                minWidth: "150px", // Đặt chiều rộng tối thiểu
-                              },
-                            }}
-                          />
-                        )}
-                      </Grid>
-                    );
-                  })}
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  </Box>
                 </Grid>
-              </Box>
+              ))}
             </Grid>
-          ))}
-        </Grid>
 
-        {/* Ghi chú thiết kế - làm nhỏ gọn */}
-        <Box mt={2}>
-          <Typography
-            variant="subtitle2"
-            fontWeight={600}
-            mb={1}
-            sx={{
-              color: "#2c3e50",
-              display: "flex",
-              alignItems: "center",
-              fontSize: "0.85rem",
-            }}
-          >
-            <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
-            GHI CHÚ THIẾT KẾ
-          </Typography>
+            {/* Ghi chú thiết kế */}
+            <Box mt={2}>
+              <Typography
+                variant="subtitle2"
+                fontWeight={600}
+                mb={1}
+                sx={{
+                  color: "#2c3e50",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "0.85rem",
+                }}
+              >
+                <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
+                GHI CHÚ THIẾT KẾ
+              </Typography>
 
-          <TextField
-            fullWidth
-            multiline
-            rows={2} // Giảm số dòng
-            name="designNotes"
-            placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
-            variant="outlined"
-            value={formData.designNotes || ""}
-            onChange={handleChange}
-            size="small"
-            InputProps={{
-              style: { fontSize: "0.8rem" },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "4px",
-              },
-            }}
-          />
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ fontStyle: "italic", display: "block", mt: 0.5 }}
-          >
-            Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
-          </Typography>
-        </Box>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                name="designNotes"
+                placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
+                variant="outlined"
+                value={formData.designNotes || ""}
+                onChange={handleChange}
+                size="small"
+                InputProps={{
+                  style: { fontSize: "0.8rem" },
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "4px",
+                  },
+                }}
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontStyle: "italic", display: "block", mt: 0.5 }}
+              >
+                Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
+              </Typography>
+            </Box>
+          </motion.div>
+        )}
+
         {/* Display API error messages if any */}
         {customerError && (
           <Box mt={2} p={1} bgcolor="error.light" borderRadius={1}>
@@ -545,11 +744,12 @@ const AIDesign = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-  const [customerDetail, setCustomerDetail] = useState(null);
+ 
   const currentOrder = useSelector(selectCurrentOrder);
   const attributes = useSelector(selectAllAttributes);
   const attributeStatus = useSelector(selectAttributeStatus);
   const attributeError = useSelector(selectAttributeError);
+  const customerDetail = useSelector(selectCustomerDetail);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -618,19 +818,39 @@ const AIDesign = () => {
         const res = await getProfileApi();
         console.log("Profile API Response:", res);
         if (res.success && res.data) {
-          console.log("User data from data:", res.data);
+          console.log("User data from API:", res.data);
           setUser(res.data);
+
+          // After getting the user, fetch their customer detail
+          if (res.data.id) {
+            dispatch(fetchCustomerDetailByUserId(res.data.id));
+          }
         } else {
           console.error("Profile API response missing data:", res);
+          setError(
+            "Không thể tải thông tin người dùng. Vui lòng đăng nhập lại."
+          );
         }
       } catch (error) {
         console.error("Failed to fetch profile:", error);
+        setError(
+          "Có lỗi xảy ra khi tải thông tin người dùng. Vui lòng thử lại."
+        );
       }
     };
 
     fetchProfile();
-  }, []);
-
+  }, [dispatch]);
+  useEffect(() => {
+    if (customerDetail) {
+      setBusinessInfo({
+        companyName: customerDetail.companyName || "",
+        address: customerDetail.tagLine || "",
+        contactInfo: customerDetail.contactInfo || "",
+        logoUrl: customerDetail.logoUrl || "",
+      });
+    }
+  }, [customerDetail]);
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setBusinessInfo((prev) => ({
@@ -647,7 +867,7 @@ const AIDesign = () => {
       return;
     }
 
-    const customerDetail = {
+    const customerData = {
       logoUrl: businessInfo.logoUrl,
       companyName: businessInfo.companyName,
       tagLine: businessInfo.address,
@@ -655,15 +875,31 @@ const AIDesign = () => {
       userId: user.id,
     };
 
-    console.log("Customer detail to be sent:", customerDetail);
+    console.log("Customer data to be sent:", customerData);
 
     try {
-      const result = await dispatch(createCustomer(customerDetail)).unwrap();
-      console.log("Customer created successfully:", result);
-      setCustomerDetail(result);
+      // If we already have a customer detail, update it
+      if (customerDetail) {
+        console.log("Updating existing customer detail:", customerDetail.id);
+        const result = await dispatch(
+          updateCustomerDetail({
+            customerDetailId: customerDetail.id,
+            customerData,
+          })
+        ).unwrap();
+        console.log("Customer detail updated successfully:", result);
+      } else {
+        // Otherwise create a new one
+        console.log("Creating new customer detail");
+        const result = await dispatch(createCustomer(customerData)).unwrap();
+        console.log("Customer created successfully:", result);
+      }
+
+      // Advance to the next step
       setCurrentStep(3);
+      navigate("/ai-design?step=billboard");
     } catch (error) {
-      console.error("Failed to create customer. Full error:", error);
+      console.error("Failed to save customer details. Full error:", error);
       if (error.response) {
         console.error("Error response data:", error.response.data);
         console.error("Error response status:", error.response.status);
@@ -687,30 +923,13 @@ const AIDesign = () => {
       console.log(`  ${key}: ${value}`);
     }
 
-    // Find all attribute value inputs and size inputs
+    // Find all attribute value inputs
     const attributeInputs = {};
-    const sizeInputs = {};
     let hasErrors = false;
 
-    // Process form data and separate attributes and sizes
+    // Process form data for attributes only (not sizes)
     for (const [key, value] of formData.entries()) {
-      if (key.startsWith("size_")) {
-        const sizeId = key.replace("size_", "");
-        if (!value) {
-          hasErrors = true;
-          // Display validation error for this field
-          // You can update your state to show these errors
-        } else {
-          // Ensure the value is a valid number
-          const numValue = parseFloat(value);
-          if (isNaN(numValue)) {
-            hasErrors = true;
-            console.error(`Size value "${value}" is not a valid number`);
-          } else {
-            sizeInputs[sizeId] = numValue; // Store as number, not string
-          }
-        }
-      } else if (!key.startsWith("designNotes")) {
+      if (!key.startsWith("size_") && !key.startsWith("designNotes")) {
         // This is an attribute input
         if (!value) {
           hasErrors = true;
@@ -722,12 +941,11 @@ const AIDesign = () => {
     }
 
     if (hasErrors) {
-      setError("Vui lòng điền đầy đủ thông tin thuộc tính và kích thước.");
+      setError("Vui lòng điền đầy đủ thông tin thuộc tính.");
       return;
     }
 
     // Get the customer choice ID from the state
-    // This should be available after linking customer to product type
     const customerChoiceId = currentOrder?.id;
 
     if (!customerChoiceId) {
@@ -738,7 +956,7 @@ const AIDesign = () => {
     setIsGenerating(true);
 
     try {
-      // Process attribute values
+      // Process attribute values only (sizes are already processed)
       console.log("Calling API for attribute values:", attributeInputs);
       for (const [attributeId, attributeValueId] of Object.entries(
         attributeInputs
@@ -750,26 +968,6 @@ const AIDesign = () => {
           linkAttributeValueToCustomerChoice({
             customerChoiceId,
             attributeValueId,
-          })
-        ).unwrap();
-      }
-
-      // Process sizes
-      console.log("Calling API for sizes:", sizeInputs);
-      for (const [sizeId, sizeValue] of Object.entries(sizeInputs)) {
-        console.log(
-          `Linking size ${sizeId} with value ${sizeValue} (type: ${typeof sizeValue})`
-        );
-        // Convert sizeValue to a number explicitly
-        const numericSizeValue = parseFloat(sizeValue);
-        console.log(
-          `Numeric value: ${numericSizeValue}, type: ${typeof numericSizeValue}`
-        );
-        await dispatch(
-          linkSizeToCustomerChoice({
-            customerChoiceId,
-            sizeId,
-            sizeValue: numericSizeValue,
           })
         ).unwrap();
       }
@@ -892,9 +1090,39 @@ const AIDesign = () => {
   };
 
   const handleBackToTypeSelection = () => {
-    setBillboardType("");
-    setCurrentStep(3);
-    navigate("/ai-design?step=billboard");
+    // Check if we have a customerChoiceId to delete
+    if (currentOrder?.id) {
+      // First try to delete the customer choice
+      dispatch(deleteCustomerChoice(currentOrder.id))
+        .unwrap()
+        .then(() => {
+          console.log(
+            `Successfully deleted customer choice ${currentOrder.id}`
+          );
+          // Navigate back after successful deletion
+          setBillboardType("");
+          setCurrentStep(3);
+          navigate("/ai-design?step=billboard");
+        })
+        .catch((error) => {
+          console.error("Failed to delete customer choice:", error);
+          // Show an error notification if the deletion fails
+          setSnackbar({
+            open: true,
+            message: "Không thể xóa lựa chọn hiện tại. Vui lòng thử lại.",
+            severity: "error",
+          });
+          // Navigate back anyway
+          setBillboardType("");
+          setCurrentStep(3);
+          navigate("/ai-design?step=billboard");
+        });
+    } else {
+      // If there's no customer choice to delete, just navigate back
+      setBillboardType("");
+      setCurrentStep(3);
+      navigate("/ai-design?step=billboard");
+    }
   };
 
   const handleStepClick = (step) => {
@@ -1150,7 +1378,7 @@ const AIDesign = () => {
                     </>
                   ) : (
                     <>
-                      Tiếp tục
+                      {customerDetail ? "Cập nhật" : "Tiếp tục"}
                       <svg
                         className="w-5 h-5 ml-1 inline"
                         fill="none"
@@ -1359,6 +1587,9 @@ const AIDesign = () => {
                 attributes={attributes}
                 status={attributeStatus}
                 productTypeId={billboardType}
+                productTypeName={
+                  productTypes.find((pt) => pt.id === billboardType)?.name
+                }
               />
 
               <motion.div
