@@ -8,6 +8,7 @@ import { syncAuthState } from "./store/features/auth/authSlice";
 import { checkAuthStatus } from "./api/authService";
 
 import MainLayout from "./layouts/MainLayout";
+import SaleLayout from "./layouts/SaleLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AuthLayout from "./layouts/AuthLayout";
@@ -18,6 +19,7 @@ import Aboutus from "./pages/Aboutus";
 import AIDesign from "./pages/AiDesign";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import SaleDashboard from "./pages/sale/SaleDashboard";
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -150,7 +152,18 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            {/* Thêm các protected routes khác ở đây */}
+          </Route>
+
+          {/* Sale routes with SaleLayout */}
+          <Route
+            path="/sale"
+            element={
+              <ProtectedRoute>
+                <SaleLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<SaleDashboard />} />
           </Route>
 
           <Route path="/auth" element={<AuthLayout />}>
