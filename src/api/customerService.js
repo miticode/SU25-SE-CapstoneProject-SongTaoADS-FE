@@ -23,7 +23,7 @@ customerService.interceptors.response.use(
 // Hàm tạo customer mới
 export const createCustomerApi = async (customerData) => {
   try {
-    const response = await customerService.post('/api/customer-details/create', {
+    const response = await customerService.post('/api/customer-details', {
       logoUrl: customerData.logoUrl,
       companyName: customerData.companyName,
       tagLine: customerData.tagLine,

@@ -49,6 +49,7 @@ import {
   selectAttributeError,
   selectAttributeStatus,
 } from "../store/features/attribute/attributeSlice";
+import { createOrderApi } from "../api/orderService";
 
 const ModernBillboardForm = ({ attributes, status, productTypeId }) => {
   const dispatch = useDispatch();
@@ -555,6 +556,11 @@ const AIDesign = () => {
     contactInfo: "",
     logoUrl: "",
   });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   // Tạm thời sử dụng 4 ảnh mẫu
   const previewImages = [
@@ -788,13 +794,55 @@ const AIDesign = () => {
     navigate("/ai-design?step=billboard");
   };
 
-  const handleConfirm = () => {
-    setShowSuccess(true);
-    // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
-    setTimeout(() => {
-      setShowSuccess(false);
-      navigate("/");
-    }, 3000);
+  const handleConfirm = async () => {
+    if (!user?.id) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng đăng nhập để tạo đơn hàng",
+        severity: "error",
+      });
+      return;
+    }
+
+    try {
+      const orderData = {
+        totalAmount: 500000, // Sẽ được tính toán dựa trên các lựa chọn
+        note: "Đơn hàng thiết kế AI",
+        isCustomDesign: true,
+        histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
+        userId: user.id,
+        aiDesignId: selectedImage?.toString(), // Chuyển đổi ID ảnh đã chọn thành string
+      };
+
+      const response = await createOrderApi(orderData);
+
+      if (response.success) {
+        setSnackbar({
+          open: true,
+          message: "Đơn hàng đã được tạo thành công!",
+          severity: "success",
+        });
+
+        // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
+        setTimeout(() => {
+          setShowSuccess(false);
+          navigate("/");
+        }, 3000);
+      } else {
+        setSnackbar({
+          open: true,
+          message: response.error || "Có lỗi xảy ra khi tạo đơn hàng",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating order:", error);
+      setSnackbar({
+        open: true,
+        message: "Có lỗi xảy ra khi tạo đơn hàng",
+        severity: "error",
+      });
+    }
   };
 
   const handleBillboardTypeSelect = async (productTypeId) => {
@@ -1515,6 +1563,23 @@ const AIDesign = () => {
           </div>
         </div>
       </Backdrop>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
