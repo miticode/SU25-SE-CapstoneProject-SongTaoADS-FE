@@ -45,6 +45,47 @@ export const createCustomerApi = async (customerData) => {
     };
   }
 };
+export const updateCustomerDetailApi = async (customerDetailId, customerData) => {
+  try {
+    const response = await customerService.put(`/api/customer-details/${customerDetailId}`, {
+      logoUrl: customerData.logoUrl,
+      companyName: customerData.companyName,
+      tagLine: customerData.tagLine,
+      contactInfo: customerData.contactInfo,
+      userId: customerData.userId
+    });
+    
+    const { success, result, message } = response.data;
+    
+    if (success) {
+      return { success: true, data: result };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update customer detail'
+    };
+  }
+};
+export const getCustomerDetailByUserIdApi = async (userId) => {
+  try {
+    const response = await customerService.get(`/api/user/${userId}/customer-details`);
+
+    return response.data;
+  } catch (error) {
+    // If 404, it means the customer detail doesn't exist yet, which is not an error
+    if (error.response && error.response.status === 404) {
+      return { success: true, result: null };
+    }
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer detail'
+    };
+  }
+};
 export const linkCustomerToProductTypeApi = async (customerId, productTypeId) => {
   try {
     const response = await customerService.post(`/api/customers/${customerId}/product-types/${productTypeId}`);
@@ -111,6 +152,34 @@ export const getCustomerChoiceDetailApi = async (customerChoiceDetailId) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch customer choice detail'
+    };
+  }
+};
+export const deleteCustomerChoiceApi = async (customerChoiceId) => {
+  try {
+    const response = await customerService.delete(`/api/customer-choices/${customerChoiceId}`);
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting customer choice:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to delete customer choice'
+    };
+  }
+};
+export const updateCustomerChoiceDetailApi = async (customerChoiceDetailId, attributeValueId) => {
+  try {
+    const response = await customerService.put(
+      `/api/customer-choices-details/${customerChoiceDetailId}/attribute-values/${attributeValueId}`
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error updating customer choice detail:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update customer choice detail'
     };
   }
 };
