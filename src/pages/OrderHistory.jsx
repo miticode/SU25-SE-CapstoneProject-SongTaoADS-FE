@@ -12,8 +12,8 @@ import {
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import HistoryIcon from "@mui/icons-material/History";
-import { getProfileApi } from "../api/authService";
 import { getOrdersByUserIdApi } from "../api/orderService";
+import { getProfileApi } from "../api/authService";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -23,7 +23,7 @@ const statusMap = {
 };
 
 const OrderHistory = () => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,28 +34,37 @@ const OrderHistory = () => {
       setLoading(true);
       setError(null);
       try {
-        const profileRes = await getProfileApi();
-        if (!profileRes.success || !profileRes.data?.id) {
-          setError(
-            "Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại."
-          );
-          setLoading(false);
-          return;
+        let userId;
+
+        if (!user?.id) {
+          const profileRes = await getProfileApi();
+          if (!profileRes.success || !profileRes.data?.id) {
+            setError(
+              "Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại."
+            );
+            setLoading(false);
+            return;
+          }
+          userId = profileRes.data.id;
+        } else {
+          userId = user.id;
         }
-        const userId = profileRes.data.id;
+
         const ordersRes = await getOrdersByUserIdApi(userId);
+
         if (ordersRes.success) {
           setOrders(ordersRes.data);
         } else {
           setError(ordersRes.error || "Không thể lấy lịch sử đơn hàng.");
         }
-      } catch (error) {
+      } catch (err) {
+        console.error("Error fetching orders:", err);
         setError("Có lỗi xảy ra khi tải lịch sử đơn hàng.");
       }
       setLoading(false);
     };
     if (isAuthenticated) fetchOrders();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const handleDeposit = (order) => {
     navigate("/checkout", {
@@ -140,18 +149,6 @@ const OrderHistory = () => {
                         onClick={() => handleDeposit(order)}
                       >
                         ĐẶT CỌC
-                      </Button>
-                    )}
-                    {(order.status || "").toUpperCase() === "REJECTED" && (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={() => {
-                          /* TODO: Xử lý đặt lại đơn */
-                        }}
-                      >
-                        Đặt lại
                       </Button>
                     )}
                   </Stack>

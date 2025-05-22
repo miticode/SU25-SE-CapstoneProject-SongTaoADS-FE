@@ -109,7 +109,7 @@ export const getOrderByIdApi = async (orderId) => {
 // Lấy danh sách đơn hàng theo userId
 export const getOrdersByUserIdApi = async (userId) => {
   try {
-    const response = await orderService.get(`/api/orders?userId=${userId}`);
+    const response = await orderService.get(`/api/users/${userId}/orders`);
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };
