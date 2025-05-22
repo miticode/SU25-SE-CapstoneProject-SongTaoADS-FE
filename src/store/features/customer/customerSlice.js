@@ -325,6 +325,20 @@ const customerSlice = createSlice({
       state.sizesStatus = "idle";
       state.error = null;
     },
+    updateAttributeSubtotal: (state, action) => {
+      const { attributeId, subTotal } = action.payload;
+
+      if (state.customerChoiceDetails[attributeId]) {
+        state.customerChoiceDetails[attributeId] = {
+          ...state.customerChoiceDetails[attributeId],
+          subTotal: subTotal,
+        };
+      }
+    },
+    resetCustomerChoiceDetails: (state) => {
+      state.customerChoiceDetails = {};
+    },
+    
   },
   extraReducers: (builder) => {
     builder
@@ -473,7 +487,9 @@ const customerSlice = createSlice({
         // Process the details and update the price information
         const details = action.payload;
         if (details && Array.isArray(details)) {
-          const detailsMap = {};
+          // Create a fresh details map for each update, but preserve any existing data not in the response
+          const detailsMap = { ...state.customerChoiceDetails };
+
           details.forEach((detail) => {
             // Use the attribute's ID from the attributeValue relationship as the key
             if (
@@ -481,20 +497,22 @@ const customerSlice = createSlice({
               detail.attributeValue &&
               detail.attributeValue.attributeId
             ) {
-              detailsMap[detail.attributeValue.attributeId] = {
+              const attributeId = detail.attributeValue.attributeId;
+              detailsMap[attributeId] = {
+                ...detailsMap[attributeId], // Giữ lại thông tin cũ
                 ...detail,
-                attributeId: detail.attributeValue.attributeId,
+                attributeId: attributeId,
                 // Ensure subTotal is a number
                 subTotal: detail.subTotal !== undefined ? detail.subTotal : 0,
               };
             }
           });
-          console.log("Processed details map:", detailsMap);
-          // Merge with existing details rather than replacing
-          state.customerChoiceDetails = {
-            ...state.customerChoiceDetails,
-            ...detailsMap,
-          };
+
+          console.log("Processing customer choice details:", details);
+          console.log("Mapped attribute prices:", detailsMap);
+
+          // Cập nhật state với dữ liệu mới nhưng vẫn giữ lại dữ liệu cũ
+          state.customerChoiceDetails = detailsMap;
         }
       })
       .addCase(fetchCustomerChoiceDetails.rejected, (state, action) => {
@@ -517,8 +535,13 @@ const customerSlice = createSlice({
   },
 });
 
-export const { resetCustomerStatus, setCurrentCustomer } =
-  customerSlice.actions;
+export const {
+  resetCustomerStatus,
+  setCurrentCustomer,
+  resetCustomerChoiceStatus,
+  updateAttributeSubtotal,
+  resetCustomerChoiceDetails,
+} = customerSlice.actions;
 
 // Selectors
 export const selectCurrentCustomer = (state) =>

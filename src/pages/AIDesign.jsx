@@ -101,75 +101,118 @@ const ModernBillboardForm = ({
   const fetchCustomerChoiceStatus = useSelector(
     selectFetchCustomerChoiceStatus
   );
-  const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
+  const previousSubTotalsRef = React.useRef({});
+  const [refreshCounter, setRefreshCounter] = useState(0);
+const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
+  try {
+    console.log("Updating size with ID:", customerChoiceSizeId);
+    console.log("New size value:", editingSizeValue);
+
+    // Đánh dấu trạng thái loading ngay từ đầu
+    dispatch({ type: "customers/fetchCustomerChoice/pending" });
+
+    // Lưu lại giá trị subtotal hiện tại trước khi cập nhật
+    const currentSubtotals = {};
+    Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
+      if (detail && detail.subTotal !== undefined) {
+        currentSubtotals[attrId] = detail.subTotal;
+        previousSubTotalsRef.current[attrId] = detail.subTotal;
+      }
+    });
+
+    // Cập nhật kích thước
+    const result = await dispatch(
+      updateCustomerChoiceSize({
+        customerChoiceSizeId,
+        sizeValue: editingSizeValue,
+      })
+    ).unwrap();
+
+    console.log("Update result:", result);
+
+    // Cập nhật trạng thái local cho UI
+    const numericValue = parseFloat(editingSizeValue);
+    setCustomerChoiceSizes({
+      ...customerChoiceSizes,
+      [sizeId]: {
+        ...customerChoiceSizes[sizeId],
+        sizeValue: numericValue,
+      },
+    });
+    setFormData({
+      ...formData,
+      [`size_${sizeId}`]: editingSizeValue,
+    });
+
+    // Reset trạng thái chỉnh sửa
+    setEditingSizeId(null);
+    setEditingSizeValue("");
+
+    // Đợi để đảm bảo backend đã xử lý xong
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     try {
-      console.log("Updating size with ID:", customerChoiceSizeId);
-      console.log("New size value:", editingSizeValue);
+      // KHÔNG xóa toàn bộ giá trị subtotal
+      // KHÔNG dispatch resetCustomerChoiceDetails
 
-      const result = await dispatch(
-        updateCustomerChoiceSize({
-          customerChoiceSizeId,
-          sizeValue: editingSizeValue,
-        })
-      ).unwrap();
-
-      console.log("Update result:", result);
-
-      // Update both customerChoiceSizes and formData states
-      const numericValue = parseFloat(editingSizeValue);
-
-      // Update customerChoiceSizes state
-      setCustomerChoiceSizes({
-        ...customerChoiceSizes,
-        [sizeId]: {
-          ...customerChoiceSizes[sizeId],
-          sizeValue: numericValue,
-        },
-      });
-
-      // Update formData state with the new value so it shows in the input
-      setFormData({
-        ...formData,
-        [`size_${sizeId}`]: editingSizeValue,
-      });
-
-      // Reset editing state
-      setEditingSizeId(null);
-      setEditingSizeValue("");
-
-      // Now using the prop passed from the parent
-      setSnackbar({
-        open: true,
-        message: "Cập nhật kích thước thành công",
-        severity: "success",
-      });
-
-      // After updating size, fetch updated customer choice details to get new prices
+      // Fetch lại toàn bộ dữ liệu
       if (currentOrder?.id) {
-        console.log("Fetching updated prices after size change");
-        // Add a delay to ensure the backend has processed the update
-        setTimeout(async () => {
-          console.log(
-            "Dispatching fetchCustomerChoiceDetails for order ID:",
-            currentOrder.id
-          );
-          await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+        // Đầu tiên, fetch chi tiết để cập nhật subtotal cho từng thuộc tính
+        await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
 
-          // Also fetch the updated total amount
-          await dispatch(fetchCustomerChoice(currentOrder.id));
-        }, 500);
+        // Sau đó fetch tổng số tiền
+        await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+
+        // Cập nhật UI
+        setRefreshCounter((prev) => prev + 1);
+
+        // Hiển thị thông báo thành công
+        setSnackbar({
+          open: true,
+          message: "Cập nhật kích thước thành công",
+          severity: "success",
+        });
       }
     } catch (error) {
-      console.error("Failed to update size:", error);
-      console.error("Error details:", error.response?.data);
-      setSizeValidationError(
-        "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
-      );
+      console.error("Error refreshing data after size update:", error);
+
+      // Phục hồi giá trị subtotal trước đó để UI không bị mất giá trị
+      // Khôi phục các giá trị subtotal từ biến tạm
+      previousSubTotalsRef.current = { ...currentSubtotals };
+
+      // Thử lại lần nữa
+      setTimeout(async () => {
+        if (currentOrder?.id) {
+          try {
+            await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+            await dispatch(fetchCustomerChoice(currentOrder.id));
+            setRefreshCounter((prev) => prev + 1);
+          } catch (retryError) {
+            console.error("Retry failed:", retryError);
+          }
+        }
+      }, 1000);
+
+      setSnackbar({
+        open: true,
+        message: "Đã cập nhật kích thước, đang tải lại dữ liệu...",
+        severity: "info",
+      });
     }
-  };
+  } catch (error) {
+    console.error("Failed to update size:", error);
+    setSizeValidationError(
+      "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
+    );
+    setSnackbar({
+      open: true,
+      message: "Cập nhật kích thước thất bại",
+      severity: "error",
+    });
+  }
+};
   useEffect(() => {
     if (currentOrder?.id && sizesConfirmed) {
-      console.log("Fetching customer choice to get total amount");
       dispatch(fetchCustomerChoice(currentOrder.id));
     }
   }, [currentOrder?.id, sizesConfirmed, dispatch]);
@@ -178,10 +221,6 @@ const ModernBillboardForm = ({
     if (sizesConfirmed && currentOrder?.id) {
       // Make sure we fetch the details periodically until we get them
       const fetchDetails = () => {
-        console.log(
-          "Fetching customer choice details for order:",
-          currentOrder.id
-        );
         dispatch(fetchCustomerChoiceDetails(currentOrder.id));
       };
 
@@ -225,30 +264,45 @@ const ModernBillboardForm = ({
       dispatch(fetchProductTypeSizesByProductTypeId(productTypeId));
     }
   }, [productTypeId, dispatch]);
+
   useEffect(() => {
-    // Debug log to see what's in customerChoiceDetails
-    console.log("Current customerChoiceDetails:", customerChoiceDetails);
+    // Lưu giá trị subTotal hiện tại vào ref
+    Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
+      if (detail && detail.subTotal !== undefined) {
+        previousSubTotalsRef.current[attrId] = detail.subTotal;
+      }
+    });
   }, [customerChoiceDetails]);
   useEffect(() => {
-    // Log the current totalAmount whenever it changes
-    console.log("Current totalAmount from Redux:", totalAmount);
-
-    // Check if we need to fetch the total amount (it's 0 but we have an order and confirmed sizes)
-    if (totalAmount === 0 && currentOrder?.id && sizesConfirmed) {
+    if (refreshCounter > 0 && currentOrder?.id) {
       console.log(
-        "Total amount is 0 but we have an order - fetching the total amount"
+        `RefreshCounter changed to ${refreshCounter}, re-fetching data`
       );
-      dispatch(fetchCustomerChoice(currentOrder.id));
+
+      // Fetch lại dữ liệu khi refreshCounter thay đổi
+      const updatePrices = async () => {
+        try {
+          await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+          await dispatch(fetchCustomerChoice(currentOrder.id));
+          console.log("Data refreshed due to refreshCounter change");
+        } catch (error) {
+          console.error("Failed to refresh data:", error);
+        }
+      };
+
+      updatePrices();
     }
-  }, [totalAmount, currentOrder?.id, sizesConfirmed, dispatch]);
+  }, [refreshCounter, currentOrder?.id, dispatch]);
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // Cập nhật formData
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
 
-    // Clear validation errors
+    // Xóa lỗi validation nếu có
     if (validationErrors[name]) {
       setValidationErrors((prev) => ({
         ...prev,
@@ -256,123 +310,76 @@ const ModernBillboardForm = ({
       }));
     }
 
-    // Handle attribute selection changes if we have a customerChoiceId
+    // Xử lý thay đổi thuộc tính nếu có customerChoiceId
     if (
       attributes.some((attr) => attr.id === name) &&
       value &&
       currentOrder?.id
     ) {
-      console.log(`Selected attribute ${name} with value ${value}`);
-
-      // Check if we already have customer choice detail for this attribute
       const existingChoiceDetail = customerChoiceDetails[name];
 
-      if (existingChoiceDetail) {
-        // If we already have a choice detail, update it
-        console.log(
-          `Updating existing choice detail ${existingChoiceDetail.id} with new value ${value}`
-        );
-        dispatch(
-          updateCustomerChoiceDetail({
+      // Lưu subTotal hiện tại vào ref để tránh hiệu ứng nhấp nháy
+      if (existingChoiceDetail?.subTotal !== undefined) {
+        previousSubTotalsRef.current[name] = existingChoiceDetail.subTotal;
+      }
+
+      // Đánh dấu trạng thái loading sớm để UI phản hồi ngay lập tức
+      dispatch({ type: "customers/fetchCustomerChoice/pending" });
+
+      // Xử lý cập nhật hoặc tạo mới dựa vào existingChoiceDetail
+      const updateAction = existingChoiceDetail
+        ? updateCustomerChoiceDetail({
             customerChoiceDetailId: existingChoiceDetail.id,
             attributeValueId: value,
             attributeId: name,
           })
-        )
-          .unwrap()
-          .then(() => {
-            // Refresh the customer choice details to update prices
-            console.log("Attribute updated, fetching new prices");
+        : linkAttributeValueToCustomerChoice({
+            customerChoiceId: currentOrder.id,
+            attributeValueId: value,
+            attributeId: name,
+          });
 
-            // Đảm bảo chúng ta có thể lấy đúng giá sau khi cập nhật attribute
-            const fetchUpdatedPrices = async () => {
-              try {
-                // Fetch details first
-                await dispatch(
-                  fetchCustomerChoiceDetails(currentOrder.id)
-                ).unwrap();
+      // Thực hiện action và xử lý kết quả
+      dispatch(updateAction)
+        .unwrap()
+        .then(() => {
+          // Thêm delay nhỏ để đảm bảo backend đã xử lý
+          setTimeout(async () => {
+            try {
+              // Fetch dữ liệu cập nhật theo thứ tự
+              await dispatch(
+                fetchCustomerChoiceDetails(currentOrder.id)
+              ).unwrap();
+              await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+              // Cập nhật UI
+              setRefreshCounter((prev) => prev + 1);
+            } catch (error) {
+              console.error("Lỗi khi cập nhật giá:", error);
+              setSnackbar({
+                open: true,
+                message: "Có lỗi xảy ra khi cập nhật giá. Vui lòng thử lại.",
+                severity: "error",
+              });
+            }
+          }, 300);
+        })
+        .catch((error) => {
+          console.error("Lỗi khi cập nhật thuộc tính:", error);
 
-                // Then fetch the total amount
-                const result = await dispatch(
-                  fetchCustomerChoice(currentOrder.id)
-                ).unwrap();
-                console.log(
-                  "New total amount after attribute change:",
-                  result.totalAmount
-                );
-              } catch (error) {
-                console.error("Failed to fetch updated prices:", error);
-              }
-            };
-
-            // Đợi một chút để backend cập nhật
-            setTimeout(() => fetchUpdatedPrices(), 300);
-          })
-          .catch((error) => {
-            console.error("Failed to update attribute value:", error);
+          // Xử lý trường hợp thuộc tính đã tồn tại
+          if (error.message?.includes("Attribute existed")) {
+            dispatch(fetchCustomerChoiceDetails(currentOrder.id)).then(() =>
+              dispatch(fetchCustomerChoice(currentOrder.id))
+            );
+          } else {
             setSnackbar({
               open: true,
               message:
                 "Có lỗi xảy ra khi cập nhật thuộc tính. Vui lòng thử lại.",
               severity: "error",
             });
-          });
-      } else {
-        // If we don't have a choice detail yet, create one
-        console.log(
-          `Creating new choice detail for attribute ${name} with value ${value}`
-        );
-        dispatch(
-          linkAttributeValueToCustomerChoice({
-            customerChoiceId: currentOrder.id,
-            attributeValueId: value,
-            attributeId: name,
-          })
-        )
-          .unwrap()
-          .then((result) => {
-            // After linking, force fetch the details to get updated prices
-            if (currentOrder?.id) {
-              console.log("New attribute linked, fetching updated prices");
-
-              setTimeout(async () => {
-                try {
-                  // Fetch updated details first
-                  await dispatch(
-                    fetchCustomerChoiceDetails(currentOrder.id)
-                  ).unwrap();
-
-                  // Then fetch the total amount
-                  const result = await dispatch(
-                    fetchCustomerChoice(currentOrder.id)
-                  ).unwrap();
-                  console.log(
-                    "New total amount after adding attribute:",
-                    result.totalAmount
-                  );
-                } catch (error) {
-                  console.error("Failed to fetch updated prices:", error);
-                }
-              }, 300);
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to link attribute value:", error);
-            if (error.message?.includes("Attribute existed")) {
-              console.log("Attribute already exists, fetching updated details");
-              // If the attribute already exists, just refresh the details
-              dispatch(fetchCustomerChoiceDetails(currentOrder.id)).then(() => {
-                dispatch(fetchCustomerChoice(currentOrder.id));
-              });
-            } else {
-              setSnackbar({
-                open: true,
-                message: "Có lỗi xảy ra khi chọn thuộc tính. Vui lòng thử lại.",
-                severity: "error",
-              });
-            }
-          });
-      }
+          }
+        });
     }
   };
 
@@ -679,32 +686,35 @@ const ModernBillboardForm = ({
 
                         {sizesConfirmed && savedSize && (
                           <div className="absolute right-0 top-0 flex">
-                            {isEditing ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleSizeUpdate(savedSize.id, sizeId)
-                                }
-                                className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
-                                title="Lưu thay đổi"
-                              >
-                                <FaSave size={12} />
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isEditing) {
+                                  handleSizeUpdate(savedSize.id, sizeId);
+                                } else {
                                   setEditingSizeId(sizeId);
                                   setEditingSizeValue(
                                     savedSize.sizeValue.toString()
                                   );
-                                }}
-                                className="p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-                                title="Chỉnh sửa kích thước"
-                              >
+                                }
+                              }}
+                              className={`p-1 text-white rounded-full transition-colors ${
+                                isEditing
+                                  ? "bg-green-500 hover:bg-green-600"
+                                  : "bg-blue-500 hover:bg-blue-600"
+                              }`}
+                              title={
+                                isEditing
+                                  ? "Lưu thay đổi"
+                                  : "Chỉnh sửa kích thước"
+                              }
+                            >
+                              {isEditing ? (
+                                <FaSave size={12} />
+                              ) : (
                                 <FaEdit size={12} />
-                              </button>
-                            )}
+                              )}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -935,27 +945,61 @@ const ModernBillboardForm = ({
                               )}
 
                               {/* Show attribute price if available */}
-                              {customerChoiceDetails[attr.id] &&
-                                customerChoiceDetails[attr.id].subTotal !==
-                                  undefined && (
-                                  <Box
-                                    mt={0.5}
-                                    display="flex"
-                                    justifyContent="flex-end"
+                              {(customerChoiceDetails[attr.id]?.subTotal !==
+                                undefined ||
+                                previousSubTotalsRef.current[attr.id]) && (
+                                <Box
+                                  mt={0.5}
+                                  display="flex"
+                                  justifyContent="flex-end"
+                                  key={`price-${attr.id}-${refreshCounter}`}
+                                  sx={{
+                                    transition: "opacity 0.3s ease",
+                                    opacity:
+                                      fetchCustomerChoiceStatus === "loading"
+                                        ? 0.6
+                                        : 1,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    color="success.main"
+                                    fontWeight="medium"
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      bgcolor: "success.lightest",
+                                      py: 0.5,
+                                      px: 1,
+                                      borderRadius: 1,
+                                    }}
                                   >
-                                    <Typography
-                                      variant="caption"
-                                      color="success.main"
-                                      fontWeight="medium"
-                                    >
-                                      Giá:{" "}
-                                      {customerChoiceDetails[
-                                        attr.id
-                                      ].subTotal.toLocaleString("vi-VN")}{" "}
+                                    {fetchCustomerChoiceStatus === "loading" ? (
+                                      <CircularProgress
+                                        size={10}
+                                        sx={{ mr: 0.5 }}
+                                      />
+                                    ) : (
+                                      <FaCheckCircle
+                                        size={10}
+                                        className="mr-1 text-green-500"
+                                      />
+                                    )}
+                                    Giá:{" "}
+                                    <span className="font-bold ml-1">
+                                      {(customerChoiceDetails[attr.id]
+                                        ?.subTotal !== undefined
+                                        ? customerChoiceDetails[attr.id]
+                                            .subTotal
+                                        : previousSubTotalsRef.current[
+                                            attr.id
+                                          ] || 0
+                                      ).toLocaleString("vi-VN")}{" "}
                                       đ
-                                    </Typography>
-                                  </Box>
-                                )}
+                                    </span>
+                                  </Typography>
+                                </Box>
+                              )}
                             </FormControl>
                           </Grid>
                         );
