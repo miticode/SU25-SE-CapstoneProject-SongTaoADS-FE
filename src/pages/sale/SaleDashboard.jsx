@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { fetchOrders } from "../../store/features/order/orderSlice";
-import { getOrderByIdApi } from "../../api/orderService";
+import { getOrderByIdApi, updateOrderStatusApi } from "../../api/orderService";
 import { logoutApi } from "../../api/authService";
 import {
   Box,
@@ -59,6 +59,8 @@ import {
   PendingActions as PendingIcon,
   LocalShipping as ShippingIcon,
   Logout,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
 } from "@mui/icons-material";
 
 const drawerWidth = 240;
@@ -343,7 +345,7 @@ const SaleDashboard = () => {
             sx={{
               flex: 1,
               minWidth: 240,
-              background: "linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)",
+              background: "var(--color-primary)",
               color: "#fff",
               borderRadius: 2,
               boxShadow: 3,
@@ -366,7 +368,7 @@ const SaleDashboard = () => {
             sx={{
               flex: 1,
               minWidth: 240,
-              background: "linear-gradient(45deg, #ff9800 30%, #ffb74d 90%)",
+              background: "var(--color-primary)",
               color: "#fff",
               borderRadius: 2,
               boxShadow: 3,
@@ -389,7 +391,7 @@ const SaleDashboard = () => {
             sx={{
               flex: 1,
               minWidth: 240,
-              background: "linear-gradient(45deg, #4caf50 30%, #81c784 90%)",
+              background: "var(--color-primary)",
               color: "#fff",
               borderRadius: 2,
               boxShadow: 3,
@@ -412,7 +414,7 @@ const SaleDashboard = () => {
             sx={{
               flex: 1,
               minWidth: 240,
-              background: "linear-gradient(45deg, #e91e63 30%, #f48fb1 90%)",
+              background: "var(--color-primary)",
               color: "#fff",
               borderRadius: 2,
               boxShadow: 3,
@@ -518,13 +520,27 @@ const SaleDashboard = () => {
                               : order.status === "confirmed" ||
                                 order.status === "CONFIRMED"
                               ? "Đã xác nhận"
+                              : order.status === "approved" ||
+                                order.status === "APPROVED"
+                              ? "Đã xác nhận"
+                              : order.status === "rejected" ||
+                                order.status === "REJECTED"
+                              ? "Bị từ chối"
                               : order.status
                           }
                           color={
                             order.status === "pending" ||
                             order.status === "PENDING"
                               ? "warning"
-                              : "success"
+                              : order.status === "confirmed" ||
+                                order.status === "CONFIRMED" ||
+                                order.status === "approved" ||
+                                order.status === "APPROVED"
+                              ? "success"
+                              : order.status === "rejected" ||
+                                order.status === "REJECTED"
+                              ? "error"
+                              : "default"
                           }
                           size="small"
                         />
@@ -568,7 +584,7 @@ const SaleDashboard = () => {
               <Box sx={{ p: { xs: 0, sm: 1 } }}>
                 <Grid container spacing={2}>
                   {/* Thông tin đơn hàng & khách hàng */}
-                  <Grid item xs={12} md={6}>
+                  <Grid>
                     <Paper
                       elevation={2}
                       sx={{ p: 2, borderRadius: 2, height: "100%" }}
@@ -604,7 +620,7 @@ const SaleDashboard = () => {
                       </Box>
                     </Paper>
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid>
                     <Paper
                       elevation={2}
                       sx={{ p: 2, borderRadius: 2, height: "100%" }}
@@ -709,7 +725,7 @@ const SaleDashboard = () => {
                   </Grid>
 
                   {/* Thông tin thanh toán */}
-                  <Grid item xs={12}>
+                  <Grid>
                     <Paper elevation={2} sx={{ p: 2, borderRadius: 2 }}>
                       <Typography
                         variant="subtitle2"
@@ -839,7 +855,7 @@ const SaleDashboard = () => {
                   </Grid>
 
                   {/* Thông tin bổ sung */}
-                  <Grid item xs={12}>
+                  <Grid>
                     <Paper elevation={2} sx={{ p: 2, borderRadius: 2 }}>
                       <Typography
                         variant="subtitle2"
@@ -850,9 +866,6 @@ const SaleDashboard = () => {
                       </Typography>
                       <Grid container spacing={2}>
                         <Grid
-                          item
-                          xs={12}
-                          sm={3}
                           display="flex"
                           flexDirection="column"
                           alignItems="center"
@@ -905,6 +918,43 @@ const SaleDashboard = () => {
             >
               Đóng
             </Button>
+            {selectedOrder &&
+              !["APPROVED", "CONFIRMED", "REJECTED"].includes(
+                (selectedOrder.status || "").toUpperCase()
+              ) && (
+                <>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={async () => {
+                      await updateOrderStatusApi(
+                        selectedOrder.orderId,
+                        "APPROVED"
+                      );
+                      setDetailOpen(false);
+                      dispatch(fetchOrders());
+                    }}
+                    sx={{ ml: 1 }}
+                  >
+                    Xác nhận
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={async () => {
+                      await updateOrderStatusApi(
+                        selectedOrder.orderId,
+                        "REJECTED"
+                      );
+                      setDetailOpen(false);
+                      dispatch(fetchOrders());
+                    }}
+                    sx={{ ml: 1 }}
+                  >
+                    Từ chối
+                  </Button>
+                </>
+              )}
           </DialogActions>
         </Dialog>
       </Box>
