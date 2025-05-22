@@ -1,17 +1,24 @@
 import { useState, useEffect } from "react";
-import { FaBell, FaBars, FaChevronDown, FaSearch, FaUserCircle } from "react-icons/fa";
+import {
+  FaBell,
+  FaBars,
+  FaChevronDown,
+  FaSearch,
+  FaUserCircle,
+} from "react-icons/fa";
 import { SiProbot } from "react-icons/si";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/features/auth/authSlice";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [hideAnnouncement, setHideAnnouncement] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  
-  const { isAuthenticated, user } = useSelector(state => state.auth);
+
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -28,9 +35,9 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await dispatch(logout()).unwrap();
-      navigate('/auth/login');
+      navigate("/auth/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -44,11 +51,11 @@ export default function Header() {
     };
 
     if (userMenuOpen) {
-      document.addEventListener('click', closeUserMenu);
+      document.addEventListener("click", closeUserMenu);
     }
 
     return () => {
-      document.removeEventListener('click', closeUserMenu);
+      document.removeEventListener("click", closeUserMenu);
     };
   }, [userMenuOpen]);
 
@@ -163,11 +170,20 @@ export default function Header() {
               size={14}
             />
           </div>
-          
+          {isAuthenticated && (
+            <button
+              onClick={() => navigate("/order-history")}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              title="Lịch sử đơn hàng"
+            >
+              <ShoppingCartIcon />
+            </button>
+          )}
+
           {isAuthenticated ? (
             <div className="relative">
               <button
-                onClick={e => {
+                onClick={(e) => {
                   e.stopPropagation();
                   toggleUserMenu();
                 }}
@@ -179,11 +195,10 @@ export default function Header() {
                 </span>
                 <FaChevronDown size={12} className="text-gray-500" />
               </button>
-              
+
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
-                   
                     <Link
                       to="/profile"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -265,7 +280,7 @@ export default function Header() {
           <a href="/blog" className="block py-2 hover:text-[#2B2F4A]">
             Blog
           </a>
-          
+
           <div className="pt-3 mt-3">
             <div className="relative mb-3">
               <input
@@ -278,7 +293,7 @@ export default function Header() {
                 size={14}
               />
             </div>
-            
+
             {isAuthenticated ? (
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md mb-2">

@@ -72,16 +72,11 @@ export const getOrdersApi = async () => {
 // Hàm cập nhật trạng thái đơn hàng
 export const updateOrderStatusApi = async (orderId, status) => {
   try {
-    const response = await orderService.put(`/api/orders/${orderId}`, {
-      status
-    });
-
+    const response = await orderService.put(`/api/orders/${orderId}`, { status });
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {
@@ -107,6 +102,23 @@ export const getOrderByIdApi = async (orderId) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Không thể lấy thông tin chi tiết đơn hàng'
+    };
+  }
+};
+
+// Lấy danh sách đơn hàng theo userId
+export const getOrdersByUserIdApi = async (userId) => {
+  try {
+    const response = await orderService.get(`/api/orders?userId=${userId}`);
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success: true, data: result };
+    }
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch orders'
     };
   }
 };

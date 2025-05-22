@@ -20,7 +20,10 @@ import AIDesign from "./pages/AiDesign";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import SaleDashboard from "./pages/sale/SaleDashboard";
-
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
+import OrderHistory from "./pages/OrderHistory";
+import Checkout from "./pages/Checkout";
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -134,6 +137,8 @@ const App = () => {
             <Route path="blog" element={<Blog />} />
             <Route path="aboutus" element={<Aboutus />} />
             <Route path="ai-design" element={<AIDesign />} />
+            <Route path="order-history" element={<OrderHistory />} />
+            <Route path="checkout" element={<Checkout />} />
 
             {/* Protected routes - cần đăng nhập để truy cập */}
             <Route
@@ -156,7 +161,7 @@ const App = () => {
 
           {/* Sale routes with SaleLayout */}
           <Route
-            path="/sale"
+            path="sale"
             element={
               <ProtectedRoute>
                 <SaleLayout />
@@ -170,6 +175,9 @@ const App = () => {
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
           </Route>
+
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
         </Routes>
       </AnimatePresence>
     </>
