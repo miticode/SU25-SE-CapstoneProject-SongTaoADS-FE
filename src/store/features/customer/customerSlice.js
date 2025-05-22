@@ -2,24 +2,28 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createCustomerApi,
   deleteCustomerChoiceApi,
+  fetchCustomerChoiceApi,
+  fetchCustomerChoiceDetailsApi,
   getCustomerChoiceDetailApi,
   getCustomerDetailByUserIdApi,
   linkAttributeValueToCustomerChoiceApi,
   linkCustomerToProductTypeApi,
   linkSizeToCustomerChoiceApi,
   updateCustomerChoiceDetailApi,
+  updateCustomerChoiceSizeApi,
   updateCustomerDetailApi,
 } from "../../../api/customerService";
 
-// Initial state
 const initialState = {
   currentCustomer: null,
-  status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  status: "idle",
   error: null,
   attributeValuesStatus: "idle",
   sizesStatus: "idle",
-  customerChoiceDetails: {}, // Store choice details by attributeId
+  customerChoiceDetails: {},
   customerChoiceDetailsStatus: "idle",
+  totalAmount: 0,
+  fetchCustomerChoiceStatus: "idle",
 };
 
 export const createCustomer = createAsyncThunk(
@@ -70,6 +74,15 @@ export const linkAttributeValueToCustomerChoice = createAsyncThunk(
       );
 
       if (!response.success) {
+        // Check if the error is about attribute already existing
+        if (response.error && response.error.includes("Attribute existed")) {
+          console.log("Attribute already exists, fetching all details");
+          // Dispatch an action to fetch all customer choice details instead
+          dispatch(fetchCustomerChoiceDetails(customerChoiceId));
+          // Return with a special flag to indicate this was an expected "already exists" case
+          return { attributeExists: true, attributeId };
+        }
+
         return rejectWithValue(
           response.error || "Failed to link attribute value to customer choice"
         );
@@ -90,6 +103,15 @@ export const linkAttributeValueToCustomerChoice = createAsyncThunk(
 
       return { ...response.result, attributeId };
     } catch (error) {
+      // Check specifically for the "attribute already exists" error
+      if (error.response?.data?.message?.includes("Attribute existed")) {
+        console.log("Attribute already exists, fetching all details");
+        // Dispatch an action to fetch all customer choice details
+        dispatch(fetchCustomerChoiceDetails(customerChoiceId));
+        // Return with a special flag to indicate this was an expected "already exists" case
+        return { attributeExists: true, attributeId };
+      }
+
       return rejectWithValue(error.message || "Unknown error occurred");
     }
   }
@@ -98,10 +120,6 @@ export const linkSizeToCustomerChoice = createAsyncThunk(
   "customers/linkSize",
   async ({ customerChoiceId, sizeId, sizeValue }, { rejectWithValue }) => {
     try {
-      console.log(
-        `Thunk received: customerChoiceId=${customerChoiceId}, sizeId=${sizeId}, sizeValue=${sizeValue}`
-      );
-
       // Ensure sizeValue is numeric
       const numericSizeValue = parseFloat(sizeValue);
       const response = await linkSizeToCustomerChoiceApi(
@@ -226,6 +244,61 @@ export const fetchCustomerDetailByUserId = createAsyncThunk(
       if (!response.success) {
         return rejectWithValue(
           response.error || "Failed to fetch customer detail"
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
+  }
+);
+export const updateCustomerChoiceSize = createAsyncThunk(
+  "customers/updateCustomerChoiceSize",
+  async ({ customerChoiceSizeId, sizeValue }, { rejectWithValue }) => {
+    try {
+      const response = await updateCustomerChoiceSizeApi(
+        customerChoiceSizeId,
+        sizeValue
+      );
+
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to update size value");
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
+  }
+);
+export const fetchCustomerChoiceDetails = createAsyncThunk(
+  "customers/fetchCustomerChoiceDetails",
+  async (customerChoiceId, { rejectWithValue }) => {
+    try {
+      const response = await fetchCustomerChoiceDetailsApi(customerChoiceId);
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to fetch customer choice details"
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
+  }
+);
+export const fetchCustomerChoice = createAsyncThunk(
+  "customers/fetchCustomerChoice",
+  async (customerChoiceId, { rejectWithValue }) => {
+    try {
+      const response = await fetchCustomerChoiceApi(customerChoiceId);
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to fetch customer choice"
         );
       }
 
@@ -378,6 +451,68 @@ const customerSlice = createSlice({
       .addCase(updateCustomerDetail.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+      })
+      .addCase(updateCustomerChoiceSize.pending, (state) => {
+        state.sizesStatus = "loading";
+        state.error = null;
+      })
+      .addCase(updateCustomerChoiceSize.fulfilled, (state) => {
+        state.sizesStatus = "succeeded";
+        state.error = null;
+      })
+      .addCase(updateCustomerChoiceSize.rejected, (state, action) => {
+        state.sizesStatus = "failed";
+        state.error = action.payload;
+      })
+      .addCase(fetchCustomerChoiceDetails.pending, (state) => {
+        state.customerChoiceDetailsStatus = "loading";
+      })
+      .addCase(fetchCustomerChoiceDetails.fulfilled, (state, action) => {
+        state.customerChoiceDetailsStatus = "succeeded";
+
+        // Process the details and update the price information
+        const details = action.payload;
+        if (details && Array.isArray(details)) {
+          const detailsMap = {};
+          details.forEach((detail) => {
+            // Use the attribute's ID from the attributeValue relationship as the key
+            if (
+              detail.attributeValueId &&
+              detail.attributeValue &&
+              detail.attributeValue.attributeId
+            ) {
+              detailsMap[detail.attributeValue.attributeId] = {
+                ...detail,
+                attributeId: detail.attributeValue.attributeId,
+                // Ensure subTotal is a number
+                subTotal: detail.subTotal !== undefined ? detail.subTotal : 0,
+              };
+            }
+          });
+          console.log("Processed details map:", detailsMap);
+          // Merge with existing details rather than replacing
+          state.customerChoiceDetails = {
+            ...state.customerChoiceDetails,
+            ...detailsMap,
+          };
+        }
+      })
+      .addCase(fetchCustomerChoiceDetails.rejected, (state, action) => {
+        state.customerChoiceDetailsStatus = "failed";
+        state.error = action.payload;
+      })
+      .addCase(fetchCustomerChoice.pending, (state) => {
+        state.fetchCustomerChoiceStatus = "loading";
+      })
+      .addCase(fetchCustomerChoice.fulfilled, (state, action) => {
+        state.fetchCustomerChoiceStatus = "succeeded";
+        state.totalAmount = action.payload.totalAmount;
+        // Also update the current order with more details
+        state.currentOrder = action.payload;
+      })
+      .addCase(fetchCustomerChoice.rejected, (state, action) => {
+        state.fetchCustomerChoiceStatus = "failed";
+        state.error = action.payload;
       });
   },
 });
@@ -398,5 +533,8 @@ export const selectSizesStatus = (state) =>
   state.customers?.sizesStatus || "idle";
 export const selectCustomerChoiceDetails = (state) =>
   state.customers?.customerChoiceDetails || {};
-export const selectCustomerDetail = (state) => state.customers?.customerDetail
+export const selectCustomerDetail = (state) => state.customers?.customerDetail;
+export const selectTotalAmount = (state) => state.customers?.totalAmount || 0;
+export const selectFetchCustomerChoiceStatus = (state) =>
+  state.customers?.fetchCustomerChoiceStatus || "idle";
 export default customerSlice.reducer;

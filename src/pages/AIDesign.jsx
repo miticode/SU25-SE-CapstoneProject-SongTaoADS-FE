@@ -18,7 +18,14 @@ import {
   Backdrop,
   CircularProgress,
 } from "@mui/material";
-import { FaCheck, FaRedo, FaCheckCircle, FaRobot } from "react-icons/fa";
+import {
+  FaCheck,
+  FaRedo,
+  FaCheckCircle,
+  FaRobot,
+  FaEdit,
+  FaSave,
+} from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
   fetchProductTypes,
@@ -45,6 +52,11 @@ import {
   fetchCustomerDetailByUserId,
   updateCustomerDetail,
   selectCustomerDetail,
+  updateCustomerChoiceSize,
+  fetchCustomerChoiceDetails,
+  selectTotalAmount,
+  selectFetchCustomerChoiceStatus,
+  fetchCustomerChoice,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -61,6 +73,7 @@ const ModernBillboardForm = ({
   status,
   productTypeId,
   productTypeName,
+  setSnackbar,
 }) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
@@ -81,7 +94,109 @@ const ModernBillboardForm = ({
   const customerError = useSelector(selectCustomerError);
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const currentOrder = useSelector(selectCurrentOrder);
+  const [editingSizeId, setEditingSizeId] = useState(null);
+  const [editingSizeValue, setEditingSizeValue] = useState("");
+  const [customerChoiceSizes, setCustomerChoiceSizes] = useState({});
+  const totalAmount = useSelector(selectTotalAmount);
+  const fetchCustomerChoiceStatus = useSelector(
+    selectFetchCustomerChoiceStatus
+  );
+  const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
+    try {
+      console.log("Updating size with ID:", customerChoiceSizeId);
+      console.log("New size value:", editingSizeValue);
 
+      const result = await dispatch(
+        updateCustomerChoiceSize({
+          customerChoiceSizeId,
+          sizeValue: editingSizeValue,
+        })
+      ).unwrap();
+
+      console.log("Update result:", result);
+
+      // Update both customerChoiceSizes and formData states
+      const numericValue = parseFloat(editingSizeValue);
+
+      // Update customerChoiceSizes state
+      setCustomerChoiceSizes({
+        ...customerChoiceSizes,
+        [sizeId]: {
+          ...customerChoiceSizes[sizeId],
+          sizeValue: numericValue,
+        },
+      });
+
+      // Update formData state with the new value so it shows in the input
+      setFormData({
+        ...formData,
+        [`size_${sizeId}`]: editingSizeValue,
+      });
+
+      // Reset editing state
+      setEditingSizeId(null);
+      setEditingSizeValue("");
+
+      // Now using the prop passed from the parent
+      setSnackbar({
+        open: true,
+        message: "Cập nhật kích thước thành công",
+        severity: "success",
+      });
+
+      // After updating size, fetch updated customer choice details to get new prices
+      if (currentOrder?.id) {
+        console.log("Fetching updated prices after size change");
+        // Add a delay to ensure the backend has processed the update
+        setTimeout(async () => {
+          console.log(
+            "Dispatching fetchCustomerChoiceDetails for order ID:",
+            currentOrder.id
+          );
+          await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+
+          // Also fetch the updated total amount
+          await dispatch(fetchCustomerChoice(currentOrder.id));
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Failed to update size:", error);
+      console.error("Error details:", error.response?.data);
+      setSizeValidationError(
+        "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
+      );
+    }
+  };
+  useEffect(() => {
+    if (currentOrder?.id && sizesConfirmed) {
+      console.log("Fetching customer choice to get total amount");
+      dispatch(fetchCustomerChoice(currentOrder.id));
+    }
+  }, [currentOrder?.id, sizesConfirmed, dispatch]);
+  useEffect(() => {
+    // When sizes are confirmed and we have a current order, fetch the details
+    if (sizesConfirmed && currentOrder?.id) {
+      // Make sure we fetch the details periodically until we get them
+      const fetchDetails = () => {
+        console.log(
+          "Fetching customer choice details for order:",
+          currentOrder.id
+        );
+        dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+      };
+
+      // Call immediately
+      fetchDetails();
+
+      // Then set an interval to retry a few times
+      const intervalId = setInterval(fetchDetails, 2000);
+
+      // Clear after 10 seconds max (5 attempts)
+      setTimeout(() => clearInterval(intervalId), 10000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [sizesConfirmed, currentOrder?.id, dispatch]);
   // Reset sizesConfirmed when productTypeId changes
   useEffect(() => {
     setSizesConfirmed(false);
@@ -110,7 +225,22 @@ const ModernBillboardForm = ({
       dispatch(fetchProductTypeSizesByProductTypeId(productTypeId));
     }
   }, [productTypeId, dispatch]);
+  useEffect(() => {
+    // Debug log to see what's in customerChoiceDetails
+    console.log("Current customerChoiceDetails:", customerChoiceDetails);
+  }, [customerChoiceDetails]);
+  useEffect(() => {
+    // Log the current totalAmount whenever it changes
+    console.log("Current totalAmount from Redux:", totalAmount);
 
+    // Check if we need to fetch the total amount (it's 0 but we have an order and confirmed sizes)
+    if (totalAmount === 0 && currentOrder?.id && sizesConfirmed) {
+      console.log(
+        "Total amount is 0 but we have an order - fetching the total amount"
+      );
+      dispatch(fetchCustomerChoice(currentOrder.id));
+    }
+  }, [totalAmount, currentOrder?.id, sizesConfirmed, dispatch]);
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -148,7 +278,45 @@ const ModernBillboardForm = ({
             attributeValueId: value,
             attributeId: name,
           })
-        );
+        )
+          .unwrap()
+          .then(() => {
+            // Refresh the customer choice details to update prices
+            console.log("Attribute updated, fetching new prices");
+
+            // Đảm bảo chúng ta có thể lấy đúng giá sau khi cập nhật attribute
+            const fetchUpdatedPrices = async () => {
+              try {
+                // Fetch details first
+                await dispatch(
+                  fetchCustomerChoiceDetails(currentOrder.id)
+                ).unwrap();
+
+                // Then fetch the total amount
+                const result = await dispatch(
+                  fetchCustomerChoice(currentOrder.id)
+                ).unwrap();
+                console.log(
+                  "New total amount after attribute change:",
+                  result.totalAmount
+                );
+              } catch (error) {
+                console.error("Failed to fetch updated prices:", error);
+              }
+            };
+
+            // Đợi một chút để backend cập nhật
+            setTimeout(() => fetchUpdatedPrices(), 300);
+          })
+          .catch((error) => {
+            console.error("Failed to update attribute value:", error);
+            setSnackbar({
+              open: true,
+              message:
+                "Có lỗi xảy ra khi cập nhật thuộc tính. Vui lòng thử lại.",
+              severity: "error",
+            });
+          });
       } else {
         // If we don't have a choice detail yet, create one
         console.log(
@@ -160,7 +328,50 @@ const ModernBillboardForm = ({
             attributeValueId: value,
             attributeId: name,
           })
-        );
+        )
+          .unwrap()
+          .then((result) => {
+            // After linking, force fetch the details to get updated prices
+            if (currentOrder?.id) {
+              console.log("New attribute linked, fetching updated prices");
+
+              setTimeout(async () => {
+                try {
+                  // Fetch updated details first
+                  await dispatch(
+                    fetchCustomerChoiceDetails(currentOrder.id)
+                  ).unwrap();
+
+                  // Then fetch the total amount
+                  const result = await dispatch(
+                    fetchCustomerChoice(currentOrder.id)
+                  ).unwrap();
+                  console.log(
+                    "New total amount after adding attribute:",
+                    result.totalAmount
+                  );
+                } catch (error) {
+                  console.error("Failed to fetch updated prices:", error);
+                }
+              }, 300);
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to link attribute value:", error);
+            if (error.message?.includes("Attribute existed")) {
+              console.log("Attribute already exists, fetching updated details");
+              // If the attribute already exists, just refresh the details
+              dispatch(fetchCustomerChoiceDetails(currentOrder.id)).then(() => {
+                dispatch(fetchCustomerChoice(currentOrder.id));
+              });
+            } else {
+              setSnackbar({
+                open: true,
+                message: "Có lỗi xảy ra khi chọn thuộc tính. Vui lòng thử lại.",
+                severity: "error",
+              });
+            }
+          });
       }
     }
   };
@@ -212,23 +423,105 @@ const ModernBillboardForm = ({
     try {
       // Process sizes
       console.log("Calling API for sizes:", sizeInputs);
+      const createdSizes = {}; // Store created sizes for edit functionality
+
+      // Thêm đoạn theo dõi số lượng size đã xử lý
+      let processedSizes = 0;
+      const totalSizes = Object.keys(sizeInputs).length;
+
       for (const [sizeId, sizeValue] of Object.entries(sizeInputs)) {
         console.log(
           `Linking size ${sizeId} with value ${sizeValue} (type: ${typeof sizeValue})`
         );
         // Convert sizeValue to a number explicitly
         const numericSizeValue = parseFloat(sizeValue);
-        await dispatch(
+
+        // Dispatch the action and store the entire response
+        const resultAction = await dispatch(
           linkSizeToCustomerChoice({
             customerChoiceId,
             sizeId,
             sizeValue: numericSizeValue,
           })
-        ).unwrap();
+        );
+
+        // Extract the result directly from the action payload
+        const result = resultAction.payload;
+        processedSizes++;
+
+        console.log("Complete API response:", resultAction);
+        console.log("Result payload:", result);
+
+        // Make sure we're accessing the ID correctly
+        if (result && result.id) {
+          console.log("Created size with ID:", result.id);
+          createdSizes[sizeId] = {
+            id: result.id,
+            sizeValue: numericSizeValue,
+            sizeName:
+              productTypeSizes.find((pt) => pt.size.id === sizeId)?.size
+                ?.name || "Size",
+          };
+        }
+
+        // Nếu là size cuối cùng, thêm delay nhỏ để đảm bảo API đã xử lý xong
+        if (processedSizes === totalSizes) {
+          console.log("All sizes processed, fetching price information...");
+        }
       }
+
+      // Update the customerChoiceSizes state with the newly created sizes
+      setCustomerChoiceSizes(createdSizes);
+      console.log("Created sizes with IDs:", createdSizes);
 
       // Mark sizes as confirmed
       setSizesConfirmed(true);
+
+      if (currentOrder?.id) {
+        console.log("Fetching initial prices after confirming sizes");
+
+        // Thêm delay nhỏ để đảm bảo backend đã xử lý xong tất cả sizes
+        // Thêm theo dõi thành công
+        let priceFetched = false;
+
+        // Thử lấy giá 3 lần nếu lần đầu không thành công
+        const fetchPriceWithRetry = async (retryCount = 0) => {
+          try {
+            // Đầu tiên fetch customerChoiceDetails
+            console.log(
+              `Attempt ${retryCount + 1} to fetch customer choice details`
+            );
+            await dispatch(
+              fetchCustomerChoiceDetails(currentOrder.id)
+            ).unwrap();
+
+            // Sau đó fetch totalAmount
+            console.log(`Attempt ${retryCount + 1} to fetch total amount`);
+            const result = await dispatch(
+              fetchCustomerChoice(currentOrder.id)
+            ).unwrap();
+            console.log(`Total amount fetched: ${result.totalAmount}`);
+
+            if (result.totalAmount > 0) {
+              priceFetched = true;
+              console.log("Price fetched successfully:", result.totalAmount);
+            } else if (retryCount < 2) {
+              // Nếu totalAmount vẫn là 0 và chưa thử đủ 3 lần, thử lại sau 700ms
+              console.log("Total amount is still 0, retrying...");
+              setTimeout(() => fetchPriceWithRetry(retryCount + 1), 700);
+            }
+          } catch (error) {
+            console.error("Error fetching price information:", error);
+            if (retryCount < 2) {
+              // Thử lại nếu có lỗi
+              setTimeout(() => fetchPriceWithRetry(retryCount + 1), 700);
+            }
+          }
+        };
+
+        // Đợi 500ms để đảm bảo backend đã xử lý xong tất cả sizes
+        setTimeout(() => fetchPriceWithRetry(), 500);
+      }
     } catch (error) {
       console.error("Failed to submit sizes:", error);
       setSizeValidationError(
@@ -326,39 +619,98 @@ const ModernBillboardForm = ({
               </Typography>
 
               <Grid container spacing={1.5}>
-                {productTypeSizes.map((ptSize) => (
-                  <Grid xs={6} sm={4} md={3} key={ptSize.id}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label={ptSize.size.name}
-                      name={`size_${ptSize.size.id}`}
-                      type="number"
-                      value={formData[`size_${ptSize.size.id}`] || ""}
-                      onChange={handleChange}
-                      disabled={sizesConfirmed}
-                      error={!!validationErrors[`size_${ptSize.size.id}`]}
-                      helperText={validationErrors[`size_${ptSize.size.id}`]}
-                      InputProps={{
-                        inputProps: { min: 0, step: 0.01 },
-                        startAdornment: (
-                          <span className="text-gray-400 mr-1 text-xs">#</span>
-                        ),
-                        endAdornment: (
-                          <span className="text-gray-500 text-xs">m</span>
-                        ),
-                        style: { fontSize: "0.8rem", height: "36px" },
-                      }}
-                      InputLabelProps={{ style: { fontSize: "0.8rem" } }}
-                      variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "4px",
+                {productTypeSizes.map((ptSize) => {
+                  const sizeId = ptSize.size.id;
+                  const fieldName = `size_${sizeId}`;
+                  const isEditing = editingSizeId === sizeId;
+                  const savedSize = customerChoiceSizes[sizeId];
+
+                  return (
+                    <Grid
+                      key={ptSize.id}
+                      style={{
+                        gridColumn: {
+                          xs: "span 6",
+                          sm: "span 4",
+                          md: "span 3",
                         },
                       }}
-                    />
-                  </Grid>
-                ))}
+                    >
+                      <div className="relative">
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={ptSize.size.name}
+                          name={fieldName}
+                          type="number"
+                          value={
+                            isEditing
+                              ? editingSizeValue
+                              : formData[fieldName] || ""
+                          }
+                          onChange={
+                            isEditing
+                              ? (e) => setEditingSizeValue(e.target.value)
+                              : handleChange
+                          }
+                          disabled={sizesConfirmed && !isEditing}
+                          error={!!validationErrors[fieldName]}
+                          helperText={validationErrors[fieldName]}
+                          InputProps={{
+                            inputProps: { min: 0, step: 0.01 },
+                            startAdornment: (
+                              <span className="text-gray-400 mr-1 text-xs">
+                                #
+                              </span>
+                            ),
+                            endAdornment: (
+                              <span className="text-gray-500 text-xs">m</span>
+                            ),
+                            style: { fontSize: "0.8rem", height: "36px" },
+                          }}
+                          InputLabelProps={{ style: { fontSize: "0.8rem" } }}
+                          variant="outlined"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "4px",
+                            },
+                          }}
+                        />
+
+                        {sizesConfirmed && savedSize && (
+                          <div className="absolute right-0 top-0 flex">
+                            {isEditing ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleSizeUpdate(savedSize.id, sizeId)
+                                }
+                                className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                                title="Lưu thay đổi"
+                              >
+                                <FaSave size={12} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSizeId(sizeId);
+                                  setEditingSizeValue(
+                                    savedSize.sizeValue.toString()
+                                  );
+                                }}
+                                className="p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
+                                title="Chỉnh sửa kích thước"
+                              >
+                                <FaEdit size={12} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Grid>
+                  );
+                })}
               </Grid>
 
               {/* Size validation error message */}
@@ -448,7 +800,7 @@ const ModernBillboardForm = ({
           >
             <Grid container spacing={2}>
               {Object.entries(attributesByName).map(([name, attrs]) => (
-                <Grid item xs={12} key={name}>
+                <Grid key={name} style={{ gridColumn: "span 12" }}>
                   <Box
                     mb={1.5}
                     sx={{
@@ -476,6 +828,10 @@ const ModernBillboardForm = ({
 
                     <Grid container spacing={2}>
                       {attrs.map((attr) => {
+                        console.log(
+                          `Rendering attribute ${attr.id}, details:`,
+                          customerChoiceDetails[attr.id]
+                        );
                         const attributeValues =
                           attributeValuesState[attr.id] || [];
                         const isLoadingValues =
@@ -484,172 +840,123 @@ const ModernBillboardForm = ({
                         const attributePrice =
                           customerChoiceDetails[attr.id]?.subTotal;
                         const hasPrice = attributePrice !== undefined;
+
                         return (
                           <Grid item xs={12} sm={6} md={6} key={attr.id}>
-                            {attributeValues.length > 0 ? (
-                              <div>
-                                <FormControl
-                                  fullWidth
-                                  size="small"
-                                  variant="outlined"
-                                >
-                                  <InputLabel
-                                    id={`${attr.id}-label`}
-                                    sx={{ fontSize: "0.8rem" }}
-                                  >
-                                    {attr.name}
-                                  </InputLabel>
-                                  <Select
-                                    labelId={`${attr.id}-label`}
-                                    name={attr.id}
-                                    value={formData[attr.id] || ""}
-                                    onChange={handleChange}
-                                    label={attr.name}
-                                    disabled={isLoadingValues}
+                            <FormControl
+                              fullWidth
+                              size="small"
+                              variant="outlined"
+                            >
+                              <InputLabel
+                                id={`${attr.id}-label`}
+                                sx={{ fontSize: "0.8rem" }}
+                              >
+                                {attr.name}
+                              </InputLabel>
+                              <Select
+                                labelId={`${attr.id}-label`}
+                                name={attr.id}
+                                value={formData[attr.id] || ""}
+                                onChange={handleChange}
+                                label={attr.name}
+                                disabled={isLoadingValues}
+                                sx={{
+                                  display: "block",
+                                  width: "100%",
+                                  fontSize: "0.8rem",
+                                  height: "36px",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  "& .MuiSelect-select": {
+                                    minWidth: "150px",
+                                    paddingRight: "32px",
+                                  },
+                                }}
+                                MenuProps={{
+                                  PaperProps: {
+                                    style: {
+                                      maxHeight: 300,
+                                      width: "auto",
+                                      minWidth: "250px",
+                                    },
+                                  },
+                                  anchorOrigin: {
+                                    vertical: "bottom",
+                                    horizontal: "left",
+                                  },
+                                  transformOrigin: {
+                                    vertical: "top",
+                                    horizontal: "left",
+                                  },
+                                }}
+                              >
+                                <MenuItem value="" disabled>
+                                  {attr.name}
+                                </MenuItem>
+                                {attributeValues.map((value) => (
+                                  <MenuItem
+                                    key={value.id}
+                                    value={value.id}
                                     sx={{
-                                      display: "block",
-                                      width: "100%",
                                       fontSize: "0.8rem",
-                                      height: "36px",
-                                      whiteSpace: "nowrap",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      "& .MuiSelect-select": {
-                                        minWidth: "150px",
-                                        paddingRight: "32px",
-                                      },
-                                    }}
-                                    MenuProps={{
-                                      PaperProps: {
-                                        style: {
-                                          maxHeight: 300,
-                                          width: "auto",
-                                          minWidth: "250px",
-                                        },
-                                      },
-                                      anchorOrigin: {
-                                        vertical: "bottom",
-                                        horizontal: "left",
-                                      },
-                                      transformOrigin: {
-                                        vertical: "top",
-                                        horizontal: "left",
-                                      },
+                                      whiteSpace: "normal",
+                                      wordBreak: "break-word",
+                                      display: "flex",
+                                      justifyContent: "space-between",
                                     }}
                                   >
-                                    <MenuItem value="" disabled>
-                                      {attr.name}
-                                    </MenuItem>
-                                    {attributeValues.map((value) => (
-                                      <MenuItem
-                                        key={value.id}
-                                        value={value.id}
-                                        sx={{
-                                          fontSize: "0.8rem",
-                                          whiteSpace: "normal",
-                                          wordBreak: "break-word",
-                                        }}
-                                      >
-                                        {value.name}
-                                      </MenuItem>
-                                    ))}
-                                  </Select>
-                                  {validationErrors[attr.id] && (
-                                    <Typography color="error" variant="caption">
-                                      {validationErrors[attr.id]}
-                                    </Typography>
-                                  )}
-                                  {isLoadingValues && (
-                                    <Box
-                                      display="flex"
-                                      justifyContent="center"
-                                      mt={0.5}
+                                    <span>{value.name}</span>
+                                    {value.unitPrice !== undefined && (
+                                      <span className="ml-4 text-green-600 font-medium">
+                                        {value.unitPrice.toLocaleString(
+                                          "vi-VN"
+                                        )}{" "}
+                                        đ
+                                      </span>
+                                    )}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                              {validationErrors[attr.id] && (
+                                <Typography color="error" variant="caption">
+                                  {validationErrors[attr.id]}
+                                </Typography>
+                              )}
+                              {isLoadingValues && (
+                                <Box
+                                  display="flex"
+                                  justifyContent="center"
+                                  mt={0.5}
+                                >
+                                  <CircularProgress size={14} />
+                                </Box>
+                              )}
+
+                              {/* Show attribute price if available */}
+                              {customerChoiceDetails[attr.id] &&
+                                customerChoiceDetails[attr.id].subTotal !==
+                                  undefined && (
+                                  <Box
+                                    mt={0.5}
+                                    display="flex"
+                                    justifyContent="flex-end"
+                                  >
+                                    <Typography
+                                      variant="caption"
+                                      color="success.main"
+                                      fontWeight="medium"
                                     >
-                                      <CircularProgress size={14} />
-                                    </Box>
-                                  )}
-                                </FormControl>
-                                {hasPrice && (
-                                  <Typography
-                                    variant="caption"
-                                    sx={{
-                                      display: "block",
-                                      mt: 0.5,
-                                      color: "green.700",
-                                      fontWeight: "bold",
-                                    }}
-                                  >
-                                    Giá:{" "}
-                                    {attributePrice.toLocaleString("vi-VN")} VNĐ
-                                  </Typography>
+                                      Giá:{" "}
+                                      {customerChoiceDetails[
+                                        attr.id
+                                      ].subTotal.toLocaleString("vi-VN")}{" "}
+                                      đ
+                                    </Typography>
+                                  </Box>
                                 )}
-                              </div>
-                            ) : attr.type === "number" ? (
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label={attr.name}
-                                name={attr.id}
-                                type="number"
-                                value={formData[attr.id] || ""}
-                                onChange={handleChange}
-                                error={!!validationErrors[attr.id]}
-                                helperText={validationErrors[attr.id]}
-                                InputProps={{
-                                  inputProps: { min: 0 },
-                                  startAdornment: (
-                                    <span className="text-gray-400 mr-1 text-xs">
-                                      #
-                                    </span>
-                                  ),
-                                  style: { fontSize: "0.8rem", height: "36px" },
-                                }}
-                                InputLabelProps={{
-                                  style: { fontSize: "0.8rem" },
-                                  shrink: true,
-                                }}
-                                variant="outlined"
-                                sx={{
-                                  display: "block",
-                                  width: "100%",
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "4px",
-                                  },
-                                  "& .MuiInputBase-input": {
-                                    minWidth: "150px",
-                                  },
-                                }}
-                              />
-                            ) : (
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label={attr.name}
-                                name={attr.id}
-                                value={formData[attr.id] || ""}
-                                onChange={handleChange}
-                                error={!!validationErrors[attr.id]}
-                                helperText={validationErrors[attr.id]}
-                                InputProps={{
-                                  style: { fontSize: "0.8rem", height: "36px" },
-                                }}
-                                InputLabelProps={{
-                                  style: { fontSize: "0.8rem" },
-                                  shrink: true,
-                                }}
-                                variant="outlined"
-                                sx={{
-                                  display: "block",
-                                  width: "100%",
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "4px",
-                                  },
-                                  "& .MuiInputBase-input": {
-                                    minWidth: "150px",
-                                  },
-                                }}
-                              />
-                            )}
+                            </FormControl>
                           </Grid>
                         );
                       })}
@@ -658,7 +965,51 @@ const ModernBillboardForm = ({
                 </Grid>
               ))}
             </Grid>
+            <Box mt={3} mb={2}>
+              <Box
+                sx={{
+                  background: "#f0f7ff",
+                  borderRadius: 2,
+                  padding: 2,
+                  border: "1px solid #cce4ff",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={600}
+                  sx={{
+                    color: "#1565c0",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "1rem",
+                  }}
+                >
+                  <span className="inline-block w-1 h-4 bg-blue-500 mr-2 rounded"></span>
+                  TỔNG CHI PHÍ DỰ KIẾN
+                </Typography>
 
+                {fetchCustomerChoiceStatus === "loading" ? (
+                  <Box display="flex" alignItems="center">
+                    <CircularProgress size={16} />
+                    <Typography variant="body2" ml={1} color="text.secondary">
+                      Đang tính...
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="h6"
+                    fontWeight={700}
+                    color="success.main"
+                    sx={{ fontSize: "1.1rem" }}
+                  >
+                    {totalAmount.toLocaleString("vi-VN")} đ
+                  </Typography>
+                )}
+              </Box>
+            </Box>
             {/* Ghi chú thiết kế */}
             <Box mt={2}>
               <Typography
@@ -744,7 +1095,7 @@ const AIDesign = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
- 
+
   const currentOrder = useSelector(selectCurrentOrder);
   const attributes = useSelector(selectAllAttributes);
   const attributeStatus = useSelector(selectAttributeStatus);
@@ -912,75 +1263,40 @@ const AIDesign = () => {
     }
   };
 
-  const handleBillboardSubmit = async (e) => {
+  const handleBillboardSubmit = (e) => {
     e.preventDefault();
-    console.log("Form submitted with billboardType:", billboardType);
+    console.log("Billboard form submitted");
 
-    // Validate the form data
-    const formData = new FormData(e.target);
-    console.log("Form data entries:");
-    for (const [key, value] of formData.entries()) {
-      console.log(`  ${key}: ${value}`);
-    }
+    // Use a more specific selector to find the confirmation text
+    const confirmationElement = document
+      .querySelector(".text-green-500")
+      ?.closest("Typography");
+    const sizesConfirmed =
+      document.querySelector("svg.text-green-500") !== null;
 
-    // Find all attribute value inputs
-    const attributeInputs = {};
-    let hasErrors = false;
-
-    // Process form data for attributes only (not sizes)
-    for (const [key, value] of formData.entries()) {
-      if (!key.startsWith("size_") && !key.startsWith("designNotes")) {
-        // This is an attribute input
-        if (!value) {
-          hasErrors = true;
-          // Display validation error for this field
-        } else {
-          attributeInputs[key] = value;
-        }
-      }
-    }
-
-    if (hasErrors) {
-      setError("Vui lòng điền đầy đủ thông tin thuộc tính.");
+    if (!sizesConfirmed) {
+      setError("Vui lòng xác nhận kích thước trước khi tiếp tục.");
+      console.log("Sizes not confirmed, showing error");
       return;
     }
 
-    // Get the customer choice ID from the state
-    const customerChoiceId = currentOrder?.id;
+    console.log("Sizes confirmed, proceeding to next step");
 
-    if (!customerChoiceId) {
-      setError("Không tìm thấy thông tin khách hàng. Vui lòng thử lại.");
-      return;
-    }
-
+    // Show the AI generating animation for a better user experience
     setIsGenerating(true);
 
-    try {
-      // Process attribute values only (sizes are already processed)
-      console.log("Calling API for attribute values:", attributeInputs);
-      for (const [attributeId, attributeValueId] of Object.entries(
-        attributeInputs
-      )) {
-        console.log(
-          `Linking attribute value ${attributeValueId} for attribute ${attributeId}`
-        );
-        await dispatch(
-          linkAttributeValueToCustomerChoice({
-            customerChoiceId,
-            attributeValueId,
-          })
-        ).unwrap();
-      }
+    // Use setTimeout to ensure the state changes have time to take effect
+    setTimeout(() => {
+      // Change state first
+      setCurrentStep(5);
+      setIsGenerating(false);
 
-      // APIs called successfully
-      setIsGenerating(false);
-      setCurrentStep(5); // Move to the next step
-      setShowSuccess(true);
-    } catch (error) {
-      console.error("Failed to submit customer choices:", error);
-      setIsGenerating(false);
-      setError("Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.");
-    }
+      // Then navigate (after a small delay to ensure state is updated)
+      setTimeout(() => {
+        navigate("/ai-design");
+        console.log("Navigation complete");
+      }, 100);
+    }, 1000);
   };
 
   const handleImageSelect = (imageId) => {
@@ -1590,6 +1906,7 @@ const AIDesign = () => {
                 productTypeName={
                   productTypes.find((pt) => pt.id === billboardType)?.name
                 }
+                setSnackbar={setSnackbar}
               />
 
               <motion.div

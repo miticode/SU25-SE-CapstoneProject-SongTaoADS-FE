@@ -183,4 +183,53 @@ export const updateCustomerChoiceDetailApi = async (customerChoiceDetailId, attr
     };
   }
 };
+export const updateCustomerChoiceSizeApi = async (customerChoiceSizeId, sizeValue) => {
+  try {
+    console.log(`Updating size with ID: ${customerChoiceSizeId}, new value: ${sizeValue}`);
+    
+    const numericSizeValue = parseFloat(sizeValue);
+    const response = await customerService.put(`/api/customer-choices-sizes/${customerChoiceSizeId}`, {
+      sizeValue: numericSizeValue
+    });
+    
+    console.log("Update size API response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating size:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update size value'
+    };
+  }
+};
+export const fetchCustomerChoiceDetailsApi = async (customerChoiceId) => {
+  try {
+    const response = await customerService.get(`/api/customer-choices/${customerChoiceId}/customer-choice-details`);
+    
+    const { success, result, message } = response.data;
+    
+    if (success) {
+      return { success, result };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choice details'
+    };
+  }
+};
+export const fetchCustomerChoiceApi = async (customerChoiceId) => {
+  try {
+    const response = await customerService.get(`/api/customer-choices/${customerChoiceId}`);
+    
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choice'
+    };
+  }
+};
 export default customerService;
