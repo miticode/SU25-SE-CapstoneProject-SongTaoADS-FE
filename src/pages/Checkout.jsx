@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -17,10 +17,16 @@ import {
   MenuItem,
   RadioGroup,
   Radio,
+  Modal,
 } from "@mui/material";
 import PaymentIcon from "@mui/icons-material/Payment";
 import PageTransition from "../components/PageTransition";
 import StepIndicator from "../components/StepIndicator";
+import PayOSCheckout from "../components/PayOSCheckout";
+import { createPayOSDeposit } from "../api/paymentService";
+import { updateOrderStatusApi, getOrderByIdApi } from "../api/orderService";
+import { getOrdersByUserIdApi } from "../api/orderService";
+import { getProfileApi } from "../api/authService";
 
 const steps = [
   { number: 1, label: "Thông tin cá nhân" },
@@ -73,6 +79,11 @@ const Checkout = () => {
   const [agree, setAgree] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("vnpay");
   const [loading, setLoading] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState("");
+  const [showPayOS, setShowPayOS] = useState(false);
+  const [orderId, setOrderId] = useState("");
+  const [orderInfo, setOrderInfo] = useState(null);
+  const payOSRef = useRef();
 
   // Step 1: handle input
   const handleInputChange = (e) => {
@@ -80,19 +91,133 @@ const Checkout = () => {
   };
 
   // Step navigation
-  const handleNext = () => setCurrentStep((s) => Math.min(s + 1, 3));
+  const handleNext = async () => {
+    if (currentStep === 1) {
+      try {
+        if (!orderId) throw new Error("Không tìm thấy orderId!");
+        console.log(
+          "Cập nhật orderId:",
+          orderId,
+          "với địa chỉ:",
+          customer.address
+        );
+        await updateOrderStatusApi(orderId, {
+          address: customer.address,
+          note: "",
+          deliveryDate: new Date().toISOString(),
+          status: "PENDING",
+        });
+        setCurrentStep(2);
+      } catch (err) {
+        alert("Cập nhật địa chỉ thất bại!");
+        console.error("Lỗi cập nhật địa chỉ:", err);
+      }
+    } else if (currentStep === 2) {
+      try {
+        if (!orderId) throw new Error("Không tìm thấy orderId!");
+        // Lấy lại thông tin đơn hàng mới nhất từ backend
+        const res = await getOrderByIdApi(orderId);
+        if (res.success && res.data) {
+          setOrderInfo(res.data);
+          if (res.data.status !== "PENDING") {
+            alert(
+              "Đơn hàng không còn ở trạng thái chờ xác nhận, không thể thanh toán!"
+            );
+            return;
+          }
+          setCurrentStep(3);
+        } else {
+          alert("Không thể lấy thông tin đơn hàng mới nhất!");
+        }
+      } catch (err) {
+        alert("Có lỗi khi lấy thông tin đơn hàng!");
+        console.error(err);
+      }
+    } else {
+      setCurrentStep((s) => Math.min(s + 1, 3));
+    }
+  };
   const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
 
   // Step 3: handle payment
-  const handlePayment = (e) => {
+  const handlePayment = async (e) => {
     e.preventDefault();
-    if (!agree) return;
+    if (!agree) {
+      console.log("[PayOS] Người dùng chưa đồng ý điều khoản.");
+      return;
+    }
     setLoading(true);
+    if (paymentMethod === "payos") {
+      try {
+        if (!orderInfo) throw new Error("Không tìm thấy orderInfo!");
+        console.log(
+          "[PayOS] Thông tin đơn hàng trước khi thanh toán:",
+          orderInfo
+        );
+        console.log(
+          "[PayOS] Gọi createPayOSDeposit với orderId:",
+          orderInfo.id
+        );
+        const res = await createPayOSDeposit(orderInfo.id, "Coc don hang");
+        console.log("[PayOS] Kết quả trả về từ createPayOSDeposit:", res);
+
+        if (!res.success) {
+          console.error("[PayOS] API trả về lỗi:", res.error);
+          throw new Error(res.error || "Không thể tạo link thanh toán");
+        }
+
+        const url = res.checkoutUrl || res.result?.checkoutUrl || "";
+        console.log("[PayOS] checkoutUrl nhận được:", url);
+        if (!url) throw new Error("Không nhận được URL thanh toán");
+        console.log("[PayOS] Redirecting to:", url);
+
+        // Thêm log trước và sau khi redirect
+        setTimeout(() => {
+          console.log("[PayOS] Thực hiện chuyển trang sang PayOS...");
+          window.location.href = url;
+        }, 5000); // delay nhỏ để log kịp hiện ra
+
+        // return ngay để không chạy code phía sau
+        return;
+      } catch (err) {
+        alert(err.message || "Không thể tạo link thanh toán PAYOS");
+        console.error("[PayOS] Lỗi chi tiết khi tạo thanh toán:", err);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     setTimeout(() => {
       setLoading(false);
       alert("Thanh toán thành công (demo)");
     }, 1500);
   };
+
+  useEffect(() => {
+    // Lấy userId từ getProfileApi
+    getProfileApi().then((profileRes) => {
+      if (profileRes.success && profileRes.data && profileRes.data.id) {
+        const userId = profileRes.data.id;
+        // Có thể lưu lại vào localStorage nếu muốn dùng lại
+        localStorage.setItem("userId", userId);
+        getOrdersByUserIdApi(userId).then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const pendingOrder = res.data.find((o) => o.status === "PENDING");
+            const selectedOrder = pendingOrder ? pendingOrder : res.data[0];
+            setOrderId(selectedOrder.id);
+            setOrderInfo(selectedOrder);
+            console.log("Order lấy được từ API:", selectedOrder);
+          } else {
+            setOrderInfo(null);
+            console.log("Không tìm thấy đơn hàng nào cho userId:", userId, res);
+          }
+        });
+      } else {
+        setOrderInfo(null);
+        console.log("Không lấy được userId từ getProfileApi", profileRes);
+      }
+    });
+  }, []);
 
   return (
     <PageTransition>
@@ -165,61 +290,99 @@ const Checkout = () => {
                       elevation={2}
                       sx={{ p: 2, borderRadius: 3, background: "#f9f9f9" }}
                     >
-                      <Stack
-                        direction="row"
-                        spacing={2}
-                        alignItems="center"
-                        mb={2}
-                      >
-                        <Avatar
-                          variant="rounded"
-                          src={productDemo.image}
-                          alt={productDemo.name}
-                          sx={{ width: 72, height: 72, bgcolor: "#f5f5f5" }}
-                        />
-                        <Box>
-                          <Typography fontWeight={600} mb={0.5}>
-                            {productDemo.name}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                      <Stack spacing={1} mb={2}>
-                        <Stack direction="row" justifyContent="space-between">
-                          <Typography color="text.secondary">
-                            Subtotal
-                          </Typography>
-                          <Typography>${productDemo.price}</Typography>
+                      {orderInfo ? (
+                        <Stack spacing={2}>
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems="center"
+                            mb={2}
+                          >
+                            <Avatar
+                              variant="rounded"
+                              src={orderInfo.image || productDemo.image}
+                              alt={
+                                orderInfo.histories?.productTypeName ||
+                                orderInfo.productTypeName ||
+                                productDemo.name
+                              }
+                              sx={{ width: 72, height: 72, bgcolor: "#f5f5f5" }}
+                            />
+                            <Box>
+                              <Typography fontWeight={600} mb={0.5}>
+                                {orderInfo.histories?.productTypeName ||
+                                  orderInfo.productTypeName ||
+                                  productDemo.name}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Tổng tiền
+                            </Typography>
+                            <Typography>
+                              {Math.round(
+                                orderInfo.totalAmount
+                              )?.toLocaleString("vi-VN")}{" "}
+                              VND
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Tiền cọc (30%)
+                            </Typography>
+                            <Typography color="warning.main">
+                              {Math.round(
+                                orderInfo.depositAmount ??
+                                  orderInfo.totalAmount * 0.3
+                              ).toLocaleString("vi-VN")}{" "}
+                              VND
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Còn lại (70%)
+                            </Typography>
+                            <Typography color="info.main">
+                              {(() => {
+                                const deposit = Math.round(
+                                  orderInfo.depositAmount ??
+                                    orderInfo.totalAmount * 0.3
+                                );
+                                const total = Math.round(orderInfo.totalAmount);
+                                const remaining =
+                                  orderInfo.remainingAmount != null
+                                    ? Math.round(orderInfo.remainingAmount)
+                                    : total - deposit;
+                                return (
+                                  remaining.toLocaleString("vi-VN") + " VND"
+                                );
+                              })()}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Địa chỉ nhận hàng
+                            </Typography>
+                            <Typography>{orderInfo.address || "-"}</Typography>
+                          </Stack>
+                          {orderInfo.note && (
+                            <Stack
+                              direction="row"
+                              justifyContent="space-between"
+                            >
+                              <Typography color="text.secondary">
+                                Ghi chú
+                              </Typography>
+                              <Typography>{orderInfo.note}</Typography>
+                            </Stack>
+                          )}
                         </Stack>
-                        <Stack direction="row" justifyContent="space-between">
-                          <Typography color="text.secondary">
-                            Discount (50% OFF)
-                          </Typography>
-                          <Typography color="success.main">
-                            -${productDemo.discount}
-                          </Typography>
-                        </Stack>
-                        <Stack direction="row" justifyContent="space-between">
-                          <Typography color="text.secondary">
-                            Shipping
-                          </Typography>
-                          <Typography color="success.main">Free</Typography>
-                        </Stack>
-                      </Stack>
-                      <Divider sx={{ my: 1.5 }} />
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        mb={2}
-                      >
-                        <Typography fontWeight={700}>TOTAL</Typography>
-                        <Typography
-                          fontWeight={700}
-                          color="primary.main"
-                          fontSize={22}
-                        >
-                          ${productDemo.final}
+                      ) : (
+                        <Typography color="text.secondary">
+                          Không có thông tin đơn hàng.
                         </Typography>
-                      </Stack>
+                      )}
                     </Paper>
                     <Stack
                       direction="row"
@@ -246,6 +409,7 @@ const Checkout = () => {
                 {/* STEP 3: Thanh toán */}
                 {currentStep === 3 && (
                   <Stack spacing={4}>
+                    {console.log("Vào step 3, orderInfo:", orderInfo)}
                     <Typography fontWeight={700} mb={2}>
                       3. Chọn phương thức thanh toán
                     </Typography>
@@ -333,75 +497,62 @@ const Checkout = () => {
                         color="primary"
                         startIcon={<PaymentIcon />}
                         onClick={handlePayment}
-                        disabled={loading || !agree}
+                        disabled={
+                          loading ||
+                          !agree ||
+                          !orderInfo ||
+                          orderInfo.status !== "PENDING"
+                        }
                       >
                         {loading ? "Đang xử lý..." : "Thanh toán"}
                       </Button>
                     </Stack>
+                    <Modal
+                      open={showPayOS && !!checkoutUrl}
+                      onClose={() => setShowPayOS(false)}
+                      onEntered={() => {
+                        if (payOSRef.current) payOSRef.current.open();
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: "50%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
+                          bgcolor: "background.paper",
+                          boxShadow: 24,
+                          p: 4,
+                          borderRadius: 2,
+                          minWidth: 350,
+                          outline: "none",
+                        }}
+                      >
+                        <PayOSCheckout
+                          ref={payOSRef}
+                          checkoutUrl={checkoutUrl}
+                          onSuccess={() => {
+                            alert("Thanh toán thành công với PAYOS!");
+                            setShowPayOS(false);
+                          }}
+                          onCancel={() => {
+                            alert("Bạn đã hủy thanh toán PAYOS!");
+                            setShowPayOS(false);
+                          }}
+                          onExit={() => {
+                            setShowPayOS(false);
+                          }}
+                        />
+                      </Box>
+                    </Modal>
+                    {orderInfo && orderInfo.status !== "PENDING" && (
+                      <Typography color="error" mt={2}>
+                        Đơn hàng không còn ở trạng thái chờ xác nhận, không thể
+                        thanh toán!
+                      </Typography>
+                    )}
                   </Stack>
                 )}
-              </Paper>
-            </Box>
-            {/* RIGHT: ORDER SUMMARY (luôn hiển thị) */}
-            <Box flexShrink={0} width={{ xs: "100%", md: 370 }}>
-              <Paper
-                elevation={3}
-                sx={{
-                  borderRadius: 4,
-                  p: 3,
-                  background: "rgba(255,255,255,0.95)",
-                  minWidth: 320,
-                }}
-              >
-                <Typography variant="h6" fontWeight={700} mb={2}>
-                  Order
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                  <Avatar
-                    variant="rounded"
-                    src={productDemo.image}
-                    alt={productDemo.name}
-                    sx={{ width: 72, height: 72, bgcolor: "#f5f5f5" }}
-                  />
-                  <Box>
-                    <Typography fontWeight={600} mb={0.5}>
-                      {productDemo.name}
-                    </Typography>
-                    <Typography fontSize={14} color="text.secondary">
-                      Size: {productDemo.size} &nbsp; | &nbsp; Color:{" "}
-                      {productDemo.color}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Stack spacing={1} mb={2}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">Subtotal</Typography>
-                    <Typography>${productDemo.price}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">
-                      Discount (50% OFF)
-                    </Typography>
-                    <Typography color="success.main">
-                      -${productDemo.discount}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">Shipping</Typography>
-                    <Typography color="success.main">Free</Typography>
-                  </Stack>
-                </Stack>
-                <Divider sx={{ my: 1.5 }} />
-                <Stack direction="row" justifyContent="space-between" mb={2}>
-                  <Typography fontWeight={700}>TOTAL</Typography>
-                  <Typography
-                    fontWeight={700}
-                    color="primary.main"
-                    fontSize={22}
-                  >
-                    ${productDemo.final}
-                  </Typography>
-                </Stack>
               </Paper>
             </Box>
           </Stack>

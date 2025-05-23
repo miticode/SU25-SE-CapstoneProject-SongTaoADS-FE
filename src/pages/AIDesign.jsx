@@ -67,6 +67,7 @@ import {
   selectAttributeStatus,
 } from "../store/features/attribute/attributeSlice";
 import { createOrderApi } from "../api/orderService";
+import { createOrder } from "../store/features/order/orderSlice";
 
 const ModernBillboardForm = ({
   attributes,
@@ -1181,6 +1182,9 @@ const AIDesign = () => {
     },
   ];
 
+  const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
+  const totalAmount = useSelector(selectTotalAmount);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const step = params.get("step");
@@ -2082,7 +2086,65 @@ const AIDesign = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={handleConfirm}
+                onClick={async () => {
+                  // Lấy customerChoiceId từ Redux hoặc attribute details
+                  const allDetails = Object.values(customerChoiceDetails);
+                  const customerChoiceId =
+                    currentOrder?.id || allDetails[0]?.customerChoicesId;
+                  console.log(
+                    "customerChoiceId dùng để tạo order:",
+                    customerChoiceId
+                  );
+                  if (!customerChoiceId) {
+                    setSnackbar({
+                      open: true,
+                      message:
+                        "Không tìm thấy customerChoiceId. Vui lòng thử lại.",
+                      severity: "error",
+                    });
+                    return;
+                  }
+                  try {
+                    const orderData = {
+                      totalAmount: totalAmount,
+                      note: "Đơn hàng thiết kế AI",
+                      isCustomDesign: true,
+                      histories: [
+                        `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
+                      ],
+                      userId: user.id,
+                      aiDesignId: selectedImage?.toString(),
+                    };
+                    console.log("Dispatch createOrder với:", {
+                      customerChoiceId,
+                      orderData,
+                    });
+                    const response = await dispatch(
+                      createOrder({ customerChoiceId, orderData })
+                    ).unwrap();
+                    console.log(
+                      "Kết quả trả về từ Redux createOrder:",
+                      response
+                    );
+                    setSnackbar({
+                      open: true,
+                      message: "Đơn hàng đã được tạo thành công!",
+                      severity: "success",
+                    });
+                    setTimeout(() => {
+                      setShowSuccess(false);
+                      navigate("/");
+                    }, 3000);
+                  } catch (error) {
+                    console.error("Error creating order:", error);
+                    setSnackbar({
+                      open: true,
+                      message:
+                        error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
+                      severity: "error",
+                    });
+                  }
+                }}
                 disabled={!selectedImage}
                 className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
                   selectedImage

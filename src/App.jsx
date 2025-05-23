@@ -139,6 +139,8 @@ const App = () => {
             <Route path="ai-design" element={<AIDesign />} />
             <Route path="order-history" element={<OrderHistory />} />
             <Route path="checkout" element={<Checkout />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentCancel />} />
 
             {/* Protected routes - cần đăng nhập để truy cập */}
             <Route
@@ -175,9 +177,6 @@ const App = () => {
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
           </Route>
-
-          <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/payment/cancel" element={<PaymentCancel />} />
         </Routes>
       </AnimatePresence>
     </>
