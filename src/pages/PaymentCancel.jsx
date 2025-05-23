@@ -1,11 +1,20 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import { Cancel } from "@mui/icons-material";
 import { Box, Container, Typography, Button } from "@mui/material";
 
 const PaymentCancel = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      navigate("/");
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [navigate]);
+
   return (
     <Container maxWidth="md">
       <motion.div

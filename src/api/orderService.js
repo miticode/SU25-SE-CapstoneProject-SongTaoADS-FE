@@ -12,6 +12,18 @@ const orderService = axios.create({
   withCredentials: true // Cho phép gửi và nhận cookies từ API
 });
 
+// Thêm interceptor request để gắn accessToken vào header Authorization
+orderService.interceptors.request.use(
+  (config) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+      config.headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Interceptor để xử lý lỗi
 orderService.interceptors.response.use(
   (response) => response,
@@ -20,23 +32,35 @@ orderService.interceptors.response.use(
   }
 );
 
-// Hàm tạo đơn hàng mới
-export const createOrderApi = async (orderData) => {
+// Hàm tạo đơn hàng mới theo customerChoiceId
+export const createOrderApi = async (customerChoiceId, orderData) => {
   try {
-    const response = await orderService.post('/api/orders', {
+    // Lấy userId từ accessToken trong localStorage nếu chưa có trong orderData
+    let userId = orderData.userId;
+    if (!userId) {
+      const accessToken = localStorage.getItem('accessToken');
+      if (accessToken) {
+        // Giả sử accessToken là JWT, giải mã để lấy userId
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        userId = payload.userId || payload.id || payload.sub;
+      }
+    }
+    console.log("Gọi API tạo order với:", { customerChoiceId, orderData });
+    const response = await orderService.post(`/api/customer-choices/${customerChoiceId}/orders`, {
       totalAmount: orderData.totalAmount,
       depositAmount: orderData.depositAmount,
       remainingAmount: orderData.remainingAmount,
       note: orderData.note,
       isCustomDesign: orderData.isCustomDesign,
       histories: orderData.histories || [],
-      userId: orderData.userId,
+      userId: userId,
       aiDesignId: orderData.aiDesignId
     });
 
     const { success, result, message } = response.data;
 
     if (success) {
+      console.log("Kết quả trả về từ API tạo order:", { success, result });
       return { success: true, data: result };
     }
 
@@ -70,9 +94,9 @@ export const getOrdersApi = async () => {
 };
 
 // Hàm cập nhật trạng thái đơn hàng
-export const updateOrderStatusApi = async (orderId, status) => {
+export const updateOrderStatusApi = async (orderId, data) => {
   try {
-    const response = await orderService.put(`/api/orders/${orderId}`, { status });
+    const response = await orderService.put(`/api/orders/${orderId}`, data);
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };

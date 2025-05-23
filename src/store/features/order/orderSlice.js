@@ -4,8 +4,8 @@ import { createOrderApi, getOrdersApi, updateOrderStatusApi } from '../../../api
 // Async thunks
 export const createOrder = createAsyncThunk(
   'order/createOrder',
-  async (orderData, { rejectWithValue }) => {
-    const response = await createOrderApi(orderData);
+  async ({ customerChoiceId, orderData }, { rejectWithValue }) => {
+    const response = await createOrderApi(customerChoiceId, orderData);
     if (response.success) {
       return response.data;
     }

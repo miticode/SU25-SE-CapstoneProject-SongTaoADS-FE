@@ -20,6 +20,8 @@ const statusMap = {
   CONFIRMED: { label: "Đã xác nhận", color: "success" },
   REJECTED: { label: "Bị từ chối", color: "error" },
   PENDING: { label: "Chờ xác nhận", color: "warning" },
+  DEPOSITED: { label: "Đã đặt cọc", color: "info" },
+  COMPLETED: { label: "Hoàn tất", color: "primary" },
 };
 
 const OrderHistory = () => {
@@ -113,7 +115,7 @@ const OrderHistory = () => {
       ) : (
         <Stack spacing={2}>
           {orders.map((order) => (
-            <Card key={order.orderId} sx={{ borderRadius: 2, boxShadow: 2 }}>
+            <Card key={order.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
               <CardContent>
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
@@ -122,9 +124,7 @@ const OrderHistory = () => {
                   justifyContent="space-between"
                 >
                   <Box>
-                    <Typography fontWeight={600}>
-                      Mã đơn: {order.orderId}
-                    </Typography>
+                    <Typography fontWeight={600}>Mã đơn: {order.id}</Typography>
                     <Typography color="text.secondary" fontSize={14}>
                       Ngày đặt:{" "}
                       {new Date(order.orderDate).toLocaleDateString("vi-VN")}

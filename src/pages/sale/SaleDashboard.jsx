@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { fetchOrders } from "../../store/features/order/orderSlice";
 import { getOrderByIdApi, updateOrderStatusApi } from "../../api/orderService";
-import { logoutApi } from "../../api/authService";
+
 import {
   Box,
   Drawer,
@@ -125,7 +125,7 @@ const SaleDashboard = () => {
 
   // Hàm lấy tên khách hàng từ userId
   const getCustomerName = (order) => {
-    if (order.user?.fullName) return order.user.fullName;
+    if (order.users?.fullName) return order.users.fullName;
     return "Ẩn danh";
   };
 
@@ -550,7 +550,9 @@ const SaleDashboard = () => {
                           variant="contained"
                           color="primary"
                           size="small"
-                          onClick={() => handleViewDetail(order.orderId)}
+                          onClick={() =>
+                            handleViewDetail(order.orderId || order.id)
+                          }
                         >
                           Xem chi tiết
                         </Button>
@@ -650,14 +652,14 @@ const SaleDashboard = () => {
                               mr: 1,
                             }}
                           >
-                            {selectedOrder.user?.fullName?.[0] || "U"}
+                            {selectedOrder.users?.fullName?.[0] || "U"}
                           </Avatar>
                           <Box>
                             <Typography fontSize={13} color="text.secondary">
                               Họ và tên
                             </Typography>
                             <Typography fontWeight={500} fontSize={16}>
-                              {selectedOrder.user?.fullName || "Ẩn danh"}
+                              {selectedOrder.users?.fullName || "Ẩn danh"}
                             </Typography>
                           </Box>
                         </Box>
@@ -689,7 +691,7 @@ const SaleDashboard = () => {
                               Email
                             </Typography>
                             <Typography fontWeight={500} fontSize={16}>
-                              {selectedOrder.user?.email || "-"}
+                              {selectedOrder.users?.email || "-"}
                             </Typography>
                           </Box>
                         </Box>
@@ -716,7 +718,7 @@ const SaleDashboard = () => {
                               Số điện thoại
                             </Typography>
                             <Typography fontWeight={500} fontSize={16}>
-                              {selectedOrder.user?.phone || "-"}
+                              {selectedOrder.users?.phone || "-"}
                             </Typography>
                           </Box>
                         </Box>
@@ -927,10 +929,21 @@ const SaleDashboard = () => {
                     variant="contained"
                     color="success"
                     onClick={async () => {
-                      await updateOrderStatusApi(
-                        selectedOrder.orderId,
-                        "APPROVED"
-                      );
+                      const id = selectedOrder.orderId || selectedOrder.id;
+                      if (!id) {
+                        console.error(
+                          "Không tìm thấy orderId để cập nhật trạng thái!"
+                        );
+                        return;
+                      }
+                      await updateOrderStatusApi(id, {
+                        address: selectedOrder.address || "",
+                        note: selectedOrder.note || "",
+                        deliveryDate:
+                          selectedOrder.deliveryDate ||
+                          new Date().toISOString(),
+                        status: "APPROVED",
+                      });
                       setDetailOpen(false);
                       dispatch(fetchOrders());
                     }}
@@ -942,10 +955,21 @@ const SaleDashboard = () => {
                     variant="contained"
                     color="error"
                     onClick={async () => {
-                      await updateOrderStatusApi(
-                        selectedOrder.orderId,
-                        "REJECTED"
-                      );
+                      const id = selectedOrder.orderId || selectedOrder.id;
+                      if (!id) {
+                        console.error(
+                          "Không tìm thấy orderId để cập nhật trạng thái!"
+                        );
+                        return;
+                      }
+                      await updateOrderStatusApi(id, {
+                        address: selectedOrder.address || "",
+                        note: selectedOrder.note || "",
+                        deliveryDate:
+                          selectedOrder.deliveryDate ||
+                          new Date().toISOString(),
+                        status: "REJECTED",
+                      });
                       setDetailOpen(false);
                       dispatch(fetchOrders());
                     }}
