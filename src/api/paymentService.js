@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080"; // Đổi nếu backend khác
+const API_URL = "https://songtaoads.online"; // Đổi nếu backend khác
 
 // Tạo instance axios với interceptors
 const paymentService = axios.create({
