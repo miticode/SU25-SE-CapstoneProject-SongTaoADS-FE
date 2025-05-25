@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cập nhật URL API thực tế của bạn
-const API_URL = 'http://localhost:8080';
+const API_URL = 'https://songtaoads.online';
 
 // Biến lưu trữ trạng thái đăng nhập và thông tin user
 let authState = {
