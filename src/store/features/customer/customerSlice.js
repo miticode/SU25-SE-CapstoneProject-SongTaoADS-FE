@@ -4,7 +4,9 @@ import {
   deleteCustomerChoiceApi,
   fetchCustomerChoiceApi,
   fetchCustomerChoiceDetailsApi,
+  fetchCustomerChoiceSizesApi,
   getCustomerChoiceDetailApi,
+  getCustomerChoicesApi,
   getCustomerDetailByUserIdApi,
   linkAttributeValueToCustomerChoiceApi,
   linkCustomerToProductTypeApi,
@@ -308,6 +310,42 @@ export const fetchCustomerChoice = createAsyncThunk(
     }
   }
 );
+export const fetchCustomerChoices = createAsyncThunk(
+  "customers/fetchCustomerChoices",
+  async (customerId, { rejectWithValue }) => {
+    try {
+      const response = await getCustomerChoicesApi(customerId);
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to fetch customer choices"
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
+  }
+);
+export const fetchCustomerChoiceSizes = createAsyncThunk(
+  "customers/fetchCustomerChoiceSizes",
+  async (customerChoiceId, { rejectWithValue }) => {
+    try {
+      const response = await fetchCustomerChoiceSizesApi(customerChoiceId);
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to fetch customer choice sizes"
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
+  }
+);
 // Slice
 const customerSlice = createSlice({
   name: "customers",
@@ -338,7 +376,6 @@ const customerSlice = createSlice({
     resetCustomerChoiceDetails: (state) => {
       state.customerChoiceDetails = {};
     },
-    
   },
   extraReducers: (builder) => {
     builder
@@ -530,6 +567,32 @@ const customerSlice = createSlice({
       })
       .addCase(fetchCustomerChoice.rejected, (state, action) => {
         state.fetchCustomerChoiceStatus = "failed";
+        state.error = action.payload;
+      })
+      .addCase(fetchCustomerChoices.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchCustomerChoices.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        if (action.payload) {
+          state.currentOrder = action.payload;
+        }
+        state.error = null;
+      })
+      .addCase(fetchCustomerChoices.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(fetchCustomerChoiceSizes.pending, (state) => {
+        state.sizesStatus = "loading";
+      })
+      .addCase(fetchCustomerChoiceSizes.fulfilled, (state, action) => {
+        state.sizesStatus = "succeeded";
+        state.customerChoiceSizes = action.payload;
+      })
+      .addCase(fetchCustomerChoiceSizes.rejected, (state, action) => {
+        state.sizesStatus = "failed";
         state.error = action.payload;
       });
   },
