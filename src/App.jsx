@@ -35,7 +35,10 @@ export const notifyLoginSuccess = () => {
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
-  if (!isAuthenticated) {
+  // Also check localStorage as a fallback
+  const hasToken = !!localStorage.getItem("accessToken");
+  
+  if (!isAuthenticated && !hasToken) {
     return <Navigate to="/auth/login" />;
   }
   return children;

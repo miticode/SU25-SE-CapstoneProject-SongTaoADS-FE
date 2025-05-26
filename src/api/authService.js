@@ -22,12 +22,13 @@ const authService = axios.create({
 authService.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only log the error instead of immediately redirecting
     if (
       error.response?.status === 401 ||
       error.response?.data?.message === 'Authentication required'
     ) {
-      localStorage.removeItem('accessToken');
-      window.location.href = '/auth/login';
+      console.error('Authentication error:', error);
+      // Don't redirect here - let the refresh token mechanism try first
     }
     return Promise.reject(error);
   }
@@ -139,38 +140,53 @@ export const getAuthState = () => {
 
 export const checkAuthStatus = async () => {
   try {
-    // Kiểm tra xem có access token không
     const accessToken = localStorage.getItem('accessToken');
     if (!accessToken) {
       return { isAuthenticated: false, user: null };
     }
 
-    // Thử gọi API refresh token chỉ khi có access token
-    const response = await authService.post('/api/auth/refresh-token');
-    const { success, result } = response.data;
-    
-    if (success) {
+    // Try to get user profile instead of refresh token
+    const profileResponse = await getProfileApi();
+    if (profileResponse.success) {
       authState.isAuthenticated = true;
-      if (result && (result.user || result.email)) {
-        authState.user = result.user || { email: result.email };
-      }
+      authState.user = profileResponse.data;
       return { 
         isAuthenticated: true, 
-        user: authState.user 
+        user: profileResponse.data 
       };
     }
     
-    // Nếu refresh thất bại, xóa token và trả về trạng thái chưa đăng nhập
+    // If profile failed, try refresh token as fallback
+    try {
+      const response = await authService.post('/api/auth/refresh-token');
+      const { success, result } = response.data;
+      
+      if (success) {
+        authState.isAuthenticated = true;
+        if (result && (result.user || result.email)) {
+          authState.user = result.user || { email: result.email };
+        }
+        return { 
+          isAuthenticated: true, 
+          user: authState.user 
+        };
+      }
+    } catch (refreshError) {
+      console.error("Refresh token failed:", refreshError);
+    }
+    
+    // Only remove token if both methods fail
     localStorage.removeItem('accessToken');
     authState.isAuthenticated = false;
     authState.user = null;
     return { isAuthenticated: false, user: null };
   } catch (error) {
-    console.log("Auth check failed:", error);
-    localStorage.removeItem('accessToken');
-    authState.isAuthenticated = false;
-    authState.user = null;
-    return { isAuthenticated: false, user: null };
+    console.log("Auth check failed, but keeping current state:", error);
+    // Don't automatically reset auth state on error
+    return { 
+      isAuthenticated: localStorage.getItem('accessToken') ? true : false, 
+      user: authState.user 
+    };
   }
 };
 
@@ -241,44 +257,45 @@ authService.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (
-      (error.response?.status === 401 ||
-        error.response?.data?.message === 'Authentication required') &&
-      !originalRequest._retry
-    ) {
+    // Only attempt refresh if it's an auth error and we haven't tried yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        return new Promise(function (resolve, reject) {
+        return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
+          .then(token => {
             originalRequest.headers['Authorization'] = 'Bearer ' + token;
             return authService(originalRequest);
           })
-          .catch((err) => Promise.reject(err));
+          .catch(err => Promise.reject(err));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        const refreshRes = await refreshTokenApi();
-        if (refreshRes.success) {
-          originalRequest.headers['Authorization'] = 'Bearer ' + refreshRes.accessToken;
-          processQueue(null, refreshRes.accessToken);
+        const refreshResult = await refreshTokenApi();
+        if (refreshResult.success) {
+          // Update token in storage
+          localStorage.setItem('accessToken', refreshResult.accessToken);
+          // Update authorization header
+          authService.defaults.headers.common['Authorization'] = 'Bearer ' + refreshResult.accessToken;
+          // Update original request
+          originalRequest.headers['Authorization'] = 'Bearer ' + refreshResult.accessToken;
+          
+          processQueue(null, refreshResult.accessToken);
           isRefreshing = false;
           return authService(originalRequest);
         } else {
-          processQueue(new Error('Refresh token failed'), null);
+          processQueue(new Error('Failed to refresh token'), null);
           isRefreshing = false;
-          localStorage.removeItem('accessToken');
-          window.location.href = '/auth/login';
+          // Only redirect to login if refresh explicitly failed
+          window.location.href = '/auth/login?error=session_expired';
           return Promise.reject(error);
         }
-      } catch (err) {
-        processQueue(err, null);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
         isRefreshing = false;
-        localStorage.removeItem('accessToken');
-        window.location.href = '/auth/login';
         return Promise.reject(error);
       }
     }
