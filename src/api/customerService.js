@@ -232,4 +232,32 @@ export const fetchCustomerChoiceApi = async (customerChoiceId) => {
     };
   }
 };
+export const getCustomerChoicesApi = async (customerId) => {
+  try {
+    const response = await customerService.get(`/api/customers/${customerId}/customer-choices`);
+    return response.data;
+  } catch (error) {
+    // If 404, it means the customer has no choices yet, which is not an error
+    if (error.response && error.response.status === 404) {
+      return { success: true, result: null };
+    }
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choices'
+    };
+  }
+};
+export const fetchCustomerChoiceSizesApi = async (customerChoiceId) => {
+  try {
+    const response = await customerService.get(`/api/customer-choices/${customerChoiceId}/customer-choices-value`);
+    
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choice sizes'
+    };
+  }
+};
 export default customerService;
