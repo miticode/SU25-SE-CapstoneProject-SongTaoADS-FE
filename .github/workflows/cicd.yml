@@ -26,6 +26,6 @@ deploy:
     - name: Delete Old Container
       run: docker rm -f reactContainer
     - name: Run docker container
-      run: docker run -d -p 5173:80  --name reactContainer mts983/su25-se-capstoneproject-songtaoads-fe
+      run: docker run -d -p 5173:80 --name reactContainer mts983/su25-se-capstoneproject-songtaoads-fe
 
       
