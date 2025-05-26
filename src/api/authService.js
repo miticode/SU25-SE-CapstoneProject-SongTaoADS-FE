@@ -146,25 +146,30 @@ export const checkAuthStatus = async () => {
     }
 
     // Try to get user profile instead of refresh token
-    const profileResponse = await getProfileApi();
-    if (profileResponse.success) {
-      authState.isAuthenticated = true;
-      authState.user = profileResponse.data;
-      return { 
-        isAuthenticated: true, 
-        user: profileResponse.data 
-      };
-    }
+    // const profileResponse = await getProfileApi();
+    // if (profileResponse.success) {
+    //   authState.isAuthenticated = true;
+    //   authState.user = profileResponse.data;
+    //   return { 
+    //     isAuthenticated: true, 
+    //     user: profileResponse.data 
+    //   };
+    // }
     
     // If profile failed, try refresh token as fallback
     try {
       const response = await authService.post('/api/auth/refresh-token');
+      console.log("Refresh token response:", response.data);
       const { success, result } = response.data;
       
       if (success) {
         authState.isAuthenticated = true;
         if (result && (result.user || result.email)) {
           authState.user = result.user || { email: result.email };
+        }
+         if (result && result.accessToken) {
+          console.log("Updating access token from refresh response");
+          localStorage.setItem('accessToken', result.accessToken);
         }
         return { 
           isAuthenticated: true, 
