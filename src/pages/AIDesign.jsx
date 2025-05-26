@@ -57,6 +57,8 @@ import {
   selectTotalAmount,
   selectFetchCustomerChoiceStatus,
   fetchCustomerChoice,
+  fetchCustomerChoices,
+  fetchCustomerChoiceSizes,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -104,114 +106,153 @@ const ModernBillboardForm = ({
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
-const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
-  try {
-    console.log("Updating size with ID:", customerChoiceSizeId);
-    console.log("New size value:", editingSizeValue);
-
-    // Đánh dấu trạng thái loading ngay từ đầu
-    dispatch({ type: "customers/fetchCustomerChoice/pending" });
-
-    // Lưu lại giá trị subtotal hiện tại trước khi cập nhật
-    const currentSubtotals = {};
-    Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
-      if (detail && detail.subTotal !== undefined) {
-        currentSubtotals[attrId] = detail.subTotal;
-        previousSubTotalsRef.current[attrId] = detail.subTotal;
-      }
-    });
-
-    // Cập nhật kích thước
-    const result = await dispatch(
-      updateCustomerChoiceSize({
-        customerChoiceSizeId,
-        sizeValue: editingSizeValue,
-      })
-    ).unwrap();
-
-    console.log("Update result:", result);
-
-    // Cập nhật trạng thái local cho UI
-    const numericValue = parseFloat(editingSizeValue);
-    setCustomerChoiceSizes({
-      ...customerChoiceSizes,
-      [sizeId]: {
-        ...customerChoiceSizes[sizeId],
-        sizeValue: numericValue,
-      },
-    });
-    setFormData({
-      ...formData,
-      [`size_${sizeId}`]: editingSizeValue,
-    });
-
-    // Reset trạng thái chỉnh sửa
-    setEditingSizeId(null);
-    setEditingSizeValue("");
-
-    // Đợi để đảm bảo backend đã xử lý xong
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
+  const customerChoiceSizesState = useSelector(
+    (state) => state.customers?.customerChoiceSizes || []
+  );
+  const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
     try {
-      // KHÔNG xóa toàn bộ giá trị subtotal
-      // KHÔNG dispatch resetCustomerChoiceDetails
+      console.log("Updating size with ID:", customerChoiceSizeId);
+      console.log("New size value:", editingSizeValue);
 
-      // Fetch lại toàn bộ dữ liệu
-      if (currentOrder?.id) {
-        // Đầu tiên, fetch chi tiết để cập nhật subtotal cho từng thuộc tính
-        await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
+      // Đánh dấu trạng thái loading ngay từ đầu
+      dispatch({ type: "customers/fetchCustomerChoice/pending" });
 
-        // Sau đó fetch tổng số tiền
-        await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+      // Lưu lại giá trị subtotal hiện tại trước khi cập nhật
+      const currentSubtotals = {};
+      Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
+        if (detail && detail.subTotal !== undefined) {
+          currentSubtotals[attrId] = detail.subTotal;
+          previousSubTotalsRef.current[attrId] = detail.subTotal;
+        }
+      });
 
-        // Cập nhật UI
-        setRefreshCounter((prev) => prev + 1);
+      // Cập nhật kích thước
+      const result = await dispatch(
+        updateCustomerChoiceSize({
+          customerChoiceSizeId,
+          sizeValue: editingSizeValue,
+        })
+      ).unwrap();
 
-        // Hiển thị thông báo thành công
+      console.log("Update result:", result);
+
+      // Cập nhật trạng thái local cho UI
+      const numericValue = parseFloat(editingSizeValue);
+      setCustomerChoiceSizes({
+        ...customerChoiceSizes,
+        [sizeId]: {
+          ...customerChoiceSizes[sizeId],
+          sizeValue: numericValue,
+        },
+      });
+      setFormData({
+        ...formData,
+        [`size_${sizeId}`]: editingSizeValue,
+      });
+
+      // Reset trạng thái chỉnh sửa
+      setEditingSizeId(null);
+      setEditingSizeValue("");
+
+      // Đợi để đảm bảo backend đã xử lý xong
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      try {
+        // KHÔNG xóa toàn bộ giá trị subtotal
+        // KHÔNG dispatch resetCustomerChoiceDetails
+
+        // Fetch lại toàn bộ dữ liệu
+        if (currentOrder?.id) {
+          // Đầu tiên, fetch chi tiết để cập nhật subtotal cho từng thuộc tính
+          await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
+
+          // Sau đó fetch tổng số tiền
+          await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+
+          // Cập nhật UI
+          setRefreshCounter((prev) => prev + 1);
+
+          // Hiển thị thông báo thành công
+          setSnackbar({
+            open: true,
+            message: "Cập nhật kích thước thành công",
+            severity: "success",
+          });
+        }
+      } catch (error) {
+        console.error("Error refreshing data after size update:", error);
+
+        // Phục hồi giá trị subtotal trước đó để UI không bị mất giá trị
+        // Khôi phục các giá trị subtotal từ biến tạm
+        previousSubTotalsRef.current = { ...currentSubtotals };
+
+        // Thử lại lần nữa
+        setTimeout(async () => {
+          if (currentOrder?.id) {
+            try {
+              await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+              await dispatch(fetchCustomerChoice(currentOrder.id));
+              setRefreshCounter((prev) => prev + 1);
+            } catch (retryError) {
+              console.error("Retry failed:", retryError);
+            }
+          }
+        }, 1000);
+
         setSnackbar({
           open: true,
-          message: "Cập nhật kích thước thành công",
-          severity: "success",
+          message: "Đã cập nhật kích thước, đang tải lại dữ liệu...",
+          severity: "info",
         });
       }
     } catch (error) {
-      console.error("Error refreshing data after size update:", error);
-
-      // Phục hồi giá trị subtotal trước đó để UI không bị mất giá trị
-      // Khôi phục các giá trị subtotal từ biến tạm
-      previousSubTotalsRef.current = { ...currentSubtotals };
-
-      // Thử lại lần nữa
-      setTimeout(async () => {
-        if (currentOrder?.id) {
-          try {
-            await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
-            await dispatch(fetchCustomerChoice(currentOrder.id));
-            setRefreshCounter((prev) => prev + 1);
-          } catch (retryError) {
-            console.error("Retry failed:", retryError);
-          }
-        }
-      }, 1000);
-
+      console.error("Failed to update size:", error);
+      setSizeValidationError(
+        "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
+      );
       setSnackbar({
         open: true,
-        message: "Đã cập nhật kích thước, đang tải lại dữ liệu...",
-        severity: "info",
+        message: "Cập nhật kích thước thất bại",
+        severity: "error",
       });
     }
-  } catch (error) {
-    console.error("Failed to update size:", error);
-    setSizeValidationError(
-      "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
-    );
-    setSnackbar({
-      open: true,
-      message: "Cập nhật kích thước thất bại",
-      severity: "error",
-    });
-  }
-};
+  };
+  useEffect(() => {
+    if (currentOrder?.id) {
+      // Load saved sizes for existing customer choice
+      dispatch(fetchCustomerChoiceSizes(currentOrder.id))
+        .unwrap()
+        .then((sizes) => {
+          if (sizes && sizes.length > 0) {
+            console.log("Found saved sizes:", sizes);
+
+            // Create a map of the existing sizes
+            const existingSizes = {};
+            sizes.forEach((size) => {
+              // Store by size ID for easy lookup
+              existingSizes[size.sizeId] = size;
+
+              // Also update the form data to show the values
+              setFormData((prev) => ({
+                ...prev,
+                [`size_${size.sizeId}`]: size.sizeValue.toString(),
+              }));
+            });
+
+            // Save the existing sizes to state for editing later
+            setCustomerChoiceSizes(existingSizes);
+
+            // If we have all required sizes, auto-confirm them
+            if (sizes.length === productTypeSizes.length) {
+              setSizesConfirmed(true);
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to load customer choice sizes:", error);
+        });
+    }
+  }, [currentOrder?.id, dispatch, productTypeSizes.length]);
   useEffect(() => {
     if (currentOrder?.id && sizesConfirmed) {
       dispatch(fetchCustomerChoice(currentOrder.id));
@@ -1207,10 +1248,45 @@ const AIDesign = () => {
     }
   }, [currentStep, dispatch, productTypeStatus]);
   useEffect(() => {
-    if (currentStep === 4 && billboardType && attributeStatus === "idle") {
-      dispatch(fetchAttributesByProductTypeId(billboardType));
+    if (currentStep === 4 && billboardType) {
+      // Fetch attributes for the product type
+      if (attributeStatus === "idle") {
+        dispatch(fetchAttributesByProductTypeId(billboardType));
+      }
+
+      // If we have a customer ID but no current order, try to fetch existing choice
+      if (!currentOrder && user?.id) {
+        dispatch(fetchCustomerChoices(user.id))
+          .unwrap()
+          .then((result) => {
+            if (result) {
+              // We found an existing choice, now set it as current order
+              console.log("Found existing customer choice:", result);
+
+              // Make sure the existing choice matches our current product type
+              if (result.productTypeId === billboardType) {
+                // Fetch choice details and update state
+                dispatch(fetchCustomerChoiceDetails(result.id));
+                dispatch(fetchCustomerChoice(result.id));
+              }
+            }
+          })
+          .catch((error) => {
+            console.error(
+              "Failed to check for existing customer choices:",
+              error
+            );
+          });
+      }
     }
-  }, [currentStep, billboardType, dispatch, attributeStatus]);
+  }, [
+    currentStep,
+    billboardType,
+    dispatch,
+    attributeStatus,
+    currentOrder,
+    user?.id,
+  ]);
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -1263,6 +1339,11 @@ const AIDesign = () => {
     console.log("Current user state:", user);
     if (!user?.id) {
       console.error("No user ID found in user state:", user);
+      setSnackbar({
+        open: true,
+        message: "Vui lòng đăng nhập để tiếp tục",
+        severity: "error",
+      });
       return;
     }
 
@@ -1277,7 +1358,7 @@ const AIDesign = () => {
     console.log("Customer data to be sent:", customerData);
 
     try {
-      // If we already have a customer detail, update it
+      // First update or create customer details
       if (customerDetail) {
         console.log("Updating existing customer detail:", customerDetail.id);
         const result = await dispatch(
@@ -1294,9 +1375,59 @@ const AIDesign = () => {
         console.log("Customer created successfully:", result);
       }
 
-      // Advance to the next step
-      setCurrentStep(3);
-      navigate("/ai-design?step=billboard");
+      // Now check if the user already has any customer choice
+      const customerId = user.id;
+
+      try {
+        const customerChoicesResponse = await dispatch(
+          fetchCustomerChoices(customerId)
+        ).unwrap();
+
+        console.log("Customer choices response:", customerChoicesResponse);
+
+        // If we have an existing customer choice with product type
+        if (customerChoicesResponse && customerChoicesResponse.productTypeId) {
+          // We found an existing choice, skip step 3 and go to step 4
+          const existingProductTypeId = customerChoicesResponse.productTypeId;
+          console.log("Found existing product type ID:", existingProductTypeId);
+
+          // Update local state
+          setBillboardType(existingProductTypeId);
+          setCurrentStep(4);
+
+          // Fetch attributes for the selected product type
+          dispatch(fetchAttributesByProductTypeId(existingProductTypeId));
+
+          // Navigate to step 4 with the found product type
+          navigate(`/ai-design?step=billboard&type=${existingProductTypeId}`);
+
+          // Show a snackbar indicating we're continuing with existing choice
+          setSnackbar({
+            open: true,
+            message: "Tiếp tục với thiết kế hiện tại",
+            severity: "info",
+          });
+        } else {
+          // No existing choice or no product type associated, continue to step 3
+          console.log("No existing customer choice found, moving to step 3");
+          setCurrentStep(3);
+          navigate("/ai-design?step=billboard");
+        }
+      } catch (error) {
+        console.error("Error checking for existing customer choices:", error);
+
+        // If we fail to check, just continue to step 3 as a fallback
+        setCurrentStep(3);
+        navigate("/ai-design?step=billboard");
+
+        // Maybe show a subtle warning
+        setSnackbar({
+          open: true,
+          message:
+            "Không thể kiểm tra thiết kế hiện có, tiếp tục với thiết kế mới",
+          severity: "warning",
+        });
+      }
     } catch (error) {
       console.error("Failed to save customer details. Full error:", error);
       if (error.response) {
@@ -1308,6 +1439,13 @@ const AIDesign = () => {
       } else {
         console.error("Error message:", error.message);
       }
+
+      // Show error message to user
+      setSnackbar({
+        open: true,
+        message: "Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.",
+        severity: "error",
+      });
     }
   };
 
@@ -1416,13 +1554,50 @@ const AIDesign = () => {
     }
 
     try {
-      // Find the appropriate customer ID to use
+      // Check if user already has a customer choice for this product type
+      const customerChoicesResponse = await dispatch(
+        fetchCustomerChoices(user.id)
+      ).unwrap();
+
+      if (
+        customerChoicesResponse &&
+        customerChoicesResponse.productTypeId === productTypeId
+      ) {
+        console.log(
+          "User already has a customer choice for this product type:",
+          customerChoicesResponse
+        );
+
+        // Set the existing choice as current order
+        setBillboardType(productTypeId);
+
+        // Fetch attributes and details for the existing choice
+        dispatch(fetchAttributesByProductTypeId(productTypeId));
+        dispatch(fetchCustomerChoiceDetails(customerChoicesResponse.id));
+        dispatch(fetchCustomerChoice(customerChoicesResponse.id));
+
+        // Navigate to step 4
+        setCurrentStep(4);
+        navigate(`/ai-design?step=billboard&type=${productTypeId}`);
+
+        // Show notification
+        setSnackbar({
+          open: true,
+          message: "Tiếp tục với thiết kế hiện tại",
+          severity: "info",
+        });
+
+        return;
+      }
+
+      // If no existing choice, create a new one
       const userId = user.id;
       console.log(`Linking user ${userId} to product type ${productTypeId}`);
+
       // Dispatch the action to link customer with product type
       const resultAction = await dispatch(
         linkCustomerToProductType({
-          customerId: userId, // Always use the user ID from authentication
+          customerId: userId,
           productTypeId,
         })
       ).unwrap();
@@ -1439,7 +1614,7 @@ const AIDesign = () => {
       navigate(`/ai-design?step=billboard&type=${productTypeId}`);
     } catch (error) {
       console.error("Failed to link customer to product type:", error);
-      // Handle error - maybe show a notification to the user
+      // Handle error
       if (error?.message?.includes("User not found")) {
         setError(
           "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."

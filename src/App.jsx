@@ -24,7 +24,11 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import OrderHistory from "./pages/OrderHistory";
 import Checkout from "./pages/Checkout";
+
 import Signup from "./pages/Signup";
+
+import AIChatbot from "./components/AIChatbot";
+
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -37,7 +41,7 @@ const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
   // Also check localStorage as a fallback
   const hasToken = !!localStorage.getItem("accessToken");
-  
+
   if (!isAuthenticated && !hasToken) {
     return <Navigate to="/auth/login" />;
   }
@@ -131,6 +135,9 @@ const App = () => {
           Đăng nhập thành công!
         </Alert>
       </Snackbar>
+
+      {/* AI Chatbot luôn nổi trên mọi trang */}
+      <AIChatbot />
 
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
