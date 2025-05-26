@@ -16,7 +16,7 @@ import AuthLayout from "./layouts/AuthLayout";
 import Service from "./pages/Service";
 import Blog from "./pages/Blog";
 import Aboutus from "./pages/Aboutus";
-import AIDesign from "./pages/AiDesign";
+import AIDesign from "./pages/AIDesign";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import SaleDashboard from "./pages/sale/SaleDashboard";
@@ -24,7 +24,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import OrderHistory from "./pages/OrderHistory";
 import Checkout from "./pages/Checkout";
-import Signup from "./pages/SignUp";
+import Signup from "./pages/Signup";
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
