@@ -65,29 +65,67 @@ const App = () => {
   }, []);
 
   // Kiểm tra trạng thái đăng nhập khi tải trang
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const authStatus = await checkAuthStatus();
-        dispatch(
-          syncAuthState({
-            ...authStatus,
-            accessToken: localStorage.getItem("accessToken"),
-          })
-        );
-      } catch {
-        dispatch(
-          syncAuthState({
+ useEffect(() => {
+  const initializeAuth = async () => {
+    try {
+      // Get access token from localStorage
+      const accessToken = localStorage.getItem("accessToken");
+      
+      if (!accessToken) {
+        // Only try refresh once, not repeatedly
+        try {
+          // Attempt refresh with a timeout to prevent hanging
+          const refreshPromise = checkAuthStatus();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Auth check timeout")), 5000)
+          );
+          
+          // Race between refresh and timeout
+          const authStatus = await Promise.race([refreshPromise, timeoutPromise]);
+          
+          if (authStatus.isAuthenticated) {
+            console.log("Auth refreshed successfully");
+            dispatch(syncAuthState(authStatus));
+          } else {
+            console.log("Auth refresh failed - not authenticated");
+            dispatch(syncAuthState({
+              isAuthenticated: false,
+              user: null,
+              accessToken: null,
+            }));
+          }
+        } catch (refreshError) {
+          console.error("Auth refresh error:", refreshError);
+          // Clear auth state on refresh failure
+          dispatch(syncAuthState({
             isAuthenticated: false,
             user: null,
             accessToken: null,
-          })
-        );
+          }));
+        }
+      } else {
+        // We have a token, validate it
+        const authStatus = await checkAuthStatus();
+        dispatch(syncAuthState({
+          ...authStatus,
+          accessToken: localStorage.getItem("accessToken"),
+        }));
       }
+    } catch (err) {
+      console.error("Auth initialization error:", err);
+      dispatch(syncAuthState({
+        isAuthenticated: false,
+        user: null,
+        accessToken: null,
+      }));
+    } finally {
+      // Always stop loading, even if errors occur
       setAuthLoading(false);
-    };
-    initializeAuth();
-  }, [dispatch]);
+    }
+  };
+  
+  initializeAuth();
+}, [dispatch]);
 
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
