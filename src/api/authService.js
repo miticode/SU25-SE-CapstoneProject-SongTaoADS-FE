@@ -308,4 +308,64 @@ authService.interceptors.response.use(
   }
 );
 
+
+
+// Cập nhật avatar user
+export const updateUserAvatarApi = async (userId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await authService.put(`/api/users/${userId}/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success: true, data: result };
+    }
+    return { success: false, error: message || 'Update avatar failed' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Update avatar failed',
+    };
+  }
+};
+
+// Cập nhật họ tên và số điện thoại
+export const updateUserProfileApi = async (userId, fullName, phone) => {
+  try {
+    const response = await authService.put(`/api/users/${userId}/profile`, { fullName, phone });
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success: true, data: result };
+    }
+    return { success: false, error: message || 'Update profile failed' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Update profile failed',
+    };
+  }
+};
+
+// Đổi mật khẩu
+export const updateUserPasswordApi = async (userId, oldPassword, newPassword) => {
+  try {
+    const response = await authService.put(`/api/users/${userId}/password`, { oldPassword, newPassword });
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success: true, data: result };
+    }
+    return { success: false, error: message || 'Update password failed' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Update password failed',
+    };
+  }
+};
+
 export default authService;
