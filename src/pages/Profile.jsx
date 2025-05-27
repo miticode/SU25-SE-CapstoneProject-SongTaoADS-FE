@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { getProfileApi } from "../api/authService";
+import {
+  getProfileApi,
+  updateUserAvatarApi,
+  updateUserProfileApi,
+  updateUserPasswordApi,
+} from "../api/authService";
 import {
   Box,
   Container,
@@ -10,8 +15,22 @@ import {
   Chip,
   Button,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Snackbar,
+  Alert,
 } from "@mui/material";
-import { CheckCircle, Cancel } from "@mui/icons-material";
+import {
+  CheckCircle,
+  Cancel,
+  PhotoCamera,
+  Edit,
+  Lock,
+} from "@mui/icons-material";
 
 const DEFAULT_AVATAR = "https://i.imgur.com/HeIi0wU.png";
 
@@ -20,6 +39,22 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { accessToken } = useSelector((state) => state.auth);
+
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  // State cho dialog đổi mật khẩu
+  const [openPwd, setOpenPwd] = useState(false);
+  const [oldPwd, setOldPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -35,6 +70,8 @@ const Profile = () => {
       const res = await getProfileApi();
       if (res.success) {
         setProfile(res.data);
+        setEditName(res.data.fullName || "");
+        setEditPhone(res.data.phone || "");
       } else {
         setError(res.error || "Không thể tải thông tin cá nhân");
       }
@@ -43,6 +80,105 @@ const Profile = () => {
 
     fetchProfile();
   }, [accessToken]);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !profile) return;
+    try {
+      // Gọi API cập nhật avatar user với file gốc
+      const updateRes = await updateUserAvatarApi(profile.id, file);
+      if (updateRes.success) {
+        const newAvatarUrl = updateRes.data.avatar + "?t=" + Date.now();
+        setProfile((prev) => ({ ...prev, avatar: newAvatarUrl }));
+        setSnackbar({
+          open: true,
+          message: "Cập nhật avatar thành công!",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: updateRes.error || "Cập nhật avatar thất bại!",
+          severity: "error",
+        });
+      }
+    } catch {
+      setSnackbar({
+        open: true,
+        message: "Có lỗi khi upload avatar!",
+        severity: "error",
+      });
+    }
+  };
+
+  // Hàm cập nhật profile
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      setSnackbar({
+        open: true,
+        message: "Họ tên không được để trống",
+        severity: "error",
+      });
+      return;
+    }
+    setEditLoading(true);
+    const res = await updateUserProfileApi(profile.id, editName, editPhone);
+    setEditLoading(false);
+    if (res.success) {
+      setProfile((prev) => ({ ...prev, fullName: editName, phone: editPhone }));
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thành công!",
+        severity: "success",
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: res.error || "Cập nhật thất bại!",
+        severity: "error",
+      });
+    }
+  };
+
+  // Hàm cập nhật mật khẩu
+  const handleSavePassword = async () => {
+    if (!oldPwd || !newPwd || !confirmPwd) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng nhập đủ thông tin",
+        severity: "error",
+      });
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      setSnackbar({
+        open: true,
+        message: "Mật khẩu mới không khớp",
+        severity: "error",
+      });
+      return;
+    }
+    setPwdLoading(true);
+    const res = await updateUserPasswordApi(profile.id, oldPwd, newPwd);
+    setPwdLoading(false);
+    if (res.success) {
+      setOpenPwd(false);
+      setOldPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+      setSnackbar({
+        open: true,
+        message: "Đổi mật khẩu thành công!",
+        severity: "success",
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: res.error || "Đổi mật khẩu thất bại!",
+        severity: "error",
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -78,105 +214,279 @@ const Profile = () => {
 
   return (
     <Box sx={{ background: "#f7f7f9", minHeight: "100vh", py: 6 }}>
-      <Container maxWidth="sm">
+      <Container maxWidth="md">
         <Paper
-          elevation={4}
+          elevation={6}
           sx={{
-            borderRadius: 4,
-            p: 4,
-            pt: 8,
-            position: "relative",
-            textAlign: "center",
-            boxShadow: "0 4px 24px 0 rgba(0,0,0,0.08)",
-            maxWidth: 400,
-            margin: "40px auto",
+            borderRadius: 6,
+            p: { xs: 2, md: 6 },
+            maxWidth: 800,
+            mx: "auto",
             minHeight: 420,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            background: "#fff",
+            boxShadow: "0 8px 32px 0 rgba(0,0,0,0.10)",
           }}
         >
-          {/* Avatar nổi */}
-          <Avatar
-            src={profile.avatar || DEFAULT_AVATAR}
-            alt={profile.fullName}
-            sx={{
-              width: 100,
-              height: 100,
-              position: "absolute",
-              top: -50,
-              left: "50%",
-              transform: "translateX(-50%)",
-              border: "4px solid #fff",
-              boxShadow: 2,
-              bgcolor: "grey.200",
-              objectFit: "cover",
-            }}
-          />
-          <Typography variant="h5" fontWeight={700} sx={{ mt: 2, mb: 3 }}>
+          <Typography
+            variant="h3"
+            fontWeight={900}
+            sx={{ mb: 4, letterSpacing: 2, textAlign: "left", width: "100%" }}
+          >
             Thông tin cá nhân
           </Typography>
           <Box
-            sx={{ textAlign: "left", width: "100%", maxWidth: 320, mx: "auto" }}
-          >
-            <Box sx={{ display: "flex", mb: 1.5 }}>
-              <Typography sx={{ minWidth: 110, fontWeight: 500 }}>
-                Email:
-              </Typography>
-              <Typography>{profile.email}</Typography>
-            </Box>
-            <Box sx={{ display: "flex", mb: 1.5 }}>
-              <Typography sx={{ minWidth: 110, fontWeight: 500 }}>
-                Họ tên:
-              </Typography>
-              <Typography>{profile.fullName}</Typography>
-            </Box>
-            <Box sx={{ display: "flex", mb: 1.5 }}>
-              <Typography sx={{ minWidth: 110, fontWeight: 500 }}>
-                Số điện thoại:
-              </Typography>
-              <Typography>{profile.phone}</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-              <Typography sx={{ minWidth: 110, fontWeight: 500 }}>
-                Trạng thái:
-              </Typography>
-              {profile.isActive ? (
-                <Chip
-                  icon={<CheckCircle />}
-                  label="Đang hoạt động"
-                  size="small"
-                  sx={{ bgcolor: "#d1f5e0", color: "#217a3c", fontWeight: 600 }}
-                />
-              ) : (
-                <Chip
-                  icon={<Cancel />}
-                  label="Bị khóa"
-                  size="small"
-                  color="error"
-                />
-              )}
-            </Box>
-          </Box>
-          <Divider sx={{ my: 2 }} />
-          <Button
-            variant="contained"
             sx={{
-              mt: 2,
-              bgcolor: "#e26a2c",
-              color: "#fff",
-              borderRadius: 2,
-              fontWeight: 600,
-              fontSize: 16,
-              px: 4,
-              py: 1.2,
-              boxShadow: "0 2px 8px 0 rgba(226,106,44,0.15)",
-              "&:hover": { bgcolor: "#c85a1e" },
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              width: "100%",
+              alignItems: "flex-start",
+              gap: 4,
             }}
           >
-            Cập nhật thông tin
-          </Button>
+            <Box sx={{ flex: 1, minWidth: 260 }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  className="text-custom-primary"
+                  sx={{ fontWeight: 600, fontSize: 14 }}
+                >
+                  HỌ VÀ TÊN
+                </Typography>
+                <TextField
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  size="small"
+                  fullWidth
+                  sx={{ mt: 0.5 }}
+                />
+              </Box>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  className="text-custom-primary"
+                  sx={{ fontWeight: 600, fontSize: 14 }}
+                >
+                  E-MAIL
+                </Typography>
+                <TextField
+                  value={profile.email}
+                  size="small"
+                  fullWidth
+                  disabled
+                  sx={{ mt: 0.5 }}
+                />
+              </Box>
+              <Box
+                sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    className="text-custom-primary"
+                    sx={{ fontWeight: 600, fontSize: 14 }}
+                  >
+                    MẬT KHẨU
+                  </Typography>
+                  <TextField
+                    value={"********"}
+                    size="small"
+                    fullWidth
+                    disabled
+                    sx={{ mt: 0.5 }}
+                  />
+                </Box>
+                <IconButton
+                  color="primary"
+                  onClick={() => setOpenPwd(true)}
+                  sx={{ mt: 3 }}
+                >
+                  <Lock />
+                </IconButton>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  className="text-custom-primary"
+                  sx={{ fontWeight: 600, fontSize: 14 }}
+                >
+                  SỐ ĐIỆN THOẠI
+                </Typography>
+                <TextField
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  size="small"
+                  fullWidth
+                  sx={{ mt: 0.5 }}
+                />
+              </Box>
+              <Box sx={{ mb: 2, display: "flex", alignItems: "center" }}>
+                <Typography
+                  className="text-custom-primary"
+                  sx={{ fontWeight: 600, fontSize: 14, minWidth: 110 }}
+                >
+                  TRẠNG THÁI
+                </Typography>
+                {profile.isActive ? (
+                  <Chip
+                    icon={<CheckCircle />}
+                    label="Đang hoạt động"
+                    size="small"
+                    sx={{
+                      bgcolor: "#d1f5e0",
+                      color: "#217a3c",
+                      fontWeight: 600,
+                      ml: 1,
+                    }}
+                  />
+                ) : (
+                  <Chip
+                    icon={<Cancel />}
+                    label="Bị khóa"
+                    size="small"
+                    color="error"
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                position: "relative",
+                mx: "auto",
+                minWidth: 180,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <Avatar
+                src={profile.avatar || DEFAULT_AVATAR}
+                alt={profile.fullName}
+                sx={{
+                  width: 140,
+                  height: 140,
+                  border: "6px solid #fff",
+                  boxShadow: 3,
+                  bgcolor: "grey.200",
+                  objectFit: "cover",
+                  mb: 2,
+                }}
+              />
+
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: 24,
+                  right: 24,
+                  bgcolor: "#fff",
+                  borderRadius: "50%",
+                  boxShadow: 2,
+                  p: 1,
+                  cursor: "pointer",
+                  border: "2px solid #e0e0e0",
+                  transition: "box-shadow 0.2s",
+                  "&:hover": { boxShadow: 4, bgcolor: "#f5f5f5" },
+                }}
+                onClick={() =>
+                  document.getElementById("avatar-upload-input").click()
+                }
+              >
+                <Edit sx={{ color: "#e26a2c", fontSize: 26 }} />
+                <input
+                  id="avatar-upload-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={handleAvatarChange}
+                />
+              </Box>
+            </Box>
+          </Box>
+          <Box
+            sx={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "flex-end",
+              mt: 4,
+            }}
+          >
+            <Button
+              variant="contained"
+              sx={{
+                bgcolor: "#e26a2c",
+                color: "#fff",
+                borderRadius: 2,
+                fontWeight: 600,
+                fontSize: 16,
+                px: 4,
+                py: 1.2,
+                boxShadow: "0 2px 8px 0 rgba(226,106,44,0.15)",
+                letterSpacing: 1,
+                textTransform: "none",
+                "&:hover": { bgcolor: "#c85a1e" },
+              }}
+              onClick={handleSaveProfile}
+              disabled={editLoading}
+            >
+              {editLoading ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </Box>
         </Paper>
+
+        <Dialog open={openPwd} onClose={() => setOpenPwd(false)}>
+          <DialogTitle>Đổi mật khẩu</DialogTitle>
+          <DialogContent>
+            <TextField
+              label="Mật khẩu cũ"
+              type="password"
+              fullWidth
+              value={oldPwd}
+              onChange={(e) => setOldPwd(e.target.value)}
+              sx={{ mb: 2, mt: 1 }}
+            />
+            <TextField
+              label="Mật khẩu mới"
+              type="password"
+              fullWidth
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Xác nhận mật khẩu mới"
+              type="password"
+              fullWidth
+              value={confirmPwd}
+              onChange={(e) => setConfirmPwd(e.target.value)}
+              sx={{ mb: 1 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenPwd(false)} color="inherit">
+              Hủy
+            </Button>
+            <Button
+              onClick={handleSavePassword}
+              variant="contained"
+              color="primary"
+              disabled={pwdLoading}
+            >
+              {pwdLoading ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert severity={snackbar.severity} sx={{ width: "100%" }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   );
