@@ -141,57 +141,65 @@ export const getAuthState = () => {
 export const checkAuthStatus = async () => {
   try {
     const accessToken = localStorage.getItem('accessToken');
-    if (!accessToken) {
-      return { isAuthenticated: false, user: null };
-    }
-
-    // Try to get user profile instead of refresh token
-    // const profileResponse = await getProfileApi();
-    // if (profileResponse.success) {
-    //   authState.isAuthenticated = true;
-    //   authState.user = profileResponse.data;
-    //   return { 
-    //     isAuthenticated: true, 
-    //     user: profileResponse.data 
-    //   };
-    // }
     
-    // If profile failed, try refresh token as fallback
-    try {
-      const response = await authService.post('/api/auth/refresh-token');
-      console.log("Refresh token response:", response.data);
-      const { success, result } = response.data;
-      
-      if (success) {
-        authState.isAuthenticated = true;
-        if (result && (result.user || result.email)) {
-          authState.user = result.user || { email: result.email };
+    // If we have an access token, assume we're authenticated until proven otherwise
+    if (accessToken) {
+      try {
+        // Try to validate the token with the server
+        const response = await authService.get('/api/users/profile', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        
+        if (response.data.success) {
+          // Token is valid, update auth state
+          authState.isAuthenticated = true;
+          authState.user = response.data.result;
+          return { 
+            isAuthenticated: true, 
+            user: authState.user 
+          };
         }
-         if (result && result.accessToken) {
-          console.log("Updating access token from refresh response");
-          localStorage.setItem('accessToken', result.accessToken);
+      } catch (error) {
+        // Token validation failed, try to refresh
+        if (error.response?.status === 401) {
+          try {
+            const refreshResult = await refreshTokenApi();
+            if (refreshResult.success) {
+              return { 
+                isAuthenticated: true, 
+                user: authState.user,
+                accessToken: refreshResult.accessToken
+              };
+            }
+          } catch (refreshError) {
+            console.error("Refresh failed during validation:", refreshError);
+          }
         }
-        return { 
-          isAuthenticated: true, 
-          user: authState.user 
-        };
       }
-    } catch (refreshError) {
-      console.error("Refresh token failed:", refreshError);
+    } else {
+      // No access token, try a single refresh attempt
+      try {
+        const refreshResult = await refreshTokenApi();
+        if (refreshResult.success) {
+          return { 
+            isAuthenticated: true, 
+            user: authState.user,
+            accessToken: refreshResult.accessToken
+          };
+        }
+      } catch (refreshError) {
+        console.error("Refresh failed when no token:", refreshError);
+      }
     }
     
-    // Only remove token if both methods fail
-    localStorage.removeItem('accessToken');
-    authState.isAuthenticated = false;
-    authState.user = null;
+    // If we reach here, authentication failed
     return { isAuthenticated: false, user: null };
+    
   } catch (error) {
-    console.log("Auth check failed, but keeping current state:", error);
-    // Don't automatically reset auth state on error
-    return { 
-      isAuthenticated: localStorage.getItem('accessToken') ? true : false, 
-      user: authState.user 
-    };
+    console.error("Auth check error:", error);
+    return { isAuthenticated: false, user: null };
   }
 };
 
@@ -234,15 +242,31 @@ export const getProfileApi = async () => {
 // Hàm gọi refresh token
 export const refreshTokenApi = async () => {
   try {
-    const response = await authService.post('/api/auth/refresh-token');
+    // First remove the expired access token
+    localStorage.removeItem('accessToken');
+    
+    // Send refresh token via cookies
+    const response = await authService.post('/api/auth/refresh-token', {}, {
+      withCredentials: true // Ensures cookies are sent
+    });
+    
     const { success, result } = response.data;
+    
     if (success && result?.accessToken) {
+      // Store the new access token
       localStorage.setItem('accessToken', result.accessToken);
       return { success: true, accessToken: result.accessToken };
     }
-    return { success: false };
-  } catch {
-    return { success: false };
+    
+    return { success: false, error: 'No access token in response' };
+  } catch (error) {
+    console.error("Refresh token error:", error.response?.data || error.message);
+    // Clear token if refresh failed
+    localStorage.removeItem('accessToken');
+    return { 
+      success: false, 
+      error: error.response?.data?.message || "Failed to refresh token" 
+    };
   }
 };
 
@@ -258,52 +282,88 @@ const processQueue = (error, token = null) => {
 };
 
 // Interceptor tự động refresh token khi hết hạn
+// Interceptor tự động refresh token khi hết hạn
 authService.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    // Only attempt refresh if it's an auth error and we haven't tried yet
+    
+    // Only proceed for 401 errors that haven't been retried
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(token => {
-            originalRequest.headers['Authorization'] = 'Bearer ' + token;
-            return authService(originalRequest);
-          })
-          .catch(err => Promise.reject(err));
-      }
-
+      // Don't retry infinitely
       originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const refreshResult = await refreshTokenApi();
-        if (refreshResult.success) {
-          // Update token in storage
-          localStorage.setItem('accessToken', refreshResult.accessToken);
-          // Update authorization header
-          authService.defaults.headers.common['Authorization'] = 'Bearer ' + refreshResult.accessToken;
-          // Update original request
-          originalRequest.headers['Authorization'] = 'Bearer ' + refreshResult.accessToken;
+      
+      // Handle concurrent refresh requests
+      if (isRefreshing) {
+        try {
+          // Wait for the ongoing refresh to complete
+          const token = await new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          });
           
-          processQueue(null, refreshResult.accessToken);
+          // Update header with new token
+          originalRequest.headers['Authorization'] = 'Bearer ' + token;
+          return authService(originalRequest);
+        } catch (err) {
+          return Promise.reject(err);
+        }
+      }
+      
+      // Start refreshing
+      isRefreshing = true;
+      
+      try {
+        console.log('Starting token refresh process...');
+        
+        // First remove expired token
+        localStorage.removeItem('accessToken');
+        
+        // Attempt refresh
+        const refreshResult = await refreshTokenApi();
+        
+        if (refreshResult.success) {
+          console.log('Token refresh successful, new token obtained');
+          const newToken = refreshResult.accessToken;
+          
+          // Update axios default headers
+          authService.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
+          
+          // Update the original request
+          originalRequest.headers['Authorization'] = 'Bearer ' + newToken;
+          
+          // Resolve all queued requests
+          processQueue(null, newToken);
+          
+          // Reset refreshing flag
           isRefreshing = false;
+          
+          // Retry the original request
           return authService(originalRequest);
         } else {
-          processQueue(new Error('Failed to refresh token'), null);
+          console.error('Token refresh failed:', refreshResult.error);
+          processQueue(new Error(refreshResult.error || 'Refresh failed'), null);
           isRefreshing = false;
-          // Only redirect to login if refresh explicitly failed
+          
+          // Redirect to login
           window.location.href = '/auth/login?error=session_expired';
           return Promise.reject(error);
         }
       } catch (refreshError) {
+        console.error('Error during token refresh:', refreshError);
         processQueue(refreshError, null);
         isRefreshing = false;
-        return Promise.reject(error);
+        
+        // Clean up auth state
+        localStorage.removeItem('accessToken');
+        updateAuthState(false, null);
+        
+        // Redirect to login
+        window.location.href = '/auth/login?error=session_expired';
+        return Promise.reject(refreshError);
       }
     }
+    
+    // For non-401 errors or already retried requests
     return Promise.reject(error);
   }
 );
