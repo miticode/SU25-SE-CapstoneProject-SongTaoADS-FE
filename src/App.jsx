@@ -12,7 +12,7 @@ import SaleLayout from "./layouts/SaleLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AuthLayout from "./layouts/AuthLayout";
-import Signup from "./pages/Signup";
+
 import Service from "./pages/Service";
 import Blog from "./pages/Blog";
 import Aboutus from "./pages/Aboutus";
@@ -24,7 +24,11 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import OrderHistory from "./pages/OrderHistory";
 import Checkout from "./pages/Checkout";
+
+import Signup from "./pages/Signup";
+
 import AIChatbot from "./components/AIChatbot";
+
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -220,7 +224,7 @@ const App = () => {
 
           <Route path="/auth" element={<AuthLayout />}>
             <Route path="login" element={<Login />} />
-            <Route path="signup" element={<Signup />} />
+            <Route path="signup" element={<Signup/>} />
           </Route>
         </Routes>
       </AnimatePresence>
