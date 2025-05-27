@@ -432,7 +432,8 @@ const ModernBillboardForm = ({
 
     // Check all size fields
     for (const ptSize of productTypeSizes) {
-      const fieldName = `size_${ptSize.size.id}`;
+      // Changed from ptSize.size.id to ptSize.sizes.id
+      const fieldName = `size_${ptSize.sizes.id}`;
       const value = formData[fieldName];
 
       if (!value) {
@@ -447,7 +448,8 @@ const ModernBillboardForm = ({
           setSizeValidationError("Giá trị kích thước không hợp lệ");
           return;
         } else {
-          sizeInputs[ptSize.size.id] = numValue;
+          // Changed from ptSize.size.id to ptSize.sizes.id
+          sizeInputs[ptSize.sizes.id] = numValue;
         }
       }
     }
@@ -507,8 +509,9 @@ const ModernBillboardForm = ({
           createdSizes[sizeId] = {
             id: result.id,
             sizeValue: numericSizeValue,
+            // Changed from ptSize.size.name to ptSize.sizes.name
             sizeName:
-              productTypeSizes.find((pt) => pt.size.id === sizeId)?.size
+              productTypeSizes.find((pt) => pt.sizes.id === sizeId)?.sizes
                 ?.name || "Size",
           };
         }
@@ -669,7 +672,7 @@ const ModernBillboardForm = ({
 
               <Grid container spacing={1.5}>
                 {productTypeSizes.map((ptSize) => {
-                  const sizeId = ptSize.size.id;
+                  const sizeId = ptSize.sizes.id;
                   const fieldName = `size_${sizeId}`;
                   const isEditing = editingSizeId === sizeId;
                   const savedSize = customerChoiceSizes[sizeId];
@@ -689,7 +692,7 @@ const ModernBillboardForm = ({
                         <TextField
                           fullWidth
                           size="small"
-                          label={ptSize.size.name}
+                          label={ptSize.sizes.name}
                           name={fieldName}
                           type="number"
                           value={
@@ -1181,7 +1184,7 @@ const AIDesign = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-
+  const [selectedSampleProduct, setSelectedSampleProduct] = useState(null);
   const currentOrder = useSelector(selectCurrentOrder);
   const attributes = useSelector(selectAllAttributes);
   const attributeStatus = useSelector(selectAttributeStatus);
@@ -1198,7 +1201,28 @@ const AIDesign = () => {
     message: "",
     severity: "success",
   });
-
+  const sampleProducts = [
+    {
+      id: 1,
+      url: "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
+      title: "Mẫu biển hiệu hiện đại",
+    },
+    {
+      id: 2,
+      url: "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
+      title: "Mẫu biển hiệu truyền thống",
+    },
+    {
+      id: 3,
+      url: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
+      title: "Mẫu biển hiệu đèn LED",
+    },
+    {
+      id: 4,
+      url: "https://bienquangcao247.com/wp-content/uploads/2024/07/bang-hieu-quang-cao-01.jpg",
+      title: "Mẫu biển hiệu 3D",
+    },
+  ];
   // Tạm thời sử dụng 4 ảnh mẫu
   const previewImages = [
     {
@@ -1453,10 +1477,6 @@ const AIDesign = () => {
     e.preventDefault();
     console.log("Billboard form submitted");
 
-    // Use a more specific selector to find the confirmation text
-    const confirmationElement = document
-      .querySelector(".text-green-500")
-      ?.closest("Typography");
     const sizesConfirmed =
       document.querySelector("svg.text-green-500") !== null;
 
@@ -1466,25 +1486,37 @@ const AIDesign = () => {
       return;
     }
 
-    console.log("Sizes confirmed, proceeding to next step");
+    console.log("Sizes confirmed, proceeding to sample products step");
 
-    // Show the AI generating animation for a better user experience
+    // Directly change to case 4.5 without showing loading animation
+    setCurrentStep(4.5);
+    navigate("/ai-design");
+    console.log("Navigation complete");
+  };
+  const handleSelectSampleProduct = (productId) => {
+    setSelectedSampleProduct(productId);
+  };
+  const handleContinueToPreview = () => {
+    if (!selectedSampleProduct) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn một mẫu thiết kế trước khi tiếp tục",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Show the loading animation for AI generating images
     setIsGenerating(true);
 
-    // Use setTimeout to ensure the state changes have time to take effect
+    // Use setTimeout to simulate AI processing time
     setTimeout(() => {
-      // Change state first
+      // Change to case 5 after "generating" the images
       setCurrentStep(5);
       setIsGenerating(false);
-
-      // Then navigate (after a small delay to ensure state is updated)
-      setTimeout(() => {
-        navigate("/ai-design");
-        console.log("Navigation complete");
-      }, 100);
-    }, 1000);
+      navigate("/ai-design");
+    }, 2000); // 2 seconds loading time for better user experience
   };
-
   const handleImageSelect = (imageId) => {
     setSelectedImage(imageId);
   };
@@ -1690,7 +1722,9 @@ const AIDesign = () => {
     { number: 2, label: "Thông tin doanh nghiệp" },
     { number: 3, label: "Chọn loại biển hiệu" },
     { number: 4, label: "Thông tin biển hiệu" },
+    { number: 4.5, label: "Chọn mẫu thiết kế" },
     { number: 5, label: "Xem trước" },
+    { number: 6, label: "Xác nhận đơn hàng" },
   ];
 
   const containerVariants = {
@@ -2198,7 +2232,119 @@ const AIDesign = () => {
             </motion.form>
           </motion.div>
         );
+      case 4.5:
+        return (
+          <motion.div
+            className="max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-6 text-center"
+              variants={itemVariants}
+            >
+              Chọn mẫu thiết kế
+            </motion.h2>
 
+            <motion.p
+              className="text-gray-600 mb-8 text-center"
+              variants={itemVariants}
+            >
+              Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
+            </motion.p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              {sampleProducts.map((product) => (
+                <motion.div
+                  key={product.id}
+                  variants={cardVariants}
+                  whileHover="hover"
+                  className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                    selectedSampleProduct === product.id
+                      ? "ring-4 ring-custom-secondary scale-105"
+                      : "hover:scale-105"
+                  }`}
+                  onClick={() => handleSelectSampleProduct(product.id)}
+                >
+                  <img
+                    src={product.url}
+                    alt={product.title}
+                    className="w-full h-64 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                    <div className="bg-white rounded-full p-2">
+                      <FaCheck className="w-6 h-6 text-custom-secondary" />
+                    </div>
+                  </div>
+                  {selectedSampleProduct === product.id && (
+                    <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                      <FaCheckCircle className="w-6 h-6" />
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
+                    <h3 className="font-medium text-lg">{product.title}</h3>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div
+              className="flex justify-between mt-8"
+              variants={itemVariants}
+            >
+              <motion.button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg
+                  className="w-5 h-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Quay lại
+              </motion.button>
+
+              <motion.button
+                type="button"
+                onClick={handleContinueToPreview}
+                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+                  selectedSampleProduct
+                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+                whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
+                whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
+              >
+                Tiếp tục
+                <svg
+                  className="w-5 h-5 ml-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        );
       case 5:
         return (
           <motion.div
@@ -2261,64 +2407,83 @@ const AIDesign = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={async () => {
-                  // Lấy customerChoiceId từ Redux hoặc attribute details
-                  const allDetails = Object.values(customerChoiceDetails);
-                  const customerChoiceId =
-                    currentOrder?.id || allDetails[0]?.customerChoicesId;
-                  console.log(
-                    "customerChoiceId dùng để tạo order:",
-                    customerChoiceId
-                  );
-                  if (!customerChoiceId) {
+                // onClick={async () => {
+                //   // Lấy customerChoiceId từ Redux hoặc attribute details
+                //   const allDetails = Object.values(customerChoiceDetails);
+                //   const customerChoiceId =
+                //     currentOrder?.id || allDetails[0]?.customerChoicesId;
+                //   console.log(
+                //     "customerChoiceId dùng để tạo order:",
+                //     customerChoiceId
+                //   );
+                //   if (!customerChoiceId) {
+                //     setSnackbar({
+                //       open: true,
+                //       message:
+                //         "Không tìm thấy customerChoiceId. Vui lòng thử lại.",
+                //       severity: "error",
+                //     });
+                //     return;
+                //   }
+                //   try {
+                //     const orderData = {
+                //       totalAmount: totalAmount,
+                //       note: "Đơn hàng thiết kế AI",
+                //       isCustomDesign: true,
+                //       histories: [
+                //         `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
+                //       ],
+                //       userId: user.id,
+                //       aiDesignId: selectedImage?.toString(),
+                //     };
+                //     console.log("Dispatch createOrder với:", {
+                //       customerChoiceId,
+                //       orderData,
+                //     });
+                //     const response = await dispatch(
+                //       createOrder({ customerChoiceId, orderData })
+                //     ).unwrap();
+                //     console.log(
+                //       "Kết quả trả về từ Redux createOrder:",
+                //       response
+                //     );
+                //     setSnackbar({
+                //       open: true,
+                //       message: "Đơn hàng đã được tạo thành công!",
+                //       severity: "success",
+                //     });
+                //     setTimeout(() => {
+                //       setShowSuccess(false);
+                //       navigate("/");
+                //     }, 3000);
+                //   } catch (error) {
+                //     console.error("Error creating order:", error);
+                //     setSnackbar({
+                //       open: true,
+                //       message:
+                //         error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
+                //       severity: "error",
+                //     });
+                //   }
+                // }}
+                onClick={() => {
+                  if (!selectedImage) {
                     setSnackbar({
                       open: true,
-                      message:
-                        "Không tìm thấy customerChoiceId. Vui lòng thử lại.",
-                      severity: "error",
+                      message: "Vui lòng chọn một thiết kế trước khi tiếp tục",
+                      severity: "warning",
                     });
                     return;
                   }
-                  try {
-                    const orderData = {
-                      totalAmount: totalAmount,
-                      note: "Đơn hàng thiết kế AI",
-                      isCustomDesign: true,
-                      histories: [
-                        `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
-                      ],
-                      userId: user.id,
-                      aiDesignId: selectedImage?.toString(),
-                    };
-                    console.log("Dispatch createOrder với:", {
-                      customerChoiceId,
-                      orderData,
-                    });
-                    const response = await dispatch(
-                      createOrder({ customerChoiceId, orderData })
-                    ).unwrap();
-                    console.log(
-                      "Kết quả trả về từ Redux createOrder:",
-                      response
-                    );
-                    setSnackbar({
-                      open: true,
-                      message: "Đơn hàng đã được tạo thành công!",
-                      severity: "success",
-                    });
-                    setTimeout(() => {
-                      setShowSuccess(false);
-                      navigate("/");
-                    }, 3000);
-                  } catch (error) {
-                    console.error("Error creating order:", error);
-                    setSnackbar({
-                      open: true,
-                      message:
-                        error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
-                      severity: "error",
-                    });
-                  }
+                  // Show loading animation
+                  setIsGenerating(true);
+
+                  // Use setTimeout to simulate processing time
+                  setTimeout(() => {
+                    setCurrentStep(6);
+                    setIsGenerating(false);
+                    navigate("/ai-design?step=confirm");
+                  }, 1000);
                 }}
                 disabled={!selectedImage}
                 className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
@@ -2350,7 +2515,179 @@ const AIDesign = () => {
             </Snackbar>
           </motion.div>
         );
+      case 6:
+        // Find the selected image from previewImages using selectedImage state
+        const confirmedDesign = previewImages.find(
+          (image) => image.id === selectedImage
+        );
 
+        return (
+          <motion.div
+            className="max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-6 text-center"
+              variants={itemVariants}
+            >
+              Xác nhận đơn hàng
+            </motion.h2>
+
+            <motion.div
+              className="bg-white p-6 rounded-xl shadow-lg mb-8"
+              variants={itemVariants}
+            >
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="md:w-1/2">
+                  <h3 className="text-xl font-semibold mb-4">
+                    Thiết kế đã chọn
+                  </h3>
+                  {confirmedDesign ? (
+                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-md">
+                      <img
+                        src={confirmedDesign.url}
+                        alt="Thiết kế đã chọn"
+                        className="w-full h-auto object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-64 bg-gray-100 flex items-center justify-center rounded-lg">
+                      <p className="text-gray-500">Không tìm thấy thiết kế</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:w-1/2">
+                  <h3 className="text-xl font-semibold mb-4">
+                    Thông tin đơn hàng
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-medium text-blue-800">
+                        Thông tin doanh nghiệp
+                      </h4>
+                      <p className="mt-2 text-gray-700">
+                        <span className="font-medium">Tên công ty:</span>{" "}
+                        {businessInfo.companyName}
+                      </p>
+                      <p className="text-gray-700">
+                        <span className="font-medium">Địa chỉ:</span>{" "}
+                        {businessInfo.address}
+                      </p>
+                      <p className="text-gray-700">
+                        <span className="font-medium">Liên hệ:</span>{" "}
+                        {businessInfo.contactInfo}
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <h4 className="font-medium text-green-800">
+                        Loại biển hiệu
+                      </h4>
+                      <p className="mt-2 text-gray-700">
+                        {productTypes.find((pt) => pt.id === billboardType)
+                          ?.name || "Không xác định"}
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <h4 className="font-medium text-purple-800">
+                        Chi phí dự kiến
+                      </h4>
+                      <p className="mt-2 text-2xl font-bold text-purple-700">
+                        {totalAmount.toLocaleString("vi-VN")} đ
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="flex justify-center space-x-6">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setCurrentStep(5)}
+                className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center"
+              >
+                <svg
+                  className="w-5 h-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Quay lại
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={async () => {
+                  try {
+                    // Show loading
+                    setIsGenerating(true);
+
+                    // Create order data
+                    const orderData = {
+                      totalAmount: totalAmount || 500000,
+                      note: "Đơn hàng thiết kế AI",
+                      isCustomDesign: true,
+                      histories: [
+                        `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
+                      ],
+                      userId: user.id,
+                      aiDesignId: selectedImage?.toString(),
+                    };
+
+                    // Call API to create order
+                    const response = await createOrderApi(orderData);
+
+                    // Hide loading
+                    setIsGenerating(false);
+
+                    if (response.success) {
+                      setShowSuccess(true);
+
+                      // After 3 seconds, redirect to homepage
+                      setTimeout(() => {
+                        setShowSuccess(false);
+                        navigate("/");
+                      }, 3000);
+                    } else {
+                      setSnackbar({
+                        open: true,
+                        message:
+                          response.error || "Có lỗi xảy ra khi tạo đơn hàng",
+                        severity: "error",
+                      });
+                    }
+                  } catch (error) {
+                    setIsGenerating(false);
+                    console.error("Error creating order:", error);
+                    setSnackbar({
+                      open: true,
+                      message: "Có lỗi xảy ra khi tạo đơn hàng",
+                      severity: "error",
+                    });
+                  }
+                }}
+                className="px-8 py-3 bg-custom-secondary text-white font-medium rounded-lg hover:bg-custom-secondary/90 transition-all flex items-center"
+              >
+                <FaCheck className="mr-2" />
+                Đặt hàng ngay
+              </motion.button>
+            </div>
+          </motion.div>
+        );
       default:
         return null;
     }
@@ -2386,8 +2723,9 @@ const AIDesign = () => {
               </h3>
             </div>
             <p className="text-gray-300 max-w-md">
-              Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù
-              hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát...
+              {currentStep === 4.5
+                ? "Hệ thống AI đang tạo các bản thiết kế dựa trên mẫu bạn đã chọn. Vui lòng đợi trong giây lát..."
+                : "Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát..."}
             </p>
           </div>
         </div>

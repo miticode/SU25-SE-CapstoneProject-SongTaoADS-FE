@@ -17,6 +17,7 @@
     "@reduxjs/toolkit": "^2.8.2",
     "@tailwindcss/vite": "^4.1.6",
     "axios": "^1.9.0",
+    "fabric": "^6.6.6",
     "framer-motion": "^12.11.3",
     "js-cookie": "^3.0.5",
     "payos-checkout": "^1.0.9",
