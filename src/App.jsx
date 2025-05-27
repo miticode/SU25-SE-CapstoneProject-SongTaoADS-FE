@@ -49,6 +49,7 @@ const App = () => {
   const dispatch = useDispatch();
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
   // Xử lý sự kiện đăng nhập thành công
   useEffect(() => {
@@ -132,8 +133,7 @@ const App = () => {
         </Alert>
       </Snackbar>
 
-      {/* AI Chatbot luôn nổi trên mọi trang */}
-      <AIChatbot />
+      {isAuthenticated && <AIChatbot />}
 
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>

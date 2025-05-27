@@ -52,7 +52,7 @@ const paymentMethods = [
     label: "PAYOS",
     icon: (
       <img
-        src="https://payos.vn/wp-content/uploads/sites/13/2023/07/Untitled-design-8.svg"
+        src="https://payos.vn/docs/img/logo.svg"
         alt="PAYOS"
         width={32}
         height={32}
@@ -95,18 +95,17 @@ const Checkout = () => {
     if (currentStep === 1) {
       try {
         if (!orderId) throw new Error("Không tìm thấy orderId!");
-        console.log(
-          "Cập nhật orderId:",
-          orderId,
-          "với địa chỉ:",
-          customer.address
-        );
         await updateOrderStatusApi(orderId, {
           address: customer.address,
           note: "",
           deliveryDate: new Date().toISOString(),
           status: "PENDING",
         });
+        // Fetch lại order mới nhất sau khi cập nhật địa chỉ
+        const res = await getOrderByIdApi(orderId);
+        if (res.success && res.data) {
+          setOrderInfo(res.data);
+        }
         setCurrentStep(2);
       } catch (err) {
         alert("Cập nhật địa chỉ thất bại!");
