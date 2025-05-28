@@ -1,9 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { fetchOrders } from "../../store/features/order/orderSlice";
-import { getOrderByIdApi } from "../../api/orderService";
-
+import React, { useState } from "react";
 import {
   Box,
   Drawer,
@@ -17,154 +12,46 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Button,
-  Chip,
   Avatar,
   Badge,
   Menu,
   MenuItem,
-  Grid,
-  Card,
-  CardContent,
-  InputAdornment,
-  TextField,
-  Select,
-  FormControl,
-  InputLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
-  Stack,
-  Container,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  ShoppingCart as OrderIcon,
-  People as CustomerIcon,
-  Assessment as ReportIcon,
-  Notifications as NotificationsIcon,
-  CheckCircle as ConfirmIcon,
-  Cancel as RejectIcon,
-  Search as SearchIcon,
-  MonetizationOn as MoneyIcon,
-  PendingActions as PendingIcon,
-  LocalShipping as ShippingIcon,
-  Logout,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
+  Palette as DesignIcon,
   Message as MessageIcon,
-  Palette as PaletteIcon,
+  Notifications as NotificationsIcon,
+  Logout,
 } from "@mui/icons-material";
-import CustomerRequests from "./CustomerRequests";
-import DesignerChat from "./DesignerChat";
-import DashboardContent from "./DashboardContent";
+import DesignRequests from "./DesignRequests";
+import SaleChat from "./SaleChat";
 
 const drawerWidth = 240;
 
-const SaleDashboard = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { orders } = useSelector((state) => state.order);
+const DesignerDashboard = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
-  const [selectedMenu, setSelectedMenu] = useState("dashboard");
+  const [selectedMenu, setSelectedMenu] = useState("designs");
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-
   const handleMenu = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
-
-  const handleAvatarClick = (event) => {
-    setAvatarAnchorEl(event.currentTarget);
-  };
-
-  const handleAvatarClose = () => {
-    setAvatarAnchorEl(null);
-  };
-
-  //   const handleLogout = async () => {
-  //     try {
-  //       await logoutApi();
-  //       localStorage.removeItem("accessToken");
-  //       dispatch(
-  //         syncAuthState({
-  //           isAuthenticated: false,
-  //           user: null,
-  //           accessToken: null,
-  //         })
-  //       );
-  //       navigate("/auth/login");
-  //     } catch (error) {
-  //       console.error("Logout failed:", error);
-  //     }
-  //   };
-
-  useEffect(() => {
-    dispatch(fetchOrders());
-  }, [dispatch]);
-
-  // Hàm gọi API lấy chi tiết đơn hàng
-  const handleViewDetail = async (orderId) => {
-    if (!orderId) {
-      console.error("OrderId không được để trống");
-      return;
-    }
-
-    try {
-      const res = await getOrderByIdApi(orderId.toString());
-      if (res.success && res.data) {
-        // Xử lý dữ liệu đơn hàng ở đây
-        console.log("Order detail:", res.data);
-      } else {
-        console.error("Failed to fetch order detail:", res.error);
-      }
-    } catch (error) {
-      console.error("Error fetching order detail:", error);
-    }
-  };
-
-  // Quick stats
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter((o) => o.status === "pending").length;
-  const confirmedOrders = orders.filter((o) => o.status === "confirmed").length;
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const handleAvatarClick = (event) => setAvatarAnchorEl(event.currentTarget);
+  const handleAvatarClose = () => setAvatarAnchorEl(null);
 
   const menuItems = [
-    { id: "dashboard", label: "Đơn hàng", icon: <DashboardIcon /> },
-    { id: "customers", label: "Yêu cầu khách hàng", icon: <CustomerIcon /> },
-    { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
+    { id: "designs", label: "Yêu cầu thiết kế", icon: <DesignIcon /> },
+    { id: "chat", label: "Chat với Sale", icon: <MessageIcon /> },
   ];
 
   const renderContent = () => {
     switch (selectedMenu) {
-      case "customers":
-        return <CustomerRequests />;
-      case "designer":
-        return <DesignerChat />;
+      case "chat":
+        return <SaleChat />;
       default:
-        return (
-          <DashboardContent
-            stats={{
-              totalOrders,
-              pendingOrders,
-              confirmedOrders,
-              totalRevenue,
-            }}
-            orders={orders}
-            onViewDetail={handleViewDetail}
-          />
-        );
+        return <DesignRequests />;
     }
   };
 
@@ -229,7 +116,7 @@ const SaleDashboard = () => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-            Nhân Viên Sale
+            Nhân Viên Thiết Kế
           </Typography>
           <IconButton color="inherit" onClick={handleMenu}>
             <Badge badgeContent={2} color="error">
@@ -244,7 +131,7 @@ const SaleDashboard = () => {
             <MenuItem onClick={handleClose}>Bạn có 2 thông báo mới</MenuItem>
           </Menu>
           <IconButton onClick={handleAvatarClick} sx={{ ml: 2 }}>
-            <Avatar sx={{ bgcolor: "#1976d2" }}>S</Avatar>
+            <Avatar sx={{ bgcolor: "#1976d2" }}>D</Avatar>
           </IconButton>
           <Menu
             anchorEl={avatarAnchorEl}
@@ -312,4 +199,4 @@ const SaleDashboard = () => {
   );
 };
 
-export default SaleDashboard;
+export default DesignerDashboard;
