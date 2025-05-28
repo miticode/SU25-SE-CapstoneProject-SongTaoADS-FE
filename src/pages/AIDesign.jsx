@@ -2028,16 +2028,27 @@ const AIDesign = () => {
     }
 
     try {
+      // Lấy customerChoiceId từ currentOrder
+      const customerChoiceId = currentOrder?.id;
+      if (!customerChoiceId) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại.",
+          severity: "error",
+        });
+        return;
+      }
+
       const orderData = {
-        totalAmount: 500000, // Sẽ được tính toán dựa trên các lựa chọn
+        totalAmount: totalAmount,
         note: "Đơn hàng thiết kế AI",
         isCustomDesign: true,
         histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
         userId: user.id,
-        aiDesignId: selectedImage?.toString(), // Chuyển đổi ID ảnh đã chọn thành string
+        aiDesignId: selectedImage?.toString(),
       };
 
-      const response = await createOrderApi(orderData);
+      const response = await createOrderApi(customerChoiceId, orderData);
 
       if (response.success) {
         setSnackbar({
@@ -3401,10 +3412,7 @@ const AIDesign = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setShowSuccess(true);
-                  // Add order logic here
-                }}
+                onClick={handleConfirm}
                 className="px-8 py-3 bg-custom-secondary text-white font-medium rounded-lg hover:bg-custom-secondary/90 transition-all"
               >
                 Đặt hàng
