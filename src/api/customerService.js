@@ -171,7 +171,7 @@ export const deleteCustomerChoiceApi = async (customerChoiceId) => {
 export const updateCustomerChoiceDetailApi = async (customerChoiceDetailId, attributeValueId) => {
   try {
     const response = await customerService.put(
-      `/api/customer-choices-details/${customerChoiceDetailId}/attribute-values/${attributeValueId}`
+      `/api/customer-choice-details/${customerChoiceDetailId}/attribute-values/${attributeValueId}`
     );
     
     return response.data;
