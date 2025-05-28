@@ -171,7 +171,7 @@ export const deleteCustomerChoiceApi = async (customerChoiceId) => {
 export const updateCustomerChoiceDetailApi = async (customerChoiceDetailId, attributeValueId) => {
   try {
     const response = await customerService.put(
-      `/api/customer-choices-details/${customerChoiceDetailId}/attribute-values/${attributeValueId}`
+      `/api/customer-choice-details/${customerChoiceDetailId}/attribute-values/${attributeValueId}`
     );
     
     return response.data;
@@ -188,7 +188,7 @@ export const updateCustomerChoiceSizeApi = async (customerChoiceSizeId, sizeValu
     console.log(`Updating size with ID: ${customerChoiceSizeId}, new value: ${sizeValue}`);
     
     const numericSizeValue = parseFloat(sizeValue);
-    const response = await customerService.put(`/api/customer-choices-sizes/${customerChoiceSizeId}`, {
+    const response = await customerService.put(`/api/customer-choice-sizes/${customerChoiceSizeId}`, {
       sizeValue: numericSizeValue
     });
     

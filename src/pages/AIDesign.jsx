@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
@@ -70,7 +70,17 @@ import {
 } from "../store/features/attribute/attributeSlice";
 import { createOrderApi } from "../api/orderService";
 import { createOrder } from "../store/features/order/orderSlice";
-
+import * as fabric from "fabric";
+import html2canvas from "html2canvas";
+import {
+  FaFont,
+  FaPalette,
+  FaPlus,
+  FaTrash,
+  FaBold,
+  FaItalic,
+  FaUnderline,
+} from "react-icons/fa";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -432,7 +442,8 @@ const ModernBillboardForm = ({
 
     // Check all size fields
     for (const ptSize of productTypeSizes) {
-      const fieldName = `size_${ptSize.size.id}`;
+      // Changed from ptSize.size.id to ptSize.sizes.id
+      const fieldName = `size_${ptSize.sizes.id}`;
       const value = formData[fieldName];
 
       if (!value) {
@@ -447,7 +458,8 @@ const ModernBillboardForm = ({
           setSizeValidationError("Giá trị kích thước không hợp lệ");
           return;
         } else {
-          sizeInputs[ptSize.size.id] = numValue;
+          // Changed from ptSize.size.id to ptSize.sizes.id
+          sizeInputs[ptSize.sizes.id] = numValue;
         }
       }
     }
@@ -507,8 +519,9 @@ const ModernBillboardForm = ({
           createdSizes[sizeId] = {
             id: result.id,
             sizeValue: numericSizeValue,
+            // Changed from ptSize.size.name to ptSize.sizes.name
             sizeName:
-              productTypeSizes.find((pt) => pt.size.id === sizeId)?.size
+              productTypeSizes.find((pt) => pt.sizes.id === sizeId)?.sizes
                 ?.name || "Size",
           };
         }
@@ -669,7 +682,7 @@ const ModernBillboardForm = ({
 
               <Grid container spacing={1.5}>
                 {productTypeSizes.map((ptSize) => {
-                  const sizeId = ptSize.size.id;
+                  const sizeId = ptSize.sizes.id;
                   const fieldName = `size_${sizeId}`;
                   const isEditing = editingSizeId === sizeId;
                   const savedSize = customerChoiceSizes[sizeId];
@@ -689,7 +702,7 @@ const ModernBillboardForm = ({
                         <TextField
                           fullWidth
                           size="small"
-                          label={ptSize.size.name}
+                          label={ptSize.sizes.name}
                           name={fieldName}
                           type="number"
                           value={
@@ -1181,7 +1194,7 @@ const AIDesign = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-
+  const [selectedSampleProduct, setSelectedSampleProduct] = useState(null);
   const currentOrder = useSelector(selectCurrentOrder);
   const attributes = useSelector(selectAllAttributes);
   const attributeStatus = useSelector(selectAttributeStatus);
@@ -1198,34 +1211,535 @@ const AIDesign = () => {
     message: "",
     severity: "success",
   });
-
-  // Tạm thời sử dụng 4 ảnh mẫu
-  const previewImages = [
+  const sampleProducts = [
     {
       id: 1,
       url: "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
-      title: "Mẫu 1",
+      title: "Mẫu biển hiệu hiện đại",
     },
     {
       id: 2,
       url: "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
-      title: "Mẫu 2",
+      title: "Mẫu biển hiệu truyền thống",
     },
     {
       id: 3,
       url: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-      title: "Mẫu 3",
+      title: "Mẫu biển hiệu đèn LED",
     },
     {
       id: 4,
       url: "https://bienquangcao247.com/wp-content/uploads/2024/07/bang-hieu-quang-cao-01.jpg",
+      title: "Mẫu biển hiệu 3D",
+    },
+  ];
+  // Tạm thời sử dụng 4 ảnh mẫu
+  const previewImages = [
+    {
+      id: 1,
+      url: "https://picsum.photos/800/600?random=1",
+      title: "Mẫu 1",
+    },
+    {
+      id: 2,
+      url: "https://picsum.photos/800/600?random=2",
+      title: "Mẫu 2",
+    },
+    {
+      id: 3,
+      url: "https://picsum.photos/800/600?random=3",
+      title: "Mẫu 3",
+    },
+    {
+      id: 4,
+      url: "https://picsum.photos/800/600?random=4",
       title: "Mẫu 4",
     },
   ];
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const totalAmount = useSelector(selectTotalAmount);
+  const canvasRef = useRef(null);
+  const [fabricCanvas, setFabricCanvas] = useState(null);
+  const [selectedText, setSelectedText] = useState(null);
+  const [textSettings, setTextSettings] = useState({
+    fontFamily: "Arial",
+    fontSize: 20,
+    fill: "#000000",
+    fontWeight: "normal",
+    fontStyle: "normal",
+    underline: false,
+    text: "Sample Text",
+  });
 
+  const fonts = [
+    "Arial",
+    "Times New Roman",
+    "Helvetica",
+    "Georgia",
+    "Verdana",
+    "Roboto",
+    "Open Sans",
+    "Lato",
+  ];
+  const [businessPresets, setBusinessPresets] = useState({
+    logoUrl: "",
+    companyName: "",
+    tagLine: "",
+    contactInfo: "",
+  });
+  useEffect(() => {
+    if (currentStep === 6 && user?.id) {
+      // Fetch customer detail để lấy business info
+      dispatch(fetchCustomerDetailByUserId(user.id))
+        .unwrap()
+        .then((customerData) => {
+          console.log("Customer detail loaded:", customerData);
+          setBusinessPresets({
+            logoUrl: customerData.logoUrl || "",
+
+            companyName: customerData.companyName || "",
+            tagLine: customerData.tagLine || "",
+            contactInfo: customerData.contactInfo || "",
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to load customer detail:", error);
+        });
+    }
+  }, [currentStep, user?.id, dispatch]);
+  const addBusinessInfoToCanvas = (type, content) => {
+    if (!fabricCanvas || !content) {
+      console.log("Canvas or content not available:", {
+        fabricCanvas: !!fabricCanvas,
+        content,
+      });
+      return;
+    }
+
+    console.log("Adding to canvas:", type, content);
+
+    let text;
+    let position = { left: 50, top: 50 };
+
+    switch (type) {
+      case "companyName":
+        text = new fabric.Text(content, {
+          left: position.left,
+          top: position.top,
+          fontFamily: "Arial",
+          fontSize: 32,
+          fill: "#000000",
+          fontWeight: "bold",
+          name: "companyName",
+        });
+        break;
+
+      case "tagLine":
+        text = new fabric.Text(content, {
+          left: position.left,
+          top: position.top + 50,
+          fontFamily: "Arial",
+          fontSize: 18,
+          fill: "#666666",
+          fontStyle: "italic",
+          name: "tagLine",
+        });
+        break;
+
+      case "contactInfo":
+        text = new fabric.Text(content, {
+          left: position.left,
+          top: position.top + 100,
+          fontFamily: "Arial",
+          fontSize: 16,
+          fill: "#333333",
+          name: "contactInfo",
+        });
+        break;
+
+      case "logoUrl":
+        console.log("CÁCH 1: Processing logo URL:", content);
+
+        // CÁCH 1: Sử dụng HTML Image element (BỎ crossOrigin)
+        const img = new Image();
+        // img.crossOrigin = 'anonymous'; // BỎ DÒNG NÀY
+
+        img.onload = function () {
+          console.log("CÁCH 1: Logo loaded successfully");
+          console.log("Image dimensions:", img.width, "x", img.height);
+
+          try {
+            const fabricImg = new fabric.Image(img, {
+              left: position.left,
+              top: position.top + 150,
+              name: "logo",
+            });
+
+            const maxWidth = 150;
+            const maxHeight = 150;
+            const scale = Math.min(
+              maxWidth / img.width,
+              maxHeight / img.height
+            );
+
+            fabricImg.set({
+              scaleX: scale,
+              scaleY: scale,
+            });
+
+            fabricCanvas.add(fabricImg);
+            fabricCanvas.setActiveObject(fabricImg);
+            fabricCanvas.renderAll();
+
+            console.log("CÁCH 1: Logo added to canvas successfully");
+          } catch (error) {
+            console.error("CÁCH 1: Error creating fabric image:", error);
+          }
+        };
+
+        img.onerror = function (error) {
+          console.error("CÁCH 1: Failed to load logo image:", content, error);
+
+          // FALLBACK: Tạo placeholder cho logo
+          console.log("Creating logo placeholder due to CORS error");
+
+          const placeholder = new fabric.Rect({
+            left: position.left,
+            top: position.top + 150,
+            width: 150,
+            height: 100,
+            fill: "#f0f0f0",
+            stroke: "#ddd",
+            strokeWidth: 2,
+            rx: 10,
+            ry: 10,
+            name: "logoPlaceholder",
+          });
+
+          const placeholderText = new fabric.Text("LOGO", {
+            left: position.left + 75,
+            top: position.top + 200,
+            fontSize: 18,
+            fill: "#666",
+            fontWeight: "bold",
+            textAlign: "center",
+            originX: "center",
+            originY: "center",
+            name: "logoPlaceholderText",
+          });
+
+          const urlText = new fabric.Text("Không thể tải logo", {
+            left: position.left + 75,
+            top: position.top + 220,
+            fontSize: 10,
+            fill: "#999",
+            textAlign: "center",
+            originX: "center",
+            originY: "center",
+            name: "logoErrorText",
+          });
+
+          fabricCanvas.add(placeholder);
+          fabricCanvas.add(placeholderText);
+          fabricCanvas.add(urlText);
+          fabricCanvas.setActiveObject(placeholder);
+          fabricCanvas.renderAll();
+
+          console.log("Logo placeholder added successfully");
+        };
+
+        img.src = content;
+        return;
+
+      default:
+        console.log("Unknown type:", type);
+        return;
+    }
+
+    if (text) {
+      fabricCanvas.add(text);
+      fabricCanvas.setActiveObject(text);
+      setSelectedText(text);
+      fabricCanvas.renderAll();
+      console.log("Text added to canvas:", type);
+    }
+  };
+  useEffect(() => {
+    console.log("Current step:", currentStep);
+    console.log("Selected image ID:", selectedImage);
+    console.log("Canvas ref:", canvasRef.current);
+    console.log("Fabric canvas exists:", !!fabricCanvas);
+
+    // Chỉ khởi tạo canvas khi:
+    // 1. Đang ở step 6
+    // 2. Canvas ref đã sẵn sàng
+    // 3. Chưa có fabricCanvas
+    // 4. Có selectedImage
+    if (
+      currentStep === 6 &&
+      canvasRef.current &&
+      !fabricCanvas &&
+      selectedImage
+    ) {
+      console.log(
+        "KHỞI TẠO CANVAS - Initializing canvas with selected image:",
+        selectedImage
+      );
+
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        width: 800,
+        height: 600,
+        backgroundColor: "#f8f9fa",
+      });
+
+      const selectedImg = previewImages.find((img) => img.id === selectedImage);
+
+      console.log("Found selected image:", selectedImg);
+
+      if (selectedImg && selectedImg.url) {
+        console.log("LOADING IMAGE: Loading image via HTML Image element");
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = function () {
+          console.log("IMAGE LOADED SUCCESSFULLY");
+          console.log("Image dimensions:", img.width, "x", img.height);
+
+          try {
+            const fabricImg = new fabric.Image(img, {
+              left: 0,
+              top: 0,
+              selectable: false,
+              evented: false,
+              name: "backgroundImage",
+            });
+
+            console.log("Fabric image created:", fabricImg);
+
+            // Scale image to fit canvas
+            const canvasWidth = 800;
+            const canvasHeight = 600;
+
+            const scaleX = canvasWidth / fabricImg.width;
+            const scaleY = canvasHeight / fabricImg.height;
+            const scale = Math.min(scaleX, scaleY);
+
+            fabricImg.set({
+              scaleX: scale,
+              scaleY: scale,
+              left: (canvasWidth - fabricImg.width * scale) / 2,
+              top: (canvasHeight - fabricImg.height * scale) / 2,
+            });
+
+            canvas.add(fabricImg);
+            canvas.sendToBack(fabricImg);
+            canvas.renderAll();
+
+            console.log("IMAGE ADDED TO CANVAS SUCCESSFULLY");
+            console.log("Canvas objects count:", canvas.getObjects().length);
+          } catch (error) {
+            console.error("ERROR creating fabric image:", error);
+          }
+        };
+
+        img.onerror = function (error) {
+          console.error("ERROR loading image:", selectedImg.url, error);
+        };
+
+        img.src = selectedImg.url;
+      } else {
+        console.error("ERROR: Selected image not found or missing URL");
+      }
+
+      // Canvas event handlers
+      canvas.on("selection:created", (e) => {
+        if (e.selected[0] && e.selected[0].type === "text") {
+          setSelectedText(e.selected[0]);
+          setTextSettings({
+            fontFamily: e.selected[0].fontFamily,
+            fontSize: e.selected[0].fontSize,
+            fill: e.selected[0].fill,
+            fontWeight: e.selected[0].fontWeight,
+            fontStyle: e.selected[0].fontStyle,
+            underline: e.selected[0].underline,
+            text: e.selected[0].text,
+          });
+        }
+      });
+
+      canvas.on("selection:cleared", () => {
+        setSelectedText(null);
+      });
+
+      canvas.on("selection:updated", (e) => {
+        if (e.selected[0] && e.selected[0].type === "text") {
+          setSelectedText(e.selected[0]);
+          setTextSettings({
+            fontFamily: e.selected[0].fontFamily,
+            fontSize: e.selected[0].fontSize,
+            fill: e.selected[0].fill,
+            fontWeight: e.selected[0].fontWeight,
+            fontStyle: e.selected[0].fontStyle,
+            underline: e.selected[0].underline,
+            text: e.selected[0].text,
+          });
+        }
+      });
+
+      // SET CANVAS CUỐI CÙNG
+      setFabricCanvas(canvas);
+      console.log("CANVAS SET TO STATE");
+    }
+
+    // Cleanup khi rời khỏi step 6 HOẶC khi selectedImage thay đổi
+    return () => {
+      if (fabricCanvas && (currentStep !== 6 || !selectedImage)) {
+        console.log("CLEANUP: Disposing canvas");
+        fabricCanvas.dispose();
+        setFabricCanvas(null);
+      }
+    };
+  }, [currentStep, selectedImage]); // BỎ fabricCanvas và previewImages khỏi dependencies
+
+  // Thêm useEffect riêng để handle khi selectedImage thay đổi trong step 6
+  useEffect(() => {
+    if (currentStep === 6 && selectedImage && fabricCanvas) {
+      console.log(
+        "SELECTED IMAGE CHANGED: Updating canvas with new image:",
+        selectedImage
+      );
+
+      // Xóa ảnh cũ
+      const objects = fabricCanvas.getObjects();
+      const oldImage = objects.find((obj) => obj.name === "backgroundImage");
+      if (oldImage) {
+        fabricCanvas.remove(oldImage);
+      }
+
+      // Load ảnh mới
+      const selectedImg = previewImages.find((img) => img.id === selectedImage);
+
+      if (selectedImg && selectedImg.url) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = function () {
+          console.log("NEW IMAGE LOADED SUCCESSFULLY");
+
+          const fabricImg = new fabric.Image(img, {
+            left: 0,
+            top: 0,
+            selectable: false,
+            evented: false,
+            name: "backgroundImage",
+          });
+
+          const canvasWidth = 800;
+          const canvasHeight = 600;
+          const scaleX = canvasWidth / fabricImg.width;
+          const scaleY = canvasHeight / fabricImg.height;
+          const scale = Math.min(scaleX, scaleY);
+
+          fabricImg.set({
+            scaleX: scale,
+            scaleY: scale,
+            left: (canvasWidth - fabricImg.width * scale) / 2,
+            top: (canvasHeight - fabricImg.height * scale) / 2,
+          });
+
+          fabricCanvas.add(fabricImg);
+          fabricCanvas.sendToBack(fabricImg);
+          fabricCanvas.renderAll();
+
+          console.log("NEW IMAGE ADDED TO CANVAS");
+        };
+
+        img.src = selectedImg.url;
+      }
+    }
+  }, [selectedImage, fabricCanvas, currentStep]);
+
+  const addText = () => {
+    if (!fabricCanvas) return;
+
+    const text = new fabric.Text("Your Text Here", {
+      left: 100,
+      top: 100,
+      fontFamily: textSettings.fontFamily,
+      fontSize: textSettings.fontSize,
+      fill: textSettings.fill,
+      fontWeight: textSettings.fontWeight,
+      fontStyle: textSettings.fontStyle,
+      underline: textSettings.underline,
+    });
+
+    fabricCanvas.add(text);
+    fabricCanvas.setActiveObject(text);
+    setSelectedText(text);
+  };
+
+  const updateTextProperty = (property, value) => {
+    if (!selectedText) return;
+
+    selectedText.set(property, value);
+    fabricCanvas.renderAll();
+
+    setTextSettings((prev) => ({
+      ...prev,
+      [property]: value,
+    }));
+  };
+
+  const deleteSelectedText = () => {
+    if (!selectedText) return;
+    fabricCanvas.remove(selectedText);
+    setSelectedText(null);
+  };
+
+  const exportDesign = async () => {
+    if (!fabricCanvas) return;
+
+    try {
+      // Thử export fabric canvas trước
+      const dataURL = fabricCanvas.toDataURL({
+        format: "png",
+        quality: 1,
+      });
+
+      const link = document.createElement("a");
+      link.download = "edited-design.png";
+      link.href = dataURL;
+      link.click();
+    } catch (error) {
+      console.error("Fabric export failed, using html2canvas:", error);
+
+      try {
+        // Sử dụng html2canvas để capture toàn bộ canvas container
+        const canvasContainer = canvasRef.current.parentElement;
+
+        const canvas = await html2canvas(canvasContainer, {
+          allowTaint: true,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
+
+        // Convert to blob and download
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.download = "design-screenshot.png";
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }, "image/png");
+      } catch (html2canvasError) {
+        console.error("html2canvas failed:", html2canvasError);
+        alert("Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.");
+      }
+    }
+  };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const step = params.get("step");
@@ -1453,10 +1967,6 @@ const AIDesign = () => {
     e.preventDefault();
     console.log("Billboard form submitted");
 
-    // Use a more specific selector to find the confirmation text
-    const confirmationElement = document
-      .querySelector(".text-green-500")
-      ?.closest("Typography");
     const sizesConfirmed =
       document.querySelector("svg.text-green-500") !== null;
 
@@ -1466,26 +1976,39 @@ const AIDesign = () => {
       return;
     }
 
-    console.log("Sizes confirmed, proceeding to next step");
+    console.log("Sizes confirmed, proceeding to sample products step");
 
-    // Show the AI generating animation for a better user experience
+    // Directly change to case 4.5 without showing loading animation
+    setCurrentStep(4.5);
+    navigate("/ai-design");
+    console.log("Navigation complete");
+  };
+  const handleSelectSampleProduct = (productId) => {
+    setSelectedSampleProduct(productId);
+  };
+  const handleContinueToPreview = () => {
+    if (!selectedSampleProduct) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn một mẫu thiết kế trước khi tiếp tục",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Show the loading animation for AI generating images
     setIsGenerating(true);
 
-    // Use setTimeout to ensure the state changes have time to take effect
+    // Use setTimeout to simulate AI processing time
     setTimeout(() => {
-      // Change state first
+      // Change to case 5 after "generating" the images
       setCurrentStep(5);
       setIsGenerating(false);
-
-      // Then navigate (after a small delay to ensure state is updated)
-      setTimeout(() => {
-        navigate("/ai-design");
-        console.log("Navigation complete");
-      }, 100);
-    }, 1000);
+      navigate("/ai-design");
+    }, 2000); // 2 seconds loading time for better user experience
   };
-
   const handleImageSelect = (imageId) => {
+    console.log("Image selected:", imageId);
     setSelectedImage(imageId);
   };
 
@@ -1690,7 +2213,9 @@ const AIDesign = () => {
     { number: 2, label: "Thông tin doanh nghiệp" },
     { number: 3, label: "Chọn loại biển hiệu" },
     { number: 4, label: "Thông tin biển hiệu" },
+    { number: 4.5, label: "Chọn mẫu thiết kế" },
     { number: 5, label: "Xem trước" },
+    { number: 6, label: "Xác nhận đơn hàng" },
   ];
 
   const containerVariants = {
@@ -2198,7 +2723,119 @@ const AIDesign = () => {
             </motion.form>
           </motion.div>
         );
+      case 4.5:
+        return (
+          <motion.div
+            className="max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-6 text-center"
+              variants={itemVariants}
+            >
+              Chọn mẫu thiết kế
+            </motion.h2>
 
+            <motion.p
+              className="text-gray-600 mb-8 text-center"
+              variants={itemVariants}
+            >
+              Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
+            </motion.p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              {sampleProducts.map((product) => (
+                <motion.div
+                  key={product.id}
+                  variants={cardVariants}
+                  whileHover="hover"
+                  className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                    selectedSampleProduct === product.id
+                      ? "ring-4 ring-custom-secondary scale-105"
+                      : "hover:scale-105"
+                  }`}
+                  onClick={() => handleSelectSampleProduct(product.id)}
+                >
+                  <img
+                    src={product.url}
+                    alt={product.title}
+                    className="w-full h-64 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                    <div className="bg-white rounded-full p-2">
+                      <FaCheck className="w-6 h-6 text-custom-secondary" />
+                    </div>
+                  </div>
+                  {selectedSampleProduct === product.id && (
+                    <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                      <FaCheckCircle className="w-6 h-6" />
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
+                    <h3 className="font-medium text-lg">{product.title}</h3>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div
+              className="flex justify-between mt-8"
+              variants={itemVariants}
+            >
+              <motion.button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg
+                  className="w-5 h-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Quay lại
+              </motion.button>
+
+              <motion.button
+                type="button"
+                onClick={handleContinueToPreview}
+                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+                  selectedSampleProduct
+                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+                whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
+                whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
+              >
+                Tiếp tục
+                <svg
+                  className="w-5 h-5 ml-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        );
       case 5:
         return (
           <motion.div
@@ -2261,64 +2898,83 @@ const AIDesign = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={async () => {
-                  // Lấy customerChoiceId từ Redux hoặc attribute details
-                  const allDetails = Object.values(customerChoiceDetails);
-                  const customerChoiceId =
-                    currentOrder?.id || allDetails[0]?.customerChoicesId;
-                  console.log(
-                    "customerChoiceId dùng để tạo order:",
-                    customerChoiceId
-                  );
-                  if (!customerChoiceId) {
+                // onClick={async () => {
+                //   // Lấy customerChoiceId từ Redux hoặc attribute details
+                //   const allDetails = Object.values(customerChoiceDetails);
+                //   const customerChoiceId =
+                //     currentOrder?.id || allDetails[0]?.customerChoicesId;
+                //   console.log(
+                //     "customerChoiceId dùng để tạo order:",
+                //     customerChoiceId
+                //   );
+                //   if (!customerChoiceId) {
+                //     setSnackbar({
+                //       open: true,
+                //       message:
+                //         "Không tìm thấy customerChoiceId. Vui lòng thử lại.",
+                //       severity: "error",
+                //     });
+                //     return;
+                //   }
+                //   try {
+                //     const orderData = {
+                //       totalAmount: totalAmount,
+                //       note: "Đơn hàng thiết kế AI",
+                //       isCustomDesign: true,
+                //       histories: [
+                //         `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
+                //       ],
+                //       userId: user.id,
+                //       aiDesignId: selectedImage?.toString(),
+                //     };
+                //     console.log("Dispatch createOrder với:", {
+                //       customerChoiceId,
+                //       orderData,
+                //     });
+                //     const response = await dispatch(
+                //       createOrder({ customerChoiceId, orderData })
+                //     ).unwrap();
+                //     console.log(
+                //       "Kết quả trả về từ Redux createOrder:",
+                //       response
+                //     );
+                //     setSnackbar({
+                //       open: true,
+                //       message: "Đơn hàng đã được tạo thành công!",
+                //       severity: "success",
+                //     });
+                //     setTimeout(() => {
+                //       setShowSuccess(false);
+                //       navigate("/");
+                //     }, 3000);
+                //   } catch (error) {
+                //     console.error("Error creating order:", error);
+                //     setSnackbar({
+                //       open: true,
+                //       message:
+                //         error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
+                //       severity: "error",
+                //     });
+                //   }
+                // }}
+                onClick={() => {
+                  if (!selectedImage) {
                     setSnackbar({
                       open: true,
-                      message:
-                        "Không tìm thấy customerChoiceId. Vui lòng thử lại.",
-                      severity: "error",
+                      message: "Vui lòng chọn một thiết kế trước khi tiếp tục",
+                      severity: "warning",
                     });
                     return;
                   }
-                  try {
-                    const orderData = {
-                      totalAmount: totalAmount,
-                      note: "Đơn hàng thiết kế AI",
-                      isCustomDesign: true,
-                      histories: [
-                        `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
-                      ],
-                      userId: user.id,
-                      aiDesignId: selectedImage?.toString(),
-                    };
-                    console.log("Dispatch createOrder với:", {
-                      customerChoiceId,
-                      orderData,
-                    });
-                    const response = await dispatch(
-                      createOrder({ customerChoiceId, orderData })
-                    ).unwrap();
-                    console.log(
-                      "Kết quả trả về từ Redux createOrder:",
-                      response
-                    );
-                    setSnackbar({
-                      open: true,
-                      message: "Đơn hàng đã được tạo thành công!",
-                      severity: "success",
-                    });
-                    setTimeout(() => {
-                      setShowSuccess(false);
-                      navigate("/");
-                    }, 3000);
-                  } catch (error) {
-                    console.error("Error creating order:", error);
-                    setSnackbar({
-                      open: true,
-                      message:
-                        error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
-                      severity: "error",
-                    });
-                  }
+                  // Show loading animation
+                  setIsGenerating(true);
+
+                  // Use setTimeout to simulate processing time
+                  setTimeout(() => {
+                    setCurrentStep(6);
+                    setIsGenerating(false);
+                    navigate("/ai-design?step=confirm");
+                  }, 1000);
                 }}
                 disabled={!selectedImage}
                 className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
@@ -2350,7 +3006,412 @@ const AIDesign = () => {
             </Snackbar>
           </motion.div>
         );
+      case 6:
+        return (
+          <motion.div
+            className="max-w-7xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-8 text-center"
+              variants={itemVariants}
+            >
+              Chỉnh sửa thiết kế
+            </motion.h2>
 
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              {/* Business Info Panel - Bên trái */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h3 className="text-xl font-semibold mb-4">
+                    Thông tin doanh nghiệp
+                  </h3>
+
+                  <div className="space-y-4">
+                    {/* Company Name */}
+                    {businessPresets.companyName && (
+                      <div
+                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
+                        onClick={() =>
+                          addBusinessInfoToCanvas(
+                            "companyName",
+                            businessPresets.companyName
+                          )
+                        }
+                      >
+                        <div className="flex items-center mb-2">
+                          <FaFont className="text-blue-500 mr-2" />
+                          <span className="text-sm font-medium text-gray-600">
+                            Tên công ty
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-gray-800 truncate">
+                          {businessPresets.companyName}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nhấn để thêm vào thiết kế
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Tag Line */}
+                    {businessPresets.tagLine && (
+                      <div
+                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all"
+                        onClick={() =>
+                          addBusinessInfoToCanvas(
+                            "tagLine",
+                            businessPresets.tagLine
+                          )
+                        }
+                      >
+                        <div className="flex items-center mb-2">
+                          <FaFont className="text-green-500 mr-2" />
+                          <span className="text-sm font-medium text-gray-600">
+                            Address
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800 truncate">
+                          {businessPresets.tagLine}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nhấn để thêm vào thiết kế
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Contact Info */}
+                    {businessPresets.contactInfo && (
+                      <div
+                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all"
+                        onClick={() =>
+                          addBusinessInfoToCanvas(
+                            "contactInfo",
+                            businessPresets.contactInfo
+                          )
+                        }
+                      >
+                        <div className="flex items-center mb-2">
+                          <FaFont className="text-orange-500 mr-2" />
+                          <span className="text-sm font-medium text-gray-600">
+                            Liên hệ
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800 truncate">
+                          {businessPresets.contactInfo}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nhấn để thêm vào thiết kế
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Logo */}
+                    {businessPresets.logoUrl && (
+                      <div
+                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-all"
+                        onClick={() =>
+                          addBusinessInfoToCanvas(
+                            "logoUrl",
+                            businessPresets.logoUrl
+                          )
+                        }
+                      >
+                        <div className="flex items-center mb-2">
+                          <FaPalette className="text-purple-500 mr-2" />
+                          <span className="text-sm font-medium text-gray-600">
+                            Logo
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <img
+                            src={businessPresets.logoUrl}
+                            alt="Logo preview"
+                            className="w-8 h-8 object-cover rounded"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                          <span className="text-sm text-gray-800">
+                            Logo công ty
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nhấn để thêm vào thiết kế
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Nếu không có thông tin */}
+                    {!businessPresets.companyName &&
+                      !businessPresets.tagLine &&
+                      !businessPresets.contactInfo &&
+                      !businessPresets.logoUrl && (
+                        <div className="text-center py-6">
+                          <p className="text-gray-500 text-sm">
+                            Không có thông tin doanh nghiệp
+                          </p>
+                          <p className="text-gray-400 text-xs mt-1">
+                            Hãy cập nhật thông tin ở bước 2
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Canvas Area */}
+              <div className="lg:col-span-3">
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold">Canvas</h3>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={addText}
+                        className="px-4 py-2 bg-custom-secondary text-white rounded-lg hover:bg-custom-secondary/90 flex items-center"
+                      >
+                        <FaPlus className="mr-2" />
+                        Thêm text
+                      </button>
+                      <button
+                        onClick={deleteSelectedText}
+                        disabled={!selectedText}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center"
+                      >
+                        <FaTrash className="mr-2" />
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                    <canvas ref={canvasRef} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Controls - Bên phải */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h3 className="text-xl font-semibold mb-4">Tùy chỉnh text</h3>
+
+                  {selectedText ? (
+                    <div className="space-y-4">
+                      {/* Text Content */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Nội dung
+                        </label>
+                        <textarea
+                          value={textSettings.text}
+                          onChange={(e) => {
+                            updateTextProperty("text", e.target.value);
+                          }}
+                          className="w-full p-2 border border-gray-300 rounded-lg resize-none"
+                          rows={3}
+                        />
+                      </div>
+
+                      {/* Font Family */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Font chữ
+                        </label>
+                        <select
+                          value={textSettings.fontFamily}
+                          onChange={(e) =>
+                            updateTextProperty("fontFamily", e.target.value)
+                          }
+                          className="w-full p-2 border border-gray-300 rounded-lg"
+                        >
+                          {fonts.map((font) => (
+                            <option key={font} value={font}>
+                              {font}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Font Size */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Kích thước: {textSettings.fontSize}px
+                        </label>
+                        <input
+                          type="range"
+                          min="12"
+                          max="100"
+                          value={textSettings.fontSize}
+                          onChange={(e) =>
+                            updateTextProperty(
+                              "fontSize",
+                              parseInt(e.target.value)
+                            )
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      {/* Text Color */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Màu chữ
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="color"
+                            value={textSettings.fill}
+                            onChange={(e) =>
+                              updateTextProperty("fill", e.target.value)
+                            }
+                            className="w-12 h-10 rounded border border-gray-300"
+                          />
+                          <input
+                            type="text"
+                            value={textSettings.fill}
+                            onChange={(e) =>
+                              updateTextProperty("fill", e.target.value)
+                            }
+                            className="flex-1 p-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Text Style Controls */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Kiểu chữ
+                        </label>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() =>
+                              updateTextProperty(
+                                "fontWeight",
+                                textSettings.fontWeight === "bold"
+                                  ? "normal"
+                                  : "bold"
+                              )
+                            }
+                            className={`p-2 rounded border ${
+                              textSettings.fontWeight === "bold"
+                                ? "bg-custom-secondary text-white"
+                                : "bg-gray-100"
+                            }`}
+                          >
+                            <FaBold />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              updateTextProperty(
+                                "fontStyle",
+                                textSettings.fontStyle === "italic"
+                                  ? "normal"
+                                  : "italic"
+                              )
+                            }
+                            className={`p-2 rounded border ${
+                              textSettings.fontStyle === "italic"
+                                ? "bg-custom-secondary text-white"
+                                : "bg-gray-100"
+                            }`}
+                          >
+                            <FaItalic />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              updateTextProperty(
+                                "underline",
+                                !textSettings.underline
+                              )
+                            }
+                            className={`p-2 rounded border ${
+                              textSettings.underline
+                                ? "bg-custom-secondary text-white"
+                                : "bg-gray-100"
+                            }`}
+                          >
+                            <FaUnderline />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Common Colors */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Màu phổ biến
+                        </label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            "#000000",
+                            "#ffffff",
+                            "#ff0000",
+                            "#00ff00",
+                            "#0000ff",
+                            "#ffff00",
+                            "#ff00ff",
+                            "#00ffff",
+                            "#ffa500",
+                            "#800080",
+                            "#ffc0cb",
+                            "#a52a2a",
+                          ].map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => updateTextProperty("fill", color)}
+                              className="w-8 h-8 rounded border border-gray-300"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">
+                      Chọn một text để chỉnh sửa hoặc thêm text mới
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center space-x-6 mt-8">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setCurrentStep(5)}
+                className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all"
+              >
+                Quay lại
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={exportDesign}
+                className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
+              >
+                Tải xuống
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setShowSuccess(true);
+                  // Add order logic here
+                }}
+                className="px-8 py-3 bg-custom-secondary text-white font-medium rounded-lg hover:bg-custom-secondary/90 transition-all"
+              >
+                Đặt hàng
+              </motion.button>
+            </div>
+          </motion.div>
+        );
       default:
         return null;
     }
@@ -2386,8 +3447,9 @@ const AIDesign = () => {
               </h3>
             </div>
             <p className="text-gray-300 max-w-md">
-              Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù
-              hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát...
+              {currentStep === 4.5
+                ? "Hệ thống AI đang tạo các bản thiết kế dựa trên mẫu bạn đã chọn. Vui lòng đợi trong giây lát..."
+                : "Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát..."}
             </p>
           </div>
         </div>
