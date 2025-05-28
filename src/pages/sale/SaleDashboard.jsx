@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { fetchOrders } from "../../store/features/order/orderSlice";
-import { getOrderByIdApi } from "../../api/orderService";
+import { getOrderByIdApi, updateOrderStatusApi } from "../../api/orderService";
 
 import {
   Box,
@@ -17,34 +17,17 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Button,
-  Chip,
   Avatar,
   Badge,
   Menu,
   MenuItem,
-  Grid,
-  Card,
-  CardContent,
-  InputAdornment,
-  TextField,
-  Select,
-  FormControl,
-  InputLabel,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress,
-  Stack,
-  Container,
+  Button,
+  Grid,
+  Chip,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -79,6 +62,8 @@ const SaleDashboard = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
@@ -124,13 +109,34 @@ const SaleDashboard = () => {
     try {
       const res = await getOrderByIdApi(orderId.toString());
       if (res.success && res.data) {
-        // Xử lý dữ liệu đơn hàng ở đây
-        console.log("Order detail:", res.data);
+        setSelectedOrder(res.data);
+        setOpenDialog(true);
       } else {
         console.error("Failed to fetch order detail:", res.error);
       }
     } catch (error) {
       console.error("Error fetching order detail:", error);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedOrder(null);
+  };
+
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      const res = await updateOrderStatusApi(orderId, { status: newStatus });
+      if (res.success) {
+        // Refresh orders list
+        dispatch(fetchOrders());
+        // Close dialog
+        handleCloseDialog();
+      } else {
+        console.error("Failed to update order status:", res.error);
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
     }
   };
 
@@ -308,6 +314,146 @@ const SaleDashboard = () => {
         <Toolbar />
         {renderContent()}
       </Box>
+
+      {/* Order Detail Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        {selectedOrder && (
+          <>
+            <DialogTitle>
+              <Typography variant="h6" component="div">
+                Chi tiết đơn hàng #{selectedOrder.id}
+              </Typography>
+            </DialogTitle>
+            <DialogContent dividers>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Thông tin khách hàng
+                  </Typography>
+                  <Box sx={{ pl: 2 }}>
+                    <Typography>
+                      Tên: {selectedOrder.customer?.name || "N/A"}
+                    </Typography>
+                    <Typography>
+                      Email: {selectedOrder.customer?.email || "N/A"}
+                    </Typography>
+                    <Typography>
+                      Số điện thoại: {selectedOrder.customer?.phone || "N/A"}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Thông tin đơn hàng
+                  </Typography>
+                  <Box sx={{ pl: 2 }}>
+                    <Typography>
+                      Tổng tiền: {selectedOrder.totalAmount?.toLocaleString()}{" "}
+                      VNĐ
+                    </Typography>
+                    <Typography>
+                      Đặt cọc: {selectedOrder.depositAmount?.toLocaleString()}{" "}
+                      VNĐ
+                    </Typography>
+                    <Typography>
+                      Còn lại: {selectedOrder.remainingAmount?.toLocaleString()}{" "}
+                      VNĐ
+                    </Typography>
+                    <Typography>
+                      Trạng thái:{" "}
+                      <Chip
+                        label={
+                          selectedOrder.status === "PENDING"
+                            ? "Chờ xác nhận"
+                            : selectedOrder.status === "APPROVED"
+                            ? "Đã xác nhận"
+                            : selectedOrder.status === "REJECTED"
+                            ? "Đã từ chối"
+                            : selectedOrder.status
+                        }
+                        color={
+                          selectedOrder.status === "PENDING"
+                            ? "warning"
+                            : selectedOrder.status === "APPROVED"
+                            ? "success"
+                            : selectedOrder.status === "REJECTED"
+                            ? "error"
+                            : "default"
+                        }
+                        size="small"
+                      />
+                    </Typography>
+                    <Typography>
+                      Ngày tạo:{" "}
+                      {new Date(selectedOrder.createdAt).toLocaleString()}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                {selectedOrder.note && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Ghi chú
+                    </Typography>
+                    <Box sx={{ pl: 2 }}>
+                      <Typography>{selectedOrder.note}</Typography>
+                    </Box>
+                  </Grid>
+                )}
+
+                {selectedOrder.histories &&
+                  selectedOrder.histories.length > 0 && (
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        Lịch sử đơn hàng
+                      </Typography>
+                      <Box sx={{ pl: 2 }}>
+                        {selectedOrder.histories.map((history, index) => (
+                          <Typography key={index} sx={{ mb: 1 }}>
+                            {history}
+                          </Typography>
+                        ))}
+                      </Box>
+                    </Grid>
+                  )}
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              {selectedOrder.status === "PENDING" && (
+                <>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() =>
+                      handleUpdateStatus(selectedOrder.id, "REJECTED")
+                    }
+                    startIcon={<CancelIcon />}
+                  >
+                    Từ chối
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() =>
+                      handleUpdateStatus(selectedOrder.id, "APPROVED")
+                    }
+                    startIcon={<CheckCircleIcon />}
+                  >
+                    Xác nhận
+                  </Button>
+                </>
+              )}
+              <Button onClick={handleCloseDialog}>Đóng</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 };
