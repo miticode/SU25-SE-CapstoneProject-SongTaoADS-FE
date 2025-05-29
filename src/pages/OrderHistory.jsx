@@ -22,6 +22,7 @@ const statusMap = {
   PENDING: { label: "Chờ xác nhận", color: "warning" },
   DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   COMPLETED: { label: "Hoàn tất", color: "primary" },
+  CANCELLED: { label: "Đã bị hủy", color: "error" },
 };
 
 const OrderHistory = () => {

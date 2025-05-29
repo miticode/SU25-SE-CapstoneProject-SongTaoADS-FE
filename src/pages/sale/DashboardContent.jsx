@@ -30,8 +30,13 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 
-const DashboardContent = ({ stats, orders = [], onViewDetail }) => {
-  const [statusFilter, setStatusFilter] = useState("");
+const DashboardContent = ({
+  stats,
+  orders = [],
+  onViewDetail,
+  statusFilter,
+  onStatusFilterChange,
+}) => {
   const [search, setSearch] = useState("");
 
   // Hàm format ngày tháng
@@ -60,13 +65,11 @@ const DashboardContent = ({ stats, orders = [], onViewDetail }) => {
   };
 
   // Filtered orders
-  const filteredOrders = orders.filter(
-    (order) =>
-      (statusFilter ? order.status === statusFilter : true) &&
-      (search
-        ? getCustomerName(order).toLowerCase().includes(search.toLowerCase()) ||
-          String(order.orderId).includes(search)
-        : true)
+  const filteredOrders = orders.filter((order) =>
+    search
+      ? getCustomerName(order).toLowerCase().includes(search.toLowerCase()) ||
+        String(order.orderId).includes(search)
+      : true
   );
 
   return (
@@ -184,11 +187,14 @@ const DashboardContent = ({ stats, orders = [], onViewDetail }) => {
             <Select
               value={statusFilter}
               label="Trạng thái"
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
             >
               <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="pending">Chờ xác nhận</MenuItem>
-              <MenuItem value="confirmed">Đã xác nhận</MenuItem>
+              <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
+              <MenuItem value="CANCELLED">Đã hủy</MenuItem>
+              <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
+              <MenuItem value="COMPLETED">Hoàn thành</MenuItem>
+              <MenuItem value="PROCESSING">Đang xử lý</MenuItem>
             </Select>
           </FormControl>
           <TextField
@@ -254,6 +260,9 @@ const DashboardContent = ({ stats, orders = [], onViewDetail }) => {
                           : order.status === "rejected" ||
                             order.status === "REJECTED"
                           ? "Bị từ chối"
+                          : order.status === "cancelled" ||
+                            order.status === "CANCELLED"
+                          ? "Đã hủy"
                           : order.status
                       }
                       color={
@@ -265,7 +274,9 @@ const DashboardContent = ({ stats, orders = [], onViewDetail }) => {
                             order.status === "APPROVED"
                           ? "success"
                           : order.status === "rejected" ||
-                            order.status === "REJECTED"
+                            order.status === "REJECTED" ||
+                            order.status === "cancelled" ||
+                            order.status === "CANCELLED"
                           ? "error"
                           : "default"
                       }

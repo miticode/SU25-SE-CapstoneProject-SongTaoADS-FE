@@ -15,12 +15,26 @@ export const createOrder = createAsyncThunk(
 
 export const fetchOrders = createAsyncThunk(
   'order/fetchOrders',
-  async (_, { rejectWithValue }) => {
-    const response = await getOrdersApi();
-    if (response.success) {
-      return response.data;
+  async (orderStatus, { rejectWithValue }) => {
+    // orderStatus có thể là undefined, string hoặc mảng
+    let allOrders = [];
+    if (Array.isArray(orderStatus)) {
+      // Nếu là mảng, gọi API cho từng trạng thái và gộp kết quả
+      for (const status of orderStatus) {
+        const response = await getOrdersApi(status);
+        if (response.success) {
+          allOrders = allOrders.concat(response.data);
+        }
+      }
+      return allOrders;
+    } else {
+      // Nếu là string hoặc undefined
+      const response = await getOrdersApi(orderStatus);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error);
     }
-    return rejectWithValue(response.error);
   }
 );
 

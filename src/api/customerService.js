@@ -1,5 +1,5 @@
 import axios from 'axios';
-
+import { isAuthenticated } from '../utils/cookieManager';
 // Cập nhật URL API thực tế của bạn
 const API_URL = 'https://songtaoads.online';
 
@@ -11,11 +11,36 @@ const customerService = axios.create({
   },
   withCredentials: true // Cho phép gửi và nhận cookies từ API
 });
-
+const getToken = () => {
+  return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+};
+customerService.interceptors.request.use(
+  (config) => {
+    // Lấy access token từ localStorage
+    const token = getToken();
+    
+    if (token) {
+      // Thêm token vào header cho tất cả các request
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('Adding token to request:', config.url);
+    } else {
+      console.warn('No token found for request:', config.url);
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 // Interceptor để xử lý lỗi
 customerService.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response && error.response.status === 401) {
+      console.error('Authentication error:', error.response.data);
+      // Có thể xử lý đăng xuất hoặc refresh token ở đây
+    }
     return Promise.reject(error);
   }
 );
@@ -23,12 +48,34 @@ customerService.interceptors.response.use(
 // Hàm tạo customer mới
 export const createCustomerApi = async (customerData) => {
   try {
-    const response = await customerService.post('/api/customer-details', {
-      logoUrl: customerData.logoUrl,
+    const formData = new FormData();
+    
+    // Thêm các trường text vào FormData - ensure all required fields are present
+    formData.append('companyName', customerData.companyName || '');
+    formData.append('tagLine', customerData.tagLine || '');
+    formData.append('contactInfo', customerData.contactInfo || '');
+    
+    // Thêm file logo nếu có
+    if (customerData.customerDetailLogo) {
+      formData.append('customerDetailLogo', customerData.customerDetailLogo);
+    }
+    
+    console.log('Sending form data:', {
       companyName: customerData.companyName,
       tagLine: customerData.tagLine,
       contactInfo: customerData.contactInfo,
-      userId: customerData.userId
+      hasLogo: !!customerData.customerDetailLogo
+    });
+    
+    // Kiểm tra token trước khi gọi API
+    const token = getToken();
+    console.log('Token available:', !!token);
+    
+    const response = await customerService.post('/api/customer-details', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}` // Đảm bảo token có trong header
+      }
     });
     
     const { success, result, message } = response.data;
@@ -39,6 +86,7 @@ export const createCustomerApi = async (customerData) => {
     
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to create customer'
@@ -47,22 +95,106 @@ export const createCustomerApi = async (customerData) => {
 };
 export const updateCustomerDetailApi = async (customerDetailId, customerData) => {
   try {
-    const response = await customerService.put(`/api/customer-details/${customerDetailId}`, {
-      logoUrl: customerData.logoUrl,
-      companyName: customerData.companyName,
-      tagLine: customerData.tagLine,
-      contactInfo: customerData.contactInfo,
-      userId: customerData.userId
-    });
+    let textUpdateSuccess = false;
+    let imageUpdateSuccess = false;
+    let textUpdateResult = null;
+    let imageUpdateResult = null;
     
-    const { success, result, message } = response.data;
-    
-    if (success) {
-      return { success: true, data: result };
+    // 1. First, get the current customer details to get the existing logo_url
+    try {
+      const currentDetailResponse = await customerService.get(`/api/customer-details/${customerDetailId}`);
+      const currentDetail = currentDetailResponse.data.result;
+      console.log('Current customer detail:', currentDetail);
+      
+      // 2. Update text fields first (companyName, tagLine, contactInfo)
+      const textData = {
+        companyName: customerData.companyName || '',
+        tagLine: customerData.tagLine || '',
+        contactInfo: customerData.contactInfo || '',
+        logoUrl: currentDetail.logoUrl, // Keep existing logo URL to prevent null value
+        userId: customerData.userId
+      };
+      
+      console.log('Updating customer text details:', {
+        id: customerDetailId,
+        ...textData
+      });
+      
+      // Lấy token từ localStorage
+      const token = getToken();
+      
+      // Gọi API PUT để cập nhật thông tin text
+      const textResponse = await customerService.put(`/api/customer-details/${customerDetailId}`, textData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const textResult = textResponse.data;
+      textUpdateSuccess = textResult.success;
+      textUpdateResult = textResult.result;
+      console.log('Text update response:', textResult);
+    } catch (textError) {
+      console.error('Failed to update text fields:', textError.response?.data || textError.message);
+      return {
+        success: false,
+        error: textError.response?.data?.message || 'Failed to update customer details'
+      };
     }
     
-    return { success: false, error: message || 'Invalid response format' };
+    // 3. Update image if provided
+    if (customerData.customerDetailLogo) {
+      const formData = new FormData();
+      formData.append('image', customerData.customerDetailLogo);
+      
+      console.log('Updating customer logo image');
+      
+      try {
+        // Lấy token từ localStorage
+        const token = getToken();
+        
+        const imageResponse = await customerService.patch(
+          `/api/customer-details/${customerDetailId}/image`, 
+          formData, 
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        
+        const imageResult = imageResponse.data;
+        imageUpdateSuccess = imageResult.success;
+        imageUpdateResult = imageResult.result;
+        console.log('Image update response:', imageResult);
+      } catch (imageError) {
+        console.error('Failed to update logo image:', imageError.response?.data || imageError.message);
+        
+        // If text update was successful but image update failed, return partial success
+        if (textUpdateSuccess) {
+          return {
+            success: true,
+            data: textUpdateResult,
+            warning: 'Text information updated but logo upload failed'
+          };
+        }
+        
+        return {
+          success: false,
+          error: imageError.response?.data?.message || 'Failed to update logo image'
+        };
+      }
+    }
+    
+    // If both updates were successful or only text was updated (no image provided)
+    return {
+      success: true,
+      data: imageUpdateResult || textUpdateResult
+    };
   } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to update customer detail'
