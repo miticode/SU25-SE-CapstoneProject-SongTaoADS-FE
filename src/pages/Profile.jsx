@@ -23,6 +23,7 @@ import {
   IconButton,
   Snackbar,
   Alert,
+  InputAdornment,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -30,6 +31,8 @@ import {
   PhotoCamera,
   Edit,
   Lock,
+  Visibility,
+  VisibilityOff,
 } from "@mui/icons-material";
 
 const DEFAULT_AVATAR = "https://i.imgur.com/HeIi0wU.png";
@@ -55,6 +58,11 @@ const Profile = () => {
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
+
+  // State cho việc hiển thị/ẩn mật khẩu
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -231,8 +239,8 @@ const Profile = () => {
           }}
         >
           <Typography
-            variant="h3"
-            fontWeight={900}
+            variant="h4"
+            fontWeight={700}
             sx={{ mb: 4, letterSpacing: 2, textAlign: "left", width: "100%" }}
           >
             Thông tin cá nhân
@@ -439,27 +447,65 @@ const Profile = () => {
           <DialogContent>
             <TextField
               label="Mật khẩu cũ"
-              type="password"
+              type={showOldPassword ? "text" : "password"}
               fullWidth
               value={oldPwd}
               onChange={(e) => setOldPwd(e.target.value)}
               sx={{ mb: 2, mt: 1 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      edge="end"
+                    >
+                      {showOldPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <TextField
               label="Mật khẩu mới"
-              type="password"
+              type={showNewPassword ? "text" : "password"}
               fullWidth
               value={newPwd}
               onChange={(e) => setNewPwd(e.target.value)}
               sx={{ mb: 2 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      edge="end"
+                    >
+                      {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <TextField
               label="Xác nhận mật khẩu mới"
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               fullWidth
               value={confirmPwd}
               onChange={(e) => setConfirmPwd(e.target.value)}
               sx={{ mb: 1 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      edge="end"
+                    >
+                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
           </DialogContent>
           <DialogActions>

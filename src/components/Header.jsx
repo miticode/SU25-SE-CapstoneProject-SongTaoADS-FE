@@ -34,6 +34,8 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
+      // Clear chatbot history from localStorage
+      localStorage.removeItem("ai_chatbot_messages");
       await dispatch(logout()).unwrap();
       navigate("/auth/login");
     } catch (error) {

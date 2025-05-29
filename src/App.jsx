@@ -9,6 +9,7 @@ import { checkAuthStatus } from "./api/authService";
 
 import MainLayout from "./layouts/MainLayout";
 import SaleLayout from "./layouts/SaleLayout";
+import DesignerLayout from "./layouts/DesignerLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AuthLayout from "./layouts/AuthLayout";
@@ -20,6 +21,7 @@ import AIDesign from "./pages/AIDesign";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import SaleDashboard from "./pages/sale/SaleDashboard";
+import DesignerDashboard from "./pages/designer/DesignerDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import OrderHistory from "./pages/OrderHistory";
@@ -28,6 +30,9 @@ import Checkout from "./pages/Checkout";
 import Signup from "./pages/Signup";
 
 import AIChatbot from "./components/AIChatbot";
+
+
+import CustomDesign from "./pages/CustomDesign";
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -69,67 +74,78 @@ const App = () => {
   }, []);
 
   // Kiểm tra trạng thái đăng nhập khi tải trang
- useEffect(() => {
-  const initializeAuth = async () => {
-    try {
-      // Get access token from localStorage
-      const accessToken = localStorage.getItem("accessToken");
-      
-      if (!accessToken) {
-        // Only try refresh once, not repeatedly
-        try {
-          // Attempt refresh with a timeout to prevent hanging
-          const refreshPromise = checkAuthStatus();
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Auth check timeout")), 5000)
-          );
-          
-          // Race between refresh and timeout
-          const authStatus = await Promise.race([refreshPromise, timeoutPromise]);
-          
-          if (authStatus.isAuthenticated) {
-            console.log("Auth refreshed successfully");
-            dispatch(syncAuthState(authStatus));
-          } else {
-            console.log("Auth refresh failed - not authenticated");
-            dispatch(syncAuthState({
-              isAuthenticated: false,
-              user: null,
-              accessToken: null,
-            }));
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // Get access token from localStorage
+        const accessToken = localStorage.getItem("accessToken");
+
+        if (!accessToken) {
+          // Only try refresh once, not repeatedly
+          try {
+            // Attempt refresh with a timeout to prevent hanging
+            const refreshPromise = checkAuthStatus();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Auth check timeout")), 5000)
+            );
+
+            // Race between refresh and timeout
+            const authStatus = await Promise.race([
+              refreshPromise,
+              timeoutPromise,
+            ]);
+
+            if (authStatus.isAuthenticated) {
+              console.log("Auth refreshed successfully");
+              dispatch(syncAuthState(authStatus));
+            } else {
+              console.log("Auth refresh failed - not authenticated");
+              dispatch(
+                syncAuthState({
+                  isAuthenticated: false,
+                  user: null,
+                  accessToken: null,
+                })
+              );
+            }
+          } catch (refreshError) {
+            console.error("Auth refresh error:", refreshError);
+            // Clear auth state on refresh failure
+            dispatch(
+              syncAuthState({
+                isAuthenticated: false,
+                user: null,
+                accessToken: null,
+              })
+            );
           }
-        } catch (refreshError) {
-          console.error("Auth refresh error:", refreshError);
-          // Clear auth state on refresh failure
-          dispatch(syncAuthState({
+        } else {
+          // We have a token, validate it
+          const authStatus = await checkAuthStatus();
+          dispatch(
+            syncAuthState({
+              ...authStatus,
+              accessToken: localStorage.getItem("accessToken"),
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Auth initialization error:", err);
+        dispatch(
+          syncAuthState({
             isAuthenticated: false,
             user: null,
             accessToken: null,
-          }));
-        }
-      } else {
-        // We have a token, validate it
-        const authStatus = await checkAuthStatus();
-        dispatch(syncAuthState({
-          ...authStatus,
-          accessToken: localStorage.getItem("accessToken"),
-        }));
+          })
+        );
+      } finally {
+        // Always stop loading, even if errors occur
+        setAuthLoading(false);
       }
-    } catch (err) {
-      console.error("Auth initialization error:", err);
-      dispatch(syncAuthState({
-        isAuthenticated: false,
-        user: null,
-        accessToken: null,
-      }));
-    } finally {
-      // Always stop loading, even if errors occur
-      setAuthLoading(false);
-    }
-  };
-  
-  initializeAuth();
-}, [dispatch]);
+    };
+
+    initializeAuth();
+  }, [dispatch]);
 
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
@@ -190,6 +206,7 @@ const App = () => {
             <Route path="checkout" element={<Checkout />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route path="custom-design" element={<CustomDesign />} />
 
             {/* Protected routes - cần đăng nhập để truy cập */}
             <Route
@@ -220,6 +237,18 @@ const App = () => {
             }
           >
             <Route index element={<SaleDashboard />} />
+          </Route>
+
+          {/* Designer routes with DesignerLayout */}
+          <Route
+            path="designer"
+            element={
+              <ProtectedRoute>
+                <DesignerLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DesignerDashboard />} />
           </Route>
 
           <Route path="/auth" element={<AuthLayout />}>
