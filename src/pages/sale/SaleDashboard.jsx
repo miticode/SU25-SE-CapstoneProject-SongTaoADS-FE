@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import { fetchOrders } from "../../store/features/order/orderSlice";
 import { getOrderByIdApi, updateOrderStatusApi } from "../../api/orderService";
 
@@ -54,9 +53,16 @@ import DashboardContent from "./DashboardContent";
 
 const drawerWidth = 240;
 
+const ORDER_STATUSES = [
+  "PENDING",
+  "CANCELLED",
+  "DEPOSITED",
+  "COMPLETED",
+  "PROCESSING",
+];
+
 const SaleDashboard = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { orders } = useSelector((state) => state.order);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -64,6 +70,7 @@ const SaleDashboard = () => {
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
@@ -96,7 +103,8 @@ const SaleDashboard = () => {
   //   };
 
   useEffect(() => {
-    dispatch(fetchOrders());
+    // Lấy tất cả đơn hàng với 5 trạng thái khi load trang
+    dispatch(fetchOrders(ORDER_STATUSES));
   }, [dispatch]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
@@ -152,6 +160,16 @@ const SaleDashboard = () => {
     { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
   ];
 
+  // Khi filter trạng thái
+  const handleStatusFilterChange = (status) => {
+    setStatusFilter(status);
+    if (status) {
+      dispatch(fetchOrders(status));
+    } else {
+      dispatch(fetchOrders(ORDER_STATUSES));
+    }
+  };
+
   const renderContent = () => {
     switch (selectedMenu) {
       case "customers":
@@ -169,6 +187,8 @@ const SaleDashboard = () => {
             }}
             orders={orders}
             onViewDetail={handleViewDetail}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
           />
         );
     }
@@ -210,6 +230,21 @@ const SaleDashboard = () => {
       </List>
     </div>
   );
+
+  const handleRejectOrder = async (orderId) => {
+    if (!orderId) return;
+    try {
+      const res = await updateOrderStatusApi(orderId, "CANCELLED");
+      if (res.success) {
+        dispatch(fetchOrders(ORDER_STATUSES));
+        handleCloseDialog();
+      } else {
+        alert(res.error || "Cập nhật trạng thái thất bại!");
+      }
+    } catch {
+      alert("Cập nhật trạng thái thất bại!");
+    }
+  };
 
   return (
     <Box sx={{ display: "flex", bgcolor: "#f4f6f8", minHeight: "100vh" }}>
@@ -326,47 +361,97 @@ const SaleDashboard = () => {
           <>
             <DialogTitle>
               <Typography variant="h6" component="div">
-                Chi tiết đơn hàng #{selectedOrder.id}
+                Chi tiết đơn hàng
               </Typography>
             </DialogTitle>
             <DialogContent dividers>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" gutterBottom>
+              <Grid container spacing={3} alignItems="center">
+                <Grid item xs={12} md={6}>
+                  <Typography
+                    variant="subtitle1"
+                    gutterBottom
+                    sx={{ fontWeight: 600 }}
+                  >
                     Thông tin khách hàng
                   </Typography>
-                  <Box sx={{ pl: 2 }}>
-                    <Typography>
-                      Tên: {selectedOrder.customer?.name || "N/A"}
-                    </Typography>
-                    <Typography>
-                      Email: {selectedOrder.customer?.email || "N/A"}
-                    </Typography>
-                    <Typography>
-                      Số điện thoại: {selectedOrder.customer?.phone || "N/A"}
-                    </Typography>
+                  <Box
+                    sx={{
+                      pl: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    {/* <Avatar
+                      src={selectedOrder.users?.avatar?.url}
+                      alt={selectedOrder.users?.fullName}
+                      sx={{
+                        width: 64,
+                        height: 64,
+                        mr: 2,
+                        bgcolor: "grey.200",
+                        fontSize: 32,
+                      }}
+                    /> */}
+                    <Box>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, mb: 0.5 }}
+                      >
+                        {selectedOrder.users?.fullName || "N/A"}
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ mb: 0.5 }}>
+                        Email:{" "}
+                        <span style={{ color: "#222" }}>
+                          {selectedOrder.users?.email || "N/A"}
+                        </span>
+                      </Typography>
+                      <Typography color="text.secondary">
+                        Số điện thoại:{" "}
+                        <span style={{ color: "#222" }}>
+                          {selectedOrder.users?.phone || "N/A"}
+                        </span>
+                      </Typography>
+                    </Box>
                   </Box>
                 </Grid>
-
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" gutterBottom>
+                <Grid
+                  item
+                  xs={12}
+                  md={6}
+                  sx={{
+                    borderLeft: { md: "1px solid #eee" },
+                    pl: { md: 4, xs: 2 },
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    gutterBottom
+                    sx={{ fontWeight: 600 }}
+                  >
                     Thông tin đơn hàng
                   </Typography>
-                  <Box sx={{ pl: 2 }}>
-                    <Typography>
-                      Tổng tiền: {selectedOrder.totalAmount?.toLocaleString()}{" "}
-                      VNĐ
+                  <Box sx={{ pl: 0 }}>
+                    <Typography sx={{ mb: 0.5 }}>
+                      <b>Tổng tiền:</b>{" "}
+                      <span style={{ color: "#1976d2" }}>
+                        {selectedOrder.totalAmount?.toLocaleString()} VNĐ
+                      </span>
                     </Typography>
-                    <Typography>
-                      Đặt cọc: {selectedOrder.depositAmount?.toLocaleString()}{" "}
-                      VNĐ
+                    <Typography sx={{ mb: 0.5 }}>
+                      <b>Đặt cọc:</b>{" "}
+                      {selectedOrder.depositAmount?.toLocaleString() || 0} VNĐ
                     </Typography>
-                    <Typography>
-                      Còn lại: {selectedOrder.remainingAmount?.toLocaleString()}{" "}
-                      VNĐ
+                    <Typography sx={{ mb: 0.5 }}>
+                      <b>Còn lại:</b>{" "}
+                      {selectedOrder.remainingAmount?.toLocaleString() || 0} VNĐ
                     </Typography>
-                    <Typography>
-                      Trạng thái:{" "}
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
+                    >
+                      <Typography sx={{ mr: 1 }}>
+                        <b>Trạng thái:</b>
+                      </Typography>
                       <Chip
                         label={
                           selectedOrder.status === "PENDING"
@@ -375,6 +460,8 @@ const SaleDashboard = () => {
                             ? "Đã xác nhận"
                             : selectedOrder.status === "REJECTED"
                             ? "Đã từ chối"
+                            : selectedOrder.status === "CANCELLED"
+                            ? "Đã hủy"
                             : selectedOrder.status
                         }
                         color={
@@ -382,60 +469,37 @@ const SaleDashboard = () => {
                             ? "warning"
                             : selectedOrder.status === "APPROVED"
                             ? "success"
-                            : selectedOrder.status === "REJECTED"
+                            : selectedOrder.status === "REJECTED" ||
+                              selectedOrder.status === "CANCELLED"
                             ? "error"
                             : "default"
                         }
                         size="small"
+                        sx={{ fontWeight: 600, fontSize: 15 }}
                       />
-                    </Typography>
+                    </Box>
                     <Typography>
-                      Ngày tạo:{" "}
-                      {new Date(selectedOrder.createdAt).toLocaleString()}
+                      <b>Ngày tạo:</b>{" "}
+                      {selectedOrder.orderDate
+                        ? new Date(selectedOrder.orderDate).toLocaleDateString(
+                            "vi-VN"
+                          )
+                        : "N/A"}
                     </Typography>
                   </Box>
                 </Grid>
-
-                {selectedOrder.note && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Ghi chú
-                    </Typography>
-                    <Box sx={{ pl: 2 }}>
-                      <Typography>{selectedOrder.note}</Typography>
-                    </Box>
-                  </Grid>
-                )}
-
-                {selectedOrder.histories &&
-                  selectedOrder.histories.length > 0 && (
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Lịch sử đơn hàng
-                      </Typography>
-                      <Box sx={{ pl: 2 }}>
-                        {selectedOrder.histories.map((history, index) => (
-                          <Typography key={index} sx={{ mb: 1 }}>
-                            {history}
-                          </Typography>
-                        ))}
-                      </Box>
-                    </Grid>
-                  )}
               </Grid>
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ justifyContent: "center", gap: 2, mt: 1 }}>
               {selectedOrder.status === "PENDING" && (
                 <>
                   <Button
                     variant="contained"
                     color="error"
-                    onClick={() =>
-                      handleUpdateStatus(selectedOrder.id, "REJECTED")
-                    }
+                    onClick={() => handleRejectOrder(selectedOrder.id)}
                     startIcon={<CancelIcon />}
                   >
-                    Từ chối
+                    TỪ CHỐI
                   </Button>
                   <Button
                     variant="contained"

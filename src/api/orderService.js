@@ -32,7 +32,7 @@ orderService.interceptors.response.use(
   }
 );
 
-// Hàm tạo đơn hàng mới theo customerChoiceId
+// Hàm tạo đơn hàng mới theo customerChoiceId ( tạo đơn hàng bằng AI)
 export const createOrderApi = async (customerChoiceId, orderData) => {
   try {
     // Lấy userId từ accessToken trong localStorage nếu chưa có trong orderData
@@ -60,8 +60,19 @@ export const createOrderApi = async (customerChoiceId, orderData) => {
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API tạo order:", { success, result });
-      return { success: true, data: result };
+      // Ensure histories is included in the response
+      const formattedResult = {
+        ...result,
+        histories: result.histories || {
+          productTypeName: "",
+          calculateFormula: "",
+          totalAmount: result.totalAmount,
+          attributeSelections: [],
+          sizeSelections: []
+        }
+      };
+      console.log("Kết quả trả về từ API tạo order:", { success, result: formattedResult });
+      return { success: true, data: formattedResult };
     }
 
     return { success: false, error: message || 'Invalid response format' };
@@ -74,9 +85,11 @@ export const createOrderApi = async (customerChoiceId, orderData) => {
 };
 
 // Hàm lấy danh sách đơn hàng
-export const getOrdersApi = async () => {
+export const getOrdersApi = async (orderStatus) => {
   try {
-    const response = await orderService.get('/api/orders');
+    // Nếu không truyền orderStatus thì lấy tất cả đơn hàng
+    const url = orderStatus ? `/api/orders?orderStatus=${orderStatus}` : '/api/orders';
+    const response = await orderService.get(url);
 
     const { success, result, message } = response.data;
 
@@ -94,21 +107,21 @@ export const getOrdersApi = async () => {
 };
 
 // Hàm cập nhật trạng thái đơn hàng
-export const updateOrderStatusApi = async (orderId, data) => {
-  try {
-    const response = await orderService.put(`/api/orders/${orderId}`, data);
-    const { success, result, message } = response.data;
-    if (success) {
-      return { success: true, data: result };
-    }
-    return { success: false, error: message || 'Invalid response format' };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.response?.data?.message || 'Failed to update order status'
-    };
-  }
-};
+// export const updateOrderStatusApi = async (orderId, data) => {
+//   try {
+//     const response = await orderService.put(`/api/orders/${orderId}`, data);
+//     const { success, result, message } = response.data;
+//     if (success) {
+//       return { success: true, data: result };
+//     }
+//     return { success: false, error: message || 'Invalid response format' };
+//   } catch (error) {
+//     return {
+//       success: false,
+//       error: error.response?.data?.message || 'Failed to update order status'
+//     };
+//   }
+// };
 
 // Hàm lấy chi tiết đơn hàng theo ID
 export const getOrderByIdApi = async (orderId) => {
@@ -143,6 +156,72 @@ export const getOrdersByUserIdApi = async (userId) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch orders'
+    };
+  }
+};
+
+// Cập nhật trạng thái đơn hàng (status)
+export const updateOrderStatusApi = async (orderId, status) => {
+  try {
+   
+    const response = await orderService.put(`/api/orders/${orderId}/status?status=${status}`);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update order status'
+    };
+  }
+};
+
+// Tạo đơn hàng mới theo customDesignId ( tạo đơn hàng bằng custom design)
+export const createOrderByCustomDesignApi = async (customDesignId, orderData) => {
+  try {
+    const response = await orderService.post(`/api/custom-designs/${customDesignId}/orders`, orderData);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create order by custom design'
+    };
+  }
+};
+
+// Xác nhận sale cho đơn hàng
+export const saleConfirmOrderApi = async (orderId, data) => {
+  try {
+    const response = await orderService.patch(`/api/orders/${orderId}/sale-confirm`, data);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to confirm sale'
+    };
+  }
+};
+
+// Cập nhật thông tin khách hàng cho đơn hàng
+export const updateOrderCustomerInfoApi = async (orderId, data) => {
+  try {
+    const response = await orderService.patch(`/api/orders/${orderId}/customer-information`, data);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update customer information'
+    };
+  }
+};
+
+// Xóa đơn hàng
+export const deleteOrderApi = async (orderId) => {
+  try {
+    const response = await orderService.delete(`/api/orders/${orderId}`);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to delete order'
     };
   }
 };
