@@ -27,6 +27,7 @@ import PaymentCancel from "./pages/PaymentCancel";
 import OrderHistory from "./pages/OrderHistory";
 import Checkout from "./pages/Checkout";
 import AIChatbot from "./components/AIChatbot";
+import CustomDesign from "./pages/CustomDesign";
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -199,6 +200,7 @@ const App = () => {
             <Route path="checkout" element={<Checkout />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route path="custom-design" element={<CustomDesign />} />
 
             {/* Protected routes - cần đăng nhập để truy cập */}
             <Route
