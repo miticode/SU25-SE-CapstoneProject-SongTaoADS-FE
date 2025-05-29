@@ -81,6 +81,7 @@ import {
   FaItalic,
   FaUnderline,
 } from "react-icons/fa";
+import { fetchDesignTemplatesByProductTypeId, selectAllDesignTemplates, selectDesignTemplateError, selectDesignTemplateStatus } from "../store/features/designTemplate/designTemplateSlice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -111,14 +112,13 @@ const ModernBillboardForm = ({
   const [editingSizeValue, setEditingSizeValue] = useState("");
   const [customerChoiceSizes, setCustomerChoiceSizes] = useState({});
   const totalAmount = useSelector(selectTotalAmount);
+  
   const fetchCustomerChoiceStatus = useSelector(
     selectFetchCustomerChoiceStatus
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
-  const customerChoiceSizesState = useSelector(
-    (state) => state.customers?.customerChoiceSizes || []
-  );
+ 
   const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
     try {
       console.log("Updating size with ID:", customerChoiceSizeId);
@@ -1200,6 +1200,9 @@ const AIDesign = () => {
   const attributeStatus = useSelector(selectAttributeStatus);
   const attributeError = useSelector(selectAttributeError);
   const customerDetail = useSelector(selectCustomerDetail);
+   const designTemplates = useSelector(selectAllDesignTemplates);
+  const designTemplateStatus = useSelector(selectDesignTemplateStatus);
+  const designTemplateError = useSelector(selectDesignTemplateError);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -1740,6 +1743,12 @@ const AIDesign = () => {
       }
     }
   };
+  useEffect(() => {
+  if (currentStep === 4.5 && billboardType) {
+    console.log("Fetching design templates for product type:", billboardType);
+    dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+  }
+}, [currentStep, billboardType, dispatch]);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const step = params.get("step");
@@ -2735,118 +2744,144 @@ const AIDesign = () => {
           </motion.div>
         );
       case 4.5:
-        return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+      return (
+    <motion.div
+      className="max-w-4xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.h2
+        className="text-3xl font-bold text-custom-dark mb-6 text-center"
+        variants={itemVariants}
+      >
+        Chọn mẫu thiết kế
+      </motion.h2>
+
+      <motion.p
+        className="text-gray-600 mb-8 text-center"
+        variants={itemVariants}
+      >
+        Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
+      </motion.p>
+
+      {designTemplateStatus === 'loading' ? (
+        <div className="flex justify-center items-center py-12">
+          <CircularProgress size={60} color="primary" />
+          <p className="ml-4 text-gray-600">Đang tải mẫu thiết kế...</p>
+        </div>
+      ) : designTemplateStatus === 'failed' ? (
+        <div className="text-center py-8 bg-red-50 rounded-lg">
+          <p className="text-red-500">
+            {designTemplateError || "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
+          </p>
+          <button 
+            onClick={() => dispatch(fetchDesignTemplatesByProductTypeId(billboardType))}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
           >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-6 text-center"
-              variants={itemVariants}
-            >
-              Chọn mẫu thiết kế
-            </motion.h2>
-
-            <motion.p
-              className="text-gray-600 mb-8 text-center"
-              variants={itemVariants}
-            >
-              Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
-            </motion.p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-              {sampleProducts.map((product) => (
-                <motion.div
-                  key={product.id}
-                  variants={cardVariants}
-                  whileHover="hover"
-                  className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
-                    selectedSampleProduct === product.id
-                      ? "ring-4 ring-custom-secondary scale-105"
-                      : "hover:scale-105"
-                  }`}
-                  onClick={() => handleSelectSampleProduct(product.id)}
-                >
-                  <img
-                    src={product.url}
-                    alt={product.title}
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                    <div className="bg-white rounded-full p-2">
-                      <FaCheck className="w-6 h-6 text-custom-secondary" />
-                    </div>
-                  </div>
-                  {selectedSampleProduct === product.id && (
-                    <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                      <FaCheckCircle className="w-6 h-6" />
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
-                    <h3 className="font-medium text-lg">{product.title}</h3>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            <motion.div
-              className="flex justify-between mt-8"
-              variants={itemVariants}
-            >
-              <motion.button
-                type="button"
-                onClick={() => setCurrentStep(4)}
-                className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
-                </svg>
-                Quay lại
-              </motion.button>
-
-              <motion.button
-                type="button"
-                onClick={handleContinueToPreview}
-                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  selectedSampleProduct
-                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            Tải lại
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          {designTemplates && designTemplates.length > 0 ? (
+            designTemplates.map((template) => (
+              <motion.div
+                key={template.id}
+                variants={cardVariants}
+                whileHover="hover"
+                className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                  selectedSampleProduct === template.id
+                    ? "ring-4 ring-custom-secondary scale-105"
+                    : "hover:scale-105"
                 }`}
-                whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
-                whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
+                onClick={() => handleSelectSampleProduct(template.id)}
               >
-                Tiếp tục
-                <svg
-                  className="w-5 h-5 ml-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-              </motion.button>
-            </motion.div>
-          </motion.div>
-        );
+                <img
+                  src={template.image}
+                  alt={template.name}
+                  className="w-full h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                  <div className="bg-white rounded-full p-2">
+                    <FaCheck className="w-6 h-6 text-custom-secondary" />
+                  </div>
+                </div>
+                {selectedSampleProduct === template.id && (
+                  <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                    <FaCheckCircle className="w-6 h-6" />
+                  </div>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
+                  <h3 className="font-medium text-lg">{template.name}</h3>
+                  <p className="text-sm text-gray-300 truncate">{template.description}</p>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="col-span-2 text-center py-8">
+              <p className="text-gray-500">Không có mẫu thiết kế nào cho loại biển hiệu này</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <motion.div
+        className="flex justify-between mt-8"
+        variants={itemVariants}
+      >
+        <motion.button
+          type="button"
+          onClick={() => setCurrentStep(4)}
+          className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <svg
+            className="w-5 h-5 mr-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Quay lại
+        </motion.button>
+
+        <motion.button
+          type="button"
+          onClick={handleContinueToPreview}
+          className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+            selectedSampleProduct
+              ? "bg-custom-primary text-white hover:bg-custom-secondary"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+          whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
+          whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
+        >
+          Tiếp tục
+          <svg
+            className="w-5 h-5 ml-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M14 5l7 7m0 0l-7 7m7-7H3"
+            />
+          </svg>
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  );
       case 5:
         return (
           <motion.div
