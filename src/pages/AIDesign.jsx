@@ -81,7 +81,12 @@ import {
   FaItalic,
   FaUnderline,
 } from "react-icons/fa";
-import { fetchDesignTemplatesByProductTypeId, selectAllDesignTemplates, selectDesignTemplateError, selectDesignTemplateStatus } from "../store/features/designTemplate/designTemplateSlice";
+import {
+  fetchDesignTemplatesByProductTypeId,
+  selectAllDesignTemplates,
+  selectDesignTemplateError,
+  selectDesignTemplateStatus,
+} from "../store/features/designTemplate/designTemplateSlice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -112,13 +117,13 @@ const ModernBillboardForm = ({
   const [editingSizeValue, setEditingSizeValue] = useState("");
   const [customerChoiceSizes, setCustomerChoiceSizes] = useState({});
   const totalAmount = useSelector(selectTotalAmount);
-  
+
   const fetchCustomerChoiceStatus = useSelector(
     selectFetchCustomerChoiceStatus
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
- 
+
   const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
     try {
       console.log("Updating size with ID:", customerChoiceSizeId);
@@ -1200,14 +1205,15 @@ const AIDesign = () => {
   const attributeStatus = useSelector(selectAttributeStatus);
   const attributeError = useSelector(selectAttributeError);
   const customerDetail = useSelector(selectCustomerDetail);
-   const designTemplates = useSelector(selectAllDesignTemplates);
+  const designTemplates = useSelector(selectAllDesignTemplates);
   const designTemplateStatus = useSelector(selectDesignTemplateStatus);
   const designTemplateError = useSelector(selectDesignTemplateError);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
-    address: "",
+    tagLine: "",
     contactInfo: "",
-    logoUrl: "",
+    customerDetailLogo: null,
+    logoPreview: "", // For preview of selected logo
   });
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -1300,7 +1306,6 @@ const AIDesign = () => {
           console.log("Customer detail loaded:", customerData);
           setBusinessPresets({
             logoUrl: customerData.logoUrl || "",
-
             companyName: customerData.companyName || "",
             tagLine: customerData.tagLine || "",
             contactInfo: customerData.contactInfo || "",
@@ -1744,11 +1749,11 @@ const AIDesign = () => {
     }
   };
   useEffect(() => {
-  if (currentStep === 4.5 && billboardType) {
-    console.log("Fetching design templates for product type:", billboardType);
-    dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
-  }
-}, [currentStep, billboardType, dispatch]);
+    if (currentStep === 4.5 && billboardType) {
+      console.log("Fetching design templates for product type:", billboardType);
+      dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+    }
+  }, [currentStep, billboardType, dispatch]);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const step = params.get("step");
@@ -1843,18 +1848,38 @@ const AIDesign = () => {
     if (customerDetail) {
       setBusinessInfo({
         companyName: customerDetail.companyName || "",
-        address: customerDetail.tagLine || "",
+        tagLine: customerDetail.tagLine || "",
         contactInfo: customerDetail.contactInfo || "",
-        logoUrl: customerDetail.logoUrl || "",
+        customerDetailLogo: null, // Can't set file directly
+        logoPreview: customerDetail.logoUrl || "", // Use existing logo URL for preview
       });
     }
   }, [customerDetail]);
+  
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setBusinessInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, files } = e.target;
+
+    if (name === "customerDetailLogo" && files && files[0]) {
+      // For file input
+      const file = files[0];
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        setBusinessInfo((prev) => ({
+          ...prev,
+          customerDetailLogo: file,
+          logoPreview: reader.result, // Store preview URL
+        }));
+      };
+
+      reader.readAsDataURL(file);
+    } else {
+      // For text inputs
+      setBusinessInfo((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleBusinessSubmit = async (e) => {
@@ -1869,12 +1894,35 @@ const AIDesign = () => {
       });
       return;
     }
+    // Validate required fields
+    const requiredFields = ["companyName", "tagLine", "contactInfo"];
+    const missingFields = requiredFields.filter(
+      (field) => !businessInfo[field]
+    );
 
+    if (missingFields.length > 0) {
+      setSnackbar({
+        open: true,
+        message: `Vui lòng điền đầy đủ thông tin: ${missingFields.join(", ")}`,
+        severity: "warning",
+      });
+      return;
+    }
+
+    // If it's a new customer and no logo is uploaded, show a warning
+    if (!customerDetail && !businessInfo.customerDetailLogo) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng tải lên logo công ty",
+        severity: "warning",
+      });
+      return;
+    }
     const customerData = {
-      logoUrl: businessInfo.logoUrl,
       companyName: businessInfo.companyName,
-      tagLine: businessInfo.address,
+      tagLine: businessInfo.tagLine,
       contactInfo: businessInfo.contactInfo,
+      customerDetailLogo: businessInfo.customerDetailLogo,
       userId: user.id,
     };
 
@@ -1891,11 +1939,29 @@ const AIDesign = () => {
           })
         ).unwrap();
         console.log("Customer detail updated successfully:", result);
+         if (result.warning) {
+        setSnackbar({
+          open: true,
+          message: `Thông tin đã được cập nhật nhưng ${result.warning}`,
+          severity: "warning",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Cập nhật thông tin doanh nghiệp thành công",
+          severity: "success",
+        });
+      }
       } else {
         // Otherwise create a new one
         console.log("Creating new customer detail");
         const result = await dispatch(createCustomer(customerData)).unwrap();
         console.log("Customer created successfully:", result);
+         setSnackbar({
+        open: true,
+        message: "Tạo thông tin doanh nghiệp thành công",
+        severity: "success",
+      });
       }
 
       // Now check if the user already has any customer choice
@@ -2381,9 +2447,9 @@ const AIDesign = () => {
                 </label>
                 <input
                   type="text"
-                  id="address"
-                  name="address"
-                  value={businessInfo.address}
+                  id="tagLine"
+                  name="tagLine"
+                  value={businessInfo.tagLine}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
                   required
@@ -2410,21 +2476,33 @@ const AIDesign = () => {
 
               <motion.div variants={itemVariants}>
                 <label
-                  htmlFor="logoUrl"
+                  htmlFor="customerDetailLogo"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  URL Logo công ty
+                  Logo công ty
                 </label>
-                <input
-                  type="url"
-                  id="logoUrl"
-                  name="logoUrl"
-                  value={businessInfo.logoUrl}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                  placeholder="https://example.com/logo.png"
-                  required
-                />
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="file"
+                    id="customerDetailLogo"
+                    name="customerDetailLogo"
+                    accept="image/*"
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
+                    required={!customerDetail}
+                  />
+                  {(businessInfo.logoPreview || customerDetail?.logoUrl) && (
+                    <div className="mt-2 relative w-32 h-32 border rounded-lg overflow-hidden">
+                      <img
+                        src={
+                          businessInfo.logoPreview || customerDetail?.logoUrl
+                        }
+                        alt="Logo Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
               </motion.div>
 
               <motion.div
@@ -2744,144 +2822,151 @@ const AIDesign = () => {
           </motion.div>
         );
       case 4.5:
-      return (
-    <motion.div
-      className="max-w-4xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      <motion.h2
-        className="text-3xl font-bold text-custom-dark mb-6 text-center"
-        variants={itemVariants}
-      >
-        Chọn mẫu thiết kế
-      </motion.h2>
-
-      <motion.p
-        className="text-gray-600 mb-8 text-center"
-        variants={itemVariants}
-      >
-        Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
-      </motion.p>
-
-      {designTemplateStatus === 'loading' ? (
-        <div className="flex justify-center items-center py-12">
-          <CircularProgress size={60} color="primary" />
-          <p className="ml-4 text-gray-600">Đang tải mẫu thiết kế...</p>
-        </div>
-      ) : designTemplateStatus === 'failed' ? (
-        <div className="text-center py-8 bg-red-50 rounded-lg">
-          <p className="text-red-500">
-            {designTemplateError || "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
-          </p>
-          <button 
-            onClick={() => dispatch(fetchDesignTemplatesByProductTypeId(billboardType))}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        return (
+          <motion.div
+            className="max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
           >
-            Tải lại
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          {designTemplates && designTemplates.length > 0 ? (
-            designTemplates.map((template) => (
-              <motion.div
-                key={template.id}
-                variants={cardVariants}
-                whileHover="hover"
-                className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
-                  selectedSampleProduct === template.id
-                    ? "ring-4 ring-custom-secondary scale-105"
-                    : "hover:scale-105"
-                }`}
-                onClick={() => handleSelectSampleProduct(template.id)}
-              >
-                <img
-                  src={template.image}
-                  alt={template.name}
-                  className="w-full h-64 object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                  <div className="bg-white rounded-full p-2">
-                    <FaCheck className="w-6 h-6 text-custom-secondary" />
-                  </div>
-                </div>
-                {selectedSampleProduct === template.id && (
-                  <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                    <FaCheckCircle className="w-6 h-6" />
+            <motion.h2
+              className="text-3xl font-bold text-custom-dark mb-6 text-center"
+              variants={itemVariants}
+            >
+              Chọn mẫu thiết kế
+            </motion.h2>
+
+            <motion.p
+              className="text-gray-600 mb-8 text-center"
+              variants={itemVariants}
+            >
+              Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
+            </motion.p>
+
+            {designTemplateStatus === "loading" ? (
+              <div className="flex justify-center items-center py-12">
+                <CircularProgress size={60} color="primary" />
+                <p className="ml-4 text-gray-600">Đang tải mẫu thiết kế...</p>
+              </div>
+            ) : designTemplateStatus === "failed" ? (
+              <div className="text-center py-8 bg-red-50 rounded-lg">
+                <p className="text-red-500">
+                  {designTemplateError ||
+                    "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
+                </p>
+                <button
+                  onClick={() =>
+                    dispatch(fetchDesignTemplatesByProductTypeId(billboardType))
+                  }
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Tải lại
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                {designTemplates && designTemplates.length > 0 ? (
+                  designTemplates.map((template) => (
+                    <motion.div
+                      key={template.id}
+                      variants={cardVariants}
+                      whileHover="hover"
+                      className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                        selectedSampleProduct === template.id
+                          ? "ring-4 ring-custom-secondary scale-105"
+                          : "hover:scale-105"
+                      }`}
+                      onClick={() => handleSelectSampleProduct(template.id)}
+                    >
+                      <img
+                        src={template.image}
+                        alt={template.name}
+                        className="w-full h-64 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                        <div className="bg-white rounded-full p-2">
+                          <FaCheck className="w-6 h-6 text-custom-secondary" />
+                        </div>
+                      </div>
+                      {selectedSampleProduct === template.id && (
+                        <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                          <FaCheckCircle className="w-6 h-6" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
+                        <h3 className="font-medium text-lg">{template.name}</h3>
+                        <p className="text-sm text-gray-300 truncate">
+                          {template.description}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-8">
+                    <p className="text-gray-500">
+                      Không có mẫu thiết kế nào cho loại biển hiệu này
+                    </p>
                   </div>
                 )}
-                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
-                  <h3 className="font-medium text-lg">{template.name}</h3>
-                  <p className="text-sm text-gray-300 truncate">{template.description}</p>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            <div className="col-span-2 text-center py-8">
-              <p className="text-gray-500">Không có mẫu thiết kế nào cho loại biển hiệu này</p>
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            )}
 
-      <motion.div
-        className="flex justify-between mt-8"
-        variants={itemVariants}
-      >
-        <motion.button
-          type="button"
-          onClick={() => setCurrentStep(4)}
-          className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <svg
-            className="w-5 h-5 mr-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Quay lại
-        </motion.button>
+            <motion.div
+              className="flex justify-between mt-8"
+              variants={itemVariants}
+            >
+              <motion.button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg
+                  className="w-5 h-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Quay lại
+              </motion.button>
 
-        <motion.button
-          type="button"
-          onClick={handleContinueToPreview}
-          className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-            selectedSampleProduct
-              ? "bg-custom-primary text-white hover:bg-custom-secondary"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-          whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
-          whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
-        >
-          Tiếp tục
-          <svg
-            className="w-5 h-5 ml-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M14 5l7 7m0 0l-7 7m7-7H3"
-            />
-          </svg>
-        </motion.button>
-      </motion.div>
-    </motion.div>
-  );
+              <motion.button
+                type="button"
+                onClick={handleContinueToPreview}
+                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+                  selectedSampleProduct
+                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+                whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
+                whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
+              >
+                Tiếp tục
+                <svg
+                  className="w-5 h-5 ml-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        );
       case 5:
         return (
           <motion.div
