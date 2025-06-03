@@ -6,6 +6,7 @@ import attributeReducer from "./features/attribute/attributeSlice";
 import orderReducer from "./features/order/orderSlice";
 import designTemplateReducer from "./features/designTemplate/designTemplateSlice";
 import userReducer from "./features/user/userSlice";
+import aiReducer from "./features/ai/aiSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -15,6 +16,7 @@ export const store = configureStore({
     order: orderReducer,
     designTemplate: designTemplateReducer,
     users: userReducer,
+    ai: aiReducer,
     // Thêm các reducer khác tại đây
   },
 });
