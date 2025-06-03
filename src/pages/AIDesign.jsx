@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
+import bien1 from "../assets/images/bien1.jpg";
+import bien2 from "../assets/images/bien2.jpg";
+import bien3 from "../assets/images/bien3.jpg";
+import bien4 from "../assets/images/bien4.jpg";
 import StepIndicator from "../components/StepIndicator";
 import {
   TextField,
@@ -69,7 +73,7 @@ import {
   selectAttributeStatus,
 } from "../store/features/attribute/attributeSlice";
 import { createOrderApi } from "../api/orderService";
-import { createOrder } from "../store/features/order/orderSlice";
+import { createAiOrder, createOrder } from "../store/features/order/orderSlice";
 import * as fabric from "fabric";
 import html2canvas from "html2canvas";
 import {
@@ -87,6 +91,12 @@ import {
   selectDesignTemplateError,
   selectDesignTemplateStatus,
 } from "../store/features/designTemplate/designTemplateSlice";
+import {
+  createAIDesign,
+  selectAIError,
+  selectAIStatus,
+  selectCurrentAIDesign,
+} from "../store/features/ai/aiSlice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1208,6 +1218,10 @@ const AIDesign = () => {
   const designTemplates = useSelector(selectAllDesignTemplates);
   const designTemplateStatus = useSelector(selectDesignTemplateStatus);
   const designTemplateError = useSelector(selectDesignTemplateError);
+  const [customerNote, setCustomerNote] = useState("");
+  const aiStatus = useSelector(selectAIStatus);
+  const aiError = useSelector(selectAIError);
+  const currentAIDesign = useSelector(selectCurrentAIDesign);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1246,22 +1260,22 @@ const AIDesign = () => {
   const previewImages = [
     {
       id: 1,
-      url: "https://picsum.photos/800/600?random=1",
+      url: bien1,
       title: "Mẫu 1",
     },
     {
       id: 2,
-      url: "https://picsum.photos/800/600?random=2",
+      url: bien2,
       title: "Mẫu 2",
     },
     {
       id: 3,
-      url: "https://picsum.photos/800/600?random=3",
+      url: bien3,
       title: "Mẫu 3",
     },
     {
       id: 4,
-      url: "https://picsum.photos/800/600?random=4",
+      url: bien4,
       title: "Mẫu 4",
     },
   ];
@@ -1710,23 +1724,114 @@ const AIDesign = () => {
     if (!fabricCanvas) return;
 
     try {
-      // Thử export fabric canvas trước
+      setIsGenerating(true); // Hiển thị loading state
+
+      // 1. Lấy ảnh từ canvas
       const dataURL = fabricCanvas.toDataURL({
         format: "png",
         quality: 1,
       });
 
-      const link = document.createElement("a");
-      link.download = "edited-design.png";
-      link.href = dataURL;
-      link.click();
+      // 2. Convert dataURL thành File object
+      const blobBin = atob(dataURL.split(",")[1]);
+      const array = [];
+      for (let i = 0; i < blobBin.length; i++) {
+        array.push(blobBin.charCodeAt(i));
+      }
+      const file = new Blob([new Uint8Array(array)], { type: "image/png" });
+      const aiImage = new File([file], "canvas-design.png", {
+        type: "image/png",
+      });
+
+      // 3. Lấy customerDetailId và designTemplateId
+      if (!customerDetail?.id) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
+          severity: "error",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      const customerDetailId = customerDetail.id;
+      const designTemplateId = selectedSampleProduct;
+
+      if (!designTemplateId) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
+          severity: "error",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      // Đảm bảo customerNote không bao giờ là null/undefined
+      const note = customerNote || "Thiết kế từ người dùng";
+
+      console.log("Preparing to send AI request with:", {
+        customerDetailId,
+        designTemplateId,
+        customerNote: note,
+        hasImage: !!aiImage,
+      });
+
+      // 4. Gửi request tạo AI design
+      const resultAction = await dispatch(
+        createAIDesign({
+          customerDetailId,
+          designTemplateId,
+          customerNote: note, // Sử dụng giá trị mặc định nếu rỗng
+          aiImage,
+        })
+      );
+
+      // 5. Xử lý kết quả
+      if (createAIDesign.fulfilled.match(resultAction)) {
+        const response = resultAction.payload;
+        console.log("AI design created successfully:", response);
+
+        // Tải ảnh về máy người dùng
+        const link = document.createElement("a");
+        link.download = "edited-design.png";
+        link.href = dataURL;
+        link.click();
+
+        // Hiển thị thông báo thành công
+        setSnackbar({
+          open: true,
+          message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
+          severity: "success",
+        });
+        const orderButton = document.querySelector(".order-button"); // Thêm class 'order-button' vào nút đặt hàng
+        if (orderButton) {
+          orderButton.classList.add("animate-pulse");
+          setTimeout(() => {
+            orderButton.classList.remove("animate-pulse");
+          }, 3000);
+        }
+      } else {
+        console.error("Failed to create AI design:", resultAction.error);
+        setSnackbar({
+          open: true,
+          message:
+            "Có lỗi xảy ra khi lưu thiết kế. Ảnh đã được tải xuống nhưng chưa lưu vào hệ thống.",
+          severity: "warning",
+        });
+
+        // Vẫn cho phép tải ảnh xuống dù API có lỗi
+        const link = document.createElement("a");
+        link.download = "edited-design.png";
+        link.href = dataURL;
+        link.click();
+      }
     } catch (error) {
-      console.error("Fabric export failed, using html2canvas:", error);
+      console.error("Error exporting design:", error);
 
+      // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
       try {
-        // Sử dụng html2canvas để capture toàn bộ canvas container
         const canvasContainer = canvasRef.current.parentElement;
-
         const canvas = await html2canvas(canvasContainer, {
           allowTaint: true,
           useCORS: true,
@@ -1742,10 +1847,24 @@ const AIDesign = () => {
           link.click();
           URL.revokeObjectURL(url);
         }, "image/png");
+
+        setSnackbar({
+          open: true,
+          message:
+            "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
+          severity: "warning",
+        });
       } catch (html2canvasError) {
         console.error("html2canvas failed:", html2canvasError);
-        alert("Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.");
+        setSnackbar({
+          open: true,
+          message:
+            "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
+          severity: "error",
+        });
       }
+    } finally {
+      setIsGenerating(false); // Tắt loading state
     }
   };
   useEffect(() => {
@@ -1855,7 +1974,7 @@ const AIDesign = () => {
       });
     }
   }, [customerDetail]);
-  
+
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -1939,29 +2058,29 @@ const AIDesign = () => {
           })
         ).unwrap();
         console.log("Customer detail updated successfully:", result);
-         if (result.warning) {
-        setSnackbar({
-          open: true,
-          message: `Thông tin đã được cập nhật nhưng ${result.warning}`,
-          severity: "warning",
-        });
-      } else {
-        setSnackbar({
-          open: true,
-          message: "Cập nhật thông tin doanh nghiệp thành công",
-          severity: "success",
-        });
-      }
+        if (result.warning) {
+          setSnackbar({
+            open: true,
+            message: `Thông tin đã được cập nhật nhưng ${result.warning}`,
+            severity: "warning",
+          });
+        } else {
+          setSnackbar({
+            open: true,
+            message: "Cập nhật thông tin doanh nghiệp thành công",
+            severity: "success",
+          });
+        }
       } else {
         // Otherwise create a new one
         console.log("Creating new customer detail");
         const result = await dispatch(createCustomer(customerData)).unwrap();
         console.log("Customer created successfully:", result);
-         setSnackbar({
-        open: true,
-        message: "Tạo thông tin doanh nghiệp thành công",
-        severity: "success",
-      });
+        setSnackbar({
+          open: true,
+          message: "Tạo thông tin doanh nghiệp thành công",
+          severity: "success",
+        });
       }
 
       // Now check if the user already has any customer choice
@@ -2103,6 +2222,16 @@ const AIDesign = () => {
     }
 
     try {
+      // Kiểm tra currentAIDesign đã được tạo chưa (từ hàm exportDesign)
+      if (!currentAIDesign?.id) {
+        setSnackbar({
+          open: true,
+          message: "Vui lòng xuất và lưu thiết kế trước khi đặt hàng",
+          severity: "warning",
+        });
+        return;
+      }
+
       // Lấy customerChoiceId từ currentOrder
       const customerChoiceId = currentOrder?.id;
       if (!customerChoiceId) {
@@ -2114,23 +2243,44 @@ const AIDesign = () => {
         return;
       }
 
+      // Lấy aiDesignId từ currentAIDesign
+      const aiDesignId = currentAIDesign.id;
+
+      // Chuẩn bị dữ liệu đơn hàng
       const orderData = {
         totalAmount: totalAmount,
-        note: "Đơn hàng thiết kế AI",
+        note: customerNote || "Đơn hàng thiết kế AI",
         isCustomDesign: true,
         histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
         userId: user.id,
-        aiDesignId: selectedImage?.toString(),
       };
 
-      const response = await createOrderApi(customerChoiceId, orderData);
+      // Hiển thị loading
+      setIsGenerating(true);
 
-      if (response.success) {
+      // Gọi API createAiOrder
+      const resultAction = await dispatch(
+        createAiOrder({
+          aiDesignId,
+          customerChoiceId,
+          orderData,
+        })
+      );
+
+      // Tắt loading
+      setIsGenerating(false);
+
+      // Kiểm tra kết quả
+      if (createAiOrder.fulfilled.match(resultAction)) {
+        // Thành công
         setSnackbar({
           open: true,
           message: "Đơn hàng đã được tạo thành công!",
           severity: "success",
         });
+
+        // Hiển thị thông báo thành công
+        setShowSuccess(true);
 
         // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
         setTimeout(() => {
@@ -2138,14 +2288,17 @@ const AIDesign = () => {
           navigate("/");
         }, 3000);
       } else {
+        // Thất bại
         setSnackbar({
           open: true,
-          message: response.error || "Có lỗi xảy ra khi tạo đơn hàng",
+          message:
+            resultAction.error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
           severity: "error",
         });
       }
     } catch (error) {
       console.error("Error creating order:", error);
+      setIsGenerating(false);
       setSnackbar({
         open: true,
         message: "Có lỗi xảy ra khi tạo đơn hàng",
@@ -3508,7 +3661,25 @@ const AIDesign = () => {
                 </div>
               </div>
             </div>
-
+            <div className="mt-8 max-w-3xl mx-auto">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Ghi chú đơn hàng</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nhập ghi chú hoặc yêu cầu đặc biệt
+                    </label>
+                    <textarea
+                      value={customerNote}
+                      onChange={(e) => setCustomerNote(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
+                      rows={4}
+                      placeholder="Nhập yêu cầu đặc biệt hoặc ghi chú cho đơn hàng của bạn..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Action Buttons */}
             <div className="flex justify-center space-x-6 mt-8">
               <motion.button
@@ -3526,16 +3697,31 @@ const AIDesign = () => {
                 onClick={exportDesign}
                 className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
               >
-                Tải xuống
+                Xuất và Lưu thiết kế
               </motion.button>
 
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: currentAIDesign ? 1.05 : 1 }}
+                whileTap={{ scale: currentAIDesign ? 0.95 : 1 }}
                 onClick={handleConfirm}
-                className="px-8 py-3 bg-custom-secondary text-white font-medium rounded-lg hover:bg-custom-secondary/90 transition-all"
+                disabled={!currentAIDesign}
+                className={`order-button px-8 py-3 font-medium rounded-lg transition-all ${
+                  currentAIDesign
+                    ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
               >
-                Đặt hàng
+                {!currentAIDesign ? (
+                  <>
+                    <FaCheck className="mr-2" />
+                    Xuất thiết kế trước khi đặt hàng
+                  </>
+                ) : (
+                  <>
+                    <FaCheck className="mr-2" />
+                    Đặt hàng
+                  </>
+                )}
               </motion.button>
             </div>
           </motion.div>

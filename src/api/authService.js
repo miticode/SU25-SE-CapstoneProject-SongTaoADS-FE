@@ -96,10 +96,27 @@ export const registerApi = async (userData) => {
 export const logoutApi = async () => {
   try {
     console.log('Attempting logout');
-    const response = await authService.post('/api/auth/logout');
+    // Lấy token từ localStorage
+    const accessToken = localStorage.getItem('accessToken');
+    
+    if (!accessToken) {
+      console.warn('No access token found when logging out');
+      // Vẫn reset trạng thái nếu không có token
+      authState.isAuthenticated = false;
+      authState.user = null;
+      return { success: true, message: 'Already logged out (no token)' };
+    }
+    
+    // Gửi request với token trong header
+    const response = await authService.post('/api/auth/logout', {}, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    
     console.log('Logout response:', response.data);
     
-    // Xóa access token khỏi localStorage
+    // Sau khi API trả về thành công, mới xóa token
     localStorage.removeItem('accessToken');
     console.log('Access token removed from localStorage');
     
@@ -107,13 +124,17 @@ export const logoutApi = async () => {
     authState.isAuthenticated = false;
     authState.user = null;
     
-    return { success: true };
+    return { success: true, data: response.data };
   } catch (error) {
     console.error('Logout error:', error.response?.data || error.message);
-    // Vẫn xóa token và reset trạng thái đăng nhập dù có lỗi
-    localStorage.removeItem('accessToken');
-    authState.isAuthenticated = false;
-    authState.user = null;
+    
+    // Nếu lỗi là do token hết hạn hoặc không hợp lệ (401), vẫn xóa token
+    if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken');
+      authState.isAuthenticated = false;
+      authState.user = null;
+      console.log('Token invalid/expired, removed from localStorage');
+    }
     
     return {
       success: false,

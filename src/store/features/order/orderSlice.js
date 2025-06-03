@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createOrderApi, getOrdersApi, updateOrderStatusApi } from '../../../api/orderService';
+import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi } from '../../../api/orderService';
 
 // Async thunks
 export const createOrder = createAsyncThunk(
@@ -12,7 +12,16 @@ export const createOrder = createAsyncThunk(
     return rejectWithValue(response.error);
   }
 );
-
+export const createAiOrder = createAsyncThunk(
+  'order/createAiOrder',
+  async ({ aiDesignId, customerChoiceId, orderData }, { rejectWithValue }) => {
+    const response = await createAiOrderApi(aiDesignId, customerChoiceId, orderData);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
 export const fetchOrders = createAsyncThunk(
   'order/fetchOrders',
   async (orderStatus, { rejectWithValue }) => {
@@ -109,6 +118,19 @@ const orderSlice = createSlice({
         }
       })
       .addCase(updateOrderStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+        .addCase(createAiOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createAiOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders.push(action.payload);
+        state.currentOrder = action.payload;
+      })
+      .addCase(createAiOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
