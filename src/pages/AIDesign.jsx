@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
+import bien1 from "../assets/images/bien1.jpg";
+import bien2 from "../assets/images/bien2.jpg";
+import bien3 from "../assets/images/bien3.jpg";
+import bien4 from "../assets/images/bien4.jpg";
 import StepIndicator from "../components/StepIndicator";
 import {
   TextField,
@@ -1208,6 +1212,7 @@ const AIDesign = () => {
   const designTemplates = useSelector(selectAllDesignTemplates);
   const designTemplateStatus = useSelector(selectDesignTemplateStatus);
   const designTemplateError = useSelector(selectDesignTemplateError);
+  const [customerNote, setCustomerNote] = useState("");
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1246,22 +1251,22 @@ const AIDesign = () => {
   const previewImages = [
     {
       id: 1,
-      url: "https://picsum.photos/800/600?random=1",
+      url: bien1,
       title: "Mẫu 1",
     },
     {
       id: 2,
-      url: "https://picsum.photos/800/600?random=2",
+      url: bien2,
       title: "Mẫu 2",
     },
     {
       id: 3,
-      url: "https://picsum.photos/800/600?random=3",
+      url: bien3,
       title: "Mẫu 3",
     },
     {
       id: 4,
-      url: "https://picsum.photos/800/600?random=4",
+      url: bien4,
       title: "Mẫu 4",
     },
   ];
@@ -1855,7 +1860,7 @@ const AIDesign = () => {
       });
     }
   }, [customerDetail]);
-  
+
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -1939,29 +1944,29 @@ const AIDesign = () => {
           })
         ).unwrap();
         console.log("Customer detail updated successfully:", result);
-         if (result.warning) {
-        setSnackbar({
-          open: true,
-          message: `Thông tin đã được cập nhật nhưng ${result.warning}`,
-          severity: "warning",
-        });
-      } else {
-        setSnackbar({
-          open: true,
-          message: "Cập nhật thông tin doanh nghiệp thành công",
-          severity: "success",
-        });
-      }
+        if (result.warning) {
+          setSnackbar({
+            open: true,
+            message: `Thông tin đã được cập nhật nhưng ${result.warning}`,
+            severity: "warning",
+          });
+        } else {
+          setSnackbar({
+            open: true,
+            message: "Cập nhật thông tin doanh nghiệp thành công",
+            severity: "success",
+          });
+        }
       } else {
         // Otherwise create a new one
         console.log("Creating new customer detail");
         const result = await dispatch(createCustomer(customerData)).unwrap();
         console.log("Customer created successfully:", result);
-         setSnackbar({
-        open: true,
-        message: "Tạo thông tin doanh nghiệp thành công",
-        severity: "success",
-      });
+        setSnackbar({
+          open: true,
+          message: "Tạo thông tin doanh nghiệp thành công",
+          severity: "success",
+        });
       }
 
       // Now check if the user already has any customer choice
@@ -2116,7 +2121,7 @@ const AIDesign = () => {
 
       const orderData = {
         totalAmount: totalAmount,
-        note: "Đơn hàng thiết kế AI",
+        note: customerNote || "Đơn hàng thiết kế AI",
         isCustomDesign: true,
         histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
         userId: user.id,
@@ -3508,7 +3513,25 @@ const AIDesign = () => {
                 </div>
               </div>
             </div>
-
+            <div className="mt-8 max-w-3xl mx-auto">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Ghi chú đơn hàng</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nhập ghi chú hoặc yêu cầu đặc biệt
+                    </label>
+                    <textarea
+                      value={customerNote}
+                      onChange={(e) => setCustomerNote(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
+                      rows={4}
+                      placeholder="Nhập yêu cầu đặc biệt hoặc ghi chú cho đơn hàng của bạn..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Action Buttons */}
             <div className="flex justify-center space-x-6 mt-8">
               <motion.button
