@@ -73,7 +73,7 @@ import {
   selectAttributeStatus,
 } from "../store/features/attribute/attributeSlice";
 import { createOrderApi } from "../api/orderService";
-import { createOrder } from "../store/features/order/orderSlice";
+import { createAiOrder, createOrder } from "../store/features/order/orderSlice";
 import * as fabric from "fabric";
 import html2canvas from "html2canvas";
 import {
@@ -2195,66 +2195,99 @@ const AIDesign = () => {
   };
 
   const handleConfirm = async () => {
-    if (!user?.id) {
+  if (!user?.id) {
+    setSnackbar({
+      open: true,
+      message: "Vui lòng đăng nhập để tạo đơn hàng",
+      severity: "error",
+    });
+    return;
+  }
+
+  try {
+    // Kiểm tra currentAIDesign đã được tạo chưa (từ hàm exportDesign)
+    if (!currentAIDesign?.id) {
       setSnackbar({
         open: true,
-        message: "Vui lòng đăng nhập để tạo đơn hàng",
+        message: "Vui lòng xuất và lưu thiết kế trước khi đặt hàng",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Lấy customerChoiceId từ currentOrder
+    const customerChoiceId = currentOrder?.id;
+    if (!customerChoiceId) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại.",
         severity: "error",
       });
       return;
     }
 
-    try {
-      // Lấy customerChoiceId từ currentOrder
-      const customerChoiceId = currentOrder?.id;
-      if (!customerChoiceId) {
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại.",
-          severity: "error",
-        });
-        return;
-      }
+    // Lấy aiDesignId từ currentAIDesign
+    const aiDesignId = currentAIDesign.id;
 
-      const orderData = {
-        totalAmount: totalAmount,
-        note: customerNote || "Đơn hàng thiết kế AI",
-        isCustomDesign: true,
-        histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
-        userId: user.id,
-        aiDesignId: selectedImage?.toString(),
-      };
+    // Chuẩn bị dữ liệu đơn hàng
+    const orderData = {
+      totalAmount: totalAmount,
+      note: customerNote || "Đơn hàng thiết kế AI",
+      isCustomDesign: true,
+      histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
+      userId: user.id,
+    };
 
-      const response = await createOrderApi(customerChoiceId, orderData);
+    // Hiển thị loading
+    setIsGenerating(true);
 
-      if (response.success) {
-        setSnackbar({
-          open: true,
-          message: "Đơn hàng đã được tạo thành công!",
-          severity: "success",
-        });
+    // Gọi API createAiOrder
+    const resultAction = await dispatch(
+      createAiOrder({
+        aiDesignId,
+        customerChoiceId,
+        orderData
+      })
+    );
 
-        // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
-        setTimeout(() => {
-          setShowSuccess(false);
-          navigate("/");
-        }, 3000);
-      } else {
-        setSnackbar({
-          open: true,
-          message: response.error || "Có lỗi xảy ra khi tạo đơn hàng",
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error("Error creating order:", error);
+    // Tắt loading
+    setIsGenerating(false);
+
+    // Kiểm tra kết quả
+    if (createAiOrder.fulfilled.match(resultAction)) {
+      // Thành công
       setSnackbar({
         open: true,
-        message: "Có lỗi xảy ra khi tạo đơn hàng",
+        message: "Đơn hàng đã được tạo thành công!",
+        severity: "success",
+      });
+
+      // Hiển thị thông báo thành công
+      setShowSuccess(true);
+
+      // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
+      setTimeout(() => {
+        setShowSuccess(false);
+        navigate("/");
+      }, 3000);
+    } else {
+      // Thất bại
+      setSnackbar({
+        open: true,
+        message: resultAction.error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
         severity: "error",
       });
     }
-  };
+  } catch (error) {
+    console.error("Error creating order:", error);
+    setIsGenerating(false);
+    setSnackbar({
+      open: true,
+      message: "Có lỗi xảy ra khi tạo đơn hàng",
+      severity: "error",
+    });
+  }
+};
 
   const handleBillboardTypeSelect = async (productTypeId) => {
     // First check if we have the customer details

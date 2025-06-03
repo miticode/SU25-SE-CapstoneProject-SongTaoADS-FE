@@ -83,7 +83,36 @@ export const createOrderApi = async (customerChoiceId, orderData) => {
     };
   }
 };
+export const createAiOrderApi = async (aiDesignId, customerChoiceId, orderData) => {
+  try {
+    console.log("Gọi API tạo AI order với:", { aiDesignId, customerChoiceId, orderData });
+    
+    const response = await orderService.post(`/api/ai-designs/${aiDesignId}/customer-choices/${customerChoiceId}/orders`, {
+      totalAmount: orderData.totalAmount,
+      depositAmount: orderData.depositAmount || 0,
+      remainingAmount: orderData.remainingAmount || orderData.totalAmount,
+      note: orderData.note || '',
+      address: orderData.address || '',
+      deliveryDate: orderData.deliveryDate || null,
+      histories: orderData.histories || []
+    });
 
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API tạo AI order:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error creating AI order:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create AI order'
+    };
+  }
+};
 // Hàm lấy danh sách đơn hàng
 export const getOrdersApi = async (orderStatus) => {
   try {
