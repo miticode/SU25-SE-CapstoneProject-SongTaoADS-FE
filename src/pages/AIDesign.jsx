@@ -91,6 +91,7 @@ import {
   selectDesignTemplateError,
   selectDesignTemplateStatus,
 } from "../store/features/designTemplate/designTemplateSlice";
+import { createAIDesign, selectAIError, selectAIStatus, selectCurrentAIDesign } from "../store/features/ai/aiSlice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1213,6 +1214,9 @@ const AIDesign = () => {
   const designTemplateStatus = useSelector(selectDesignTemplateStatus);
   const designTemplateError = useSelector(selectDesignTemplateError);
   const [customerNote, setCustomerNote] = useState("");
+  const aiStatus = useSelector(selectAIStatus);
+  const aiError = useSelector(selectAIError);
+  const currentAIDesign = useSelector(selectCurrentAIDesign);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1712,47 +1716,140 @@ const AIDesign = () => {
   };
 
   const exportDesign = async () => {
-    if (!fabricCanvas) return;
+  if (!fabricCanvas) return;
 
-    try {
-      // Thử export fabric canvas trước
-      const dataURL = fabricCanvas.toDataURL({
-        format: "png",
-        quality: 1,
+  try {
+    setIsGenerating(true); // Hiển thị loading state
+
+    // 1. Lấy ảnh từ canvas
+    const dataURL = fabricCanvas.toDataURL({
+      format: "png",
+      quality: 1,
+    });
+
+    // 2. Convert dataURL thành File object
+    const blobBin = atob(dataURL.split(',')[1]);
+    const array = [];
+    for(let i = 0; i < blobBin.length; i++) {
+      array.push(blobBin.charCodeAt(i));
+    }
+    const file = new Blob([new Uint8Array(array)], {type: 'image/png'});
+    const aiImage = new File([file], "canvas-design.png", { type: 'image/png' });
+
+    // 3. Lấy customerDetailId và designTemplateId
+    if (!customerDetail?.id) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
+        severity: "error",
       });
+      setIsGenerating(false);
+      return;
+    }
 
+    const customerDetailId = customerDetail.id;
+    const designTemplateId = selectedSampleProduct;
+
+    if (!designTemplateId) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
+        severity: "error",
+      });
+      setIsGenerating(false);
+      return;
+    }
+
+    // Đảm bảo customerNote không bao giờ là null/undefined
+    const note = customerNote || "Thiết kế từ người dùng";
+    
+    console.log("Preparing to send AI request with:", {
+      customerDetailId,
+      designTemplateId,
+      customerNote: note,
+      hasImage: !!aiImage
+    });
+
+    // 4. Gửi request tạo AI design
+    const resultAction = await dispatch(
+      createAIDesign({
+        customerDetailId,
+        designTemplateId,
+        customerNote: note, // Sử dụng giá trị mặc định nếu rỗng
+        aiImage
+      })
+    );
+
+    // 5. Xử lý kết quả
+    if (createAIDesign.fulfilled.match(resultAction)) {
+      const response = resultAction.payload;
+      console.log("AI design created successfully:", response);
+
+      // Tải ảnh về máy người dùng
       const link = document.createElement("a");
       link.download = "edited-design.png";
       link.href = dataURL;
       link.click();
-    } catch (error) {
-      console.error("Fabric export failed, using html2canvas:", error);
 
-      try {
-        // Sử dụng html2canvas để capture toàn bộ canvas container
-        const canvasContainer = canvasRef.current.parentElement;
-
-        const canvas = await html2canvas(canvasContainer, {
-          allowTaint: true,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-
-        // Convert to blob and download
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = "design-screenshot.png";
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
-        }, "image/png");
-      } catch (html2canvasError) {
-        console.error("html2canvas failed:", html2canvasError);
-        alert("Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.");
-      }
+      // Hiển thị thông báo thành công
+      setSnackbar({
+        open: true,
+        message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
+        severity: "success",
+      });
+    } else {
+      console.error("Failed to create AI design:", resultAction.error);
+      setSnackbar({
+        open: true,
+        message: "Có lỗi xảy ra khi lưu thiết kế. Ảnh đã được tải xuống nhưng chưa lưu vào hệ thống.",
+        severity: "warning",
+      });
+      
+      // Vẫn cho phép tải ảnh xuống dù API có lỗi
+      const link = document.createElement("a");
+      link.download = "edited-design.png";
+      link.href = dataURL;
+      link.click();
     }
-  };
+  } catch (error) {
+    console.error("Error exporting design:", error);
+    
+    // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
+    try {
+      const canvasContainer = canvasRef.current.parentElement;
+      const canvas = await html2canvas(canvasContainer, {
+        allowTaint: true,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = "design-screenshot.png";
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+
+      setSnackbar({
+        open: true,
+        message: "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
+        severity: "warning",
+      });
+    } catch (html2canvasError) {
+      console.error("html2canvas failed:", html2canvasError);
+      setSnackbar({
+        open: true,
+        message: "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
+        severity: "error",
+      });
+    }
+  } finally {
+    setIsGenerating(false); // Tắt loading state
+  }
+};
   useEffect(() => {
     if (currentStep === 4.5 && billboardType) {
       console.log("Fetching design templates for product type:", billboardType);
@@ -3549,7 +3646,7 @@ const AIDesign = () => {
                 onClick={exportDesign}
                 className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
               >
-                Tải xuống
+                Xuất và Lưu thiết kế
               </motion.button>
 
               <motion.button
