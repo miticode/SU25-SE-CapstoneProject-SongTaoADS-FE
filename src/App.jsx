@@ -3,6 +3,8 @@ import { AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useState } from "react";
 import { Snackbar, Alert, CircularProgress } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
 import { syncAuthState } from "./store/features/auth/authSlice";
 import { checkAuthStatus } from "./api/authService";
@@ -169,103 +171,105 @@ const App = () => {
   }
 
   return (
-    <>
-      {/* Thông báo đăng nhập thành công */}
-      <Snackbar
-        open={showLoginSuccess}
-        autoHideDuration={4000}
-        onClose={handleCloseAlert}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <>
+        {/* Thông báo đăng nhập thành công */}
+        <Snackbar
+          open={showLoginSuccess}
+          autoHideDuration={4000}
           onClose={handleCloseAlert}
-          severity="success"
-          variant="filled"
-          sx={{ width: "100%" }}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
         >
-          Đăng nhập thành công!
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={handleCloseAlert}
+            severity="success"
+            variant="filled"
+            sx={{ width: "100%" }}
+          >
+            Đăng nhập thành công!
+          </Alert>
+        </Snackbar>
 
-      {isAuthenticated && <AIChatbot />}
+        {isAuthenticated && <AIChatbot />}
 
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<MainLayout />}>
-            {/* Public routes - có thể truy cập mà không cần đăng nhập */}
-            <Route index element={<Home />} />
-            <Route path="service" element={<Service />} />
-            <Route path="blog" element={<Blog />} />
-            <Route path="aboutus" element={<Aboutus />} />
-            <Route path="ai-design" element={<AIDesign />} />
-            <Route path="order-history" element={<OrderHistory />} />
-            <Route path="checkout" element={<Checkout />} />
-            <Route path="/payment/success" element={<PaymentSuccess />} />
-            <Route path="/payment/cancel" element={<PaymentCancel />} />
-            <Route path="custom-design" element={<CustomDesign />} />
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<MainLayout />}>
+              {/* Public routes - có thể truy cập mà không cần đăng nhập */}
+              <Route index element={<Home />} />
+              <Route path="service" element={<Service />} />
+              <Route path="blog" element={<Blog />} />
+              <Route path="aboutus" element={<Aboutus />} />
+              <Route path="ai-design" element={<AIDesign />} />
+              <Route path="order-history" element={<OrderHistory />} />
+              <Route path="checkout" element={<Checkout />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/cancel" element={<PaymentCancel />} />
+              <Route path="custom-design" element={<CustomDesign />} />
 
-            {/* Protected routes - cần đăng nhập để truy cập */}
+              {/* Protected routes - cần đăng nhập để truy cập */}
+              <Route
+                path="dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
             <Route
-              path="dashboard"
+              path="admin"
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <AdminLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<AdminDashboard />} />
+              {/* Add more admin routes as needed */}
+              {/* <Route path="users" element={<AdminUsers />} /> */}
+              {/* <Route path="orders" element={<AdminOrders />} /> */}
+            </Route>
+            {/* Sale routes with SaleLayout */}
             <Route
-              path="profile"
+              path="sale"
               element={
                 <ProtectedRoute>
-                  <Profile />
+                  <SaleLayout />
                 </ProtectedRoute>
               }
-            />
-          </Route>
-          <Route
-            path="admin"
-            element={
-              <ProtectedRoute>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<AdminDashboard />} />
-            {/* Add more admin routes as needed */}
-            {/* <Route path="users" element={<AdminUsers />} /> */}
-            {/* <Route path="orders" element={<AdminOrders />} /> */}
-          </Route>
-          {/* Sale routes with SaleLayout */}
-          <Route
-            path="sale"
-            element={
-              <ProtectedRoute>
-                <SaleLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<SaleDashboard />} />
-          </Route>
+            >
+              <Route index element={<SaleDashboard />} />
+            </Route>
 
-          {/* Designer routes with DesignerLayout */}
-          <Route
-            path="designer"
-            element={
-              <ProtectedRoute>
-                <DesignerLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<DesignerDashboard />} />
-          </Route>
+            {/* Designer routes with DesignerLayout */}
+            <Route
+              path="designer"
+              element={
+                <ProtectedRoute>
+                  <DesignerLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<DesignerDashboard />} />
+            </Route>
 
-          <Route path="/auth" element={<AuthLayout />}>
-            <Route path="login" element={<Login />} />
-            <Route path="signup" element={<Signup />} />
-          </Route>
-        </Routes>
-      </AnimatePresence>
-    </>
+            <Route path="/auth" element={<AuthLayout />}>
+              <Route path="login" element={<Login />} />
+              <Route path="signup" element={<Signup />} />
+            </Route>
+          </Routes>
+        </AnimatePresence>
+      </>
+    </LocalizationProvider>
   );
 };
 
