@@ -91,7 +91,12 @@ import {
   selectDesignTemplateError,
   selectDesignTemplateStatus,
 } from "../store/features/designTemplate/designTemplateSlice";
-import { createAIDesign, selectAIError, selectAIStatus, selectCurrentAIDesign } from "../store/features/ai/aiSlice";
+import {
+  createAIDesign,
+  selectAIError,
+  selectAIStatus,
+  selectCurrentAIDesign,
+} from "../store/features/ai/aiSlice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1716,140 +1721,152 @@ const AIDesign = () => {
   };
 
   const exportDesign = async () => {
-  if (!fabricCanvas) return;
+    if (!fabricCanvas) return;
 
-  try {
-    setIsGenerating(true); // Hiển thị loading state
+    try {
+      setIsGenerating(true); // Hiển thị loading state
 
-    // 1. Lấy ảnh từ canvas
-    const dataURL = fabricCanvas.toDataURL({
-      format: "png",
-      quality: 1,
-    });
-
-    // 2. Convert dataURL thành File object
-    const blobBin = atob(dataURL.split(',')[1]);
-    const array = [];
-    for(let i = 0; i < blobBin.length; i++) {
-      array.push(blobBin.charCodeAt(i));
-    }
-    const file = new Blob([new Uint8Array(array)], {type: 'image/png'});
-    const aiImage = new File([file], "canvas-design.png", { type: 'image/png' });
-
-    // 3. Lấy customerDetailId và designTemplateId
-    if (!customerDetail?.id) {
-      setSnackbar({
-        open: true,
-        message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
-        severity: "error",
+      // 1. Lấy ảnh từ canvas
+      const dataURL = fabricCanvas.toDataURL({
+        format: "png",
+        quality: 1,
       });
-      setIsGenerating(false);
-      return;
-    }
 
-    const customerDetailId = customerDetail.id;
-    const designTemplateId = selectedSampleProduct;
-
-    if (!designTemplateId) {
-      setSnackbar({
-        open: true,
-        message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
-        severity: "error",
+      // 2. Convert dataURL thành File object
+      const blobBin = atob(dataURL.split(",")[1]);
+      const array = [];
+      for (let i = 0; i < blobBin.length; i++) {
+        array.push(blobBin.charCodeAt(i));
+      }
+      const file = new Blob([new Uint8Array(array)], { type: "image/png" });
+      const aiImage = new File([file], "canvas-design.png", {
+        type: "image/png",
       });
-      setIsGenerating(false);
-      return;
-    }
 
-    // Đảm bảo customerNote không bao giờ là null/undefined
-    const note = customerNote || "Thiết kế từ người dùng";
-    
-    console.log("Preparing to send AI request with:", {
-      customerDetailId,
-      designTemplateId,
-      customerNote: note,
-      hasImage: !!aiImage
-    });
+      // 3. Lấy customerDetailId và designTemplateId
+      if (!customerDetail?.id) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
+          severity: "error",
+        });
+        setIsGenerating(false);
+        return;
+      }
 
-    // 4. Gửi request tạo AI design
-    const resultAction = await dispatch(
-      createAIDesign({
+      const customerDetailId = customerDetail.id;
+      const designTemplateId = selectedSampleProduct;
+
+      if (!designTemplateId) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
+          severity: "error",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      // Đảm bảo customerNote không bao giờ là null/undefined
+      const note = customerNote || "Thiết kế từ người dùng";
+
+      console.log("Preparing to send AI request with:", {
         customerDetailId,
         designTemplateId,
-        customerNote: note, // Sử dụng giá trị mặc định nếu rỗng
-        aiImage
-      })
-    );
-
-    // 5. Xử lý kết quả
-    if (createAIDesign.fulfilled.match(resultAction)) {
-      const response = resultAction.payload;
-      console.log("AI design created successfully:", response);
-
-      // Tải ảnh về máy người dùng
-      const link = document.createElement("a");
-      link.download = "edited-design.png";
-      link.href = dataURL;
-      link.click();
-
-      // Hiển thị thông báo thành công
-      setSnackbar({
-        open: true,
-        message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
-        severity: "success",
-      });
-    } else {
-      console.error("Failed to create AI design:", resultAction.error);
-      setSnackbar({
-        open: true,
-        message: "Có lỗi xảy ra khi lưu thiết kế. Ảnh đã được tải xuống nhưng chưa lưu vào hệ thống.",
-        severity: "warning",
-      });
-      
-      // Vẫn cho phép tải ảnh xuống dù API có lỗi
-      const link = document.createElement("a");
-      link.download = "edited-design.png";
-      link.href = dataURL;
-      link.click();
-    }
-  } catch (error) {
-    console.error("Error exporting design:", error);
-    
-    // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
-    try {
-      const canvasContainer = canvasRef.current.parentElement;
-      const canvas = await html2canvas(canvasContainer, {
-        allowTaint: true,
-        useCORS: true,
-        backgroundColor: "#ffffff",
+        customerNote: note,
+        hasImage: !!aiImage,
       });
 
-      // Convert to blob and download
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
+      // 4. Gửi request tạo AI design
+      const resultAction = await dispatch(
+        createAIDesign({
+          customerDetailId,
+          designTemplateId,
+          customerNote: note, // Sử dụng giá trị mặc định nếu rỗng
+          aiImage,
+        })
+      );
+
+      // 5. Xử lý kết quả
+      if (createAIDesign.fulfilled.match(resultAction)) {
+        const response = resultAction.payload;
+        console.log("AI design created successfully:", response);
+
+        // Tải ảnh về máy người dùng
         const link = document.createElement("a");
-        link.download = "design-screenshot.png";
-        link.href = url;
+        link.download = "edited-design.png";
+        link.href = dataURL;
         link.click();
-        URL.revokeObjectURL(url);
-      }, "image/png");
 
-      setSnackbar({
-        open: true,
-        message: "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
-        severity: "warning",
-      });
-    } catch (html2canvasError) {
-      console.error("html2canvas failed:", html2canvasError);
-      setSnackbar({
-        open: true,
-        message: "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
-        severity: "error",
-      });
+        // Hiển thị thông báo thành công
+        setSnackbar({
+          open: true,
+          message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
+          severity: "success",
+        });
+        const orderButton = document.querySelector(".order-button"); // Thêm class 'order-button' vào nút đặt hàng
+        if (orderButton) {
+          orderButton.classList.add("animate-pulse");
+          setTimeout(() => {
+            orderButton.classList.remove("animate-pulse");
+          }, 3000);
+        }
+      } else {
+        console.error("Failed to create AI design:", resultAction.error);
+        setSnackbar({
+          open: true,
+          message:
+            "Có lỗi xảy ra khi lưu thiết kế. Ảnh đã được tải xuống nhưng chưa lưu vào hệ thống.",
+          severity: "warning",
+        });
+
+        // Vẫn cho phép tải ảnh xuống dù API có lỗi
+        const link = document.createElement("a");
+        link.download = "edited-design.png";
+        link.href = dataURL;
+        link.click();
+      }
+    } catch (error) {
+      console.error("Error exporting design:", error);
+
+      // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
+      try {
+        const canvasContainer = canvasRef.current.parentElement;
+        const canvas = await html2canvas(canvasContainer, {
+          allowTaint: true,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
+
+        // Convert to blob and download
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.download = "design-screenshot.png";
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }, "image/png");
+
+        setSnackbar({
+          open: true,
+          message:
+            "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
+          severity: "warning",
+        });
+      } catch (html2canvasError) {
+        console.error("html2canvas failed:", html2canvasError);
+        setSnackbar({
+          open: true,
+          message:
+            "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
+          severity: "error",
+        });
+      }
+    } finally {
+      setIsGenerating(false); // Tắt loading state
     }
-  } finally {
-    setIsGenerating(false); // Tắt loading state
-  }
-};
+  };
   useEffect(() => {
     if (currentStep === 4.5 && billboardType) {
       console.log("Fetching design templates for product type:", billboardType);
@@ -2195,99 +2212,100 @@ const AIDesign = () => {
   };
 
   const handleConfirm = async () => {
-  if (!user?.id) {
-    setSnackbar({
-      open: true,
-      message: "Vui lòng đăng nhập để tạo đơn hàng",
-      severity: "error",
-    });
-    return;
-  }
-
-  try {
-    // Kiểm tra currentAIDesign đã được tạo chưa (từ hàm exportDesign)
-    if (!currentAIDesign?.id) {
+    if (!user?.id) {
       setSnackbar({
         open: true,
-        message: "Vui lòng xuất và lưu thiết kế trước khi đặt hàng",
-        severity: "warning",
-      });
-      return;
-    }
-
-    // Lấy customerChoiceId từ currentOrder
-    const customerChoiceId = currentOrder?.id;
-    if (!customerChoiceId) {
-      setSnackbar({
-        open: true,
-        message: "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại.",
+        message: "Vui lòng đăng nhập để tạo đơn hàng",
         severity: "error",
       });
       return;
     }
 
-    // Lấy aiDesignId từ currentAIDesign
-    const aiDesignId = currentAIDesign.id;
+    try {
+      // Kiểm tra currentAIDesign đã được tạo chưa (từ hàm exportDesign)
+      if (!currentAIDesign?.id) {
+        setSnackbar({
+          open: true,
+          message: "Vui lòng xuất và lưu thiết kế trước khi đặt hàng",
+          severity: "warning",
+        });
+        return;
+      }
 
-    // Chuẩn bị dữ liệu đơn hàng
-    const orderData = {
-      totalAmount: totalAmount,
-      note: customerNote || "Đơn hàng thiết kế AI",
-      isCustomDesign: true,
-      histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
-      userId: user.id,
-    };
+      // Lấy customerChoiceId từ currentOrder
+      const customerChoiceId = currentOrder?.id;
+      if (!customerChoiceId) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại.",
+          severity: "error",
+        });
+        return;
+      }
 
-    // Hiển thị loading
-    setIsGenerating(true);
+      // Lấy aiDesignId từ currentAIDesign
+      const aiDesignId = currentAIDesign.id;
 
-    // Gọi API createAiOrder
-    const resultAction = await dispatch(
-      createAiOrder({
-        aiDesignId,
-        customerChoiceId,
-        orderData
-      })
-    );
+      // Chuẩn bị dữ liệu đơn hàng
+      const orderData = {
+        totalAmount: totalAmount,
+        note: customerNote || "Đơn hàng thiết kế AI",
+        isCustomDesign: true,
+        histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
+        userId: user.id,
+      };
 
-    // Tắt loading
-    setIsGenerating(false);
+      // Hiển thị loading
+      setIsGenerating(true);
 
-    // Kiểm tra kết quả
-    if (createAiOrder.fulfilled.match(resultAction)) {
-      // Thành công
+      // Gọi API createAiOrder
+      const resultAction = await dispatch(
+        createAiOrder({
+          aiDesignId,
+          customerChoiceId,
+          orderData,
+        })
+      );
+
+      // Tắt loading
+      setIsGenerating(false);
+
+      // Kiểm tra kết quả
+      if (createAiOrder.fulfilled.match(resultAction)) {
+        // Thành công
+        setSnackbar({
+          open: true,
+          message: "Đơn hàng đã được tạo thành công!",
+          severity: "success",
+        });
+
+        // Hiển thị thông báo thành công
+        setShowSuccess(true);
+
+        // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
+        setTimeout(() => {
+          setShowSuccess(false);
+          navigate("/");
+        }, 3000);
+      } else {
+        // Thất bại
+        setSnackbar({
+          open: true,
+          message:
+            resultAction.error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating order:", error);
+      setIsGenerating(false);
       setSnackbar({
         open: true,
-        message: "Đơn hàng đã được tạo thành công!",
-        severity: "success",
-      });
-
-      // Hiển thị thông báo thành công
-      setShowSuccess(true);
-
-      // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
-      setTimeout(() => {
-        setShowSuccess(false);
-        navigate("/");
-      }, 3000);
-    } else {
-      // Thất bại
-      setSnackbar({
-        open: true,
-        message: resultAction.error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
+        message: "Có lỗi xảy ra khi tạo đơn hàng",
         severity: "error",
       });
     }
-  } catch (error) {
-    console.error("Error creating order:", error);
-    setIsGenerating(false);
-    setSnackbar({
-      open: true,
-      message: "Có lỗi xảy ra khi tạo đơn hàng",
-      severity: "error",
-    });
-  }
-};
+  };
 
   const handleBillboardTypeSelect = async (productTypeId) => {
     // First check if we have the customer details
@@ -3683,12 +3701,27 @@ const AIDesign = () => {
               </motion.button>
 
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: currentAIDesign ? 1.05 : 1 }}
+                whileTap={{ scale: currentAIDesign ? 0.95 : 1 }}
                 onClick={handleConfirm}
-                className="px-8 py-3 bg-custom-secondary text-white font-medium rounded-lg hover:bg-custom-secondary/90 transition-all"
+                disabled={!currentAIDesign}
+                className={`order-button px-8 py-3 font-medium rounded-lg transition-all ${
+                  currentAIDesign
+                    ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
               >
-                Đặt hàng
+                {!currentAIDesign ? (
+                  <>
+                    <FaCheck className="mr-2" />
+                    Xuất thiết kế trước khi đặt hàng
+                  </>
+                ) : (
+                  <>
+                    <FaCheck className="mr-2" />
+                    Đặt hàng
+                  </>
+                )}
               </motion.button>
             </div>
           </motion.div>
