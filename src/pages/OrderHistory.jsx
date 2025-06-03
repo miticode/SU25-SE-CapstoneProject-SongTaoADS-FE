@@ -134,13 +134,33 @@ const OrderHistory = () => {
                       Tổng tiền:{" "}
                       {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
                     </Typography>
+                    {order.status === "DEPOSITED" && (
+                      <>
+                        <Typography color="success.main" fontSize={14}>
+                          Đã đặt cọc:{" "}
+                          {order.depositAmount?.toLocaleString("vi-VN") || 0}₫
+                        </Typography>
+                        <Typography color="info.main" fontSize={14}>
+                          Còn lại:{" "}
+                          {order.remainingAmount?.toLocaleString("vi-VN") || 0}₫
+                        </Typography>
+                      </>
+                    )}
+                    {order.deliveryDate && (
+                      <Typography color="primary.main" fontSize={14}>
+                        Ngày giao dự kiến:{" "}
+                        {new Date(order.deliveryDate).toLocaleDateString(
+                          "vi-VN"
+                        )}
+                      </Typography>
+                    )}
                   </Box>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Chip
                       label={statusMap[order.status]?.label || order.status}
                       color={statusMap[order.status]?.color || "default"}
                     />
-                    {["APPROVED", "CONFIRMED"].includes(
+                    {["APPROVED", "CONFIRMED", "PENDING"].includes(
                       (order.status || "").toUpperCase()
                     ) && (
                       <Button

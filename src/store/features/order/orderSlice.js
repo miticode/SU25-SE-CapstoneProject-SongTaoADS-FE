@@ -1,6 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi } from '../../../api/orderService';
 
+// Định nghĩa tất cả các trạng thái hợp lệ
+export const ALL_ORDER_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "CANCELLED",
+  "DEPOSITED",
+  "COMPLETED",
+  "PROCESSING"
+];
+
 // Async thunks
 export const createOrder = createAsyncThunk(
   'order/createOrder',
@@ -27,6 +38,10 @@ export const fetchOrders = createAsyncThunk(
   async (orderStatus, { rejectWithValue }) => {
     // orderStatus có thể là undefined, string hoặc mảng
     let allOrders = [];
+    if (!orderStatus) {
+      // Nếu không truyền gì, lấy tất cả trạng thái
+      orderStatus = ALL_ORDER_STATUSES;
+    }
     if (Array.isArray(orderStatus)) {
       // Nếu là mảng, gọi API cho từng trạng thái và gộp kết quả
       for (const status of orderStatus) {
@@ -37,7 +52,7 @@ export const fetchOrders = createAsyncThunk(
       }
       return allOrders;
     } else {
-      // Nếu là string hoặc undefined
+      // Nếu là string
       const response = await getOrdersApi(orderStatus);
       if (response.success) {
         return response.data;
