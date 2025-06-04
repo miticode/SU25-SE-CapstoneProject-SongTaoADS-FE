@@ -98,6 +98,7 @@ import {
   selectImageGenerationError,
   selectImageGenerationStatus,
 } from "../store/features/ai/aiSlice";
+import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1256,7 +1257,12 @@ const AIDesign = () => {
     underline: false,
     text: "Sample Text",
   });
-
+  const [businessPresets, setBusinessPresets] = useState({
+    logoUrl: "",
+    companyName: "",
+    tagLine: "",
+    contactInfo: "",
+  });
   const fonts = [
     "Arial",
     "Times New Roman",
@@ -1267,12 +1273,11 @@ const AIDesign = () => {
     "Open Sans",
     "Lato",
   ];
-  const [businessPresets, setBusinessPresets] = useState({
-    logoUrl: "",
-    companyName: "",
-    tagLine: "",
-    contactInfo: "",
-  });
+  const s3Logo = useSelector((state) =>
+    businessPresets.logoUrl
+      ? selectS3Image(state, businessPresets.logoUrl)
+      : null
+  );
   useEffect(() => {
     if (currentStep === 6 && user?.id) {
       // Fetch customer detail để lấy business info
@@ -1280,12 +1285,20 @@ const AIDesign = () => {
         .unwrap()
         .then((customerData) => {
           console.log("Customer detail loaded:", customerData);
+
+          // Set business presets
           setBusinessPresets({
             logoUrl: customerData.logoUrl || "",
             companyName: customerData.companyName || "",
             tagLine: customerData.tagLine || "",
             contactInfo: customerData.contactInfo || "",
           });
+
+          // Fetch logo from S3 if logoUrl exists
+          if (customerData.logoUrl) {
+            console.log("Fetching logo from S3:", customerData.logoUrl);
+            dispatch(fetchImageFromS3(customerData.logoUrl));
+          }
         })
         .catch((error) => {
           console.error("Failed to load customer detail:", error);
@@ -1343,14 +1356,15 @@ const AIDesign = () => {
         break;
 
       case "logoUrl":
-        console.log("CÁCH 1: Processing logo URL:", content);
-
+        console.log("Processing logo URL:", content);
+        const logoSource = s3Logo || content;
+        console.log("Using logo source:", logoSource);
         // CÁCH 1: Sử dụng HTML Image element (BỎ crossOrigin)
         const img = new Image();
-        // img.crossOrigin = 'anonymous'; // BỎ DÒNG NÀY
+        img.crossOrigin = "anonymous";
 
         img.onload = function () {
-          console.log("CÁCH 1: Logo loaded successfully");
+          console.log("Logo loaded successfully");
           console.log("Image dimensions:", img.width, "x", img.height);
 
           try {
@@ -1376,14 +1390,14 @@ const AIDesign = () => {
             fabricCanvas.setActiveObject(fabricImg);
             fabricCanvas.renderAll();
 
-            console.log("CÁCH 1: Logo added to canvas successfully");
+            console.log("Logo added to canvas successfully");
           } catch (error) {
-            console.error("CÁCH 1: Error creating fabric image:", error);
+            console.error("Error creating fabric image:", error);
           }
         };
 
         img.onerror = function (error) {
-          console.error("CÁCH 1: Failed to load logo image:", content, error);
+          console.error("Failed to load logo image:", logoSource, error);
 
           // FALLBACK: Tạo placeholder cho logo
           console.log("Creating logo placeholder due to CORS error");
@@ -1433,7 +1447,7 @@ const AIDesign = () => {
           console.log("Logo placeholder added successfully");
         };
 
-        img.src = content;
+        img.src = logoSource;
         return;
 
       default:
@@ -3410,7 +3424,7 @@ const AIDesign = () => {
                         onClick={() =>
                           addBusinessInfoToCanvas(
                             "logoUrl",
-                            businessPresets.logoUrl
+                            s3Logo || businessPresets.logoUrl
                           )
                         }
                       >
@@ -3422,7 +3436,7 @@ const AIDesign = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <img
-                            src={businessPresets.logoUrl}
+                            src={s3Logo || businessPresets.logoUrl}
                             alt="Logo preview"
                             className="w-8 h-8 object-cover rounded"
                             onError={(e) => {
