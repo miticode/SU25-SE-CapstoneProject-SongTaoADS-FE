@@ -31,7 +31,9 @@ import Checkout from "./pages/Checkout";
 import AIChatbot from "./components/AIChatbot";
 import CustomDesign from "./pages/CustomDesign";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
+import ManagerLayout from "./layouts/ManagerLayout";
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -238,6 +240,19 @@ const App = () => {
               {/* <Route path="users" element={<AdminUsers />} /> */}
               {/* <Route path="orders" element={<AdminOrders />} /> */}
             </Route>
+
+            <Route
+              path="manager"
+              element={
+                <ProtectedRoute>
+                  <ManagerLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<ManagerDashboard />} />
+              {/* Add more manager routes as needed */}
+            </Route>
+
             {/* Sale routes with SaleLayout */}
             <Route
               path="sale"
