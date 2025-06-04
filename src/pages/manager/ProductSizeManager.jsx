@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import {
-  fetchSizes,
-  addSize,
-  updateSize,
-  deleteSize,
-  selectAllSizes,
-  selectSizeStatus,
-  selectSizeError,
-} from "../../store/features/size/sizeSlice";
+  getProductTypesApi,
+  getProductTypeSizesByProductTypeIdApi,
+  addSizeToProductTypeApi,
+  deleteProductTypeSizeApi,
+} from "../../api/productTypeService";
+import { getAllSizesApi } from "../../api/sizeService";
 import {
   Box,
   Typography,
@@ -25,161 +22,236 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
+  Select,
+  MenuItem,
   CircularProgress,
-  Alert,
   Snackbar,
+  Alert,
 } from "@mui/material";
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-} from "@mui/icons-material";
-import MuiAlert from "@mui/material/Alert";
+import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 
 const ProductSizeManager = () => {
-  const dispatch = useDispatch();
-  const sizes = useSelector(selectAllSizes);
-  const status = useSelector(selectSizeStatus);
-  const error = useSelector(selectSizeError);
+  const [productTypes, setProductTypes] = useState([]);
+  const [selectedProductTypeId, setSelectedProductTypeId] = useState(null);
+  const [productTypeSizes, setProductTypeSizes] = useState([]);
+  const [allSizes, setAllSizes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedSizeId, setSelectedSizeId] = useState("");
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
-  const [openDialog, setOpenDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState("add");
-  const [form, setForm] = useState({ name: "", description: "" });
-  const [editId, setEditId] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-
+  // Fetch all product types and all sizes on mount
   useEffect(() => {
-    dispatch(fetchSizes());
-  }, [dispatch]);
+    const fetchData = async () => {
+      setLoading(true);
+      const ptRes = await getProductTypesApi();
+      const sizeRes = await getAllSizesApi();
+      if (ptRes.success) setProductTypes(ptRes.data);
+      if (sizeRes.success) setAllSizes(sizeRes.data);
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  // Fetch sizes for selected product type
+  useEffect(() => {
+    if (!selectedProductTypeId) return;
+    const fetchSizes = async () => {
+      setLoading(true);
+      const res = await getProductTypeSizesByProductTypeIdApi(
+        selectedProductTypeId
+      );
+      if (res.success) setProductTypeSizes(res.data);
+      setLoading(false);
+    };
+    fetchSizes();
+  }, [selectedProductTypeId]);
+
+  // Lọc size chưa có trong product type
+  const availableSizes = allSizes.filter(
+    (s) => !productTypeSizes.some((ptSize) => ptSize.sizes.id === s.id)
+  );
 
   const handleOpenAdd = () => {
-    setDialogMode("add");
-    setForm({ name: "", description: "" });
-    setEditId(null);
-    setOpenDialog(true);
+    setSelectedSizeId(availableSizes[0]?.id || "");
+    setAddDialogOpen(true);
   };
-  const handleOpenEdit = (row) => {
-    setDialogMode("edit");
-    setForm({ name: row.name || "", description: row.description || "" });
-    setEditId(row.id);
-    setOpenDialog(true);
-  };
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setEditId(null);
-  };
-  const handleSubmit = async () => {
-    if (dialogMode === "add") {
-      await dispatch(addSize(form));
-      dispatch(fetchSizes());
-    } else if (dialogMode === "edit" && editId) {
-      await dispatch(updateSize({ id: editId, data: form }));
-      dispatch(fetchSizes());
-    }
-    setOpenDialog(false);
-  };
-  const handleDelete = async (row) => {
-    const result = await dispatch(deleteSize(row.id));
-    if (deleteSize.fulfilled.match(result)) {
-      setSnackbarOpen(true);
+  const handleAddSize = async () => {
+    if (!selectedProductTypeId || !selectedSizeId) return;
+    setLoading(true);
+    const res = await addSizeToProductTypeApi(
+      selectedProductTypeId,
+      selectedSizeId
+    );
+    if (res.success) {
+      setSnackbar({
+        open: true,
+        message: "Thêm kích thước thành công!",
+        severity: "success",
+      });
+      // Reload sizes
+      const reload = await getProductTypeSizesByProductTypeIdApi(
+        selectedProductTypeId
+      );
+      if (reload.success) setProductTypeSizes(reload.data);
     } else {
-      // Nếu muốn, có thể show snackbar lỗi ở đây
+      setSnackbar({
+        open: true,
+        message: res.error || "Thêm thất bại!",
+        severity: "error",
+      });
     }
+    setAddDialogOpen(false);
+    setLoading(false);
+  };
+  const handleDelete = async (productTypeSizeId) => {
+    setLoading(true);
+    const res = await deleteProductTypeSizeApi(productTypeSizeId);
+    if (res.success) {
+      setSnackbar({
+        open: true,
+        message: "Xóa thành công!",
+        severity: "success",
+      });
+      // Reload sizes
+      const reload = await getProductTypeSizesByProductTypeIdApi(
+        selectedProductTypeId
+      );
+      if (reload.success) setProductTypeSizes(reload.data);
+    } else {
+      setSnackbar({
+        open: true,
+        message: res.error || "Xóa thất bại!",
+        severity: "error",
+      });
+    }
+    setLoading(false);
   };
 
   return (
-    <Box>
-      <Box
-        mb={2}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Typography variant="h5" fontWeight="bold">
-          Quản lý kích thước
+    <Box display="flex" gap={2}>
+      {/* Sidebar Product Type List */}
+      <Box width={260} minWidth={200} borderRight="1px solid #eee" pr={2}>
+        <Typography variant="h6" mb={2}>
+          Loại sản phẩm
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenAdd}
-        >
-          Thêm kích thước
-        </Button>
+        {loading && <CircularProgress size={20} />}
+        {productTypes.map((pt) => (
+          <Box
+            key={pt.id}
+            p={1.2}
+            mb={1}
+            borderRadius={2}
+            bgcolor={
+              selectedProductTypeId === pt.id ? "#e8f5e9" : "transparent"
+            }
+            sx={{
+              cursor: "pointer",
+              fontWeight: selectedProductTypeId === pt.id ? 600 : 400,
+            }}
+            onClick={() => setSelectedProductTypeId(pt.id)}
+          >
+            {pt.name}
+          </Box>
+        ))}
       </Box>
-      {status === "loading" && <CircularProgress />}
-      {error && <Alert severity="error">{error}</Alert>}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Tên</TableCell>
-              <TableCell>Mô tả</TableCell>
-              <TableCell align="right">Thao tác</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sizes.map((row) => (
-              <TableRow key={row.id} hover>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.description || ""}</TableCell>
-                <TableCell align="right">
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleOpenEdit(row)}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton color="error" onClick={() => handleDelete(row)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>
-          {dialogMode === "add" ? "Thêm kích thước" : "Sửa kích thước"}
-        </DialogTitle>
+      {/* Main Content: Size Table */}
+      <Box flex={1}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={2}
+        >
+          <Typography variant="h5" fontWeight="bold">
+            {selectedProductTypeId
+              ? `Kích thước của: ${
+                  productTypes.find((pt) => pt.id === selectedProductTypeId)
+                    ?.name
+                }`
+              : "Chọn loại sản phẩm để xem kích thước"}
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAdd}
+            disabled={!selectedProductTypeId || availableSizes.length === 0}
+          >
+            Thêm kích thước
+          </Button>
+        </Box>
+        {loading && <CircularProgress />}
+        {!loading && selectedProductTypeId && (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Tên</TableCell>
+                  <TableCell>Mô tả</TableCell>
+                  <TableCell align="right">Thao tác</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {productTypeSizes.map((ptSize) => (
+                  <TableRow key={ptSize.id} hover>
+                    <TableCell>{ptSize.sizes.name}</TableCell>
+                    <TableCell>{ptSize.sizes.description}</TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(ptSize.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Box>
+      {/* Add Size Dialog */}
+      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)}>
+        <DialogTitle>Thêm kích thước vào loại sản phẩm</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Tên"
+          <Select
+            value={selectedSizeId}
+            onChange={(e) => setSelectedSizeId(e.target.value)}
             fullWidth
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Mô tả"
-            fullWidth
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
+          >
+            {availableSizes.map((size) => (
+              <MenuItem key={size.id} value={size.id}>
+                {size.name}
+              </MenuItem>
+            ))}
+          </Select>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Hủy</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {dialogMode === "add" ? "Thêm" : "Sửa"}
+          <Button onClick={() => setAddDialogOpen(false)}>Hủy</Button>
+          <Button
+            onClick={handleAddSize}
+            variant="contained"
+            disabled={!selectedSizeId}
+          >
+            Thêm
           </Button>
         </DialogActions>
       </Dialog>
+      {/* Snackbar */}
       <Snackbar
-        open={snackbarOpen}
+        open={snackbar.open}
         autoHideDuration={2000}
-        onClose={() => setSnackbarOpen(false)}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <MuiAlert
-          onClose={() => setSnackbarOpen(false)}
-          severity="success"
-          sx={{ width: "100%" }}
-        >
-          Xóa kích thước thành công!
-        </MuiAlert>
+        <Alert severity={snackbar.severity} sx={{ width: "100%" }}>
+          {snackbar.message}
+        </Alert>
       </Snackbar>
     </Box>
   );

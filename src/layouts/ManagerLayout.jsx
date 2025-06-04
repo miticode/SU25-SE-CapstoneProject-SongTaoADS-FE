@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
 import {
   Box,
   Drawer,
@@ -38,6 +39,7 @@ import {
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
 import ProductSizeManager from "../pages/manager/ProductSizeManager";
+import ManagerFineTuneAI from "../pages/manager/ManagerFineTuneAI";
 
 const drawerWidth = 240;
 
@@ -56,6 +58,11 @@ const menuItems = [
   { id: "tasks", text: "Task Management", icon: <TasksIcon /> },
   { id: "statistics", text: "Statistics", icon: <StatisticsIcon /> },
   { id: "settings", text: "Settings", icon: <SettingsIcon /> },
+  {
+    id: "fine-tune-ai",
+    text: "Fine Tune AI",
+    icon: <PrecisionManufacturingIcon />,
+  },
 ];
 
 const ManagerLayout = () => {
@@ -338,9 +345,10 @@ const ManagerLayout = () => {
         <Toolbar />
         {activeTab === "product-type" && <ProductTypeManager />}
         {activeTab === "product-size" && <ProductSizeManager />}
-        {activeTab !== "product-type" && activeTab !== "product-size" && (
-          <Outlet context={{ activeTab }} />
-        )}
+        {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
+        {activeTab !== "product-type" &&
+          activeTab !== "product-size" &&
+          activeTab !== "fine-tune-ai" && <Outlet context={{ activeTab }} />}
       </Box>
     </Box>
   );
