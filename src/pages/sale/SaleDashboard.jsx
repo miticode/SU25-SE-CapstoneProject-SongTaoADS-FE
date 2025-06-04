@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchOrders } from "../../store/features/order/orderSlice";
-import { getOrderByIdApi, updateOrderStatusApi } from "../../api/orderService";
+import { ALL_ORDER_STATUSES } from "../../store/features/order/orderSlice";
+import {
+  getOrderByIdApi,
+  updateOrderStatusApi,
+  saleConfirmOrderApi,
+} from "../../api/orderService";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
 import {
   Box,
@@ -53,14 +59,6 @@ import DashboardContent from "./DashboardContent";
 
 const drawerWidth = 240;
 
-const ORDER_STATUSES = [
-  "PENDING",
-  "CANCELLED",
-  "DEPOSITED",
-  "COMPLETED",
-  "PROCESSING",
-];
-
 const SaleDashboard = () => {
   const dispatch = useDispatch();
   const { orders } = useSelector((state) => state.order);
@@ -71,6 +69,9 @@ const SaleDashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(null);
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
@@ -103,8 +104,8 @@ const SaleDashboard = () => {
   //   };
 
   useEffect(() => {
-    // Lấy tất cả đơn hàng với 5 trạng thái khi load trang
-    dispatch(fetchOrders(ORDER_STATUSES));
+    // Lấy tất cả đơn hàng với mọi trạng thái khi load trang
+    dispatch(fetchOrders(ALL_ORDER_STATUSES));
   }, [dispatch]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
@@ -166,7 +167,7 @@ const SaleDashboard = () => {
     if (status) {
       dispatch(fetchOrders(status));
     } else {
-      dispatch(fetchOrders(ORDER_STATUSES));
+      dispatch(fetchOrders(ALL_ORDER_STATUSES));
     }
   };
 
@@ -236,13 +237,32 @@ const SaleDashboard = () => {
     try {
       const res = await updateOrderStatusApi(orderId, "CANCELLED");
       if (res.success) {
-        dispatch(fetchOrders(ORDER_STATUSES));
+        dispatch(fetchOrders(ALL_ORDER_STATUSES));
         handleCloseDialog();
       } else {
         alert(res.error || "Cập nhật trạng thái thất bại!");
       }
     } catch {
       alert("Cập nhật trạng thái thất bại!");
+    }
+  };
+
+  const handleConfirmDeliveryDate = async () => {
+    if (!selectedOrder?.id || !deliveryDate) return;
+    setDeliveryLoading(true);
+    try {
+      const res = await saleConfirmOrderApi(selectedOrder.id, { deliveryDate });
+      if (res.success) {
+        dispatch(fetchOrders());
+        setShowDeliveryPicker(false);
+        setOpenDialog(false);
+      } else {
+        alert(res.error || "Cập nhật ngày giao dự kiến thất bại!");
+      }
+    } catch (err) {
+      alert("Cập nhật ngày giao dự kiến thất bại!");
+    } finally {
+      setDeliveryLoading(false);
     }
   };
 
@@ -446,6 +466,14 @@ const SaleDashboard = () => {
                       <b>Còn lại:</b>{" "}
                       {selectedOrder.remainingAmount?.toLocaleString() || 0} VNĐ
                     </Typography>
+                    {selectedOrder.deliveryDate && (
+                      <Typography sx={{ mb: 0.5 }} color="primary.main">
+                        <b>Ngày giao dự kiến:</b>{" "}
+                        {new Date(
+                          selectedOrder.deliveryDate
+                        ).toLocaleDateString("vi-VN")}
+                      </Typography>
+                    )}
                     <Box
                       sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
                     >
@@ -491,26 +519,66 @@ const SaleDashboard = () => {
               </Grid>
             </DialogContent>
             <DialogActions sx={{ justifyContent: "center", gap: 2, mt: 1 }}>
-              {selectedOrder.status === "PENDING" && (
+              {selectedOrder.status === "PENDING" &&
+                selectedOrder.isCustomDesign && (
+                  <>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      onClick={() => handleRejectOrder(selectedOrder.id)}
+                      startIcon={<CancelIcon />}
+                    >
+                      TỪ CHỐI
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={() =>
+                        handleUpdateStatus(selectedOrder.id, "APPROVED")
+                      }
+                      startIcon={<CheckCircleIcon />}
+                    >
+                      Xác nhận
+                    </Button>
+                  </>
+                )}
+              {selectedOrder.status === "DEPOSITED" && (
                 <>
                   <Button
                     variant="contained"
-                    color="error"
-                    onClick={() => handleRejectOrder(selectedOrder.id)}
-                    startIcon={<CancelIcon />}
+                    color="info"
+                    onClick={() => setShowDeliveryPicker(true)}
                   >
-                    TỪ CHỐI
+                    Báo ngày giao dự kiến
                   </Button>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    onClick={() =>
-                      handleUpdateStatus(selectedOrder.id, "APPROVED")
-                    }
-                    startIcon={<CheckCircleIcon />}
+                  <Dialog
+                    open={showDeliveryPicker}
+                    onClose={() => setShowDeliveryPicker(false)}
                   >
-                    Xác nhận
-                  </Button>
+                    <DialogTitle>Báo ngày giao dự kiến</DialogTitle>
+                    <DialogContent>
+                      <DatePicker
+                        label="Ngày giao dự kiến"
+                        value={deliveryDate}
+                        onChange={setDeliveryDate}
+                        disablePast
+                        slotProps={{ textField: { fullWidth: true } }}
+                      />
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={() => setShowDeliveryPicker(false)}>
+                        Hủy
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleConfirmDeliveryDate}
+                        disabled={!deliveryDate || deliveryLoading}
+                      >
+                        Xác nhận
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
                 </>
               )}
               <Button onClick={handleCloseDialog}>Đóng</Button>

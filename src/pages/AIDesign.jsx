@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-import bien1 from "../assets/images/bien1.jpg";
-import bien2 from "../assets/images/bien2.jpg";
-import bien3 from "../assets/images/bien3.jpg";
-import bien4 from "../assets/images/bien4.jpg";
+
 import StepIndicator from "../components/StepIndicator";
 import {
   TextField,
@@ -93,9 +90,13 @@ import {
 } from "../store/features/designTemplate/designTemplateSlice";
 import {
   createAIDesign,
+  generateImageFromText,
   selectAIError,
   selectAIStatus,
   selectCurrentAIDesign,
+  selectGeneratedImage,
+  selectImageGenerationError,
+  selectImageGenerationStatus,
 } from "../store/features/ai/aiSlice";
 const ModernBillboardForm = ({
   attributes,
@@ -1125,7 +1126,7 @@ const ModernBillboardForm = ({
               </Box>
             </Box>
             {/* Ghi chú thiết kế */}
-            <Box mt={2}>
+            {/* <Box mt={2}>
               <Typography
                 variant="subtitle2"
                 fontWeight={600}
@@ -1167,7 +1168,7 @@ const ModernBillboardForm = ({
               >
                 Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
               </Typography>
-            </Box>
+            </Box> */}
           </motion.div>
         )}
 
@@ -1222,6 +1223,10 @@ const AIDesign = () => {
   const aiStatus = useSelector(selectAIStatus);
   const aiError = useSelector(selectAIError);
   const currentAIDesign = useSelector(selectCurrentAIDesign);
+  const generatedImage = useSelector(selectGeneratedImage);
+  const imageGenerationStatus = useSelector(selectImageGenerationStatus);
+  const imageGenerationError = useSelector(selectImageGenerationError);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1234,51 +1239,6 @@ const AIDesign = () => {
     message: "",
     severity: "success",
   });
-  const sampleProducts = [
-    {
-      id: 1,
-      url: "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
-      title: "Mẫu biển hiệu hiện đại",
-    },
-    {
-      id: 2,
-      url: "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
-      title: "Mẫu biển hiệu truyền thống",
-    },
-    {
-      id: 3,
-      url: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-      title: "Mẫu biển hiệu đèn LED",
-    },
-    {
-      id: 4,
-      url: "https://bienquangcao247.com/wp-content/uploads/2024/07/bang-hieu-quang-cao-01.jpg",
-      title: "Mẫu biển hiệu 3D",
-    },
-  ];
-  // Tạm thời sử dụng 4 ảnh mẫu
-  const previewImages = [
-    {
-      id: 1,
-      url: bien1,
-      title: "Mẫu 1",
-    },
-    {
-      id: 2,
-      url: bien2,
-      title: "Mẫu 2",
-    },
-    {
-      id: 3,
-      url: bien3,
-      title: "Mẫu 3",
-    },
-    {
-      id: 4,
-      url: bien4,
-      title: "Mẫu 4",
-    },
-  ];
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const totalAmount = useSelector(selectTotalAmount);
@@ -1492,22 +1452,20 @@ const AIDesign = () => {
     console.log("Selected image ID:", selectedImage);
     console.log("Canvas ref:", canvasRef.current);
     console.log("Fabric canvas exists:", !!fabricCanvas);
+    console.log("Generated image:", generatedImage);
 
     // Chỉ khởi tạo canvas khi:
     // 1. Đang ở step 6
     // 2. Canvas ref đã sẵn sàng
     // 3. Chưa có fabricCanvas
-    // 4. Có selectedImage
+    // 4. Có selectedImage hoặc generatedImage
     if (
       currentStep === 6 &&
       canvasRef.current &&
       !fabricCanvas &&
-      selectedImage
+      generatedImage
     ) {
-      console.log(
-        "KHỞI TẠO CANVAS - Initializing canvas with selected image:",
-        selectedImage
-      );
+      console.log("INITIALIZING CANVAS with AI-generated image");
 
       const canvas = new fabric.Canvas(canvasRef.current, {
         width: 800,
@@ -1515,11 +1473,12 @@ const AIDesign = () => {
         backgroundColor: "#f8f9fa",
       });
 
-      const selectedImg = previewImages.find((img) => img.id === selectedImage);
+      // Use AI generated image if available, otherwise use sample image
+      const imageUrl = generatedImage;
 
-      console.log("Found selected image:", selectedImg);
+      console.log("Using AI-generated image URL:", imageUrl);
 
-      if (selectedImg && selectedImg.url) {
+      if (imageUrl) {
         console.log("LOADING IMAGE: Loading image via HTML Image element");
 
         const img = new Image();
@@ -1559,20 +1518,29 @@ const AIDesign = () => {
             canvas.sendToBack(fabricImg);
             canvas.renderAll();
 
-            console.log("IMAGE ADDED TO CANVAS SUCCESSFULLY");
-            console.log("Canvas objects count:", canvas.getObjects().length);
+            console.log("AI-GENERATED IMAGE ADDED TO CANVAS SUCCESSFULLY");
           } catch (error) {
             console.error("ERROR creating fabric image:", error);
           }
         };
 
         img.onerror = function (error) {
-          console.error("ERROR loading image:", selectedImg.url, error);
+          console.error("ERROR loading image:", imageUrl, error);
+          setSnackbar({
+            open: true,
+            message: "Lỗi khi tải hình ảnh. Vui lòng thử lại.",
+            severity: "error",
+          });
         };
 
-        img.src = selectedImg.url;
+        img.src = imageUrl;
       } else {
-        console.error("ERROR: Selected image not found or missing URL");
+        console.error("ERROR: No image URL available");
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy hình ảnh để chỉnh sửa. Vui lòng thử lại.",
+          severity: "error",
+        });
       }
 
       // Canvas event handlers
@@ -1617,20 +1585,21 @@ const AIDesign = () => {
 
     // Cleanup khi rời khỏi step 6 HOẶC khi selectedImage thay đổi
     return () => {
-      if (fabricCanvas && (currentStep !== 6 || !selectedImage)) {
+      if (fabricCanvas && currentStep !== 6) {
         console.log("CLEANUP: Disposing canvas");
         fabricCanvas.dispose();
         setFabricCanvas(null);
       }
     };
-  }, [currentStep, selectedImage]); // BỎ fabricCanvas và previewImages khỏi dependencies
+  }, [currentStep, generatedImage]);
 
   // Thêm useEffect riêng để handle khi selectedImage thay đổi trong step 6
+
   useEffect(() => {
-    if (currentStep === 6 && selectedImage && fabricCanvas) {
+    if (currentStep === 6 && generatedImage && fabricCanvas) {
       console.log(
-        "SELECTED IMAGE CHANGED: Updating canvas with new image:",
-        selectedImage
+        "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
+        generatedImage
       );
 
       // Xóa ảnh cũ
@@ -1640,49 +1609,54 @@ const AIDesign = () => {
         fabricCanvas.remove(oldImage);
       }
 
-      // Load ảnh mới
-      const selectedImg = previewImages.find((img) => img.id === selectedImage);
+      // Load ảnh được tạo bởi AI
+      const img = new Image();
+      img.crossOrigin = "anonymous";
 
-      if (selectedImg && selectedImg.url) {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
+      img.onload = function () {
+        console.log("AI GENERATED IMAGE LOADED SUCCESSFULLY");
 
-        img.onload = function () {
-          console.log("NEW IMAGE LOADED SUCCESSFULLY");
+        const fabricImg = new fabric.Image(img, {
+          left: 0,
+          top: 0,
+          selectable: false,
+          evented: false,
+          name: "backgroundImage",
+        });
 
-          const fabricImg = new fabric.Image(img, {
-            left: 0,
-            top: 0,
-            selectable: false,
-            evented: false,
-            name: "backgroundImage",
-          });
+        const canvasWidth = 800;
+        const canvasHeight = 600;
+        const scaleX = canvasWidth / fabricImg.width;
+        const scaleY = canvasHeight / fabricImg.height;
+        const scale = Math.min(scaleX, scaleY);
 
-          const canvasWidth = 800;
-          const canvasHeight = 600;
-          const scaleX = canvasWidth / fabricImg.width;
-          const scaleY = canvasHeight / fabricImg.height;
-          const scale = Math.min(scaleX, scaleY);
+        fabricImg.set({
+          scaleX: scale,
+          scaleY: scale,
+          left: (canvasWidth - fabricImg.width * scale) / 2,
+          top: (canvasHeight - fabricImg.height * scale) / 2,
+        });
 
-          fabricImg.set({
-            scaleX: scale,
-            scaleY: scale,
-            left: (canvasWidth - fabricImg.width * scale) / 2,
-            top: (canvasHeight - fabricImg.height * scale) / 2,
-          });
+        fabricCanvas.add(fabricImg);
+        fabricCanvas.sendToBack(fabricImg);
+        fabricCanvas.renderAll();
 
-          fabricCanvas.add(fabricImg);
-          fabricCanvas.sendToBack(fabricImg);
-          fabricCanvas.renderAll();
+        console.log("AI GENERATED IMAGE ADDED TO CANVAS");
+      };
 
-          console.log("NEW IMAGE ADDED TO CANVAS");
-        };
+      img.onerror = function (error) {
+        console.error("ERROR loading AI generated image:", error);
 
-        img.src = selectedImg.url;
-      }
+        // Fallback to first preview image if loading fails
+        const fallbackImage = new Image();
+        fallbackImage.crossOrigin = "anonymous";
+        fallbackImage.src = previewImages[0].url;
+        fallbackImage.onload = img.onload;
+      };
+
+      img.src = generatedImage;
     }
-  }, [selectedImage, fabricCanvas, currentStep]);
-
+  }, [generatedImage, fabricCanvas, currentStep]);
   const addText = () => {
     if (!fabricCanvas) return;
 
@@ -2190,20 +2164,42 @@ const AIDesign = () => {
       return;
     }
 
+    if (!customerNote.trim()) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng nhập ghi chú thiết kế trước khi tiếp tục",
+        severity: "warning",
+      });
+      return;
+    }
+
     // Show the loading animation for AI generating images
     setIsGenerating(true);
 
-    // Use setTimeout to simulate AI processing time
-    setTimeout(() => {
-      // Change to case 5 after "generating" the images
-      setCurrentStep(5);
-      setIsGenerating(false);
-      navigate("/ai-design");
-    }, 2000); // 2 seconds loading time for better user experience
-  };
-  const handleImageSelect = (imageId) => {
-    console.log("Image selected:", imageId);
-    setSelectedImage(imageId);
+    // Make the API call to generate image from text
+    dispatch(
+      generateImageFromText({
+        designTemplateId: selectedSampleProduct,
+        prompt: customerNote.trim(),
+      })
+    )
+      .unwrap()
+      .then(() => {
+        console.log("Image generation started successfully");
+        // Move to step 5 after successful generation start
+        setCurrentStep(5);
+        setIsGenerating(false);
+        navigate("/ai-design");
+      })
+      .catch((error) => {
+        console.error("Error generating image:", error);
+        setIsGenerating(false);
+        setSnackbar({
+          open: true,
+          message: `Lỗi khi tạo hình ảnh: ${error || "Vui lòng thử lại sau"}`,
+          severity: "error",
+        });
+      });
   };
 
   const handleRegenerate = () => {
@@ -3064,6 +3060,47 @@ const AIDesign = () => {
               </div>
             )}
 
+            {/* Display design notes area only after selecting a template */}
+            {selectedSampleProduct && (
+              <motion.div
+                className="mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                  <h3 className="text-xl font-semibold mb-4 flex items-center">
+                    <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
+                    Ghi chú thiết kế{" "}
+                    <span className="text-red-500 ml-1">*</span>
+                  </h3>
+                  <textarea
+                    className={`w-full px-4 py-3 border ${
+                      selectedSampleProduct && !customerNote.trim()
+                        ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                        : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
+                    } rounded-lg focus:ring-2 transition-all`}
+                    rows="3"
+                    name="designNotes"
+                    placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
+                    value={customerNote}
+                    onChange={(e) => setCustomerNote(e.target.value)}
+                  ></textarea>
+                  <div className="flex justify-between mt-2">
+                    <p className="text-gray-500 text-sm italic">
+                      Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu
+                      của bạn
+                    </p>
+                    <p className="text-red-500 text-sm">
+                      {selectedSampleProduct && !customerNote.trim()
+                        ? "Vui lòng nhập ghi chú thiết kế"
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             <motion.div
               className="flex justify-between mt-8"
               variants={itemVariants}
@@ -3095,12 +3132,21 @@ const AIDesign = () => {
                 type="button"
                 onClick={handleContinueToPreview}
                 className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  selectedSampleProduct
+                  selectedSampleProduct && customerNote.trim()
                     ? "bg-custom-primary text-white hover:bg-custom-secondary"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
-                whileHover={selectedSampleProduct ? { scale: 1.02 } : {}}
-                whileTap={selectedSampleProduct ? { scale: 0.98 } : {}}
+                whileHover={
+                  selectedSampleProduct && customerNote.trim()
+                    ? { scale: 1.02 }
+                    : {}
+                }
+                whileTap={
+                  selectedSampleProduct && customerNote.trim()
+                    ? { scale: 0.98 }
+                    : {}
+                }
+                disabled={!selectedSampleProduct || !customerNote.trim()}
               >
                 Tiếp tục
                 <svg
@@ -3135,37 +3181,44 @@ const AIDesign = () => {
               Xem trước thiết kế
             </motion.h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              {previewImages.map((image) => (
+            {imageGenerationError && (
+              <motion.div
+                className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center"
+                variants={itemVariants}
+              >
+                Có lỗi xảy ra khi tạo hình ảnh. Vui lòng thử lại.
+              </motion.div>
+            )}
+
+            <div className="mb-12">
+              {imageGenerationStatus === "loading" ? (
+                <div className="flex justify-center items-center py-12">
+                  <CircularProgress size={60} color="primary" />
+                  <p className="ml-4 text-gray-600">Đang tải thiết kế...</p>
+                </div>
+              ) : imageGenerationStatus === "succeeded" && generatedImage ? (
                 <motion.div
-                  key={image.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3 }}
-                  className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transform transition-all duration-300 ${
-                    selectedImage === image.id
-                      ? "ring-4 ring-custom-secondary scale-105"
-                      : "hover:scale-105"
-                  }`}
-                  onClick={() => handleImageSelect(image.id)}
+                  className="rounded-xl overflow-hidden shadow-lg w-full mx-auto max-w-2xl"
                 >
                   <img
-                    src={image.url}
-                    alt={image.title}
-                    className="w-full h-64 object-cover"
+                    src={generatedImage}
+                    alt="AI Generated Design"
+                    className="w-full object-cover"
+                    onClick={() => setSelectedImage(1)}
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                    <div className="bg-white rounded-full p-2">
-                      <FaCheck className="w-6 h-6 text-custom-secondary" />
-                    </div>
-                  </div>
-                  {selectedImage === image.id && (
-                    <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                      <FaCheckCircle className="w-6 h-6" />
-                    </div>
-                  )}
                 </motion.div>
-              ))}
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                  <FaRobot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">
+                    Không có thiết kế nào được tạo. Vui lòng quay lại và thử
+                    lại.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-center space-x-6">
@@ -3182,93 +3235,49 @@ const AIDesign = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                // onClick={async () => {
-                //   // Lấy customerChoiceId từ Redux hoặc attribute details
-                //   const allDetails = Object.values(customerChoiceDetails);
-                //   const customerChoiceId =
-                //     currentOrder?.id || allDetails[0]?.customerChoicesId;
-                //   console.log(
-                //     "customerChoiceId dùng để tạo order:",
-                //     customerChoiceId
-                //   );
-                //   if (!customerChoiceId) {
-                //     setSnackbar({
-                //       open: true,
-                //       message:
-                //         "Không tìm thấy customerChoiceId. Vui lòng thử lại.",
-                //       severity: "error",
-                //     });
-                //     return;
-                //   }
-                //   try {
-                //     const orderData = {
-                //       totalAmount: totalAmount,
-                //       note: "Đơn hàng thiết kế AI",
-                //       isCustomDesign: true,
-                //       histories: [
-                //         `Đơn hàng được tạo lúc ${new Date().toLocaleString()}`,
-                //       ],
-                //       userId: user.id,
-                //       aiDesignId: selectedImage?.toString(),
-                //     };
-                //     console.log("Dispatch createOrder với:", {
-                //       customerChoiceId,
-                //       orderData,
-                //     });
-                //     const response = await dispatch(
-                //       createOrder({ customerChoiceId, orderData })
-                //     ).unwrap();
-                //     console.log(
-                //       "Kết quả trả về từ Redux createOrder:",
-                //       response
-                //     );
-                //     setSnackbar({
-                //       open: true,
-                //       message: "Đơn hàng đã được tạo thành công!",
-                //       severity: "success",
-                //     });
-                //     setTimeout(() => {
-                //       setShowSuccess(false);
-                //       navigate("/");
-                //     }, 3000);
-                //   } catch (error) {
-                //     console.error("Error creating order:", error);
-                //     setSnackbar({
-                //       open: true,
-                //       message:
-                //         error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
-                //       severity: "error",
-                //     });
-                //   }
-                // }}
                 onClick={() => {
-                  if (!selectedImage) {
+                  if (!generatedImage) {
                     setSnackbar({
                       open: true,
-                      message: "Vui lòng chọn một thiết kế trước khi tiếp tục",
+                      message:
+                        "Vui lòng chờ thiết kế được tạo trước khi tiếp tục",
                       severity: "warning",
                     });
                     return;
                   }
-                  // Show loading animation
-                  setIsGenerating(true);
+
+                  // Use the local isConfirming state
+                  setIsConfirming(true);
 
                   // Use setTimeout to simulate processing time
                   setTimeout(() => {
                     setCurrentStep(6);
-                    setIsGenerating(false);
+                    setIsConfirming(false);
                     navigate("/ai-design?step=confirm");
                   }, 1000);
                 }}
-                disabled={!selectedImage}
+                disabled={!generatedImage || isConfirming}
                 className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  selectedImage
+                  generatedImage && !isConfirming
                     ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                <FaCheck className="mr-2" />
-                Xác nhận
+                {isConfirming ? (
+                  <>
+                    <CircularProgress
+                      size={20}
+                      color="inherit"
+                      className="mr-2"
+                    />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <FaCheck className="mr-2" />
+                    Xác nhận
+                  </>
+                )}
               </motion.button>
             </div>
 

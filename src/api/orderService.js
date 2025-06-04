@@ -94,7 +94,9 @@ export const createAiOrderApi = async (aiDesignId, customerChoiceId, orderData) 
       note: orderData.note || '',
       address: orderData.address || '',
       deliveryDate: orderData.deliveryDate || null,
-      histories: orderData.histories || []
+      histories: orderData.histories || [],
+      // thêm vô
+      status: 'PENDING'
     });
 
     const { success, result, message } = response.data;
@@ -115,9 +117,11 @@ export const createAiOrderApi = async (aiDesignId, customerChoiceId, orderData) 
 };
 // Hàm lấy danh sách đơn hàng
 export const getOrdersApi = async (orderStatus) => {
+  if (!orderStatus) {
+    throw new Error('orderStatus is required!');
+  }
   try {
-    // Nếu không truyền orderStatus thì lấy tất cả đơn hàng
-    const url = orderStatus ? `/api/orders?orderStatus=${orderStatus}` : '/api/orders';
+    const url = `/api/orders?orderStatus=${orderStatus}`;
     const response = await orderService.get(url);
 
     const { success, result, message } = response.data;

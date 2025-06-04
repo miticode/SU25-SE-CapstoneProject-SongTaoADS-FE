@@ -7,6 +7,7 @@ import orderReducer from "./features/order/orderSlice";
 import designTemplateReducer from "./features/designTemplate/designTemplateSlice";
 import userReducer from "./features/user/userSlice";
 import aiReducer from "./features/ai/aiSlice";
+import sizeReducer from "./features/size/sizeSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -17,6 +18,7 @@ export const store = configureStore({
     designTemplate: designTemplateReducer,
     users: userReducer,
     ai: aiReducer,
+    size: sizeReducer,
     // Thêm các reducer khác tại đây
   },
 });

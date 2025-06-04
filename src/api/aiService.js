@@ -47,3 +47,41 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
     throw error;
   }
 };
+export const generateImageFromTextApi = async (designTemplateId, prompt) => {
+  try {
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    
+    const token = getToken();
+    const API_URL = 'https://songtaoads.online';
+    
+    // Log để debug
+    console.log('Sending text-to-image request:');
+    console.log('Design Template ID:', designTemplateId);
+    console.log('Prompt:', prompt);
+    
+    const response = await axios.post(
+      `${API_URL}/api/design-templates/${designTemplateId}/txt2img`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        },
+        responseType: 'blob', // Important: to handle binary image data
+      }
+    );
+    
+    // Convert blob to URL for display
+    const imageUrl = URL.createObjectURL(response.data);
+    
+    // Only return the URL, not the blob itself
+    return { success: true, imageUrl };
+  } catch (error) {
+    console.error('Text-to-Image API Error:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to generate image from text'
+    };
+  }
+};

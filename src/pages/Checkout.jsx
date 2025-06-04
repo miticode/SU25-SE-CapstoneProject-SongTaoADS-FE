@@ -24,7 +24,10 @@ import PageTransition from "../components/PageTransition";
 import StepIndicator from "../components/StepIndicator";
 import PayOSCheckout from "../components/PayOSCheckout";
 import { createPayOSDeposit } from "../api/paymentService";
-import { updateOrderStatusApi, getOrderByIdApi } from "../api/orderService";
+import {
+  updateOrderCustomerInfoApi,
+  getOrderByIdApi,
+} from "../api/orderService";
 import { getOrdersByUserIdApi } from "../api/orderService";
 import { getProfileApi } from "../api/authService";
 
@@ -95,11 +98,9 @@ const Checkout = () => {
     if (currentStep === 1) {
       try {
         if (!orderId) throw new Error("Không tìm thấy orderId!");
-        await updateOrderStatusApi(orderId, {
+        await updateOrderCustomerInfoApi(orderId, {
           address: customer.address,
           note: "",
-          deliveryDate: new Date().toISOString(),
-          status: "PENDING",
         });
         // Fetch lại order mới nhất sau khi cập nhật địa chỉ
         const res = await getOrderByIdApi(orderId);
