@@ -98,6 +98,7 @@ import {
   selectImageGenerationError,
   selectImageGenerationStatus,
 } from "../store/features/ai/aiSlice";
+import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1227,6 +1228,8 @@ const AIDesign = () => {
   const imageGenerationStatus = useSelector(selectImageGenerationStatus);
   const imageGenerationError = useSelector(selectImageGenerationError);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isOrdering, setIsOrdering] = useState(false);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1254,7 +1257,12 @@ const AIDesign = () => {
     underline: false,
     text: "Sample Text",
   });
-
+  const [businessPresets, setBusinessPresets] = useState({
+    logoUrl: "",
+    companyName: "",
+    tagLine: "",
+    contactInfo: "",
+  });
   const fonts = [
     "Arial",
     "Times New Roman",
@@ -1265,12 +1273,11 @@ const AIDesign = () => {
     "Open Sans",
     "Lato",
   ];
-  const [businessPresets, setBusinessPresets] = useState({
-    logoUrl: "",
-    companyName: "",
-    tagLine: "",
-    contactInfo: "",
-  });
+  const s3Logo = useSelector((state) =>
+    businessPresets.logoUrl
+      ? selectS3Image(state, businessPresets.logoUrl)
+      : null
+  );
   useEffect(() => {
     if (currentStep === 6 && user?.id) {
       // Fetch customer detail để lấy business info
@@ -1278,12 +1285,20 @@ const AIDesign = () => {
         .unwrap()
         .then((customerData) => {
           console.log("Customer detail loaded:", customerData);
+
+          // Set business presets
           setBusinessPresets({
             logoUrl: customerData.logoUrl || "",
             companyName: customerData.companyName || "",
             tagLine: customerData.tagLine || "",
             contactInfo: customerData.contactInfo || "",
           });
+
+          // Fetch logo from S3 if logoUrl exists
+          if (customerData.logoUrl) {
+            console.log("Fetching logo from S3:", customerData.logoUrl);
+            dispatch(fetchImageFromS3(customerData.logoUrl));
+          }
         })
         .catch((error) => {
           console.error("Failed to load customer detail:", error);
@@ -1341,14 +1356,15 @@ const AIDesign = () => {
         break;
 
       case "logoUrl":
-        console.log("CÁCH 1: Processing logo URL:", content);
-
+        console.log("Processing logo URL:", content);
+        const logoSource = s3Logo || content;
+        console.log("Using logo source:", logoSource);
         // CÁCH 1: Sử dụng HTML Image element (BỎ crossOrigin)
         const img = new Image();
-        // img.crossOrigin = 'anonymous'; // BỎ DÒNG NÀY
+        img.crossOrigin = "anonymous";
 
         img.onload = function () {
-          console.log("CÁCH 1: Logo loaded successfully");
+          console.log("Logo loaded successfully");
           console.log("Image dimensions:", img.width, "x", img.height);
 
           try {
@@ -1374,14 +1390,14 @@ const AIDesign = () => {
             fabricCanvas.setActiveObject(fabricImg);
             fabricCanvas.renderAll();
 
-            console.log("CÁCH 1: Logo added to canvas successfully");
+            console.log("Logo added to canvas successfully");
           } catch (error) {
-            console.error("CÁCH 1: Error creating fabric image:", error);
+            console.error("Error creating fabric image:", error);
           }
         };
 
         img.onerror = function (error) {
-          console.error("CÁCH 1: Failed to load logo image:", content, error);
+          console.error("Failed to load logo image:", logoSource, error);
 
           // FALLBACK: Tạo placeholder cho logo
           console.log("Creating logo placeholder due to CORS error");
@@ -1431,7 +1447,7 @@ const AIDesign = () => {
           console.log("Logo placeholder added successfully");
         };
 
-        img.src = content;
+        img.src = logoSource;
         return;
 
       default:
@@ -1698,7 +1714,7 @@ const AIDesign = () => {
     if (!fabricCanvas) return;
 
     try {
-      setIsGenerating(true); // Hiển thị loading state
+      setIsExporting(true); // Use local loading state instead of global
 
       // 1. Lấy ảnh từ canvas
       const dataURL = fabricCanvas.toDataURL({
@@ -1724,7 +1740,7 @@ const AIDesign = () => {
           message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
           severity: "error",
         });
-        setIsGenerating(false);
+        setIsExporting(false);
         return;
       }
 
@@ -1737,7 +1753,7 @@ const AIDesign = () => {
           message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
           severity: "error",
         });
-        setIsGenerating(false);
+        setIsExporting(false);
         return;
       }
 
@@ -1778,7 +1794,7 @@ const AIDesign = () => {
           message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
           severity: "success",
         });
-        const orderButton = document.querySelector(".order-button"); // Thêm class 'order-button' vào nút đặt hàng
+        const orderButton = document.querySelector(".order-button");
         if (orderButton) {
           orderButton.classList.add("animate-pulse");
           setTimeout(() => {
@@ -1838,7 +1854,7 @@ const AIDesign = () => {
         });
       }
     } finally {
-      setIsGenerating(false); // Tắt loading state
+      setIsExporting(false); // Turn off the local loading state instead of global
     }
   };
   useEffect(() => {
@@ -2251,8 +2267,8 @@ const AIDesign = () => {
         userId: user.id,
       };
 
-      // Hiển thị loading
-      setIsGenerating(true);
+      // Use local loading state instead of global
+      setIsOrdering(true);
 
       // Gọi API createAiOrder
       const resultAction = await dispatch(
@@ -2263,8 +2279,8 @@ const AIDesign = () => {
         })
       );
 
-      // Tắt loading
-      setIsGenerating(false);
+      // Turn off loading
+      setIsOrdering(false);
 
       // Kiểm tra kết quả
       if (createAiOrder.fulfilled.match(resultAction)) {
@@ -2294,7 +2310,7 @@ const AIDesign = () => {
       }
     } catch (error) {
       console.error("Error creating order:", error);
-      setIsGenerating(false);
+      setIsOrdering(false);
       setSnackbar({
         open: true,
         message: "Có lỗi xảy ra khi tạo đơn hàng",
@@ -3408,7 +3424,7 @@ const AIDesign = () => {
                         onClick={() =>
                           addBusinessInfoToCanvas(
                             "logoUrl",
-                            businessPresets.logoUrl
+                            s3Logo || businessPresets.logoUrl
                           )
                         }
                       >
@@ -3420,7 +3436,7 @@ const AIDesign = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <img
-                            src={businessPresets.logoUrl}
+                            src={s3Logo || businessPresets.logoUrl}
                             alt="Logo preview"
                             className="w-8 h-8 object-cover rounded"
                             onError={(e) => {
@@ -3704,23 +3720,46 @@ const AIDesign = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={exportDesign}
-                className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
+                disabled={isExporting}
+                className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all flex items-center"
               >
-                Xuất và Lưu thiết kế
+                {isExporting ? (
+                  <>
+                    <CircularProgress
+                      size={20}
+                      color="inherit"
+                      className="mr-2"
+                    />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>Xuất và Lưu thiết kế</>
+                )}
               </motion.button>
 
               <motion.button
-                whileHover={{ scale: currentAIDesign ? 1.05 : 1 }}
-                whileTap={{ scale: currentAIDesign ? 0.95 : 1 }}
+                whileHover={{
+                  scale: currentAIDesign && !isOrdering ? 1.05 : 1,
+                }}
+                whileTap={{ scale: currentAIDesign && !isOrdering ? 0.95 : 1 }}
                 onClick={handleConfirm}
-                disabled={!currentAIDesign}
-                className={`order-button px-8 py-3 font-medium rounded-lg transition-all ${
-                  currentAIDesign
+                disabled={!currentAIDesign || isOrdering}
+                className={`order-button px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+                  currentAIDesign && !isOrdering
                     ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                {!currentAIDesign ? (
+                {isOrdering ? (
+                  <>
+                    <CircularProgress
+                      size={20}
+                      color="inherit"
+                      className="mr-2"
+                    />
+                    Đang xử lý...
+                  </>
+                ) : !currentAIDesign ? (
                   <>
                     <FaCheck className="mr-2" />
                     Xuất thiết kế trước khi đặt hàng
