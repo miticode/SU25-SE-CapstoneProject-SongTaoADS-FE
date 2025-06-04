@@ -1227,6 +1227,8 @@ const AIDesign = () => {
   const imageGenerationStatus = useSelector(selectImageGenerationStatus);
   const imageGenerationError = useSelector(selectImageGenerationError);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isOrdering, setIsOrdering] = useState(false);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1698,7 +1700,7 @@ const AIDesign = () => {
     if (!fabricCanvas) return;
 
     try {
-      setIsGenerating(true); // Hiển thị loading state
+      setIsExporting(true); // Use local loading state instead of global
 
       // 1. Lấy ảnh từ canvas
       const dataURL = fabricCanvas.toDataURL({
@@ -1724,7 +1726,7 @@ const AIDesign = () => {
           message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
           severity: "error",
         });
-        setIsGenerating(false);
+        setIsExporting(false);
         return;
       }
 
@@ -1737,7 +1739,7 @@ const AIDesign = () => {
           message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
           severity: "error",
         });
-        setIsGenerating(false);
+        setIsExporting(false);
         return;
       }
 
@@ -1778,7 +1780,7 @@ const AIDesign = () => {
           message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
           severity: "success",
         });
-        const orderButton = document.querySelector(".order-button"); // Thêm class 'order-button' vào nút đặt hàng
+        const orderButton = document.querySelector(".order-button");
         if (orderButton) {
           orderButton.classList.add("animate-pulse");
           setTimeout(() => {
@@ -1838,7 +1840,7 @@ const AIDesign = () => {
         });
       }
     } finally {
-      setIsGenerating(false); // Tắt loading state
+      setIsExporting(false); // Turn off the local loading state instead of global
     }
   };
   useEffect(() => {
@@ -2251,8 +2253,8 @@ const AIDesign = () => {
         userId: user.id,
       };
 
-      // Hiển thị loading
-      setIsGenerating(true);
+      // Use local loading state instead of global
+      setIsOrdering(true);
 
       // Gọi API createAiOrder
       const resultAction = await dispatch(
@@ -2263,8 +2265,8 @@ const AIDesign = () => {
         })
       );
 
-      // Tắt loading
-      setIsGenerating(false);
+      // Turn off loading
+      setIsOrdering(false);
 
       // Kiểm tra kết quả
       if (createAiOrder.fulfilled.match(resultAction)) {
@@ -2294,7 +2296,7 @@ const AIDesign = () => {
       }
     } catch (error) {
       console.error("Error creating order:", error);
-      setIsGenerating(false);
+      setIsOrdering(false);
       setSnackbar({
         open: true,
         message: "Có lỗi xảy ra khi tạo đơn hàng",
@@ -3704,23 +3706,46 @@ const AIDesign = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={exportDesign}
-                className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
+                disabled={isExporting}
+                className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all flex items-center"
               >
-                Xuất và Lưu thiết kế
+                {isExporting ? (
+                  <>
+                    <CircularProgress
+                      size={20}
+                      color="inherit"
+                      className="mr-2"
+                    />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>Xuất và Lưu thiết kế</>
+                )}
               </motion.button>
 
               <motion.button
-                whileHover={{ scale: currentAIDesign ? 1.05 : 1 }}
-                whileTap={{ scale: currentAIDesign ? 0.95 : 1 }}
+                whileHover={{
+                  scale: currentAIDesign && !isOrdering ? 1.05 : 1,
+                }}
+                whileTap={{ scale: currentAIDesign && !isOrdering ? 0.95 : 1 }}
                 onClick={handleConfirm}
-                disabled={!currentAIDesign}
-                className={`order-button px-8 py-3 font-medium rounded-lg transition-all ${
-                  currentAIDesign
+                disabled={!currentAIDesign || isOrdering}
+                className={`order-button px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+                  currentAIDesign && !isOrdering
                     ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                {!currentAIDesign ? (
+                {isOrdering ? (
+                  <>
+                    <CircularProgress
+                      size={20}
+                      color="inherit"
+                      className="mr-2"
+                    />
+                    Đang xử lý...
+                  </>
+                ) : !currentAIDesign ? (
                   <>
                     <FaCheck className="mr-2" />
                     Xuất thiết kế trước khi đặt hàng
