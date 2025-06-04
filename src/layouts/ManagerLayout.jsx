@@ -32,15 +32,27 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Assignment as TasksIcon,
   Group as TeamIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
+import ProductTypeManager from "../pages/manager/ProductTypeManager";
+import ProductSizeManager from "../pages/manager/ProductSizeManager";
 
 const drawerWidth = 240;
 
 // Define all sidebar menu items for Manager
 const menuItems = [
   { id: "dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-  { id: "team", text: "Team Management", icon: <TeamIcon /> },
+  {
+    id: "product",
+    text: "Product Management",
+    icon: <TeamIcon />,
+    subItems: [
+      { id: "product-type", text: "Product Type" },
+      { id: "product-size", text: "Product Size" },
+    ],
+  },
   { id: "tasks", text: "Task Management", icon: <TasksIcon /> },
   { id: "statistics", text: "Statistics", icon: <StatisticsIcon /> },
   { id: "settings", text: "Settings", icon: <SettingsIcon /> },
@@ -49,6 +61,7 @@ const menuItems = [
 const ManagerLayout = () => {
   const [open, setOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [expandedMenu, setExpandedMenu] = useState(null);
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const theme = useTheme();
@@ -90,6 +103,10 @@ const ManagerLayout = () => {
     if (isMobile) {
       setOpen(false);
     }
+  };
+
+  const handleMenuExpand = (menuId) => {
+    setExpandedMenu(expandedMenu === menuId ? null : menuId);
   };
 
   return (
@@ -206,39 +223,89 @@ const ManagerLayout = () => {
 
           <List>
             {menuItems.map((item) => (
-              <ListItem key={item.id} disablePadding>
-                <ListItemButton
-                  sx={{
-                    borderRadius: "0 24px 24px 0",
-                    mr: 1,
-                    "&:hover": {
-                      backgroundColor: "rgba(46, 125, 50, 0.08)",
-                    },
-                    "&.Mui-selected": {
-                      backgroundColor: "rgba(46, 125, 50, 0.16)",
-                    },
-                  }}
-                  selected={activeTab === item.id}
-                  onClick={() => handleMenuItemClick(item.id)}
-                >
-                  <ListItemIcon
+              <React.Fragment key={item.id}>
+                <ListItem disablePadding>
+                  <ListItemButton
                     sx={{
-                      minWidth: 40,
-                      color:
-                        activeTab === item.id ? "#2e7d32" : "text.secondary",
+                      borderRadius: "0 24px 24px 0",
+                      mr: 1,
+                      "&:hover": {
+                        backgroundColor: "rgba(46, 125, 50, 0.08)",
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: "rgba(46, 125, 50, 0.16)",
+                      },
+                    }}
+                    selected={activeTab === item.id}
+                    onClick={() => {
+                      if (item.subItems) {
+                        handleMenuExpand(item.id);
+                      } else {
+                        handleMenuItemClick(item.id);
+                      }
                     }}
                   >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontWeight: activeTab === item.id ? 600 : 400,
-                      color: activeTab === item.id ? "#2e7d32" : "text.primary",
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 40,
+                        color:
+                          activeTab === item.id ? "#2e7d32" : "text.secondary",
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.text}
+                      primaryTypographyProps={{
+                        fontWeight: activeTab === item.id ? 600 : 400,
+                        color:
+                          activeTab === item.id ? "#2e7d32" : "text.primary",
+                      }}
+                    />
+                    {item.subItems &&
+                      (expandedMenu === item.id ? (
+                        <ExpandLessIcon />
+                      ) : (
+                        <ExpandMoreIcon />
+                      ))}
+                  </ListItemButton>
+                </ListItem>
+                {item.subItems && expandedMenu === item.id && (
+                  <List component="div" disablePadding>
+                    {item.subItems.map((subItem) => (
+                      <ListItem key={subItem.id} disablePadding>
+                        <ListItemButton
+                          sx={{
+                            pl: 4,
+                            borderRadius: "0 24px 24px 0",
+                            mr: 1,
+                            "&:hover": {
+                              backgroundColor: "rgba(46, 125, 50, 0.08)",
+                            },
+                            "&.Mui-selected": {
+                              backgroundColor: "rgba(46, 125, 50, 0.16)",
+                            },
+                          }}
+                          selected={activeTab === subItem.id}
+                          onClick={() => handleMenuItemClick(subItem.id)}
+                        >
+                          <ListItemText
+                            primary={subItem.text}
+                            primaryTypographyProps={{
+                              fontWeight: activeTab === subItem.id ? 600 : 400,
+                              color:
+                                activeTab === subItem.id
+                                  ? "#2e7d32"
+                                  : "text.primary",
+                              fontSize: "0.9rem",
+                            }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </React.Fragment>
             ))}
           </List>
           <Divider sx={{ my: 2 }} />
@@ -269,7 +336,11 @@ const ManagerLayout = () => {
         }}
       >
         <Toolbar />
-        <Outlet context={{ activeTab }} />
+        {activeTab === "product-type" && <ProductTypeManager />}
+        {activeTab === "product-size" && <ProductSizeManager />}
+        {activeTab !== "product-type" && activeTab !== "product-size" && (
+          <Outlet context={{ activeTab }} />
+        )}
       </Box>
     </Box>
   );

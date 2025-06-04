@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, Outlet } from "react-router-dom";
 import { SiProbot } from "react-icons/si";
+import AIChatbot from "../components/AIChatbot";
 
 const AuthLayout = () => {
   return (
@@ -20,7 +21,9 @@ const AuthLayout = () => {
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-4">
               Đột phá quảng cáo <br />
-              <span className="text-custom-secondary">với trí tuệ nhân tạo</span>
+              <span className="text-custom-secondary">
+                với trí tuệ nhân tạo
+              </span>
             </h1>
             <p className="text-lg opacity-80 max-w-md">
               Tạo ra những quảng cáo thu hút và chuyển đổi cao với sự hỗ trợ của
@@ -119,6 +122,7 @@ const AuthLayout = () => {
           </div>
         </div>
       </div>
+      <AIChatbot />
     </div>
   );
 };
