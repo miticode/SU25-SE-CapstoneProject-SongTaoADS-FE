@@ -397,7 +397,7 @@ export const updateUserAvatarApi = async (userId, file) => {
     const formData = new FormData();
     formData.append('avatar', file);
 
-    const response = await authService.put(`/api/users/${userId}/avatar`, formData, {
+    const response = await authService.patch(`/api/users/${userId}/avatar`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -418,7 +418,7 @@ export const updateUserAvatarApi = async (userId, file) => {
 // Cập nhật họ tên và số điện thoại
 export const updateUserProfileApi = async (userId, fullName, phone) => {
   try {
-    const response = await authService.put(`/api/users/${userId}/profile`, { fullName, phone });
+    const response = await authService.patch(`/api/users/${userId}/profile`, { fullName, phone });
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };
@@ -435,7 +435,7 @@ export const updateUserProfileApi = async (userId, fullName, phone) => {
 // Đổi mật khẩu
 export const updateUserPasswordApi = async (userId, oldPassword, newPassword) => {
   try {
-    const response = await authService.put(`/api/users/${userId}/password`, { oldPassword, newPassword });
+    const response = await authService.patch(`/api/users/${userId}/password`, { oldPassword, newPassword });
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };

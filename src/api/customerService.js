@@ -124,12 +124,16 @@ export const updateCustomerDetailApi = async (customerDetailId, customerData) =>
       const token = getToken();
       
       // Gọi API PUT để cập nhật thông tin text
-      const textResponse = await customerService.put(`/api/customer-details/${customerDetailId}`, textData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const textResponse = await customerService.patch(
+        `/api/customer-details/${customerDetailId}/information`,
+        textData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
       
       const textResult = textResponse.data;
       textUpdateSuccess = textResult.success;
@@ -203,7 +207,7 @@ export const updateCustomerDetailApi = async (customerDetailId, customerData) =>
 };
 export const getCustomerDetailByUserIdApi = async (userId) => {
   try {
-    const response = await customerService.get(`/api/user/${userId}/customer-details`);
+    const response = await customerService.get(`/api/users/${userId}/customer-details`);
 
     return response.data;
   } catch (error) {
