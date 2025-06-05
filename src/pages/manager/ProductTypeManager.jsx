@@ -63,7 +63,7 @@ const ProductTypeManager = () => {
 
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState("add"); // 'add' | 'edit'
-  const [form, setForm] = useState({ name: "" });
+ const [form, setForm] = useState({ name: "", calculateFormula: "" });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editId, setEditId] = useState(null);
@@ -77,65 +77,68 @@ const ProductTypeManager = () => {
     dispatch(fetchProductTypes());
   }, [dispatch]);
 
-  const handleOpenAdd = () => {
-    setDialogMode("add");
-    setForm({ name: "" });
-    setEditId(null);
-    setOpenDialog(true);
-  };
-  const handleOpenEdit = (row) => {
-    setDialogMode("edit");
-    setForm({ name: row.name || "" });
-    setEditId(row.id);
-    setOpenDialog(true);
-  };
+ const handleOpenAdd = () => {
+  setDialogMode("add");
+  setForm({ name: "", calculateFormula: "" });
+  setEditId(null);
+  setOpenDialog(true);
+};
+ const handleOpenEdit = (row) => {
+  setDialogMode("edit");
+  setForm({ 
+    name: row.name || "", 
+    calculateFormula: row.calculateFormula || "" 
+  });
+  setEditId(row.id);
+  setOpenDialog(true);
+};
   const handleCloseDialog = () => {
     setOpenDialog(false);
   };
   const handleSubmit = async () => {
-    if (dialogMode === "add") {
-      const res = await addProductTypeApi({
-        name: form.name,
-        calculateFormula: "",
-        isAvailable: true,
+  if (dialogMode === "add") {
+    const res = await addProductTypeApi({
+      name: form.name,
+      calculateFormula: form.calculateFormula,
+      isAvailable: true,
+    });
+    if (res.success) {
+      dispatch(fetchProductTypes());
+      setSnackbar({
+        open: true,
+        message: "Thêm thành công!",
+        severity: "success",
       });
-      if (res.success) {
-        dispatch(fetchProductTypes());
-        setSnackbar({
-          open: true,
-          message: "Thêm thành công!",
-          severity: "success",
-        });
-      } else {
-        setSnackbar({
-          open: true,
-          message: res.error || "Add failed",
-          severity: "error",
-        });
-      }
-    } else if (dialogMode === "edit" && editId) {
-      const res = await updateProductTypeApi(editId, {
-        name: form.name,
-        calculateFormula: "",
-        isAvailable: true,
+    } else {
+      setSnackbar({
+        open: true,
+        message: res.error || "Add failed",
+        severity: "error",
       });
-      if (res.success) {
-        dispatch(fetchProductTypes());
-        setSnackbar({
-          open: true,
-          message: "Cập nhật thành công!",
-          severity: "success",
-        });
-      } else {
-        setSnackbar({
-          open: true,
-          message: res.error || "Update failed",
-          severity: "error",
-        });
-      }
     }
-    setOpenDialog(false);
-  };
+  } else if (dialogMode === "edit" && editId) {
+    const res = await updateProductTypeApi(editId, {
+      name: form.name,
+      calculateFormula: form.calculateFormula,
+      isAvailable: true,
+    });
+    if (res.success) {
+      dispatch(fetchProductTypes());
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thành công!",
+        severity: "success",
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: res.error || "Update failed",
+        severity: "error",
+      });
+    }
+  }
+  setOpenDialog(false);
+};
   const handleDelete = (row) => {
     setDeleteTarget(row);
     setConfirmOpen(true);
@@ -202,64 +205,80 @@ const ProductTypeManager = () => {
         sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(56,142,60,0.08)" }}
       >
         <Table stickyHeader>
-          <TableHead>
-            <TableRow sx={{ backgroundColor: "#e8f5e9" }}>
-              <TableCell sx={{ fontWeight: 700 }}>Tên</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Ngày tạo</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Ngày cập nhật</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>
-                Thao Tác
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {productTypes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} align="center">
-                  <Illustration />
-                </TableCell>
-              </TableRow>
-            ) : (
-              productTypes.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    transition: "background 0.2s",
-                    ":hover": { bgcolor: "#f1f8e9" },
-                  }}
-                >
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>
-                    {row.createAt
-                      ? dayjs(row.createAt).format("DD/MM/YYYY")
-                      : ""}
-                  </TableCell>
-                  <TableCell>
-                    {row.updateAt
-                      ? dayjs(row.updateAt).format("DD/MM/YYYY")
-                      : ""}
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleOpenEdit(row)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDelete(row)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
+         <TableHead>
+  <TableRow sx={{ backgroundColor: "#e8f5e9" }}>
+    <TableCell sx={{ fontWeight: 700 }}>Tên</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Công thức tính toán</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Ngày tạo</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Ngày cập nhật</TableCell>
+    <TableCell align="right" sx={{ fontWeight: 700 }}>
+      Thao Tác
+    </TableCell>
+  </TableRow>
+</TableHead>
+         <TableBody>
+  {productTypes.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={5} align="center">
+        <Illustration />
+      </TableCell>
+    </TableRow>
+  ) : (
+    productTypes.map((row) => (
+      <TableRow
+        key={row.id}
+        hover
+        sx={{
+          transition: "background 0.2s",
+          ":hover": { bgcolor: "#f1f8e9" },
+        }}
+      >
+        <TableCell>{row.name}</TableCell>
+        <TableCell>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              fontFamily: 'monospace',
+              maxWidth: 200,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+            title={row.calculateFormula || "Không có công thức"}
+          >
+            {row.calculateFormula || "Không có công thức"}
+          </Typography>
+        </TableCell>
+        <TableCell>
+          {row.createAt
+            ? dayjs(row.createAt).format("DD/MM/YYYY")
+            : ""}
+        </TableCell>
+        <TableCell>
+          {row.updateAt
+            ? dayjs(row.updateAt).format("DD/MM/YYYY")
+            : ""}
+        </TableCell>
+        <TableCell align="right">
+          <IconButton
+            color="primary"
+            onClick={() => handleOpenEdit(row)}
+            sx={{ borderRadius: 2 }}
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            color="error"
+            onClick={() => handleDelete(row)}
+            sx={{ borderRadius: 2 }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+    ))
+  )}
+</TableBody>
         </Table>
       </TableContainer>
       <Dialog
@@ -271,16 +290,25 @@ const ProductTypeManager = () => {
         <DialogTitle sx={{ fontWeight: 700, fontSize: 20 }}>
           {dialogMode === "add" ? "Thêm Loại Biển Hiệu" : "Sửa Loại Biển Hiệu"}
         </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Tên loại biển hiệu"
-            fullWidth
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </DialogContent>
+       <DialogContent>
+  <TextField
+    autoFocus
+    margin="dense"
+    label="Tên loại biển hiệu"
+    fullWidth
+    value={form.name}
+    onChange={(e) => setForm({ ...form, name: e.target.value })}
+  />
+  <TextField
+    margin="dense"
+    label="Công thức tính toán"
+    fullWidth
+    value={form.calculateFormula}
+    onChange={(e) => setForm({ ...form, calculateFormula: e.target.value })}
+    placeholder="Nhập công thức tính toán"
+    sx={{ mt: 2, fontFamily: 'monospace' }}
+  />
+</DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Hủy</Button>
           <Button

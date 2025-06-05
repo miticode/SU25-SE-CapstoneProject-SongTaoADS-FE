@@ -126,8 +126,12 @@ const productTypeSlice = createSlice({
   },
 });
 
-export const { resetProductTypeStatus, clearCurrentProductType } =
-  productTypeSlice.actions;
+export const { 
+  resetProductTypeStatus, 
+  clearCurrentProductType,
+  resetProductTypeSizesStatus,
+  clearProductTypeSizes
+} = productTypeSlice.actions;
 
 // Selectors
 export const selectAllProductTypes = (state) => state.productType.productTypes;
