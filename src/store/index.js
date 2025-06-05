@@ -9,6 +9,7 @@ import userReducer from "./features/user/userSlice";
 import aiReducer from "./features/ai/aiSlice";
 import sizeReducer from "./features/size/sizeSlice";
 import s3Reducer from "./features/s3/s3Slice";
+import attributeValueReducer from "./features/attribute/attributeValueSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -21,6 +22,7 @@ export const store = configureStore({
     ai: aiReducer,
     size: sizeReducer,
      s3: s3Reducer,
+     attributeValue: attributeValueReducer,
     // Thêm các reducer khác tại đây
   },
 });
