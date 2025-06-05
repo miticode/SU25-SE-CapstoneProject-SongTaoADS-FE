@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturing";
 import {
   Box,
   Drawer,
@@ -34,10 +35,18 @@ import {
   Group as TeamIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Category as CategoryIcon,
+  Straighten as StraightenIcon,
+  Tune as TuneIcon,
+  BuildCircle as BuildCircleIcon,
+  ManageAccounts as ManageAccountsIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
 import ProductSizeManager from "../pages/manager/ProductSizeManager";
+import ManagerFineTuneAI from "../pages/manager/ManagerFineTuneAI";
+import SizeManager from "../pages/manager/SizeManager";
+import ProductAttributeManagement from "../pages/manager/ProductAttributeManager";
 
 const drawerWidth = 240;
 
@@ -46,16 +55,34 @@ const menuItems = [
   { id: "dashboard", text: "Dashboard", icon: <DashboardIcon /> },
   {
     id: "product",
-    text: "Product Management",
+    text: "Quản lí biển hiệu",
     icon: <TeamIcon />,
     subItems: [
-      { id: "product-type", text: "Product Type" },
-      { id: "product-size", text: "Product Size" },
+      { id: "product-type", text: "Loại biển hiệu", icon: <CategoryIcon /> },
+      {
+        id: "product-size",
+        text: "Kích thước biển hiệu",
+        icon: <StraightenIcon />,
+      },
+      {
+        id: "product-type-attribute",
+        text: "Thuộc tính biển hiệu",
+        icon: <TuneIcon />,
+      },
     ],
   },
-  { id: "tasks", text: "Task Management", icon: <TasksIcon /> },
+  {
+    id: "size-management",
+    text: "Quản lý kích thước",
+    icon: <StraightenIcon />,
+  },
+  {
+    id: "fine-tune-ai",
+    text: "Fine Tune AI",
+    icon: <BuildCircleIcon />,
+  },
   { id: "statistics", text: "Statistics", icon: <StatisticsIcon /> },
-  { id: "settings", text: "Settings", icon: <SettingsIcon /> },
+  { id: "settings", text: "Settings", icon: <ManageAccountsIcon /> },
 ];
 
 const ManagerLayout = () => {
@@ -338,9 +365,18 @@ const ManagerLayout = () => {
         <Toolbar />
         {activeTab === "product-type" && <ProductTypeManager />}
         {activeTab === "product-size" && <ProductSizeManager />}
-        {activeTab !== "product-type" && activeTab !== "product-size" && (
-          <Outlet context={{ activeTab }} />
+        {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
+        {activeTab === "size-management" && <SizeManager />}
+        {activeTab === "product-type-attribute" && (
+          <ProductAttributeManagement />
         )}
+        {activeTab !== "product-type" &&
+          activeTab !== "product-size" &&
+          activeTab !== "fine-tune-ai" &&
+          activeTab !== "size-management" &&
+          activeTab !== "product-type-attribute" && (
+            <Outlet context={{ activeTab }} />
+          )}
       </Box>
     </Box>
   );

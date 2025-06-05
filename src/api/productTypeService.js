@@ -131,4 +131,39 @@ export const deleteProductTypeApi = async (id) => {
   }
 };
 
+
+// Thêm size vào product type
+export const addSizeToProductTypeApi = async (productTypeId, sizeId) => {
+  try {
+    const response = await productTypeService.post(`/api/product-types/${productTypeId}/sizes/${sizeId}`);
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, data: result };
+    }
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to add size to product type',
+    };
+  }
+};
+
+// Xóa size khỏi product type
+export const deleteProductTypeSizeApi = async (productTypeSizeId) => {
+  try {
+    const response = await productTypeService.delete(`/api/product-type-sizes/${productTypeSizeId}`);
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, data: result };
+    }
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to delete product type size',
+    };
+  }
+};
+
 export default productTypeService;

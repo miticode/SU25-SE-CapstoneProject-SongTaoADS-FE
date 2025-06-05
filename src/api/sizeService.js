@@ -37,7 +37,7 @@ export const getSizeByIdApi = async (id) => {
 // thêm kích thước
 export const addSizeApi = async (data) => {
   try {
-    const response = await sizeService.post("/api/sizes", data);
+    const response = await sizeService.post("/api/sizes", { ...data, isAvailable: true });
     const { success, result, message } = response.data;
     if (success) return { success, data: result };
     return { success: false, error: message || "Invalid response format" };

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getAttributesByProductTypeIdApi, getAttributeValuesByAttributeIdApi } from '../../../api/attributeService';
+import { getAttributesByProductTypeIdApi, getAttributeValuesByAttributeIdApi, getAttributeByIdApi, updateAttributeApi, deleteAttributeApi, createAttributeApi } from '../../../api/attributeService';
 
 // Initial state
 const initialState = {
@@ -33,6 +33,50 @@ export const fetchAttributeValuesByAttributeId = createAsyncThunk(
     }
     
     return { attributeId, values: response.data };
+  }
+);
+// Thunk tạo attribute mới
+export const createAttribute = createAsyncThunk(
+  'attribute/createAttribute',
+  async ({ productTypeId, data }, { rejectWithValue }) => {
+    const response = await createAttributeApi(productTypeId, data);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to create attribute');
+    }
+    return response.data;
+  }
+);
+// Thunk cập nhật attribute
+export const updateAttribute = createAsyncThunk(
+  'attribute/updateAttribute',
+  async ({ attributeId, data }, { rejectWithValue }) => {
+    const response = await updateAttributeApi(attributeId, data);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to update attribute');
+    }
+    return response.data;
+  }
+);
+// Thunk xóa attribute
+export const deleteAttribute = createAsyncThunk(
+  'attribute/deleteAttribute',
+  async (attributeId, { rejectWithValue }) => {
+    const response = await deleteAttributeApi(attributeId);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to delete attribute');
+    }
+    return attributeId;
+  }
+);
+// Thunk lấy chi tiết attribute
+export const fetchAttributeById = createAsyncThunk(
+  'attribute/fetchAttributeById',
+  async (attributeId, { rejectWithValue }) => {
+    const response = await getAttributeByIdApi(attributeId);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to fetch attribute');
+    }
+    return response.data;
   }
 );
 const attributeSlice = createSlice({
@@ -80,6 +124,61 @@ const attributeSlice = createSlice({
       .addCase(fetchAttributeValuesByAttributeId.rejected, (state, action) => {
         const attributeId = action.meta.arg;
         state.attributeValuesStatus[attributeId] = 'failed';
+      })
+      // Thêm xử lý cho createAttribute
+      .addCase(createAttribute.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(createAttribute.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.attributes.push(action.payload);
+        state.error = null;
+      })
+      .addCase(createAttribute.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Thêm xử lý cho updateAttribute
+      .addCase(updateAttribute.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(updateAttribute.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const idx = state.attributes.findIndex(attr => attr.id === action.payload.id);
+        if (idx !== -1) {
+          state.attributes[idx] = action.payload;
+        }
+        state.error = null;
+      })
+      .addCase(updateAttribute.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Thêm xử lý cho deleteAttribute
+      .addCase(deleteAttribute.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(deleteAttribute.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.attributes = state.attributes.filter(attr => attr.id !== action.payload);
+        state.error = null;
+      })
+      .addCase(deleteAttribute.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Thêm xử lý cho fetchAttributeById (nếu cần lưu riêng attribute chi tiết)
+      .addCase(fetchAttributeById.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchAttributeById.fulfilled, (state) => {
+        state.status = 'succeeded';
+        // Có thể lưu vào state.attributeDetail nếu muốn
+        state.error = null;
+      })
+      .addCase(fetchAttributeById.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
       });
   }
 });
