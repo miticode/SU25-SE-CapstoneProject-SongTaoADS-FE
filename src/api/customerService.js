@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { isAuthenticated } from '../utils/cookieManager';
+
 // Cập nhật URL API thực tế của bạn
 const API_URL = 'https://songtaoads.online';
 
