@@ -11,7 +11,18 @@ const productTypeService = axios.create({
   },
   withCredentials: true // Cho phép gửi và nhận cookies từ API
 });
-
+productTypeService.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('token'); // hoặc lấy token từ store của bạn
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
 // Interceptor để xử lý lỗi
 productTypeService.interceptors.response.use(
   (response) => response,
@@ -100,7 +111,8 @@ export const addProductTypeApi = async (data) => {
 // Sửa thông tin product type
 export const updateProductTypeApi = async (id, data) => {
   try {
-    const response = await productTypeService.put(`/api/product-types/${id}/information`, data);
+    // Thay đổi phương thức từ PUT sang PATCH
+    const response = await productTypeService.patch(`/api/product-types/${id}/information`, data);
     const { success, result, message } = response.data;
     if (success) {
       return { success, data: result };
