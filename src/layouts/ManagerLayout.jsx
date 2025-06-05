@@ -40,6 +40,7 @@ import {
   Tune as TuneIcon,
   BuildCircle as BuildCircleIcon,
   ManageAccounts as ManageAccountsIcon,
+   Assignment as AssignmentIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
@@ -47,6 +48,7 @@ import ProductSizeManager from "../pages/manager/ProductSizeManager";
 import ManagerFineTuneAI from "../pages/manager/ManagerFineTuneAI";
 import SizeManager from "../pages/manager/SizeManager";
 import ProductAttributeManagement from "../pages/manager/ProductAttributeManager";
+import AttributeValueManager from "../pages/manager/AttributeValueManager";
 
 const drawerWidth = 240;
 
@@ -68,6 +70,11 @@ const menuItems = [
         id: "product-type-attribute",
         text: "Thuộc tính biển hiệu",
         icon: <TuneIcon />,
+      },
+       {
+        id: "attribute-value",
+        text: "Giá trị thuộc tính",
+        icon: <AssignmentIcon />,
       },
     ],
   },
@@ -352,32 +359,36 @@ const ManagerLayout = () => {
         </Box>
       </Drawer>
 
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          backgroundColor: "#f9fafc",
-          height: "calc(100vh - 64px)",
-          overflow: "auto",
-        }}
-      >
-        <Toolbar />
-        {activeTab === "product-type" && <ProductTypeManager />}
-        {activeTab === "product-size" && <ProductSizeManager />}
-        {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
-        {activeTab === "size-management" && <SizeManager />}
-        {activeTab === "product-type-attribute" && (
-          <ProductAttributeManagement />
-        )}
-        {activeTab !== "product-type" &&
-          activeTab !== "product-size" &&
-          activeTab !== "fine-tune-ai" &&
-          activeTab !== "size-management" &&
-          activeTab !== "product-type-attribute" && (
-            <Outlet context={{ activeTab }} />
-          )}
-      </Box>
+     <Box
+  component="main"
+  sx={{
+    flexGrow: 1,
+    p: 3,
+    backgroundColor: "#f9fafc",
+    height: "calc(100vh - 64px)",
+    overflow: "auto",
+  }}
+>
+  <Toolbar />
+  {activeTab === "product-type" && <ProductTypeManager />}
+  {activeTab === "product-size" && <ProductSizeManager />}
+  {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
+  {activeTab === "size-management" && <SizeManager />}
+  {activeTab === "product-type-attribute" && (
+    <ProductAttributeManagement />
+  )}
+  {activeTab === "attribute-value" && (
+    <AttributeValueManager />
+  )}
+  {activeTab !== "product-type" &&
+    activeTab !== "product-size" &&
+    activeTab !== "fine-tune-ai" &&
+    activeTab !== "size-management" &&
+    activeTab !== "product-type-attribute" &&
+    activeTab !== "attribute-value" && (
+      <Outlet context={{ activeTab }} />
+    )}
+</Box>
     </Box>
   );
 };
