@@ -40,6 +40,7 @@ import {
   Tune as TuneIcon,
   BuildCircle as BuildCircleIcon,
   ManageAccounts as ManageAccountsIcon,
+  List as ListIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
@@ -56,7 +57,7 @@ const menuItems = [
   {
     id: "product",
     text: "Quản lí biển hiệu",
-    icon: <TeamIcon />,
+    icon: <ListIcon />,
     subItems: [
       { id: "product-type", text: "Loại biển hiệu", icon: <CategoryIcon /> },
       {

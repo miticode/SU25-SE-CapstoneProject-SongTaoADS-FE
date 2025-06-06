@@ -93,6 +93,7 @@ export const createCustomerApi = async (customerData) => {
     };
   }
 };
+
 export const updateCustomerDetailApi = async (customerDetailId, customerData) => {
   try {
     let textUpdateSuccess = false;
@@ -224,10 +225,44 @@ export const getCustomerDetailByUserIdApi = async (userId) => {
 };
 export const linkCustomerToProductTypeApi = async (customerId, productTypeId) => {
   try {
+    // Validate inputs
+    if (!customerId || !productTypeId) {
+      console.error('Invalid parameters:', { customerId, productTypeId });
+      return {
+        success: false,
+        error: 'Missing required parameters'
+      };
+    }
+
+    console.log('Linking customer to product type:', { customerId, productTypeId });
+    
+    // First check if customer already has a choice
+    try {
+      const existingChoices = await customerService.get(`/api/customers/${customerId}/customer-choices`);
+      if (existingChoices.data.success && existingChoices.data.result) {
+        // If exists, update instead of create
+        console.log('Customer choice exists, updating...');
+        const response = await customerService.put(`/api/customers/${customerId}/product-types/${productTypeId}`);
+        console.log('Update response:', response.data);
+        return response.data;
+      }
+    } catch (error) {
+      console.log('No existing customer choice found, creating new...');
+    }
+    
+    // If no existing choice, create new
     const response = await customerService.post(`/api/customers/${customerId}/product-types/${productTypeId}`);
+    console.log('Create response:', response.data);
     
     return response.data;
   } catch (error) {
+    console.error('Error linking customer to product type:', {
+      error: error.response?.data || error.message,
+      status: error.response?.status,
+      customerId,
+      productTypeId
+    });
+    
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to link customer to product type'
@@ -393,6 +428,18 @@ export const fetchCustomerChoiceSizesApi = async (customerChoiceId) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch customer choice sizes'
+    };
+  }
+};
+// Thêm hàm cập nhật customer choice product type
+export const updateCustomerChoiceProductTypeApi = async (customerId, productTypeId) => {
+  try {
+    const response = await customerService.put(`/api/customers/${customerId}/product-types/${productTypeId}`);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update customer choice product type'
     };
   }
 };

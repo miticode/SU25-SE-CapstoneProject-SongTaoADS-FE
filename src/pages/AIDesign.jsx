@@ -2761,6 +2761,10 @@ const AIDesign = () => {
                     const imageUrls = [
                       "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
                       "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
+                      "https://www.denledday.vn/wp-content/uploads/2016/12/Den-gan-vien-bien-quang-cao.jpg",
+                      "https://appro.com.vn/wp-content/uploads/2020/09/den-pha-led-cho-bang-hieu-3.jpg",
+                      "https://www.denledday.vn/wp-content/uploads/2016/12/Den-gan-vien-bien-quang-cao.jpg",
+                      // Thêm nhiều ảnh nếu muốn
                     ];
 
                     // Sử dụng index để đảm bảo mỗi sản phẩm có một ảnh riêng
