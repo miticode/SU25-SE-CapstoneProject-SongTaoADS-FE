@@ -41,6 +41,7 @@ import {
   BuildCircle as BuildCircleIcon,
   ManageAccounts as ManageAccountsIcon,
   List as ListIcon,
+  Assignment as AssignmentIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
@@ -48,6 +49,7 @@ import ProductSizeManager from "../pages/manager/ProductSizeManager";
 import ManagerFineTuneAI from "../pages/manager/ManagerFineTuneAI";
 import SizeManager from "../pages/manager/SizeManager";
 import ProductAttributeManagement from "../pages/manager/ProductAttributeManager";
+import AttributeValueManager from "../pages/manager/AttributeValueManager";
 
 const drawerWidth = 240;
 
@@ -69,6 +71,11 @@ const menuItems = [
         id: "product-type-attribute",
         text: "Thuộc tính biển hiệu",
         icon: <TuneIcon />,
+      },
+      {
+        id: "attribute-value",
+        text: "Giá trị thuộc tính",
+        icon: <AssignmentIcon />,
       },
     ],
   },
@@ -371,13 +378,13 @@ const ManagerLayout = () => {
         {activeTab === "product-type-attribute" && (
           <ProductAttributeManagement />
         )}
+        {activeTab === "attribute-value" && <AttributeValueManager />}
         {activeTab !== "product-type" &&
           activeTab !== "product-size" &&
           activeTab !== "fine-tune-ai" &&
           activeTab !== "size-management" &&
-          activeTab !== "product-type-attribute" && (
-            <Outlet context={{ activeTab }} />
-          )}
+          activeTab !== "product-type-attribute" &&
+          activeTab !== "attribute-value" && <Outlet context={{ activeTab }} />}
       </Box>
     </Box>
   );
