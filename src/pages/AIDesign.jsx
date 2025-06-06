@@ -1463,6 +1463,7 @@ const AIDesign = () => {
       console.log("Text added to canvas:", type);
     }
   };
+  // Điều chỉnh cài đặt canvas để có chất lượng tốt hơn
   useEffect(() => {
     console.log("Current step:", currentStep);
     console.log("Selected image ID:", selectedImage);
@@ -1470,11 +1471,6 @@ const AIDesign = () => {
     console.log("Fabric canvas exists:", !!fabricCanvas);
     console.log("Generated image:", generatedImage);
 
-    // Chỉ khởi tạo canvas khi:
-    // 1. Đang ở step 6
-    // 2. Canvas ref đã sẵn sàng
-    // 3. Chưa có fabricCanvas
-    // 4. Có selectedImage hoặc generatedImage
     if (
       currentStep === 6 &&
       canvasRef.current &&
@@ -1483,13 +1479,22 @@ const AIDesign = () => {
     ) {
       console.log("INITIALIZING CANVAS with AI-generated image");
 
+      const canvasContainer = canvasRef.current.parentElement;
+      const containerWidth = canvasContainer.clientWidth;
+
+      // Tăng kích thước canvas nhưng giữ nguyên tỷ lệ 2:1
+      const canvasWidth = containerWidth;
+      const canvasHeight = Math.round(containerWidth / 2);
+
+      // Tạo canvas với độ phân giải cao hơn để giữ chất lượng ảnh tốt
       const canvas = new fabric.Canvas(canvasRef.current, {
-        width: 800,
-        height: 600,
+        width: canvasWidth,
+        height: canvasHeight,
         backgroundColor: "#f8f9fa",
+        preserveObjectStacking: true, // Giữ thứ tự xếp chồng khi chọn đối tượng
       });
 
-      // Use AI generated image if available, otherwise use sample image
+      // Sử dụng ảnh được tạo bởi AI nếu có
       const imageUrl = generatedImage;
 
       console.log("Using AI-generated image URL:", imageUrl);
@@ -1515,13 +1520,10 @@ const AIDesign = () => {
 
             console.log("Fabric image created:", fabricImg);
 
-            // Scale image to fit canvas
-            const canvasWidth = 800;
-            const canvasHeight = 600;
-
+            // Scale image to fill canvas hoàn toàn nhưng giữ đúng tỷ lệ
             const scaleX = canvasWidth / fabricImg.width;
             const scaleY = canvasHeight / fabricImg.height;
-            const scale = Math.min(scaleX, scaleY);
+            const scale = Math.max(scaleX, scaleY); // Sử dụng max để đảm bảo ảnh che phủ toàn bộ canvas
 
             fabricImg.set({
               scaleX: scale,
@@ -1559,7 +1561,7 @@ const AIDesign = () => {
         });
       }
 
-      // Canvas event handlers
+      // Canvas event handlers remain the same
       canvas.on("selection:created", (e) => {
         if (e.selected[0] && e.selected[0].type === "text") {
           setSelectedText(e.selected[0]);
@@ -1594,12 +1596,10 @@ const AIDesign = () => {
         }
       });
 
-      // SET CANVAS CUỐI CÙNG
       setFabricCanvas(canvas);
       console.log("CANVAS SET TO STATE");
     }
 
-    // Cleanup khi rời khỏi step 6 HOẶC khi selectedImage thay đổi
     return () => {
       if (fabricCanvas && currentStep !== 6) {
         console.log("CLEANUP: Disposing canvas");
@@ -1640,11 +1640,13 @@ const AIDesign = () => {
           name: "backgroundImage",
         });
 
-        const canvasWidth = 800;
-        const canvasHeight = 600;
+        const canvasWidth = fabricCanvas.width;
+        const canvasHeight = fabricCanvas.height;
+
+        // Scale image to fill canvas completely
         const scaleX = canvasWidth / fabricImg.width;
         const scaleY = canvasHeight / fabricImg.height;
-        const scale = Math.min(scaleX, scaleY);
+        const scale = Math.max(scaleX, scaleY); // Use max to ensure image fills the canvas
 
         fabricImg.set({
           scaleX: scale,
@@ -1666,7 +1668,7 @@ const AIDesign = () => {
         // Fallback to first preview image if loading fails
         const fallbackImage = new Image();
         fallbackImage.crossOrigin = "anonymous";
-        fallbackImage.src = previewImages[0].url;
+        fallbackImage.src = previewImages[0]?.url;
         fallbackImage.onload = img.onload;
       };
 
@@ -3333,11 +3335,12 @@ const AIDesign = () => {
             >
               Chỉnh sửa thiết kế
             </motion.h2>
-
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              {/* Business Info Panel - Bên trái */}
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-xl shadow-lg p-6">
+            
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Business Info Panel - Bên trái - giảm xuống còn 2 cột */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-xl shadow-lg p-4">
                   <h3 className="text-xl font-semibold mb-4">
                     Thông tin doanh nghiệp
                   </h3>
@@ -3346,7 +3349,7 @@ const AIDesign = () => {
                     {/* Company Name */}
                     {businessPresets.companyName && (
                       <div
-                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
+                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
                         onClick={() =>
                           addBusinessInfoToCanvas(
                             "companyName",
@@ -3354,7 +3357,7 @@ const AIDesign = () => {
                           )
                         }
                       >
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-1">
                           <FaFont className="text-blue-500 mr-2" />
                           <span className="text-sm font-medium text-gray-600">
                             Tên công ty
@@ -3372,7 +3375,7 @@ const AIDesign = () => {
                     {/* Tag Line */}
                     {businessPresets.tagLine && (
                       <div
-                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all"
+                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all"
                         onClick={() =>
                           addBusinessInfoToCanvas(
                             "tagLine",
@@ -3380,7 +3383,7 @@ const AIDesign = () => {
                           )
                         }
                       >
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-1">
                           <FaFont className="text-green-500 mr-2" />
                           <span className="text-sm font-medium text-gray-600">
                             Address
@@ -3398,7 +3401,7 @@ const AIDesign = () => {
                     {/* Contact Info */}
                     {businessPresets.contactInfo && (
                       <div
-                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all"
+                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all"
                         onClick={() =>
                           addBusinessInfoToCanvas(
                             "contactInfo",
@@ -3406,7 +3409,7 @@ const AIDesign = () => {
                           )
                         }
                       >
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-1">
                           <FaFont className="text-orange-500 mr-2" />
                           <span className="text-sm font-medium text-gray-600">
                             Liên hệ
@@ -3424,7 +3427,7 @@ const AIDesign = () => {
                     {/* Logo */}
                     {businessPresets.logoUrl && (
                       <div
-                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-all"
+                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-all"
                         onClick={() =>
                           addBusinessInfoToCanvas(
                             "logoUrl",
@@ -3432,7 +3435,7 @@ const AIDesign = () => {
                           )
                         }
                       >
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-1">
                           <FaPalette className="text-purple-500 mr-2" />
                           <span className="text-sm font-medium text-gray-600">
                             Logo
@@ -3442,12 +3445,12 @@ const AIDesign = () => {
                           <img
                             src={s3Logo || businessPresets.logoUrl}
                             alt="Logo preview"
-                            className="w-8 h-8 object-cover rounded"
+                            className="w-6 h-6 object-cover rounded"
                             onError={(e) => {
                               e.target.style.display = "none";
                             }}
                           />
-                          <span className="text-sm text-gray-800">
+                          <span className="text-xs text-gray-800">
                             Logo công ty
                           </span>
                         </div>
@@ -3462,7 +3465,7 @@ const AIDesign = () => {
                       !businessPresets.tagLine &&
                       !businessPresets.contactInfo &&
                       !businessPresets.logoUrl && (
-                        <div className="text-center py-6">
+                        <div className="text-center py-4">
                           <p className="text-gray-500 text-sm">
                             Không có thông tin doanh nghiệp
                           </p>
@@ -3475,46 +3478,66 @@ const AIDesign = () => {
                 </div>
               </div>
 
-              {/* Canvas Area */}
-              <div className="lg:col-span-3">
+              {/* Canvas Area - Tăng lên 8 cột để canvas lớn hơn */}
+              <div className="lg:col-span-8">
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-semibold">Canvas</h3>
+                    <h3 className="text-xl font-semibold">Thiết kế</h3>
                     <div className="flex space-x-2">
                       <button
                         onClick={addText}
-                        className="px-4 py-2 bg-custom-secondary text-white rounded-lg hover:bg-custom-secondary/90 flex items-center"
+                        className="px-3 py-2 bg-custom-secondary text-white rounded-lg hover:bg-custom-secondary/90 flex items-center text-sm"
                       >
-                        <FaPlus className="mr-2" />
+                        <FaPlus className="mr-1" />
                         Thêm text
                       </button>
                       <button
                         onClick={deleteSelectedText}
                         disabled={!selectedText}
-                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center"
+                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center text-sm"
                       >
-                        <FaTrash className="mr-2" />
+                        <FaTrash className="mr-1" />
                         Xóa
                       </button>
                     </div>
                   </div>
 
-                  <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                    <canvas ref={canvasRef} />
+                  <div
+                    className="border-2 border-gray-200 rounded-lg overflow-hidden"
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      paddingTop: "50%", // Giữ tỷ lệ 2:1
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                      }}
+                    >
+                      <canvas
+                        ref={canvasRef}
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Text Controls - Bên phải */}
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-semibold mb-4">Tùy chỉnh text</h3>
+              {/* Text Controls - Bên phải - giảm xuống còn 2 cột */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-xl shadow-lg p-4">
+                  <h3 className="text-lg font-semibold mb-3">Tùy chỉnh text</h3>
 
                   {selectedText ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Text Content */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-1">
                           Nội dung
                         </label>
                         <textarea
@@ -3522,14 +3545,14 @@ const AIDesign = () => {
                           onChange={(e) => {
                             updateTextProperty("text", e.target.value);
                           }}
-                          className="w-full p-2 border border-gray-300 rounded-lg resize-none"
-                          rows={3}
+                          className="w-full p-2 border border-gray-300 rounded-lg resize-none text-sm"
+                          rows={2}
                         />
                       </div>
 
                       {/* Font Family */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-1">
                           Font chữ
                         </label>
                         <select
@@ -3537,7 +3560,7 @@ const AIDesign = () => {
                           onChange={(e) =>
                             updateTextProperty("fontFamily", e.target.value)
                           }
-                          className="w-full p-2 border border-gray-300 rounded-lg"
+                          className="w-full p-1.5 border border-gray-300 rounded-lg text-sm"
                         >
                           {fonts.map((font) => (
                             <option key={font} value={font}>
@@ -3549,7 +3572,7 @@ const AIDesign = () => {
 
                       {/* Font Size */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-1">
                           Kích thước: {textSettings.fontSize}px
                         </label>
                         <input
@@ -3569,17 +3592,17 @@ const AIDesign = () => {
 
                       {/* Text Color */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-1">
                           Màu chữ
                         </label>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <input
                             type="color"
                             value={textSettings.fill}
                             onChange={(e) =>
                               updateTextProperty("fill", e.target.value)
                             }
-                            className="w-12 h-10 rounded border border-gray-300"
+                            className="w-8 h-8 rounded border border-gray-300"
                           />
                           <input
                             type="text"
@@ -3587,17 +3610,17 @@ const AIDesign = () => {
                             onChange={(e) =>
                               updateTextProperty("fill", e.target.value)
                             }
-                            className="flex-1 p-2 border border-gray-300 rounded-lg"
+                            className="flex-1 p-1.5 border border-gray-300 rounded-lg text-sm"
                           />
                         </div>
                       </div>
 
                       {/* Text Style Controls */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-1">
                           Kiểu chữ
                         </label>
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-1">
                           <button
                             onClick={() =>
                               updateTextProperty(
@@ -3607,7 +3630,7 @@ const AIDesign = () => {
                                   : "bold"
                               )
                             }
-                            className={`p-2 rounded border ${
+                            className={`p-1.5 rounded border ${
                               textSettings.fontWeight === "bold"
                                 ? "bg-custom-secondary text-white"
                                 : "bg-gray-100"
@@ -3625,7 +3648,7 @@ const AIDesign = () => {
                                   : "italic"
                               )
                             }
-                            className={`p-2 rounded border ${
+                            className={`p-1.5 rounded border ${
                               textSettings.fontStyle === "italic"
                                 ? "bg-custom-secondary text-white"
                                 : "bg-gray-100"
@@ -3641,7 +3664,7 @@ const AIDesign = () => {
                                 !textSettings.underline
                               )
                             }
-                            className={`p-2 rounded border ${
+                            className={`p-1.5 rounded border ${
                               textSettings.underline
                                 ? "bg-custom-secondary text-white"
                                 : "bg-gray-100"
@@ -3654,10 +3677,10 @@ const AIDesign = () => {
 
                       {/* Common Colors */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-1">
                           Màu phổ biến
                         </label>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-4 gap-1">
                           {[
                             "#000000",
                             "#ffffff",
@@ -3675,7 +3698,7 @@ const AIDesign = () => {
                             <button
                               key={color}
                               onClick={() => updateTextProperty("fill", color)}
-                              className="w-8 h-8 rounded border border-gray-300"
+                              className="w-6 h-6 rounded border border-gray-300"
                               style={{ backgroundColor: color }}
                             />
                           ))}
@@ -3683,7 +3706,7 @@ const AIDesign = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-center py-8">
+                    <p className="text-gray-500 text-center py-6 text-sm">
                       Chọn một text để chỉnh sửa hoặc thêm text mới
                     </p>
                   )}
