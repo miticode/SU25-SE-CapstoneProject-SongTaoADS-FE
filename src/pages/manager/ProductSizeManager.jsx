@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  getProductTypesApi,
-  getProductTypeSizesByProductTypeIdApi,
-  addSizeToProductTypeApi,
-  deleteProductTypeSizeApi,
-} from "../../api/productTypeService";
-import { getAllSizesApi } from "../../api/sizeService";
+  fetchProductTypes,
+  fetchProductTypeSizesByProductTypeId,
+  addSizeToProductType,
+  deleteProductTypeSize,
+  selectAllProductTypes,
+  selectProductTypeSizes,
+  selectProductTypeSizesStatus,
+} from "../../store/features/productType/productTypeSlice";
+import {
+  fetchSizes,
+  selectAllSizes,
+} from "../../store/features/size/sizeSlice";
 import {
   Box,
   Typography,
@@ -54,12 +61,14 @@ const Illustration = () => (
 );
 
 const ProductSizeManager = () => {
-  const [productTypes, setProductTypes] = useState([]);
+  const dispatch = useDispatch();
+  const productTypes = useSelector(selectAllProductTypes);
+  const allSizes = useSelector(selectAllSizes);
+  const productTypeSizes = useSelector(selectProductTypeSizes);
+  const sizesStatus = useSelector(selectProductTypeSizesStatus);
+
   const [search, setSearch] = useState("");
   const [selectedProductTypeId, setSelectedProductTypeId] = useState(null);
-  const [productTypeSizes, setProductTypeSizes] = useState([]);
-  const [allSizes, setAllSizes] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedSizeId, setSelectedSizeId] = useState("");
   const [snackbar, setSnackbar] = useState({
@@ -68,32 +77,16 @@ const ProductSizeManager = () => {
     severity: "success",
   });
 
-  // Fetch all product types and all sizes on mount
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const ptRes = await getProductTypesApi();
-      const sizeRes = await getAllSizesApi();
-      if (ptRes.success) setProductTypes(ptRes.data);
-      if (sizeRes.success) setAllSizes(sizeRes.data);
-      setLoading(false);
-    };
-    fetchData();
-  }, []);
+    dispatch(fetchProductTypes());
+    dispatch(fetchSizes());
+  }, [dispatch]);
 
-  // Fetch sizes for selected product type
   useEffect(() => {
-    if (!selectedProductTypeId) return;
-    const fetchSizes = async () => {
-      setLoading(true);
-      const res = await getProductTypeSizesByProductTypeIdApi(
-        selectedProductTypeId
-      );
-      if (res.success) setProductTypeSizes(res.data);
-      setLoading(false);
-    };
-    fetchSizes();
-  }, [selectedProductTypeId]);
+    if (selectedProductTypeId) {
+      dispatch(fetchProductTypeSizesByProductTypeId(selectedProductTypeId));
+    }
+  }, [dispatch, selectedProductTypeId]);
 
   // Lọc size chưa có trong product type
   const availableSizes = allSizes.filter(
@@ -109,56 +102,57 @@ const ProductSizeManager = () => {
     setSelectedSizeId(availableSizes[0]?.id || "");
     setAddDialogOpen(true);
   };
+
   const handleAddSize = async () => {
     if (!selectedProductTypeId || !selectedSizeId) return;
-    setLoading(true);
-    const res = await addSizeToProductTypeApi(
-      selectedProductTypeId,
-      selectedSizeId
-    );
-    if (res.success) {
+    try {
+      await dispatch(
+        addSizeToProductType({
+          productTypeId: selectedProductTypeId,
+          sizeId: selectedSizeId,
+        })
+      ).unwrap();
       setSnackbar({
         open: true,
         message: "Thêm kích thước thành công!",
         severity: "success",
       });
-      // Reload sizes
-      const reload = await getProductTypeSizesByProductTypeIdApi(
-        selectedProductTypeId
+      await dispatch(
+        fetchProductTypeSizesByProductTypeId(selectedProductTypeId)
       );
-      if (reload.success) setProductTypeSizes(reload.data);
-    } else {
+    } catch (err) {
       setSnackbar({
         open: true,
-        message: res.error || "Thêm thất bại!",
+        message: err || "Thêm thất bại!",
         severity: "error",
       });
     }
     setAddDialogOpen(false);
-    setLoading(false);
   };
+
   const handleDelete = async (productTypeSizeId) => {
-    setLoading(true);
-    const res = await deleteProductTypeSizeApi(productTypeSizeId);
-    if (res.success) {
+    try {
+      await dispatch(
+        deleteProductTypeSize({
+          productTypeId: selectedProductTypeId,
+          productTypeSizeId,
+        })
+      ).unwrap();
       setSnackbar({
         open: true,
         message: "Xóa thành công!",
         severity: "success",
       });
-      // Reload sizes
-      const reload = await getProductTypeSizesByProductTypeIdApi(
-        selectedProductTypeId
+      await dispatch(
+        fetchProductTypeSizesByProductTypeId(selectedProductTypeId)
       );
-      if (reload.success) setProductTypeSizes(reload.data);
-    } else {
+    } catch (err) {
       setSnackbar({
         open: true,
-        message: res.error || "Xóa thất bại!",
+        message: err || "Xóa thất bại!",
         severity: "error",
       });
     }
-    setLoading(false);
   };
 
   return (
@@ -200,7 +194,7 @@ const ProductSizeManager = () => {
         </Box>
         <Divider sx={{ mb: 1 }} />
         <Box flex={1} overflow="auto">
-          {loading && <CircularProgress size={20} />}
+          {sizesStatus === "loading" && <CircularProgress size={20} />}
           {filteredProductTypes.map((pt) => (
             <Fade in key={pt.id}>
               <Box
@@ -235,7 +229,7 @@ const ProductSizeManager = () => {
               </Box>
             </Fade>
           ))}
-          {!loading && filteredProductTypes.length === 0 && (
+          {sizesStatus === "succeeded" && filteredProductTypes.length === 0 && (
             <Typography color="text.secondary" mt={2} fontSize={15}>
               Không tìm thấy loại sản phẩm nào.
             </Typography>
@@ -273,9 +267,9 @@ const ProductSizeManager = () => {
             Thêm kích thước
           </Button>
         </Box>
-        {loading && <CircularProgress />}
-        {!loading && !selectedProductTypeId && <Illustration />}
-        {!loading && selectedProductTypeId && (
+        {sizesStatus === "loading" && <CircularProgress />}
+        {!selectedProductTypeId && <Illustration />}
+        {selectedProductTypeId && (
           <TableContainer
             component={Paper}
             sx={{

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi } from '../../../api/orderService';
+import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi, getOrderByIdApi } from '../../../api/orderService';
 
 // Định nghĩa tất cả các trạng thái hợp lệ
 export const ALL_ORDER_STATUSES = [
@@ -73,11 +73,22 @@ export const updateOrderStatus = createAsyncThunk(
   }
 );
 
+export const fetchOrderById = createAsyncThunk(
+  'order/fetchOrderById',
+  async (orderId, { rejectWithValue }) => {
+    const response = await getOrderByIdApi(orderId);
+    if (response.success) return response.data;
+    return rejectWithValue(response.error);
+  }
+);
+
 const initialState = {
   orders: [],
   loading: false,
   error: null,
-  currentOrder: null
+  currentOrder: null,
+  currentOrderStatus: 'idle',
+  currentOrderError: null
 };
 
 const orderSlice = createSlice({
@@ -148,9 +159,25 @@ const orderSlice = createSlice({
       .addCase(createAiOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(fetchOrderById.pending, (state) => {
+        state.currentOrderStatus = 'loading';
+        state.currentOrderError = null;
+      })
+      .addCase(fetchOrderById.fulfilled, (state, action) => {
+        state.currentOrderStatus = 'succeeded';
+        state.currentOrder = action.payload;
+      })
+      .addCase(fetchOrderById.rejected, (state, action) => {
+        state.currentOrderStatus = 'failed';
+        state.currentOrderError = action.payload;
       });
   }
 });
 
 export const { clearError, setCurrentOrder } = orderSlice.actions;
 export default orderSlice.reducer;
+
+export const selectCurrentOrder = (state) => state.order.currentOrder;
+export const selectCurrentOrderStatus = (state) => state.order.currentOrderStatus;
+export const selectCurrentOrderError = (state) => state.order.currentOrderError;

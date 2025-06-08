@@ -55,7 +55,7 @@ export const deleteSize = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     const response = await deleteSizeApi(id);
     if (!response.success) return rejectWithValue(response.error || "Failed to delete size");
-    return response.data;
+    return { id };
   }
 );
 
