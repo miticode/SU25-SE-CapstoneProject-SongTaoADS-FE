@@ -15,7 +15,13 @@ import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
-import { sendChatMessageApi } from "../api/chatService";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  sendChatMessage,
+  addUserMessage,
+  selectChatMessages,
+  selectChatStatus,
+} from "../store/features/chat/chatSlice";
 
 const FAQS = [
   "Song Tạo có bảo hành biển quảng cáo không?",
@@ -81,20 +87,11 @@ const TypingIndicator = () => (
 );
 
 const AIChatbot = () => {
+  const dispatch = useDispatch();
+  const messages = useSelector(selectChatMessages);
+  const status = useSelector(selectChatStatus);
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem("ai_chatbot_messages");
-    return saved
-      ? JSON.parse(saved)
-      : [
-          {
-            from: "bot",
-            text: "Xin chào quý khách! Song Tạo có thể giúp gì cho bạn?",
-          },
-        ];
-  });
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isHover, setIsHover] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
@@ -155,37 +152,14 @@ const AIChatbot = () => {
   }, [messages, open]);
 
   const handleSend = async (msg) => {
-    if ((!input.trim() && !msg) || isLoading) return;
+    if ((!input.trim() && !msg) || status === "loading") return;
     const userMessage = msg || input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { from: "user", text: userMessage }]);
-    setIsLoading(true);
+    dispatch(addUserMessage(userMessage));
     try {
-      const response = await sendChatMessageApi(userMessage);
-      if (response.success) {
-        setMessages((prev) => [
-          ...prev,
-          { from: "bot", text: response.result },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            from: "bot",
-            text: "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.",
-          },
-        ]);
-      }
+      await dispatch(sendChatMessage(userMessage)).unwrap();
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          from: "bot",
-          text: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
+      // error message đã được xử lý trong slice
     }
   };
 
@@ -372,7 +346,7 @@ const AIChatbot = () => {
                         },
                       }}
                       onClick={() => handleSend(faq)}
-                      disabled={isLoading}
+                      disabled={status === "loading"}
                     >
                       {faq}
                     </Button>
@@ -465,7 +439,7 @@ const AIChatbot = () => {
                       </Box>
                     </Box>
                   ))}
-                  {isLoading && (
+                  {status === "loading" && (
                     <Box
                       sx={{
                         display: "flex",
@@ -552,11 +526,11 @@ const AIChatbot = () => {
                       opacity: 0.7,
                     },
                   }}
-                  disabled={isLoading}
+                  disabled={status === "loading"}
                 />
                 <IconButton
                   onClick={() => handleSend()}
-                  disabled={isLoading || !input.trim()}
+                  disabled={status === "loading" || !input.trim()}
                   sx={{
                     bgcolor: "#3949ab",
                     color: "#fff",

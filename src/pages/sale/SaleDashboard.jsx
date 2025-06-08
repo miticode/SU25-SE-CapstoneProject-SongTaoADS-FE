@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchOrders } from "../../store/features/order/orderSlice";
+import {
+  fetchOrders,
+  fetchOrderById,
+  selectCurrentOrder,
+  selectCurrentOrderStatus,
+} from "../../store/features/order/orderSlice";
 import { ALL_ORDER_STATUSES } from "../../store/features/order/orderSlice";
 import {
   getOrderByIdApi,
@@ -33,6 +38,7 @@ import {
   Button,
   Grid,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -66,12 +72,14 @@ const SaleDashboard = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
-  const [selectedOrder, setSelectedOrder] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
+
+  const selectedOrder = useSelector(selectCurrentOrder);
+  const currentOrderStatus = useSelector(selectCurrentOrderStatus);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
@@ -109,28 +117,14 @@ const SaleDashboard = () => {
   }, [dispatch]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
-  const handleViewDetail = async (orderId) => {
-    if (!orderId) {
-      console.error("OrderId không được để trống");
-      return;
-    }
-
-    try {
-      const res = await getOrderByIdApi(orderId.toString());
-      if (res.success && res.data) {
-        setSelectedOrder(res.data);
-        setOpenDialog(true);
-      } else {
-        console.error("Failed to fetch order detail:", res.error);
-      }
-    } catch (error) {
-      console.error("Error fetching order detail:", error);
-    }
+  const handleViewDetail = (orderId) => {
+    if (!orderId) return;
+    dispatch(fetchOrderById(orderId));
+    setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setSelectedOrder(null);
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
@@ -377,7 +371,16 @@ const SaleDashboard = () => {
         maxWidth="md"
         fullWidth
       >
-        {selectedOrder && (
+        {currentOrderStatus === "loading" ? (
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight={200}
+          >
+            <CircularProgress />
+          </Box>
+        ) : selectedOrder ? (
           <>
             <DialogTitle>
               <Typography variant="h6" component="div">
@@ -584,7 +587,7 @@ const SaleDashboard = () => {
               <Button onClick={handleCloseDialog}>Đóng</Button>
             </DialogActions>
           </>
-        )}
+        ) : null}
       </Dialog>
     </Box>
   );

@@ -3,6 +3,8 @@ import {
   getProductTypesApi,
   getProductTypeByIdApi,
   getProductTypeSizesByProductTypeIdApi,
+  addSizeToProductTypeApi,
+  deleteProductTypeSizeApi,
 } from "../../../api/productTypeService";
 
 // Initial state
@@ -47,16 +49,40 @@ export const fetchProductTypeSizesByProductTypeId = createAsyncThunk(
   "productType/fetchProductTypeSizesByProductTypeId",
   async (productTypeId, { rejectWithValue }) => {
     const response = await getProductTypeSizesByProductTypeIdApi(productTypeId);
-
     if (!response.success) {
       return rejectWithValue(
         response.error || "Failed to fetch product type sizes"
       );
     }
-
-    return response.data;
+    // Trả về cả id để reducer có thể dùng nếu cần
+    return { productTypeId, data: response.data };
   }
 );
+
+export const addSizeToProductType = createAsyncThunk(
+  'productType/addSizeToProductType',
+  async ({ productTypeId, sizeId }, { rejectWithValue }) => {
+    const response = await addSizeToProductTypeApi(productTypeId, sizeId);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to add size to product type');
+    }
+    // Trả về productTypeId để có thể reload danh sách size
+    return { productTypeId };
+  }
+);
+
+export const deleteProductTypeSize = createAsyncThunk(
+  'productType/deleteProductTypeSize',
+  async ({ productTypeId, productTypeSizeId }, { rejectWithValue }) => {
+    const response = await deleteProductTypeSizeApi(productTypeSizeId);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to delete product type size');
+    }
+    // Trả về productTypeId để có thể reload danh sách size
+    return { productTypeId };
+  }
+);
+
 const productTypeSlice = createSlice({
   name: "productType",
   initialState,
@@ -112,7 +138,7 @@ const productTypeSlice = createSlice({
         fetchProductTypeSizesByProductTypeId.fulfilled,
         (state, action) => {
           state.sizesStatus = "succeeded";
-          state.productTypeSizes = action.payload;
+          state.productTypeSizes = action.payload.data;
           state.sizesError = null;
         }
       )
