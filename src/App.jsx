@@ -124,6 +124,7 @@ const App = () => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        setAuthLoading(true);
         // Get access token from localStorage
         const accessToken = localStorage.getItem("accessToken");
 
@@ -131,13 +132,13 @@ const App = () => {
           // We have a token, validate it
           try {
             const authStatus = await checkAuthStatus();
-            dispatch(
-              syncAuthState({
-                ...authStatus,
-                accessToken:
-                  authStatus.accessToken || localStorage.getItem("accessToken"),
-              })
-            );
+             dispatch(
+            syncAuthState({
+              isAuthenticated: authStatus.isAuthenticated,
+              user: authStatus.user,
+              accessToken: authStatus.accessToken || accessToken,
+            })
+          );
           } catch (validationError) {
             console.error("Token validation failed:", validationError);
 
@@ -148,10 +149,11 @@ const App = () => {
                 dispatch(
                   syncAuthState({
                     isAuthenticated: true,
-                    user: refreshResult.user || null,
+                    user: refreshResult.user,
                     accessToken: refreshResult.accessToken,
                   })
                 );
+                    console.log("Token refreshed successfully during initialization");
               } else {
                 throw new Error("Refresh failed during initialization");
               }
@@ -225,42 +227,34 @@ const App = () => {
 
     initializeAuth();
   }, [dispatch]);
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Calculate refresh timing - 5 minutes before expiration (assuming 30 min tokens)
-      const tokenLifetime = 30 * 60 * 1000; // 30 minutes in milliseconds
-      const refreshBuffer = 5 * 60 * 1000; // 5 minutes before expiry
-      const refreshTiming = tokenLifetime - refreshBuffer; // 25 minutes
-
-      console.log(
-        `Setting token refresh interval for ${refreshTiming / 60000} minutes`
-      );
-
-      const refreshInterval = setInterval(() => {
-        console.log("Performing scheduled token refresh");
-        refreshTokenApi()
-          .then((result) => {
-            if (result.success) {
-              dispatch(
-                syncAuthState({
-                  isAuthenticated: true,
-                  accessToken: result.accessToken,
-                  user: result.user || user,
-                })
-              );
-              console.log("Scheduled token refresh completed successfully");
-            } else {
-              console.warn("Scheduled token refresh failed:", result.error);
-            }
-          })
-          .catch((error) => {
-            console.error("Error during scheduled token refresh:", error);
-          });
-      }, refreshTiming);
-
-      return () => clearInterval(refreshInterval);
-    }
-  }, [dispatch, isAuthenticated, user]);
+ useEffect(() => {
+  if (isAuthenticated) {
+    // Refresh token sau mỗi 25 phút (5 phút trước khi hết hạn)
+    const refreshInterval = setInterval(() => {
+      console.log("Performing scheduled token refresh");
+      refreshTokenApi()
+        .then((result) => {
+          if (result.success) {
+            dispatch(
+              syncAuthState({
+                isAuthenticated: true,
+                user: result.user || user,
+                accessToken: result.accessToken,
+              })
+            );
+            console.log("Scheduled token refresh completed successfully");
+          } else {
+            console.warn("Scheduled token refresh failed:", result.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error during scheduled token refresh:", error);
+        });
+    }, 25 * 60 * 1000); // 25 phút
+    
+    return () => clearInterval(refreshInterval);
+  }
+}, [dispatch, isAuthenticated, user]);
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
     if (reason === "clickaway") {
