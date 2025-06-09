@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
   Typography,
@@ -18,6 +19,9 @@ import {
   Button,
   TextField,
   Grid,
+  CircularProgress,
+  Pagination,
+  Alert,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -25,42 +29,34 @@ import {
   Cancel as CancelIcon,
   Pending as PendingIcon,
 } from "@mui/icons-material";
-
-// Mock data - sẽ được thay thế bằng API call sau
-const mockRequests = [
-  {
-    id: 1,
-    customerName: "Nguyễn Văn A",
-    requestType: "Logo Design",
-    status: "pending",
-    createdAt: "2024-03-15",
-    description: "Cần thiết kế logo cho công ty mới thành lập",
-    budget: "2,000,000 VND",
-  },
-  {
-    id: 2,
-    customerName: "Trần Thị B",
-    requestType: "Banner Design",
-    status: "in_progress",
-    createdAt: "2024-03-14",
-    description: "Thiết kế banner quảng cáo sự kiện",
-    budget: "1,500,000 VND",
-  },
-  {
-    id: 3,
-    customerName: "Lê Văn C",
-    requestType: "Social Media Design",
-    status: "completed",
-    createdAt: "2024-03-13",
-    description: "Thiết kế nội dung cho Facebook và Instagram",
-    budget: "3,000,000 VND",
-  },
-];
+import {
+  fetchPendingDesignRequests,
+  selectPendingDesignRequests,
+  selectStatus,
+  selectError,
+  selectPagination,
+} from "../../store/features/customeDesign/customerDesignSlice";
 
 const CustomerRequests = () => {
+  const dispatch = useDispatch();
+  const designRequests = useSelector(selectPendingDesignRequests);
+  const status = useSelector(selectStatus);
+  const error = useSelector(selectError);
+  const pagination = useSelector(selectPagination);
+
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [comment, setComment] = useState("");
+
+  useEffect(() => {
+    dispatch(fetchPendingDesignRequests({ page: 1, size: 10 }));
+  }, [dispatch]);
+
+  const handlePageChange = (event, value) => {
+    dispatch(
+      fetchPendingDesignRequests({ page: value, size: pagination.pageSize })
+    );
+  };
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
@@ -75,29 +71,29 @@ const CustomerRequests = () => {
 
   const getStatusChip = (status) => {
     const statusConfig = {
-      pending: {
+      PENDING: {
         icon: <PendingIcon />,
         color: "warning",
         label: "Chờ xử lý",
       },
-      in_progress: {
+      IN_PROGRESS: {
         icon: <PendingIcon />,
         color: "info",
         label: "Đang xử lý",
       },
-      completed: {
+      COMPLETED: {
         icon: <CheckCircleIcon />,
         color: "success",
         label: "Hoàn thành",
       },
-      cancelled: {
+      CANCELLED: {
         icon: <CancelIcon />,
         color: "error",
         label: "Đã hủy",
       },
     };
 
-    const config = statusConfig[status] || statusConfig.pending;
+    const config = statusConfig[status] || statusConfig.PENDING;
 
     return (
       <Chip
@@ -110,45 +106,99 @@ const CustomerRequests = () => {
     );
   };
 
+  // Format date from ISO string
+  const formatDate = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    return date.toLocaleDateString("vi-VN");
+  };
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return "";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
+  };
+
+  if (status === "loading" && designRequests.length === 0) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Alert severity="error">Error loading data: {error}</Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-        Customer Design Requests
+        Custom Design Requests
       </Typography>
 
-      <TableContainer component={Paper} elevation={0}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Khách hàng</TableCell>
-              <TableCell>Loại yêu cầu</TableCell>
-              <TableCell>Ngày tạo</TableCell>
-              <TableCell>Trạng thái</TableCell>
-              <TableCell>Thao tác</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {mockRequests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell>#{request.id}</TableCell>
-                <TableCell>{request.customerName}</TableCell>
-                <TableCell>{request.requestType}</TableCell>
-                <TableCell>{request.createdAt}</TableCell>
-                <TableCell>{getStatusChip(request.status)}</TableCell>
-                <TableCell>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleViewDetails(request)}
-                  >
-                    <VisibilityIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {designRequests.length === 0 && status === "succeeded" ? (
+        <Alert severity="info">No pending design requests found.</Alert>
+      ) : (
+        <>
+          <TableContainer component={Paper} elevation={0}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Product Type</TableCell>
+                  <TableCell>Requirements</TableCell>
+                  <TableCell>Created At</TableCell>
+                  <TableCell>Total Amount</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {designRequests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell>{request.id.substring(0, 8)}...</TableCell>
+                    <TableCell>
+                      {request.customerChoiceHistories.productTypeName}
+                    </TableCell>
+                    <TableCell>{request.requirements}</TableCell>
+                    <TableCell>{formatDate(request.createdAt)}</TableCell>
+                    <TableCell>
+                      {formatCurrency(request.customerChoiceHistories.totalAmount)}
+                    </TableCell>
+                    <TableCell>{getStatusChip(request.status)}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleViewDetails(request)}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Pagination */}
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+            <Pagination
+              count={pagination.totalPages}
+              page={pagination.currentPage}
+              onChange={handlePageChange}
+              color="primary"
+            />
+          </Box>
+        </>
+      )}
 
       {/* Detail Dialog */}
       <Dialog
@@ -159,47 +209,134 @@ const CustomerRequests = () => {
       >
         {selectedRequest && (
           <>
-            <DialogTitle>Chi tiết yêu cầu #{selectedRequest.id}</DialogTitle>
+            <DialogTitle>
+              Request Details - {selectedRequest.id.substring(0, 8)}...
+            </DialogTitle>
             <DialogContent>
               <Grid container spacing={3} sx={{ mt: 1 }}>
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Khách hàng
+                    Requirements
                   </Typography>
                   <Typography variant="body1">
-                    {selectedRequest.customerName}
+                    {selectedRequest.requirements}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Loại yêu cầu
+                    Product Type
                   </Typography>
                   <Typography variant="body1">
-                    {selectedRequest.requestType}
+                    {selectedRequest.customerChoiceHistories.productTypeName}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Ngân sách
+                    Total Amount
                   </Typography>
-                  <Typography variant="body1">
-                    {selectedRequest.budget}
+                  <Typography variant="body1" fontWeight="bold">
+                    {formatCurrency(
+                      selectedRequest.customerChoiceHistories.totalAmount
+                    )}
                   </Typography>
                 </Grid>
+
+                {/* Size Selections */}
+                <Grid item xs={12}>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Size Specifications
+                  </Typography>
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Size</TableCell>
+                          <TableCell align="right">Value</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {selectedRequest.customerChoiceHistories.sizeSelections.map(
+                          (size) => (
+                            <TableRow key={size.size}>
+                              <TableCell>{size.size}</TableCell>
+                              <TableCell align="right">{size.value}</TableCell>
+                            </TableRow>
+                          )
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Grid>
+
+                {/* Attribute Selections */}
+                <Grid item xs={12}>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Material Specifications
+                  </Typography>
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Attribute</TableCell>
+                          <TableCell>Value</TableCell>
+                          <TableCell>Unit</TableCell>
+                          <TableCell align="right">Unit Price</TableCell>
+                          <TableCell align="right">Subtotal</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {selectedRequest.customerChoiceHistories.attributeSelections.map(
+                          (attr) => (
+                            <TableRow key={attr.attribute}>
+                              <TableCell>{attr.attribute}</TableCell>
+                              <TableCell>{attr.value}</TableCell>
+                              <TableCell>{attr.unit}</TableCell>
+                              <TableCell align="right">
+                                {formatCurrency(attr.unitPrice)}
+                              </TableCell>
+                              <TableCell align="right">
+                                {formatCurrency(attr.subTotal)}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Grid>
+
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Mô tả
+                    Formula
                   </Typography>
-                  <Typography variant="body1">
-                    {selectedRequest.description}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontFamily: "monospace",
+                      my: 1,
+                      p: 1,
+                      bgcolor: "grey.100",
+                      borderRadius: 1,
+                    }}
+                  >
+                    {selectedRequest.customerChoiceHistories.calculateFormula}
                   </Typography>
                 </Grid>
+
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
                     multiline
                     rows={4}
-                    label="Ghi chú"
+                    label="Notes"
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                   />
@@ -207,16 +344,26 @@ const CustomerRequests = () => {
               </Grid>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseDetails}>Đóng</Button>
+              <Button onClick={handleCloseDetails}>Close</Button>
               <Button
                 variant="contained"
                 color="primary"
                 onClick={() => {
-                  // Xử lý gửi ghi chú
+                  // Handle submit comment
                   handleCloseDetails();
                 }}
               >
-                Gửi ghi chú
+                Submit Notes
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => {
+                  // Handle approve request - would need additional functionality
+                  handleCloseDetails();
+                }}
+              >
+                Approve Request
               </Button>
             </DialogActions>
           </>

@@ -11,6 +11,7 @@ import sizeReducer from "./features/size/sizeSlice";
 import s3Reducer from "./features/s3/s3Slice";
 import chatReducer from "./features/chat/chatSlice";
 import attributeValueReducer from "./features/attribute/attributeValueSlice";
+import customDesignReducer from "./features/customeDesign/customerDesignSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -25,6 +26,7 @@ export const store = configureStore({
      s3: s3Reducer,
      attributeValue: attributeValueReducer,
      chat: chatReducer,
+      customDesign: customDesignReducer,
     // Thêm các reducer khác tại đây
   },
 });
