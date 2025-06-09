@@ -14,6 +14,9 @@ import {
   updateCustomerChoiceDetailApi,
   updateCustomerChoiceSizeApi,
   updateCustomerDetailApi,
+  fetchCustomerChoiceSizesByCustomerChoiceIdApi,
+  fetchCustomerChoiceDetailsByCustomerChoiceIdApi,
+  postCustomDesignRequirementApi,
 } from "../../../api/customerService";
 
 const initialState = {
@@ -26,6 +29,10 @@ const initialState = {
   customerChoiceDetailsStatus: "idle",
   totalAmount: 0,
   fetchCustomerChoiceStatus: "idle",
+  customerChoiceSizes: [],
+  customerChoiceDetailsList: [],
+  customDesignOrderStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  customDesignOrderError: null,
 };
 
 export const createCustomer = createAsyncThunk(
@@ -346,6 +353,48 @@ export const fetchCustomerChoiceSizes = createAsyncThunk(
     }
   }
 );
+
+// Lấy danh sách kích thước đã nhập cho customer choice
+export const fetchCustomerChoiceSizesByCustomerChoiceId = createAsyncThunk(
+  'customers/fetchCustomerChoiceSizesByCustomerChoiceId',
+  async (customerChoicesId, { rejectWithValue }) => {
+    try {
+      const response = await fetchCustomerChoiceSizesByCustomerChoiceIdApi(customerChoicesId);
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to fetch customer choice sizes');
+      }
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Unknown error occurred');
+    }
+  }
+);
+// Lấy danh sách thuộc tính đã chọn cho customer choice
+export const fetchCustomerChoiceDetailsByCustomerChoiceId = createAsyncThunk(
+  'customers/fetchCustomerChoiceDetailsByCustomerChoiceId',
+      async (customerChoiceId, { rejectWithValue }) => {
+    try {
+      const response = await fetchCustomerChoiceDetailsByCustomerChoiceIdApi(customerChoiceId);
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to fetch customer choice details');
+      }
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Unknown error occurred');
+    }
+  }
+);
+// Thunk tạo đơn hàng thiết kế thủ công
+export const createCustomDesignOrder = createAsyncThunk(
+  'customers/createCustomDesignOrder',
+  async ({ customerDetailId, customerChoiceId, requirements }, { rejectWithValue }) => {
+    const response = await postCustomDesignRequirementApi(customerDetailId, customerChoiceId, requirements);
+    if (!response.success) {
+      return rejectWithValue(response.error || 'Failed to create custom design order');
+    }
+    return response.result;
+  }
+);
 // Slice
 const customerSlice = createSlice({
   name: "customers",
@@ -594,6 +643,40 @@ const customerSlice = createSlice({
       .addCase(fetchCustomerChoiceSizes.rejected, (state, action) => {
         state.sizesStatus = "failed";
         state.error = action.payload;
+      })
+      .addCase(fetchCustomerChoiceSizesByCustomerChoiceId.pending, (state) => {
+        state.sizesStatus = 'loading';
+      })
+      .addCase(fetchCustomerChoiceSizesByCustomerChoiceId.fulfilled, (state, action) => {
+        state.sizesStatus = 'succeeded';
+        state.customerChoiceSizes = action.payload;
+      })
+      .addCase(fetchCustomerChoiceSizesByCustomerChoiceId.rejected, (state, action) => {
+        state.sizesStatus = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(fetchCustomerChoiceDetailsByCustomerChoiceId.pending, (state) => {
+        state.customerChoiceDetailsStatus = 'loading';
+      })
+      .addCase(fetchCustomerChoiceDetailsByCustomerChoiceId.fulfilled, (state, action) => {
+        state.customerChoiceDetailsStatus = 'succeeded';
+        state.customerChoiceDetailsList = action.payload;
+      })
+      .addCase(fetchCustomerChoiceDetailsByCustomerChoiceId.rejected, (state, action) => {
+        state.customerChoiceDetailsStatus = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(createCustomDesignOrder.pending, (state) => {
+        state.customDesignOrderStatus = 'loading';
+        state.customDesignOrderError = null;
+      })
+      .addCase(createCustomDesignOrder.fulfilled, (state, action) => {
+        state.customDesignOrderStatus = 'succeeded';
+        state.customDesignOrderError = null;
+      })
+      .addCase(createCustomDesignOrder.rejected, (state, action) => {
+        state.customDesignOrderStatus = 'failed';
+        state.customDesignOrderError = action.payload;
       });
   },
 });
@@ -623,4 +706,8 @@ export const selectCustomerDetail = (state) => state.customers?.customerDetail;
 export const selectTotalAmount = (state) => state.customers?.totalAmount || 0;
 export const selectFetchCustomerChoiceStatus = (state) =>
   state.customers?.fetchCustomerChoiceStatus || "idle";
+export const selectCustomerChoiceSizes = (state) => state.customers?.customerChoiceSizes || [];
+export const selectCustomerChoiceDetailsList = (state) => state.customers?.customerChoiceDetailsList || [];
+export const selectCustomDesignOrderStatus = (state) => state.customers?.customDesignOrderStatus || 'idle';
+export const selectCustomDesignOrderError = (state) => state.customers?.customDesignOrderError;
 export default customerSlice.reducer;

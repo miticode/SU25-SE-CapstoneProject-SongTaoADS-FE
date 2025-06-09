@@ -443,4 +443,44 @@ export const updateCustomerChoiceProductTypeApi = async (customerId, productType
     };
   }
 };
+// Lấy danh sách kích thước đã nhập cho customer choice
+export const fetchCustomerChoiceSizesByCustomerChoiceIdApi = async (customerChoicesId) => {
+  try {
+    const response = await customerService.get(`/api/customer-choices/${customerChoicesId}/customer-choices-value`);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choice sizes'
+    };
+  }
+};
+// Lấy danh sách thuộc tính đã chọn cho customer choice
+export const fetchCustomerChoiceDetailsByCustomerChoiceIdApi = async (customerChoiceId) => {
+  try {
+    const response = await customerService.get(`/api/customer-choices/${customerChoiceId}/customer-choice-details`);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer choice details'
+    };
+  }
+};
+
+// Tạo đơn hàng thiết kế thủ công (requirements)
+export const postCustomDesignRequirementApi = async (customerDetailId, customerChoiceId, requirements) => {
+  try {
+    const response = await customerService.post(
+      `/api/customer-details/${customerDetailId}/customer-choices/${customerChoiceId}`,
+      { requirements }
+    );
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create custom design order',
+    };
+  }
+};
 export default customerService;
