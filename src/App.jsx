@@ -6,8 +6,8 @@ import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
-import { syncAuthState } from "./store/features/auth/authSlice";
-import { checkAuthStatus } from "./api/authService";
+import { syncAuthState, setRefreshing } from "./store/features/auth/authSlice";
+import { checkAuthStatus, refreshTokenApi } from "./api/authService";
 
 import MainLayout from "./layouts/MainLayout";
 import SaleLayout from "./layouts/SaleLayout";
@@ -43,13 +43,60 @@ export const notifyLoginSuccess = () => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  // Also check localStorage as a fallback
+  const { isAuthenticated, isRefreshing } = useSelector((state) => state.auth);
   const hasToken = !!localStorage.getItem("accessToken");
+  const dispatch = useDispatch();
+  // Show loading during refresh attempts
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    // If Redux state says not authenticated but we have a token,
+    // it might be that the token just hasn't been validated yet
+    if (!isAuthenticated && hasToken && !isRefreshing) {
+      setVerifying(true);
+
+      // Try to validate the token
+      dispatch(setRefreshing(true));
+
+      checkAuthStatus()
+        .then((authStatus) => {
+          if (authStatus.isAuthenticated) {
+            dispatch(
+              syncAuthState({
+                ...authStatus,
+                accessToken:
+                  authStatus.accessToken || localStorage.getItem("accessToken"),
+              })
+            );
+          } else {
+            // Token invalid, redirect to login
+            localStorage.removeItem("accessToken");
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("accessToken");
+        })
+        .finally(() => {
+          setVerifying(false);
+          dispatch(setRefreshing(false));
+        });
+    }
+  }, [isAuthenticated, hasToken, isRefreshing, dispatch]);
+
+  if (verifying || isRefreshing) {
+    return (
+      <div
+        style={{ display: "flex", justifyContent: "center", padding: "2rem" }}
+      >
+        <CircularProgress />
+      </div>
+    );
+  }
 
   if (!isAuthenticated && !hasToken) {
     return <Navigate to="/auth/login" />;
   }
+
   return children;
 };
 
@@ -58,7 +105,7 @@ const App = () => {
   const dispatch = useDispatch();
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
- 
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   // Xử lý sự kiện đăng nhập thành công
   useEffect(() => {
@@ -80,26 +127,36 @@ const App = () => {
         // Get access token from localStorage
         const accessToken = localStorage.getItem("accessToken");
 
-        if (!accessToken) {
-          // Only try refresh once, not repeatedly
+        if (accessToken) {
+          // We have a token, validate it
           try {
-            // Attempt refresh with a timeout to prevent hanging
-            const refreshPromise = checkAuthStatus();
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("Auth check timeout")), 5000)
+            const authStatus = await checkAuthStatus();
+            dispatch(
+              syncAuthState({
+                ...authStatus,
+                accessToken:
+                  authStatus.accessToken || localStorage.getItem("accessToken"),
+              })
             );
+          } catch (validationError) {
+            console.error("Token validation failed:", validationError);
 
-            // Race between refresh and timeout
-            const authStatus = await Promise.race([
-              refreshPromise,
-              timeoutPromise,
-            ]);
-
-            if (authStatus.isAuthenticated) {
-              console.log("Auth refreshed successfully");
-              dispatch(syncAuthState(authStatus));
-            } else {
-              console.log("Auth refresh failed - not authenticated");
+            // Try to refresh if validation fails
+            try {
+              const refreshResult = await refreshTokenApi();
+              if (refreshResult.success) {
+                dispatch(
+                  syncAuthState({
+                    isAuthenticated: true,
+                    user: refreshResult.user || null,
+                    accessToken: refreshResult.accessToken,
+                  })
+                );
+              } else {
+                throw new Error("Refresh failed during initialization");
+              }
+            } catch (refreshError) {
+              console.error("Auth refresh error:", refreshError);
               dispatch(
                 syncAuthState({
                   isAuthenticated: false,
@@ -108,9 +165,40 @@ const App = () => {
                 })
               );
             }
-          } catch (refreshError) {
-            console.error("Auth refresh error:", refreshError);
-            // Clear auth state on refresh failure
+          }
+        } else {
+          // No token, try silent refresh once
+          try {
+            const refreshPromise = refreshTokenApi();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Auth refresh timeout")), 5000)
+            );
+
+            // Race between refresh and timeout
+            const refreshResult = await Promise.race([
+              refreshPromise,
+              timeoutPromise,
+            ]);
+
+            if (refreshResult.success) {
+              dispatch(
+                syncAuthState({
+                  isAuthenticated: true,
+                  user: refreshResult.user || null,
+                  accessToken: refreshResult.accessToken,
+                })
+              );
+            } else {
+              dispatch(
+                syncAuthState({
+                  isAuthenticated: false,
+                  user: null,
+                  accessToken: null,
+                })
+              );
+            }
+          } catch (silentRefreshError) {
+            console.error("Silent auth refresh failed:", silentRefreshError);
             dispatch(
               syncAuthState({
                 isAuthenticated: false,
@@ -119,15 +207,6 @@ const App = () => {
               })
             );
           }
-        } else {
-          // We have a token, validate it
-          const authStatus = await checkAuthStatus();
-          dispatch(
-            syncAuthState({
-              ...authStatus,
-              accessToken: localStorage.getItem("accessToken"),
-            })
-          );
         }
       } catch (err) {
         console.error("Auth initialization error:", err);
@@ -146,7 +225,42 @@ const App = () => {
 
     initializeAuth();
   }, [dispatch]);
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Calculate refresh timing - 5 minutes before expiration (assuming 30 min tokens)
+      const tokenLifetime = 30 * 60 * 1000; // 30 minutes in milliseconds
+      const refreshBuffer = 5 * 60 * 1000; // 5 minutes before expiry
+      const refreshTiming = tokenLifetime - refreshBuffer; // 25 minutes
 
+      console.log(
+        `Setting token refresh interval for ${refreshTiming / 60000} minutes`
+      );
+
+      const refreshInterval = setInterval(() => {
+        console.log("Performing scheduled token refresh");
+        refreshTokenApi()
+          .then((result) => {
+            if (result.success) {
+              dispatch(
+                syncAuthState({
+                  isAuthenticated: true,
+                  accessToken: result.accessToken,
+                  user: result.user || user,
+                })
+              );
+              console.log("Scheduled token refresh completed successfully");
+            } else {
+              console.warn("Scheduled token refresh failed:", result.error);
+            }
+          })
+          .catch((error) => {
+            console.error("Error during scheduled token refresh:", error);
+          });
+      }, refreshTiming);
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [dispatch, isAuthenticated, user]);
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
     if (reason === "clickaway") {

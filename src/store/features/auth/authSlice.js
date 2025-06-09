@@ -13,6 +13,8 @@ const initialState = {
   accessToken: localStorage.getItem("accessToken"), // Lấy token từ localStorage nếu có
   status: "idle",
   error: null,
+  tokenTimestamp: localStorage.getItem("accessToken") ? Date.now() : null,
+  isRefreshing: false,
 };
 
 // Async thunks
@@ -75,13 +77,21 @@ const authSlice = createSlice({
     syncAuthState: (state, action) => {
       const { isAuthenticated, user, accessToken } = action.payload;
       state.isAuthenticated = isAuthenticated;
+
       if (user) state.user = user;
+
       if (accessToken) {
         state.accessToken = accessToken;
+        state.tokenTimestamp = Date.now(); // Track when we got this token
         localStorage.setItem("accessToken", accessToken);
       }
+
       state.status = "idle";
       state.error = null;
+      state.isRefreshing = false;
+    },
+    setRefreshing: (state, action) => {
+      state.isRefreshing = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -140,6 +150,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { resetAuthStatus, syncAuthState } = authSlice.actions;
+export const { resetAuthStatus, syncAuthState, setRefreshing } = authSlice.actions;
 
 export default authSlice.reducer;
