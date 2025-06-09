@@ -244,7 +244,6 @@ export const checkAuthStatus = async () => {
   try {
     const accessToken = localStorage.getItem("accessToken");
 
-    // If we have an access token, assume we're authenticated until proven otherwise
     if (accessToken) {
       try {
         // Try to validate the token with the server
@@ -256,51 +255,46 @@ export const checkAuthStatus = async () => {
 
         if (response.data.success) {
           // Token is valid, update auth state
-          authState.isAuthenticated = true;
-          authState.user = response.data.result;
+          updateAuthState(true, response.data.result);
           return {
             isAuthenticated: true,
-            user: authState.user,
+            user: response.data.result,
+            accessToken: accessToken,  // Trả về token hiện tại
           };
         }
       } catch (error) {
         // Token validation failed, try to refresh
         if (error.response?.status === 401) {
-          try {
-            const refreshResult = await refreshTokenApi();
-            if (refreshResult.success) {
-              return {
-                isAuthenticated: true,
-                user: authState.user,
-                accessToken: refreshResult.accessToken,
-              };
-            }
-          } catch (refreshError) {
-            console.error("Refresh failed during validation:", refreshError);
+          console.log("Token expired, trying to refresh during checkAuthStatus");
+          const refreshResult = await refreshTokenApi();
+          if (refreshResult.success) {
+            console.log("Token refreshed successfully during checkAuthStatus");
+            return {
+              isAuthenticated: true,
+              user: refreshResult.user || authState.user,
+              accessToken: refreshResult.accessToken,  // Trả về token mới
+            };
           }
         }
-      }
-    } else {
-      // No access token, try a single refresh attempt
-      try {
-        const refreshResult = await refreshTokenApi();
-        if (refreshResult.success) {
-          return {
-            isAuthenticated: true,
-            user: authState.user,
-            accessToken: refreshResult.accessToken,
-          };
-        }
-      } catch (refreshError) {
-        console.error("Refresh failed when no token:", refreshError);
+        throw error;  // Đảm bảo lỗi được truyền lên để xử lý ở cấp cao hơn
       }
     }
 
-    // If we reach here, authentication failed
-    return { isAuthenticated: false, user: null };
+    // Thử refresh token nếu không có access token
+    const refreshResult = await refreshTokenApi();
+    if (refreshResult.success) {
+      return {
+        isAuthenticated: true,
+        user: refreshResult.user,
+        accessToken: refreshResult.accessToken,
+      };
+    }
+
+    // Nếu đến đây, xác thực thất bại
+    return { isAuthenticated: false, user: null, accessToken: null };
   } catch (error) {
     console.error("Auth check error:", error);
-    return { isAuthenticated: false, user: null };
+    return { isAuthenticated: false, user: null, accessToken: null };
   }
 };
 
@@ -339,24 +333,20 @@ export const getProfileApi = async () => {
 // Hàm gọi refresh token
 export const refreshTokenApi = async () => {
   try {
-    console.log("Attempting to refresh access token");
+    console.log(`[${new Date().toLocaleTimeString()}] Attempting to refresh access token`);
 
     const response = await authService.post(
       "/api/auth/refresh-token",
       {},
-      {
-        withCredentials: true,
-      }
+      { withCredentials: true }
     );
 
     const { success, result } = response.data;
 
     if (success && result?.accessToken) {
-      console.log("Token refresh successful");
-      // Store the new access token
+      console.log(`[${new Date().toLocaleTimeString()}] Token refresh successful`);
       localStorage.setItem("accessToken", result.accessToken);
 
-      // Update auth state with new user data if available
       if (result.user) {
         updateAuthState(true, result.user);
       }
@@ -368,14 +358,15 @@ export const refreshTokenApi = async () => {
       };
     }
 
-    console.warn("Refresh token response missing access token");
+    console.warn(`[${new Date().toLocaleTimeString()}] Refresh token response missing access token`);
     return { success: false, error: "No access token in response" };
   } catch (error) {
     console.error(
-      "Refresh token error:",
+      `[${new Date().toLocaleTimeString()}] Refresh token error:`,
+      error.response?.status,
       error.response?.data || error.message
     );
-    localStorage.removeItem("accessToken");
+    // Không xóa token ở đây, để cơ chế xử lý lỗi cấp cao hơn quyết định
     return {
       success: false,
       error: error.response?.data?.message || "Failed to refresh token",
