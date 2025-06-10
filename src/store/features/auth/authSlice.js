@@ -4,6 +4,7 @@ import {
   registerApi,
   logoutApi,
   updateAuthState,
+  resendVerificationApi,
 } from "../../../api/authService";
 
 // Initial state
@@ -15,6 +16,8 @@ const initialState = {
   error: null,
   tokenTimestamp: localStorage.getItem("accessToken") ? Date.now() : null,
   isRefreshing: false,
+  verificationStatus: "idle", // Thêm trạng thái xác thực
+  verificationError: null, // Thêm lỗi xác thực
 };
 
 // Async thunks
@@ -65,6 +68,20 @@ export const logout = createAsyncThunk(
   }
 );
 
+// Thêm thunk cho việc gửi email xác thực
+export const sendVerificationEmail = createAsyncThunk(
+  "auth/sendVerificationEmail",
+  async (userData, { rejectWithValue }) => {
+    const response = await resendVerificationApi(userData);
+
+    if (!response.success) {
+      return rejectWithValue(response.error || "Gửi email xác thực thất bại");
+    }
+
+    return response;
+  }
+);
+
 // Đơn giản hóa slice - chỉ còn các hàm cần thiết
 const authSlice = createSlice({
   name: "auth",
@@ -73,6 +90,10 @@ const authSlice = createSlice({
     resetAuthStatus: (state) => {
       state.status = "idle";
       state.error = null;
+    },
+    resetVerificationStatus: (state) => {
+      state.verificationStatus = "idle";
+      state.verificationError = null;
     },
     syncAuthState: (state, action) => {
       const { isAuthenticated, user, accessToken } = action.payload;
@@ -131,6 +152,20 @@ const authSlice = createSlice({
         state.registrationSuccess = false;
       })
 
+      // Verification cases
+      .addCase(sendVerificationEmail.pending, (state) => {
+        state.verificationStatus = "loading";
+        state.verificationError = null;
+      })
+      .addCase(sendVerificationEmail.fulfilled, (state) => {
+        state.verificationStatus = "succeeded";
+        state.verificationError = null;
+      })
+      .addCase(sendVerificationEmail.rejected, (state, action) => {
+        state.verificationStatus = "failed";
+        state.verificationError = action.payload;
+      })
+
       // Logout cases
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
@@ -150,6 +185,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { resetAuthStatus, syncAuthState, setRefreshing } = authSlice.actions;
+export const { resetAuthStatus, resetVerificationStatus, syncAuthState, setRefreshing } = authSlice.actions;
 
 export default authSlice.reducer;
