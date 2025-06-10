@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
+  assignDesignerToRequestApi,
   fetchCustomDesignRequestsApi
 } from "../../../api/customeDesignService";
 
@@ -33,7 +34,22 @@ export const fetchPendingDesignRequests = createAsyncThunk(
     }
   }
 );
-
+export const assignDesignerToRequest = createAsyncThunk(
+  "customDesign/assignDesigner",
+  async ({ customDesignRequestId, designerId }, { rejectWithValue }) => {
+    try {
+      const response = await assignDesignerToRequestApi(customDesignRequestId, designerId);
+      
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to assign designer to request");
+      }
+      
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while assigning designer");
+    }
+  }
+);
 // Create the slice
 const customerDesignSlice = createSlice({
   name: "customDesign",
@@ -65,7 +81,23 @@ const customerDesignSlice = createSlice({
       .addCase(fetchPendingDesignRequests.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
-      });
+      })
+       .addCase(assignDesignerToRequest.pending, (state) => {
+      state.status = "loading";
+      state.error = null;
+    })
+    .addCase(assignDesignerToRequest.fulfilled, (state, action) => {
+      state.status = "succeeded";
+      // Update the assigned request in the list
+      state.designRequests = state.designRequests.map(request => 
+        request.id === action.payload.id ? action.payload : request
+      );
+      state.error = null;
+    })
+    .addCase(assignDesignerToRequest.rejected, (state, action) => {
+      state.status = "failed";
+      state.error = action.payload;
+    });
   }
 });
 

@@ -483,4 +483,27 @@ export const postCustomDesignRequirementApi = async (customerDetailId, customerC
     };
   }
 };
+export const getCustomerDetailByIdApi = async (customerDetailId) => {
+  try {
+    if (!customerDetailId) {
+      console.error('Invalid customer detail ID provided');
+      return {
+        success: false,
+        error: 'Customer detail ID is required'
+      };
+    }
+    
+    console.log('Fetching customer detail with ID:', customerDetailId);
+    
+    const response = await customerService.get(`/api/customer-details/${customerDetailId}`);
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching customer detail:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch customer detail'
+    };
+  }
+};
 export default customerService;

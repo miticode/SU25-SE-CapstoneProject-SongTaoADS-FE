@@ -64,7 +64,21 @@ export const fetchCustomDesignRequestsApi = async (status = 'PENDING', page = 1,
     };
   }
 };
-
+export const assignDesignerToRequestApi = async (customDesignRequestId, designerId) => {
+  try {
+    const response = await customDesignService.patch(
+      `/api/custom-design-requests/${customDesignRequestId}/users/${designerId}`
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to assign designer to request'
+    };
+  }
+};
 
 
 export default customDesignService;
