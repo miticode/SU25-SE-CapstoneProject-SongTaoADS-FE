@@ -1,17 +1,24 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { register, resetAuthStatus } from "../store/features/auth/authSlice";
+import {
+  register,
+  resetAuthStatus,
+  sendVerificationEmail,
+  resetVerificationStatus,
+} from "../store/features/auth/authSlice";
 import { isAuthenticated } from "../utils/cookieManager";
 import PageTransition from "../components/PageTransition";
 
 // Import MUI components
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 
 // Import React Icons
 import { FaExclamationCircle } from "react-icons/fa";
 import { FaExclamationTriangle } from "react-icons/fa";
+import { FaCheckCircle } from "react-icons/fa";
 
 const Signup = () => {
   const [fullName, setFullName] = useState("");
@@ -22,26 +29,33 @@ const Signup = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { status, error, isAuthenticated: reduxAuth } = useSelector(
-    (state) => state.auth
-  );
+  const {
+    status,
+    error,
+    isAuthenticated: reduxAuth,
+    verificationStatus,
+    verificationError,
+  } = useSelector((state) => state.auth);
 
   useEffect(() => {
     // Reset auth status khi component mount
     dispatch(resetAuthStatus());
+    dispatch(resetVerificationStatus());
 
     // Chuyển hướng nếu đã đăng nhập
     if (reduxAuth || isAuthenticated()) {
-      navigate("/"); // hoặc trang mà bạn muốn chuyển hướng sau khi đăng nhập
+      navigate("/");
     }
   }, [dispatch, reduxAuth, navigate]);
 
   const validatePassword = (password) => {
     // Kiểm tra mật khẩu có ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{6,}$/;
+    const passwordRegex =
+      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{6,}$/;
     return passwordRegex.test(password);
   };
 
@@ -89,20 +103,32 @@ const Signup = () => {
 
     if (validateForm()) {
       try {
-        // Dispatch register action và đợi kết quả
-        await dispatch(
-          register({
-            email,
-            password,
+        // Gửi email xác thực trước
+        const verificationResult = await dispatch(
+          sendVerificationEmail({
             fullName,
-            phone,
+            email,
           })
         ).unwrap();
 
-        // Chuyển hướng đến trang đăng nhập với thông báo thành công
-        navigate("/auth/login?registered=success");
+        if (verificationResult.success) {
+          // Nếu gửi email xác thực thành công, tiếp tục đăng ký
+          await dispatch(
+            register({
+              email,
+              password,
+              fullName,
+              phone,
+            })
+          ).unwrap();
+
+          // Hiển thị thông báo xác thực
+          setShowVerificationMessage(true);
+
+          // Chuyển hướng đến trang đăng nhập với thông báo thành công
+          navigate("/auth/login?registered=success&verify=required");
+        }
       } catch (err) {
-        // Lỗi đã được xử lý trong slice
         console.error("Registration failed:", err);
       }
     }
@@ -117,15 +143,32 @@ const Signup = () => {
         </p>
       </div>
 
-      {/* Hiển thị thông báo lỗi từ Redux hoặc form validation sử dụng MUI Alert */}
-      {(status === "failed" || formError) && (
-        <Box sx={{ width: '100%', mb: 3 }}>
-          <Alert 
+      {/* Hiển thị thông báo lỗi từ Redux hoặc form validation */}
+      {(status === "failed" || formError || verificationError) && (
+        <Box sx={{ width: "100%", mb: 3 }}>
+          <Alert
             severity="error"
             icon={<FaExclamationCircle className="text-xl" />}
-            sx={{ mb: 2, alignItems: 'center' }}
+            sx={{ mb: 2, alignItems: "center" }}
           >
-            {error || formError || "Đăng ký thất bại. Vui lòng thử lại."}
+            {error ||
+              formError ||
+              verificationError ||
+              "Đăng ký thất bại. Vui lòng thử lại."}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Hiển thị thông báo xác thực email */}
+      {showVerificationMessage && (
+        <Box sx={{ width: "100%", mb: 3 }}>
+          <Alert
+            severity="success"
+            icon={<FaCheckCircle className="text-xl" />}
+            sx={{ mb: 2, alignItems: "center" }}
+          >
+            Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng
+            nhập.
           </Alert>
         </Box>
       )}
@@ -228,11 +271,11 @@ const Signup = () => {
             disabled={status === "loading"}
           />
           {passwordError && (
-            <Box sx={{ width: '100%', mt: 1 }}>
-              <Alert 
+            <Box sx={{ width: "100%", mt: 1 }}>
+              <Alert
                 severity="warning"
                 icon={<FaExclamationTriangle className="text-lg" />}
-                sx={{ py: 0, alignItems: 'center' }}
+                sx={{ py: 0, alignItems: "center" }}
               >
                 {passwordError}
               </Alert>
@@ -264,12 +307,21 @@ const Signup = () => {
 
         <button
           type="submit"
-          disabled={status === "loading"}
+          disabled={status === "loading" || verificationStatus === "loading"}
           className={`cursor-pointer w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium ${
-            status === "loading" ? "opacity-70 cursor-not-allowed" : ""
+            status === "loading" || verificationStatus === "loading"
+              ? "opacity-70 cursor-not-allowed"
+              : ""
           }`}
         >
-          {status === "loading" ? "Đang xử lý..." : "Đăng ký"}
+          {status === "loading" || verificationStatus === "loading" ? (
+            <div className="flex items-center justify-center">
+              <CircularProgress size={20} color="inherit" className="mr-2" />
+              Đang xử lý...
+            </div>
+          ) : (
+            "Đăng ký"
+          )}
         </button>
       </form>
 
@@ -298,7 +350,7 @@ const Signup = () => {
         </div>
 
         <div className="mt-6 flex justify-center">
-          <button 
+          <button
             type="button"
             className="cursor-pointer flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             disabled={status === "loading"}

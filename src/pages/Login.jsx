@@ -10,7 +10,11 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
-import { FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 
 const Login = () => {
@@ -26,6 +30,7 @@ const Login = () => {
   // Kiểm tra xem người dùng vừa đăng ký thành công hay không
   const [searchParams] = useSearchParams();
   const registrationSuccess = searchParams.get("registered") === "success";
+  const verifyRequired = searchParams.get("verify") === "required";
   const sessionError = searchParams.get("error");
 
   useEffect(() => {
@@ -79,8 +84,14 @@ const Login = () => {
         <Box sx={{ width: "100%", mb: 3 }}>
           <Collapse in={openAlert}>
             <Alert
-              severity="success"
-              icon={<FaCheckCircle className="text-xl" />}
+              severity={verifyRequired ? "warning" : "success"}
+              icon={
+                verifyRequired ? (
+                  <FaExclamationTriangle className="text-xl" />
+                ) : (
+                  <FaCheckCircle className="text-xl" />
+                )
+              }
               action={
                 <IconButton
                   aria-label="close"
@@ -95,7 +106,9 @@ const Login = () => {
               }
               sx={{ mb: 2, alignItems: "center" }}
             >
-              Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục.
+              {verifyRequired
+                ? "Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng nhập."
+                : "Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục."}
             </Alert>
           </Collapse>
         </Box>

@@ -462,4 +462,22 @@ export const updateUserPasswordApi = async (
   }
 };
 
+// Hàm gửi email xác thực
+export const resendVerificationApi = async (userData) => {
+  try {
+    const response = await authService.post("/api/verifications/resend", {
+      fullName: userData.fullName,
+      email: userData.email
+    });
+
+    const { success, message, result } = response.data;
+    return { success, message, result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Gửi email xác thực thất bại",
+    };
+  }
+};
+
 export default authService;
