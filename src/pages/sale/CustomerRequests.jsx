@@ -42,6 +42,7 @@ import {
   selectError,
   selectPagination,
   assignDesignerToRequest,
+  updateRequestStatus,
 } from "../../store/features/customeDesign/customerDesignSlice";
 import { getCustomerDetailByIdApi } from "../../api/customerService";
 import { getUsersByRoleApi } from "../../api/userService";
@@ -63,14 +64,16 @@ const CustomerRequests = () => {
   const [designers, setDesigners] = useState([]);
   const [selectedDesigner, setSelectedDesigner] = useState('');
   const [loadingDesigners, setLoadingDesigners] = useState(false);
-const [assigningDesigner, setAssigningDesigner] = useState(false);
+  const [assigningDesigner, setAssigningDesigner] = useState(false);
   const [assignmentError, setAssignmentError] = useState(null);
-   const [notification, setNotification] = useState({
+  const [rejectingRequest, setRejectingRequest] = useState(false);
+  const [notification, setNotification] = useState({
     open: false,
     message: '',
     severity: 'success' // 'success', 'error', 'info', 'warning'
   });
-const handleCloseNotification = () => {
+
+  const handleCloseNotification = () => {
     setNotification(prev => ({ ...prev, open: false }));
   };
 
@@ -215,6 +218,53 @@ const handleCloseNotification = () => {
       setAssigningDesigner(false);
     }
   };
+  
+  // Handle rejecting the request
+  const handleRejectRequest = async () => {
+    if (!selectedRequest) return;
+    
+    setRejectingRequest(true);
+    
+    try {
+      const resultAction = await dispatch(updateRequestStatus({
+        customDesignRequestId: selectedRequest.id,
+        status: 'REJECTED'
+      }));
+      
+      if (updateRequestStatus.fulfilled.match(resultAction)) {
+        // Show success notification
+        setNotification({
+          open: true,
+          message: 'Request rejected successfully!',
+          severity: 'success'
+        });
+        
+        // Refresh data after rejection
+        dispatch(fetchPendingDesignRequests({ 
+          page: pagination.currentPage, 
+          size: pagination.pageSize 
+        }));
+        
+        // Close the dialog
+        handleCloseDetails();
+      } else {
+        setNotification({
+          open: true,
+          message: resultAction.payload || 'Failed to reject request',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: error.message || 'An error occurred',
+        severity: 'error'
+      });
+      console.error('Error rejecting request:', error);
+    } finally {
+      setRejectingRequest(false);
+    }
+  };
 
   // Get customer name from customer details
   const getCustomerName = (customerDetailId) => {
@@ -258,6 +308,11 @@ const handleCloseNotification = () => {
         icon: <CancelIcon />,
         color: "error",
         label: "Đã hủy",
+      },
+      REJECTED: {
+        icon: <CancelIcon />,
+        color: "error",
+        label: "Đã từ chối",
       },
     };
 
@@ -552,33 +607,42 @@ const handleCloseNotification = () => {
                 </Grid>
               </Grid>
             </DialogContent>
-             <DialogActions>
-      <Button onClick={handleCloseDetails}>Close</Button>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={() => {
-          // Handle submit comment
-          handleCloseDetails();
-        }}
-      >
-        Submit Notes
-      </Button>
-      <Button
-        variant="contained"
-        color="success"
-        disabled={!selectedDesigner || assigningDesigner || loadingDesigners}
-        onClick={handleAssignDesigner}
-        startIcon={assigningDesigner ? <CircularProgress size={20} color="inherit" /> : null}
-      >
-        {assigningDesigner ? 'Assigning...' : 'Assign Designer'}
-      </Button>
-    </DialogActions>
-     {assignmentError && (
-      <Box sx={{ px: 3, pb: 2 }}>
-        <Alert severity="error">{assignmentError}</Alert>
-      </Box>
-    )}
+            <DialogActions>
+              <Button onClick={handleCloseDetails}>Close</Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  // Handle submit comment
+                  handleCloseDetails();
+                }}
+              >
+                Submit Notes
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={handleRejectRequest}
+                disabled={rejectingRequest}
+                startIcon={rejectingRequest ? <CircularProgress size={20} color="inherit" /> : <CancelIcon />}
+              >
+                {rejectingRequest ? 'Rejecting...' : 'Reject'}
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                disabled={!selectedDesigner || assigningDesigner || loadingDesigners}
+                onClick={handleAssignDesigner}
+                startIcon={assigningDesigner ? <CircularProgress size={20} color="inherit" /> : null}
+              >
+                {assigningDesigner ? 'Assigning...' : 'Assign Designer'}
+              </Button>
+            </DialogActions>
+            {assignmentError && (
+              <Box sx={{ px: 3, pb: 2 }}>
+                <Alert severity="error">{assignmentError}</Alert>
+              </Box>
+            )}
           </>
         )}
       </Dialog>
