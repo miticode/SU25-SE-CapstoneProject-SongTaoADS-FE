@@ -115,3 +115,38 @@ export const deleteFineTuneFileApi = async (fileId) => {
     };
   }
 }; 
+// Lấy danh sách job fine-tune
+export const getFineTuneJobsApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/fine-tune-jobs');
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách job' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách job' };
+  }
+};
+
+// Lấy danh sách file
+export const getFineTuneFilesApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/files');
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách file' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách file' };
+  }
+};
+
+// Lấy chi tiết file
+export const getFineTuneFileDetailApi = async (fileId) => {
+  try {
+    const response = await chatService.get(`/api/chat-bot/files/${fileId}`);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy chi tiết file' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết file' };
+  }
+}; 
