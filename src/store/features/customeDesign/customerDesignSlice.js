@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   assignDesignerToRequestApi,
-  fetchCustomDesignRequestsApi
+  fetchCustomDesignRequestsApi,
+  updateRequestStatusApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -47,6 +48,22 @@ export const assignDesignerToRequest = createAsyncThunk(
       return response.result;
     } catch (error) {
       return rejectWithValue(error.message || "An error occurred while assigning designer");
+    }
+  }
+);
+export const updateRequestStatus = createAsyncThunk(
+  "customDesign/updateStatus",
+  async ({ customDesignRequestId, status }, { rejectWithValue }) => {
+    try {
+      const response = await updateRequestStatusApi(customDesignRequestId, status);
+      
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to update request status");
+      }
+      
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while updating request status");
     }
   }
 );
@@ -97,7 +114,30 @@ const customerDesignSlice = createSlice({
     .addCase(assignDesignerToRequest.rejected, (state, action) => {
       state.status = "failed";
       state.error = action.payload;
-    });
+    })
+     .addCase(updateRequestStatus.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(updateRequestStatus.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        // Update the request with new status in the list
+        state.designRequests = state.designRequests.map(request => 
+          request.id === action.payload.id ? action.payload : request
+        );
+        // If the updated status is not PENDING, you might want to remove it from the list
+        // if filtering by PENDING in the UI. Uncomment the following if needed:
+        // if (action.payload.status !== 'PENDING') {
+        //   state.designRequests = state.designRequests.filter(request => 
+        //     request.id !== action.payload.id
+        //   );
+        // }
+        state.error = null;
+      })
+      .addCase(updateRequestStatus.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      });
   }
 });
 

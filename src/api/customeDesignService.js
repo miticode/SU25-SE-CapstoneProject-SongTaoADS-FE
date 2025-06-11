@@ -79,6 +79,24 @@ export const assignDesignerToRequestApi = async (customDesignRequestId, designer
     };
   }
 };
-
+export const updateRequestStatusApi = async (customDesignRequestId, status) => {
+  try {
+    const response = await customDesignService.patch(
+      `/api/custom-design-requests/${customDesignRequestId}/status`,
+      null,
+      {
+        params: { status }
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update request status'
+    };
+  }
+};
 
 export default customDesignService;
