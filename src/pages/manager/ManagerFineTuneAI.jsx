@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
   Typography,
@@ -12,39 +13,107 @@ import {
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  uploadFileFineTune,
+  fineTuneModel,
+  cancelFineTuneJob,
+  deleteFineTuneFile,
+  resetFineTuneStatus,
+  selectFineTuneStatus,
+  selectTrainingStatus,
+  selectUploadedFile,
+  selectChatError,
+  selectFineTuningJobId,
+} from "../../store/features/chat/chatSlice";
 
 const ManagerFineTuneAI = () => {
-  const [uploading, setUploading] = useState(false);
-  const [training, setTraining] = useState(false);
-  const [modelStatus, setModelStatus] = useState("Latest model loaded");
+  const dispatch = useDispatch();
   const [file, setFile] = useState(null);
   const [alert, setAlert] = useState(null);
+
+  const fineTuneStatus = useSelector(selectFineTuneStatus);
+  const trainingStatus = useSelector(selectTrainingStatus);
+  const uploadedFile = useSelector(selectUploadedFile);
+  const error = useSelector(selectChatError);
+  const fineTuningJobId = useSelector(selectFineTuningJobId);
+
+  useEffect(() => {
+    return () => {
+      dispatch(resetFineTuneStatus());
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (error) {
+      setAlert({ type: "error", message: error });
+    }
+  }, [error]);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
     setAlert(null);
   };
 
-  const handleUpload = () => {
-    if (!file) {
-      setAlert({ type: "warning", message: "Please select a file to upload." });
-      return;
+  const handleRemoveFile = async () => {
+    setAlert(null);
+    if (uploadedFile && uploadedFile.id) {
+      try {
+        await dispatch(deleteFineTuneFile(uploadedFile.id)).unwrap();
+        setFile(null);
+        setAlert({ type: "success", message: "Đã xoá file khỏi server." });
+      } catch (error) {
+        setAlert({ type: "error", message: error || "Lỗi khi xoá file" });
+      }
+    } else {
+      setFile(null);
     }
-    setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
-      setAlert({ type: "success", message: "Data uploaded successfully!" });
-    }, 2000);
   };
 
-  const handleTrain = () => {
-    setTraining(true);
-    setModelStatus("Training in progress...");
-    setTimeout(() => {
-      setTraining(false);
-      setModelStatus("New model trained and loaded!");
-      setAlert({ type: "success", message: "AI model trained successfully!" });
-    }, 4000);
+  const handleUpload = async () => {
+    if (!file) {
+      setAlert({ type: "warning", message: "Vui lòng chọn file để upload." });
+      return;
+    }
+
+    try {
+      await dispatch(uploadFileFineTune(file)).unwrap();
+      setAlert({ type: "success", message: "Upload file thành công!" });
+    } catch (error) {
+      setAlert({ type: "error", message: error || "Lỗi khi upload file" });
+    }
+  };
+
+  const handleTrain = async () => {
+    if (!uploadedFile) {
+      setAlert({
+        type: "warning",
+        message: "Vui lòng upload file trước khi training.",
+      });
+      return;
+    }
+
+    try {
+      await dispatch(
+        fineTuneModel({
+          model: "gpt-3.5-turbo", // hoặc model phù hợp của bạn
+          trainingFile: uploadedFile.id,
+        })
+      ).unwrap();
+      setAlert({ type: "success", message: "Training model thành công!" });
+    } catch (error) {
+      setAlert({ type: "error", message: error || "Lỗi khi training model" });
+    }
+  };
+
+  const handleCancelTraining = async () => {
+    if (!fineTuningJobId) return;
+    try {
+      await dispatch(cancelFineTuneJob(fineTuningJobId)).unwrap();
+      setAlert({ type: "info", message: "Đã huỷ training." });
+    } catch (error) {
+      setAlert({ type: "error", message: error || "Lỗi khi huỷ training" });
+    }
   };
 
   return (
@@ -53,9 +122,9 @@ const ManagerFineTuneAI = () => {
         Fine Tune AI
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Upload new training data, start training, and manage your AI model. This
-        feature allows managers to fine-tune the AI for better performance and
-        get the latest model.
+        Upload dữ liệu training mới, bắt đầu training và quản lý model AI của
+        bạn. Tính năng này cho phép quản lý fine-tune AI để có hiệu suất tốt hơn
+        và lấy model mới nhất.
       </Typography>
       <Paper
         elevation={0}
@@ -67,29 +136,38 @@ const ManagerFineTuneAI = () => {
         }}
       >
         <Typography variant="h6" mb={2}>
-          1. Upload Training Data
+          1. Upload Dữ Liệu Training
         </Typography>
         <Box display="flex" alignItems="center" gap={2}>
           <Button
             variant="contained"
             component="label"
             startIcon={<CloudUploadIcon />}
-            disabled={uploading}
+            disabled={fineTuneStatus === "loading"}
             sx={{ borderRadius: 2 }}
           >
-            {file ? file.name : "Select File"}
+            {file ? file.name : "Chọn File"}
             <input type="file" hidden onChange={handleFileChange} />
           </Button>
+          {(file || uploadedFile) && (
+            <DeleteIcon
+              color="error"
+              sx={{ cursor: "pointer" }}
+              onClick={handleRemoveFile}
+            />
+          )}
           <Button
             variant="outlined"
             onClick={handleUpload}
-            disabled={uploading || !file}
+            disabled={fineTuneStatus === "loading" || !file}
             sx={{ borderRadius: 2 }}
           >
             Upload
           </Button>
         </Box>
-        {uploading && <LinearProgress sx={{ mt: 2, width: 200 }} />}
+        {fineTuneStatus === "loading" && (
+          <LinearProgress sx={{ mt: 2, width: 200 }} />
+        )}
         {alert && (
           <Alert severity={alert.type} sx={{ mt: 2, width: 300 }}>
             {alert.message}
@@ -106,7 +184,7 @@ const ManagerFineTuneAI = () => {
         }}
       >
         <Typography variant="h6" mb={2}>
-          2. Train AI Model
+          2. Training Model AI
         </Typography>
         <Box display="flex" alignItems="center" gap={2}>
           <Button
@@ -114,26 +192,50 @@ const ManagerFineTuneAI = () => {
             color="success"
             startIcon={<AutorenewIcon />}
             onClick={handleTrain}
-            disabled={training}
+            disabled={trainingStatus === "loading" || !uploadedFile}
             sx={{ borderRadius: 2 }}
           >
-            {training ? "Training..." : "Start Training"}
+            {trainingStatus === "loading"
+              ? "Đang Training..."
+              : "Bắt Đầu Training"}
           </Button>
+          {trainingStatus === "loading" && fineTuningJobId && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleCancelTraining}
+              sx={{ borderRadius: 2 }}
+            >
+              Huỷ Training
+            </Button>
+          )}
           <Typography
             variant="body2"
-            color={training ? "warning.main" : "success.main"}
+            color={
+              trainingStatus === "loading"
+                ? "warning.main"
+                : trainingStatus === "cancelled"
+                ? "error.main"
+                : trainingStatus === "succeeded"
+                ? "success.main"
+                : "text.secondary"
+            }
           >
-            {modelStatus}
+            {trainingStatus === "loading" && "Đang training..."}
+            {trainingStatus === "cancelled" && "Đã huỷ training"}
+            {/* Nếu có API kiểm tra trạng thái job, có thể hiển thị "Training thành công!" khi job hoàn thành */}
           </Typography>
         </Box>
-        {training && <LinearProgress sx={{ mt: 2, width: 200 }} />}
+        {trainingStatus === "loading" && (
+          <LinearProgress sx={{ mt: 2, width: 200 }} />
+        )}
       </Paper>
       <Paper
         elevation={0}
         sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}
       >
         <Typography variant="h6" mb={2}>
-          3. Download Latest Model
+          3. Tải Model Mới Nhất
         </Typography>
         <Button
           variant="outlined"
@@ -141,10 +243,10 @@ const ManagerFineTuneAI = () => {
           startIcon={<CheckCircleIcon />}
           sx={{ borderRadius: 2 }}
         >
-          Download Model
+          Tải Model
         </Button>
         <Typography variant="body2" color="text.secondary" mt={1}>
-          The latest trained model is available for download.
+          Model đã training mới nhất có sẵn để tải xuống.
         </Typography>
       </Paper>
     </Box>
