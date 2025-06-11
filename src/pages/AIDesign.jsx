@@ -2953,6 +2953,55 @@ const AIDesign = () => {
                   Quay lại
                 </motion.button>
 
+                {/* Nút Thiết kế thủ công */}
+                <motion.button
+                  type="button"
+                  onClick={() => {
+                    navigate("/custom-design", {
+                      state: {
+                        customerChoiceId: currentOrder?.id,
+                        selectedType: billboardType,
+                        businessInfo: {
+                          companyName:
+                            businessInfo.companyName ||
+                            customerDetail?.companyName ||
+                            "",
+                          address:
+                            businessInfo.tagLine ||
+                            customerDetail?.tagLine ||
+                            "",
+                          contactInfo:
+                            businessInfo.contactInfo ||
+                            customerDetail?.contactInfo ||
+                            "",
+                          logoUrl:
+                            businessInfo.logoPreview ||
+                            customerDetail?.logoUrl ||
+                            "",
+                        },
+                      },
+                    });
+                  }}
+                  className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center mx-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Thiết kế thủ công
+                  <svg
+                    className="w-5 h-5 ml-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    />
+                  </svg>
+                </motion.button>
+
                 <motion.button
                   type="submit"
                   className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
@@ -2971,7 +3020,7 @@ const AIDesign = () => {
                     </>
                   ) : (
                     <>
-                      Hoàn thành
+                      Thiết kế bằng AI
                       <svg
                         className="w-5 h-5 ml-1"
                         fill="none"
@@ -3335,8 +3384,7 @@ const AIDesign = () => {
             >
               Chỉnh sửa thiết kế
             </motion.h2>
-            
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Business Info Panel - Bên trái - giảm xuống còn 2 cột */}
               <div className="lg:col-span-2">

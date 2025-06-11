@@ -204,5 +204,39 @@ export const toggleUserStatusApi = async (userId, isActive) => {
     };
   }
 };
+export const getUsersByRoleApi = async (roleName, page = 1, size = 10) => {
+  try {
+    const response = await userService.get('/api/users/role', {
+      params: {
+        roleName,
+        page,
+        size
+      }
+    });
+    
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+    
+    if (success) {
+      return { 
+        success: true, 
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
+    }
+    
+    return { success: false, error: message || `Failed to fetch users with role ${roleName}` };
+  } catch (error) {
+    console.error('Error fetching users by role:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || `Failed to fetch users with role ${roleName}`
+    };
+  }
+};
 
 export default userService;

@@ -22,6 +22,12 @@ import {
   CircularProgress,
   Pagination,
   Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Avatar,
+  Snackbar,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -35,7 +41,11 @@ import {
   selectStatus,
   selectError,
   selectPagination,
+  assignDesignerToRequest,
+  updateRequestStatus,
 } from "../../store/features/customeDesign/customerDesignSlice";
+import { getCustomerDetailByIdApi } from "../../api/customerService";
+import { getUsersByRoleApi } from "../../api/userService";
 
 const CustomerRequests = () => {
   const dispatch = useDispatch();
@@ -47,10 +57,90 @@ const CustomerRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [comment, setComment] = useState("");
+  const [customerDetails, setCustomerDetails] = useState({});
+  const [loadingCustomers, setLoadingCustomers] = useState({});
+  
+  // Thêm state cho designer
+  const [designers, setDesigners] = useState([]);
+  const [selectedDesigner, setSelectedDesigner] = useState('');
+  const [loadingDesigners, setLoadingDesigners] = useState(false);
+  const [assigningDesigner, setAssigningDesigner] = useState(false);
+  const [assignmentError, setAssignmentError] = useState(null);
+  const [rejectingRequest, setRejectingRequest] = useState(false);
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' // 'success', 'error', 'info', 'warning'
+  });
+
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }));
+  };
 
   useEffect(() => {
     dispatch(fetchPendingDesignRequests({ page: 1, size: 10 }));
   }, [dispatch]);
+
+  // Fetch customer details when design requests load
+  useEffect(() => {
+    if (designRequests.length > 0) {
+      const fetchCustomerDetails = async () => {
+        // Create a Set to store unique customerDetailIds
+        const uniqueCustomerDetailIds = new Set(
+          designRequests
+            .filter((request) => request.customerDetail)
+            .map((request) => request.customerDetail)
+        );
+
+        // Fetch customer details for each unique ID
+        for (const customerDetailId of uniqueCustomerDetailIds) {
+          if (
+            !customerDetails[customerDetailId] &&
+            !loadingCustomers[customerDetailId]
+          ) {
+            // Mark this customer as loading
+            setLoadingCustomers((prev) => ({ ...prev, [customerDetailId]: true }));
+
+            try {
+              const response = await getCustomerDetailByIdApi(customerDetailId);
+              if (response.success) {
+                setCustomerDetails((prev) => ({
+                  ...prev,
+                  [customerDetailId]: response.result,
+                }));
+              }
+            } catch (error) {
+              console.error(
+                `Error fetching details for customer ${customerDetailId}:`,
+                error
+              );
+            } finally {
+              setLoadingCustomers((prev) => ({ ...prev, [customerDetailId]: false }));
+            }
+          }
+        }
+      };
+
+      fetchCustomerDetails();
+    }
+  }, [designRequests]);
+
+  // Fetch designers when dialog is opened
+  const fetchDesigners = async () => {
+    setLoadingDesigners(true);
+    try {
+      const response = await getUsersByRoleApi('DESIGNER', 1, 10);
+      if (response.success) {
+        setDesigners(response.data);
+      } else {
+        console.error('Failed to fetch designers:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching designers:', error);
+    } finally {
+      setLoadingDesigners(false);
+    }
+  };
 
   const handlePageChange = (event, value) => {
     dispatch(
@@ -60,13 +150,141 @@ const CustomerRequests = () => {
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
+    setSelectedDesigner(request.assignDesigner || '');
     setDetailOpen(true);
+    
+    // Fetch designers when dialog opens
+    fetchDesigners();
   };
 
   const handleCloseDetails = () => {
     setDetailOpen(false);
     setSelectedRequest(null);
     setComment("");
+    setSelectedDesigner('');
+  };
+
+  const handleDesignerChange = (event) => {
+    setSelectedDesigner(event.target.value);
+  };
+  
+  // Handle assign designer to request
+  const handleAssignDesigner = async () => {
+    if (!selectedDesigner || !selectedRequest) return;
+    
+    setAssigningDesigner(true);
+    setAssignmentError(null);
+    
+    try {
+     const resultAction = await dispatch(assignDesignerToRequest({
+        customDesignRequestId: selectedRequest.id,
+        designerId: selectedDesigner
+      }));
+      
+      if (assignDesignerToRequest.fulfilled.match(resultAction)) {
+        // Show success notification
+        console.log('Designer assigned successfully!');
+         setNotification({
+          open: true,
+          message: 'Designer assigned successfully!',
+          severity: 'success'
+        });
+        // Refresh data after assignment
+        dispatch(fetchPendingDesignRequests({ 
+          page: pagination.currentPage, 
+          size: pagination.pageSize 
+        }));
+        
+        // Close the dialog
+        handleCloseDetails();
+      } else {
+         setNotification({
+          open: true,
+          message: resultAction.payload || 'Failed to assign designer',
+          severity: 'error'
+        });
+        // Show error message
+        setAssignmentError(resultAction.payload || 'Failed to assign designer');
+      }
+    } catch (error) {
+        setNotification({
+        open: true,
+        message: error.message || 'An error occurred',
+        severity: 'error'
+      });
+      setAssignmentError(error.message || 'An error occurred');
+      console.error('Error assigning designer:', error);
+    } finally {
+      setAssigningDesigner(false);
+    }
+  };
+  
+  // Handle rejecting the request
+  const handleRejectRequest = async () => {
+    if (!selectedRequest) return;
+    
+    setRejectingRequest(true);
+    
+    try {
+      const resultAction = await dispatch(updateRequestStatus({
+        customDesignRequestId: selectedRequest.id,
+        status: 'REJECTED'
+      }));
+      
+      if (updateRequestStatus.fulfilled.match(resultAction)) {
+        // Show success notification
+        setNotification({
+          open: true,
+          message: 'Request rejected successfully!',
+          severity: 'success'
+        });
+        
+        // Refresh data after rejection
+        dispatch(fetchPendingDesignRequests({ 
+          page: pagination.currentPage, 
+          size: pagination.pageSize 
+        }));
+        
+        // Close the dialog
+        handleCloseDetails();
+      } else {
+        setNotification({
+          open: true,
+          message: resultAction.payload || 'Failed to reject request',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: error.message || 'An error occurred',
+        severity: 'error'
+      });
+      console.error('Error rejecting request:', error);
+    } finally {
+      setRejectingRequest(false);
+    }
+  };
+
+  // Get customer name from customer details
+  const getCustomerName = (customerDetailId) => {
+    if (!customerDetailId) return "Unknown";
+
+    if (loadingCustomers[customerDetailId]) {
+      return <CircularProgress size={16} />;
+    }
+
+    const customerDetail = customerDetails[customerDetailId];
+    
+    if (!customerDetail) return "Loading...";
+    
+    // Return fullName from the users object if available
+    if (customerDetail.users && customerDetail.users.fullName) {
+      return customerDetail.users.fullName;
+    }
+    
+    // Fallback to company name if user fullName is not available
+    return customerDetail.companyName || "Unnamed Customer";
   };
 
   const getStatusChip = (status) => {
@@ -90,6 +308,11 @@ const CustomerRequests = () => {
         icon: <CancelIcon />,
         color: "error",
         label: "Đã hủy",
+      },
+      REJECTED: {
+        icon: <CancelIcon />,
+        color: "error",
+        label: "Đã từ chối",
       },
     };
 
@@ -152,7 +375,7 @@ const CustomerRequests = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>ID</TableCell>
+                  <TableCell>Customer Name</TableCell>
                   <TableCell>Product Type</TableCell>
                   <TableCell>Requirements</TableCell>
                   <TableCell>Created At</TableCell>
@@ -164,7 +387,9 @@ const CustomerRequests = () => {
               <TableBody>
                 {designRequests.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell>{request.id.substring(0, 8)}...</TableCell>
+                    <TableCell>
+                      {getCustomerName(request.customerDetail)}
+                    </TableCell>
                     <TableCell>
                       {request.customerChoiceHistories.productTypeName}
                     </TableCell>
@@ -188,7 +413,6 @@ const CustomerRequests = () => {
             </Table>
           </TableContainer>
 
-          {/* Pagination */}
           <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
             <Pagination
               count={pagination.totalPages}
@@ -200,7 +424,6 @@ const CustomerRequests = () => {
         </>
       )}
 
-      {/* Detail Dialog */}
       <Dialog
         open={detailOpen}
         onClose={handleCloseDetails}
@@ -210,7 +433,7 @@ const CustomerRequests = () => {
         {selectedRequest && (
           <>
             <DialogTitle>
-              Request Details - {selectedRequest.id.substring(0, 8)}...
+              Request Details - {getCustomerName(selectedRequest.customerDetail)}
             </DialogTitle>
             <DialogContent>
               <Grid container spacing={3} sx={{ mt: 1 }}>
@@ -272,7 +495,7 @@ const CustomerRequests = () => {
                   </TableContainer>
                 </Grid>
 
-                {/* Attribute Selections */}
+                {/* Material Specifications */}
                 <Grid item xs={12}>
                   <Typography
                     variant="subtitle2"
@@ -331,6 +554,47 @@ const CustomerRequests = () => {
                   </Typography>
                 </Grid>
 
+                {/* Assign Designer Section */}
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Assign Designer
+                  </Typography>
+                  
+                  <FormControl fullWidth>
+                    <InputLabel id="designer-select-label">Designer</InputLabel>
+                    <Select
+                      labelId="designer-select-label"
+                      id="designer-select"
+                      value={selectedDesigner}
+                      label="Designer"
+                      onChange={handleDesignerChange}
+                      disabled={loadingDesigners}
+                    >
+                      <MenuItem value="">
+                        <em>None</em>
+                      </MenuItem>
+                      {designers.map((designer) => (
+                        <MenuItem key={designer.id} value={designer.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Avatar 
+                              src={designer.avatar} 
+                              sx={{ width: 24, height: 24, mr: 1 }}
+                            >
+                              {designer.fullName?.charAt(0) || 'D'}
+                            </Avatar>
+                            <Typography>{designer.fullName}</Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {loadingDesigners && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  )}
+                </Grid>
+
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -357,18 +621,45 @@ const CustomerRequests = () => {
               </Button>
               <Button
                 variant="contained"
-                color="success"
-                onClick={() => {
-                  // Handle approve request - would need additional functionality
-                  handleCloseDetails();
-                }}
+                color="error"
+                onClick={handleRejectRequest}
+                disabled={rejectingRequest}
+                startIcon={rejectingRequest ? <CircularProgress size={20} color="inherit" /> : <CancelIcon />}
               >
-                Approve Request
+                {rejectingRequest ? 'Rejecting...' : 'Reject'}
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                disabled={!selectedDesigner || assigningDesigner || loadingDesigners}
+                onClick={handleAssignDesigner}
+                startIcon={assigningDesigner ? <CircularProgress size={20} color="inherit" /> : null}
+              >
+                {assigningDesigner ? 'Assigning...' : 'Assign Designer'}
               </Button>
             </DialogActions>
+            {assignmentError && (
+              <Box sx={{ px: 3, pb: 2 }}>
+                <Alert severity="error">{assignmentError}</Alert>
+              </Box>
+            )}
           </>
         )}
       </Dialog>
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseNotification} 
+          severity={notification.severity}
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

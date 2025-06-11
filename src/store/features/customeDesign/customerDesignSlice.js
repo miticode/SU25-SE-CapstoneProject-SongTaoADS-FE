@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
-  fetchCustomDesignRequestsApi
+  assignDesignerToRequestApi,
+  fetchCustomDesignRequestsApi,
+  updateRequestStatusApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -33,7 +35,38 @@ export const fetchPendingDesignRequests = createAsyncThunk(
     }
   }
 );
-
+export const assignDesignerToRequest = createAsyncThunk(
+  "customDesign/assignDesigner",
+  async ({ customDesignRequestId, designerId }, { rejectWithValue }) => {
+    try {
+      const response = await assignDesignerToRequestApi(customDesignRequestId, designerId);
+      
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to assign designer to request");
+      }
+      
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while assigning designer");
+    }
+  }
+);
+export const updateRequestStatus = createAsyncThunk(
+  "customDesign/updateStatus",
+  async ({ customDesignRequestId, status }, { rejectWithValue }) => {
+    try {
+      const response = await updateRequestStatusApi(customDesignRequestId, status);
+      
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to update request status");
+      }
+      
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while updating request status");
+    }
+  }
+);
 // Create the slice
 const customerDesignSlice = createSlice({
   name: "customDesign",
@@ -63,6 +96,45 @@ const customerDesignSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchPendingDesignRequests.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+       .addCase(assignDesignerToRequest.pending, (state) => {
+      state.status = "loading";
+      state.error = null;
+    })
+    .addCase(assignDesignerToRequest.fulfilled, (state, action) => {
+      state.status = "succeeded";
+      // Update the assigned request in the list
+      state.designRequests = state.designRequests.map(request => 
+        request.id === action.payload.id ? action.payload : request
+      );
+      state.error = null;
+    })
+    .addCase(assignDesignerToRequest.rejected, (state, action) => {
+      state.status = "failed";
+      state.error = action.payload;
+    })
+     .addCase(updateRequestStatus.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(updateRequestStatus.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        // Update the request with new status in the list
+        state.designRequests = state.designRequests.map(request => 
+          request.id === action.payload.id ? action.payload : request
+        );
+        // If the updated status is not PENDING, you might want to remove it from the list
+        // if filtering by PENDING in the UI. Uncomment the following if needed:
+        // if (action.payload.status !== 'PENDING') {
+        //   state.designRequests = state.designRequests.filter(request => 
+        //     request.id !== action.payload.id
+        //   );
+        // }
+        state.error = null;
+      })
+      .addCase(updateRequestStatus.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       });
