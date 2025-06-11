@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
@@ -14,6 +14,12 @@ const initialState = {
   uploadedFile: null,
   trainingStatus: 'idle',
   fineTuningJobId: null,
+  fineTuneJobs: [],
+  fineTuneJobsStatus: 'idle',
+  fineTuneFiles: [],
+  fineTuneFilesStatus: 'idle',
+  fineTuneFileDetail: null,
+  fineTuneFileDetailStatus: 'idle',
 };
 
 export const sendChatMessage = createAsyncThunk(
@@ -57,6 +63,36 @@ export const deleteFineTuneFile = createAsyncThunk(
   async (fileId, { rejectWithValue }) => {
     const response = await deleteFineTuneFileApi(fileId);
     if (!response.success) return rejectWithValue(response.error || 'Lỗi khi xóa file');
+    return response.result;
+  }
+);
+
+// Lấy danh sách job fine-tune
+export const fetchFineTuneJobs = createAsyncThunk(
+  'chat/fetchFineTuneJobs',
+  async (_, { rejectWithValue }) => {
+    const response = await getFineTuneJobsApi();
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Lấy danh sách file
+export const fetchFineTuneFiles = createAsyncThunk(
+  'chat/fetchFineTuneFiles',
+  async (_, { rejectWithValue }) => {
+    const response = await getFineTuneFilesApi();
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Lấy chi tiết file
+export const fetchFineTuneFileDetail = createAsyncThunk(
+  'chat/fetchFineTuneFileDetail',
+  async (fileId, { rejectWithValue }) => {
+    const response = await getFineTuneFileDetailApi(fileId);
+    if (!response.success) return rejectWithValue(response.error);
     return response.result;
   }
 );
@@ -150,6 +186,42 @@ const chatSlice = createSlice({
       .addCase(deleteFineTuneFile.rejected, (state, action) => {
         state.fineTuneStatus = 'failed';
         state.error = action.payload;
+      })
+      // Lấy danh sách job fine-tune
+      .addCase(fetchFineTuneJobs.pending, (state) => {
+        state.fineTuneJobsStatus = 'loading';
+      })
+      .addCase(fetchFineTuneJobs.fulfilled, (state, action) => {
+        state.fineTuneJobsStatus = 'succeeded';
+        state.fineTuneJobs = action.payload;
+      })
+      .addCase(fetchFineTuneJobs.rejected, (state, action) => {
+        state.fineTuneJobsStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy danh sách file
+      .addCase(fetchFineTuneFiles.pending, (state) => {
+        state.fineTuneFilesStatus = 'loading';
+      })
+      .addCase(fetchFineTuneFiles.fulfilled, (state, action) => {
+        state.fineTuneFilesStatus = 'succeeded';
+        state.fineTuneFiles = action.payload;
+      })
+      .addCase(fetchFineTuneFiles.rejected, (state, action) => {
+        state.fineTuneFilesStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy chi tiết file
+      .addCase(fetchFineTuneFileDetail.pending, (state) => {
+        state.fineTuneFileDetailStatus = 'loading';
+      })
+      .addCase(fetchFineTuneFileDetail.fulfilled, (state, action) => {
+        state.fineTuneFileDetailStatus = 'succeeded';
+        state.fineTuneFileDetail = action.payload;
+      })
+      .addCase(fetchFineTuneFileDetail.rejected, (state, action) => {
+        state.fineTuneFileDetailStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });
@@ -168,5 +240,11 @@ export const selectFineTuneStatus = (state) => state.chat.fineTuneStatus;
 export const selectTrainingStatus = (state) => state.chat.trainingStatus;
 export const selectUploadedFile = (state) => state.chat.uploadedFile;
 export const selectFineTuningJobId = (state) => state.chat.fineTuningJobId;
+export const selectFineTuneJobs = (state) => state.chat.fineTuneJobs;
+export const selectFineTuneJobsStatus = (state) => state.chat.fineTuneJobsStatus;
+export const selectFineTuneFiles = (state) => state.chat.fineTuneFiles;
+export const selectFineTuneFilesStatus = (state) => state.chat.fineTuneFilesStatus;
+export const selectFineTuneFileDetail = (state) => state.chat.fineTuneFileDetail;
+export const selectFineTuneFileDetailStatus = (state) => state.chat.fineTuneFileDetailStatus;
 
 export default chatSlice.reducer;
