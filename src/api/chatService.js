@@ -1,5 +1,8 @@
 import axios from 'axios';
 const API_URL = 'https://songtaoads.online';
+const getToken = () => {
+  return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+};
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
@@ -7,10 +10,32 @@ const chatService = axios.create({
   },
   withCredentials: true 
 });
-
+chatService.interceptors.request.use(
+  (config) => {
+    // Get access token from localStorage or sessionStorage
+    const token = getToken();
+    
+    if (token) {
+      // Add token to header for all requests
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('Adding token to chat request:', config.url);
+    } else {
+      console.warn('No token found for chat request:', config.url);
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 chatService.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response && error.response.status === 401) {
+      console.error('Authentication error:', error.response.data);
+      // You could handle logout or token refresh here
+    }
     return Promise.reject(error);
   }
 );
