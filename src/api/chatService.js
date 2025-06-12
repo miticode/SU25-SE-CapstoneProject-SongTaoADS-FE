@@ -12,7 +12,7 @@ const chatService = axios.create({
 });
 chatService.interceptors.request.use(
   (config) => {
-    // Get access token from localStorage or sessionStorage
+   
     const token = getToken();
     
     if (token) {
