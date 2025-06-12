@@ -17,7 +17,7 @@ chatService.interceptors.response.use(
 
 export const sendChatMessageApi = async (prompt) => {
   try {
-    const response = await chatService.post('/api/chat', {
+    const response = await chatService.post('/api/chat-bot/chat', {
       prompt
     });
     
