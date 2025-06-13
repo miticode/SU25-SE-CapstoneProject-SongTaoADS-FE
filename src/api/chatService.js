@@ -1,5 +1,6 @@
 import axios from 'axios';
 const API_URL = 'https://songtaoads.online';
+
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
@@ -9,6 +10,7 @@ const chatService = axios.create({
   withCredentials: true 
 });
 
+
 // Add request interceptor to update token
 chatService.interceptors.request.use(
   (config) => {
@@ -16,6 +18,7 @@ chatService.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {
@@ -23,9 +26,14 @@ chatService.interceptors.request.use(
   }
 );
 
+
 chatService.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response && error.response.status === 401) {
+      console.error('Authentication error:', error.response.data);
+      // You could handle logout or token refresh here
+    }
     return Promise.reject(error);
   }
 );
