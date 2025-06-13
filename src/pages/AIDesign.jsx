@@ -18,6 +18,7 @@ import {
   Alert,
   Backdrop,
   CircularProgress,
+  Button,
 } from "@mui/material";
 import {
   FaCheck,
@@ -26,6 +27,7 @@ import {
   FaRobot,
   FaEdit,
   FaSave,
+  FaTimes,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -128,6 +130,8 @@ const ModernBillboardForm = ({
   const [editingSizeId, setEditingSizeId] = useState(null);
   const [editingSizeValue, setEditingSizeValue] = useState("");
   const [customerChoiceSizes, setCustomerChoiceSizes] = useState({});
+  const [editedSizes, setEditedSizes] = useState({});
+  const [isEditingSizes, setIsEditingSizes] = useState(false);
   const totalAmount = useSelector(selectTotalAmount);
 
   const fetchCustomerChoiceStatus = useSelector(
@@ -135,115 +139,119 @@ const ModernBillboardForm = ({
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const handleEditSizes = () => {
+    // Khởi tạo giá trị ban đầu từ form data hiện tại
+    const initialEditValues = {};
+    productTypeSizes.forEach((ptSize) => {
+      const sizeId = ptSize.sizes.id;
+      const fieldName = `size_${sizeId}`;
+      initialEditValues[sizeId] = formData[fieldName] || "";
+    });
 
-  const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
+    setEditedSizes(initialEditValues);
+    setIsEditingSizes(true);
+  };
+
+  // Thêm hàm xử lý thay đổi giá trị kích thước đang chỉnh sửa
+  const handleSizeEditChange = (sizeId, value) => {
+    setEditedSizes((prev) => ({
+      ...prev,
+      [sizeId]: value,
+    }));
+  };
+
+  // Thêm hàm xử lý cập nhật tất cả kích thước
+  const handleUpdateAllSizes = async () => {
     try {
-      console.log("Updating size with ID:", customerChoiceSizeId);
-      console.log("New size value:", editingSizeValue);
+      // Validate các giá trị đã nhập
+      let hasErrors = false;
+      const newValidationErrors = {};
 
-      // Đánh dấu trạng thái loading ngay từ đầu
-      dispatch({ type: "customers/fetchCustomerChoice/pending" });
-
-      // Lưu lại giá trị subtotal hiện tại trước khi cập nhật
-      const currentSubtotals = {};
-      Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
-        if (detail && detail.subTotal !== undefined) {
-          currentSubtotals[attrId] = detail.subTotal;
-          previousSubTotalsRef.current[attrId] = detail.subTotal;
+      for (const ptSize of productTypeSizes) {
+        const sizeId = ptSize.sizes.id;
+        if (
+          !editedSizes[sizeId] ||
+          isNaN(editedSizes[sizeId]) ||
+          parseFloat(editedSizes[sizeId]) <= 0
+        ) {
+          hasErrors = true;
+          const fieldName = `size_${sizeId}`;
+          newValidationErrors[
+            fieldName
+          ] = `Kích thước "${ptSize.sizes.name}" phải lớn hơn 0`;
         }
-      });
-
-      // Cập nhật kích thước
-      const result = await dispatch(
-        updateCustomerChoiceSize({
-          customerChoiceSizeId,
-          sizeValue: editingSizeValue,
-        })
-      ).unwrap();
-
-      console.log("Update result:", result);
-
-      // Cập nhật trạng thái local cho UI
-      const numericValue = parseFloat(editingSizeValue);
-      setCustomerChoiceSizes({
-        ...customerChoiceSizes,
-        [sizeId]: {
-          ...customerChoiceSizes[sizeId],
-          sizeValue: numericValue,
-        },
-      });
-      setFormData({
-        ...formData,
-        [`size_${sizeId}`]: editingSizeValue,
-      });
-
-      // Reset trạng thái chỉnh sửa
-      setEditingSizeId(null);
-      setEditingSizeValue("");
-
-      // Đợi để đảm bảo backend đã xử lý xong
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      try {
-        // KHÔNG xóa toàn bộ giá trị subtotal
-        // KHÔNG dispatch resetCustomerChoiceDetails
-
-        // Fetch lại toàn bộ dữ liệu
-        if (currentOrder?.id) {
-          // Đầu tiên, fetch chi tiết để cập nhật subtotal cho từng thuộc tính
-          await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
-
-          // Sau đó fetch tổng số tiền
-          await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
-
-          // Cập nhật UI
-          setRefreshCounter((prev) => prev + 1);
-
-          // Hiển thị thông báo thành công
-          setSnackbar({
-            open: true,
-            message: "Cập nhật kích thước thành công",
-            severity: "success",
-          });
-        }
-      } catch (error) {
-        console.error("Error refreshing data after size update:", error);
-
-        // Phục hồi giá trị subtotal trước đó để UI không bị mất giá trị
-        // Khôi phục các giá trị subtotal từ biến tạm
-        previousSubTotalsRef.current = { ...currentSubtotals };
-
-        // Thử lại lần nữa
-        setTimeout(async () => {
-          if (currentOrder?.id) {
-            try {
-              await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
-              await dispatch(fetchCustomerChoice(currentOrder.id));
-              setRefreshCounter((prev) => prev + 1);
-            } catch (retryError) {
-              console.error("Retry failed:", retryError);
-            }
-          }
-        }, 1000);
-
-        setSnackbar({
-          open: true,
-          message: "Đã cập nhật kích thước, đang tải lại dữ liệu...",
-          severity: "info",
-        });
       }
-    } catch (error) {
-      console.error("Failed to update size:", error);
-      setSizeValidationError(
-        "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
-      );
+
+      if (hasErrors) {
+        setValidationErrors(newValidationErrors);
+        return;
+      }
+
+      // Update each size
+      const customerChoiceId = currentOrder?.id;
+      if (!customerChoiceId) {
+        setSizeValidationError("Không tìm thấy đơn hàng hiện tại");
+        return;
+      }
+
+      // Show loading state
       setSnackbar({
         open: true,
-        message: "Cập nhật kích thước thất bại",
+        message: "Đang cập nhật kích thước...",
+        severity: "info",
+      });
+
+      // Update all sizes
+      for (const ptSize of productTypeSizes) {
+        const sizeId = ptSize.sizes.id;
+        const value = editedSizes[sizeId];
+
+        // Thay đổi tham số truyền vào API để phù hợp với API
+        await dispatch(
+          updateCustomerChoiceSize({
+            customerChoiceSizeId: customerChoiceSizes[sizeId]?.id,
+            sizeValue: value, // Sửa lại tham số theo đúng yêu cầu API
+          })
+        ).unwrap();
+
+        // Update form data
+        const fieldName = `size_${sizeId}`;
+        setFormData((prev) => ({
+          ...prev,
+          [fieldName]: value,
+        }));
+      }
+
+      // Reset editing state
+      setIsEditingSizes(false);
+
+      // Refresh data
+      setRefreshCounter((prev) => prev + 1);
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: "Kích thước đã được cập nhật thành công",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error updating sizes:", error);
+      setSnackbar({
+        open: true,
+        message:
+          "Có lỗi xảy ra khi cập nhật kích thước: " +
+          (error.message || "Lỗi không xác định"),
         severity: "error",
       });
     }
   };
+
+  // Thêm hàm hủy chỉnh sửa kích thước
+  const handleCancelEditSizes = () => {
+    setIsEditingSizes(false);
+    setEditedSizes({});
+  };
+
   useEffect(() => {
     if (currentOrder?.id) {
       // Load saved sizes for existing customer choice
@@ -695,101 +703,66 @@ const ModernBillboardForm = ({
               >
                 <span className="inline-block w-1 h-4 bg-blue-500 mr-2 rounded"></span>
                 KÍCH THƯỚC
+                {sizesConfirmed && !isEditingSizes && (
+                  <Button
+                    size="small"
+                    startIcon={<FaEdit size={12} />}
+                    sx={{ ml: 2, fontSize: "0.75rem", textTransform: "none" }}
+                    onClick={handleEditSizes}
+                  >
+                    Chỉnh sửa
+                  </Button>
+                )}
               </Typography>
 
               <Grid container spacing={1.5}>
                 {productTypeSizes.map((ptSize) => {
                   const sizeId = ptSize.sizes.id;
                   const fieldName = `size_${sizeId}`;
-                  const isEditing = editingSizeId === sizeId;
                   const savedSize = customerChoiceSizes[sizeId];
 
                   return (
-                    <Grid
-                      key={ptSize.id}
-                      style={{
-                        gridColumn: {
-                          xs: "span 6",
-                          sm: "span 4",
-                          md: "span 3",
-                        },
-                      }}
-                    >
-                      <div className="relative">
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label={ptSize.sizes.name}
-                          name={fieldName}
-                          type="number"
-                          value={
-                            isEditing
-                              ? editingSizeValue
-                              : formData[fieldName] || ""
-                          }
-                          onChange={
-                            isEditing
-                              ? (e) => setEditingSizeValue(e.target.value)
-                              : handleChange
-                          }
-                          disabled={sizesConfirmed && !isEditing}
-                          error={!!validationErrors[fieldName]}
-                          helperText={validationErrors[fieldName]}
-                          InputProps={{
-                            inputProps: { min: 0, step: 0.01 },
-                            startAdornment: (
-                              <span className="text-gray-400 mr-1 text-xs">
-                                #
-                              </span>
-                            ),
-                            endAdornment: (
-                              <span className="text-gray-500 text-xs">m</span>
-                            ),
-                            style: { fontSize: "0.8rem", height: "36px" },
-                          }}
-                          InputLabelProps={{ style: { fontSize: "0.8rem" } }}
-                          variant="outlined"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "4px",
-                            },
-                          }}
-                        />
-
-                        {sizesConfirmed && savedSize && (
-                          <div className="absolute right-0 top-0 flex">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (isEditing) {
-                                  handleSizeUpdate(savedSize.id, sizeId);
-                                } else {
-                                  setEditingSizeId(sizeId);
-                                  setEditingSizeValue(
-                                    savedSize.sizeValue.toString()
-                                  );
-                                }
-                              }}
-                              className={`p-1 text-white rounded-full transition-colors ${
-                                isEditing
-                                  ? "bg-green-500 hover:bg-green-600"
-                                  : "bg-blue-500 hover:bg-blue-600"
-                              }`}
-                              title={
-                                isEditing
-                                  ? "Lưu thay đổi"
-                                  : "Chỉnh sửa kích thước"
-                              }
-                            >
-                              {isEditing ? (
-                                <FaSave size={12} />
-                              ) : (
-                                <FaEdit size={12} />
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    <Grid item key={ptSize.id} xs={6} sm={4} md={3}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label={ptSize.sizes.name}
+                        name={fieldName}
+                        type="number"
+                        value={
+                          isEditingSizes
+                            ? editedSizes[sizeId] || ""
+                            : formData[fieldName] || ""
+                        }
+                        onChange={
+                          isEditingSizes
+                            ? (e) =>
+                                handleSizeEditChange(sizeId, e.target.value)
+                            : handleChange
+                        }
+                        disabled={sizesConfirmed && !isEditingSizes}
+                        error={!!validationErrors[fieldName]}
+                        helperText={validationErrors[fieldName]}
+                        InputProps={{
+                          inputProps: { min: 0, step: 0.01 },
+                          startAdornment: (
+                            <span className="text-gray-400 mr-1 text-xs">
+                              #
+                            </span>
+                          ),
+                          endAdornment: (
+                            <span className="text-gray-500 text-xs">m</span>
+                          ),
+                          style: { fontSize: "0.8rem", height: "36px" },
+                        }}
+                        InputLabelProps={{ style: { fontSize: "0.8rem" } }}
+                        variant="outlined"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "4px",
+                          },
+                        }}
+                      />
                     </Grid>
                   );
                 })}
@@ -806,7 +779,7 @@ const ModernBillboardForm = ({
                 </Typography>
               )}
 
-              {/* Confirm Size Button */}
+              {/* Confirm Size Button or Update All Sizes */}
               {!sizesConfirmed ? (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
                   <motion.button
@@ -845,6 +818,46 @@ const ModernBillboardForm = ({
                       </>
                     )}
                   </motion.button>
+                </Box>
+              ) : isEditingSizes ? (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mt: 2,
+                    gap: 2,
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<FaTimes size={12} />}
+                    size="small"
+                    onClick={handleCancelEditSizes}
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<FaSave size={12} />}
+                    size="small"
+                    onClick={handleUpdateAllSizes}
+                    disabled={sizesStatus === "loading"}
+                  >
+                    {sizesStatus === "loading" ? (
+                      <>
+                        <CircularProgress
+                          size={14}
+                          color="inherit"
+                          sx={{ mr: 1 }}
+                        />
+                        Đang cập nhật...
+                      </>
+                    ) : (
+                      "Cập nhật kích thước"
+                    )}
+                  </Button>
                 </Box>
               ) : (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
@@ -912,7 +925,7 @@ const ModernBillboardForm = ({
                       {attrs.map((attr) => {
                         console.log(
                           `Rendering attribute ${attr.id}, details:`,
-                          customerChoiceDetails[attr.id]
+                          customerChoiceDetails[attr.id] || "Not loaded yet"
                         );
                         const attributeValues =
                           attributeValuesState[attr.id] || [];
@@ -942,7 +955,10 @@ const ModernBillboardForm = ({
                                 value={formData[attr.id] || ""}
                                 onChange={handleChange}
                                 label={attr.name}
-                                disabled={isLoadingValues}
+                                disabled={
+                                  isLoadingValues ||
+                                  fetchCustomerChoiceStatus === "loading"
+                                }
                                 sx={{
                                   display: "block",
                                   width: "100%",
