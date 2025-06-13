@@ -3,10 +3,25 @@ const API_URL = 'https://songtaoads.online';
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
   },
   withCredentials: true 
 });
+
+// Add request interceptor to update token
+chatService.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 chatService.interceptors.response.use(
   (response) => response,
@@ -17,7 +32,7 @@ chatService.interceptors.response.use(
 
 export const sendChatMessageApi = async (prompt) => {
   try {
-    const response = await chatService.post('/api/chat', {
+    const response = await chatService.post('/api/chat-bot/chat', {
       prompt
     });
     
