@@ -101,6 +101,7 @@ import {
   selectImageGenerationStatus,
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
+import jsPDF from "jspdf";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1803,153 +1804,226 @@ const AIDesign = () => {
     fabricCanvas.renderAll();
   };
 
-  const exportDesign = async () => {
-    if (!fabricCanvas) return;
+ const exportDesign = async () => {
+  if (!fabricCanvas) return;
 
-    try {
-      setIsExporting(true); // Use local loading state instead of global
+  try {
+    setIsExporting(true);
 
-      // 1. Lấy ảnh từ canvas
-      const dataURL = fabricCanvas.toDataURL({
-        format: "png",
-        quality: 1,
+    // 1. Lấy ảnh từ canvas với chất lượng cao
+    const dataURL = fabricCanvas.toDataURL({
+      format: "png",
+      quality: 1,
+      multiplier: 2, // Tăng độ phân giải gấp đôi để PDF rõ nét hơn
+    });
+
+    // 2. Convert dataURL thành File object
+    const blobBin = atob(dataURL.split(",")[1]);
+    const array = [];
+    for (let i = 0; i < blobBin.length; i++) {
+      array.push(blobBin.charCodeAt(i));
+    }
+    const file = new Blob([new Uint8Array(array)], { type: "image/png" });
+    const aiImage = new File([file], "canvas-design.png", {
+      type: "image/png",
+    });
+
+    // 3. Tạo PDF chỉ chứa hình ảnh, không có văn bản
+    const canvasWidth = fabricCanvas.width;
+    const canvasHeight = fabricCanvas.height;
+    
+    // Tính toán kích thước PDF dựa trên tỷ lệ canvas (ngang)
+    const pdf = new jsPDF({
+      orientation: canvasWidth > canvasHeight ? 'landscape' : 'portrait',
+      unit: 'mm',
+    });
+    
+    // Lấy kích thước trang PDF
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    // Tính toán tỷ lệ để ảnh vừa với trang PDF nhưng giữ đúng tỷ lệ
+    const ratio = canvasWidth / canvasHeight;
+    
+    // Sử dụng toàn bộ trang PDF cho hình ảnh, với lề tối thiểu 5mm mỗi bên
+    let imgWidth = pdfWidth - 10; // Trừ lề 5mm mỗi bên
+    let imgHeight = imgWidth / ratio;
+    
+    // Nếu ảnh quá cao so với trang, điều chỉnh dựa trên chiều cao
+    if (imgHeight > pdfHeight - 10) {
+      imgHeight = pdfHeight - 10; // Trừ lề 5mm trên và dưới
+      imgWidth = imgHeight * ratio;
+    }
+    
+    // Tính toán vị trí để căn giữa ảnh trên trang
+    const xPos = (pdfWidth - imgWidth) / 2;
+    const yPos = (pdfHeight - imgHeight) / 2;
+    
+    // Thêm ảnh vào trang (căn giữa)
+    pdf.addImage(dataURL, 'PNG', xPos, yPos, imgWidth, imgHeight);
+    
+    // 4. Lấy customerDetailId và designTemplateId
+    if (!customerDetail?.id) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
+        severity: "error",
       });
+      setIsExporting(false);
+      return;
+    }
 
-      // 2. Convert dataURL thành File object
-      const blobBin = atob(dataURL.split(",")[1]);
-      const array = [];
-      for (let i = 0; i < blobBin.length; i++) {
-        array.push(blobBin.charCodeAt(i));
-      }
-      const file = new Blob([new Uint8Array(array)], { type: "image/png" });
-      const aiImage = new File([file], "canvas-design.png", {
-        type: "image/png",
+    const customerDetailId = customerDetail.id;
+    const designTemplateId = selectedSampleProduct;
+
+    if (!designTemplateId) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
+        severity: "error",
       });
+      setIsExporting(false);
+      return;
+    }
 
-      // 3. Lấy customerDetailId và designTemplateId
-      if (!customerDetail?.id) {
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
-          severity: "error",
-        });
-        setIsExporting(false);
-        return;
-      }
+    // Đảm bảo customerNote không bao giờ là null/undefined
+    const note = customerNote || "Thiết kế từ người dùng";
 
-      const customerDetailId = customerDetail.id;
-      const designTemplateId = selectedSampleProduct;
+    console.log("Preparing to send AI request with:", {
+      customerDetailId,
+      designTemplateId,
+      customerNote: note,
+      hasImage: !!aiImage,
+    });
 
-      if (!designTemplateId) {
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
-          severity: "error",
-        });
-        setIsExporting(false);
-        return;
-      }
-
-      // Đảm bảo customerNote không bao giờ là null/undefined
-      const note = customerNote || "Thiết kế từ người dùng";
-
-      console.log("Preparing to send AI request with:", {
+    // 5. Gửi request tạo AI design
+    const resultAction = await dispatch(
+      createAIDesign({
         customerDetailId,
         designTemplateId,
         customerNote: note,
-        hasImage: !!aiImage,
+        aiImage,
+      })
+    );
+
+    // 6. Xử lý kết quả
+    if (createAIDesign.fulfilled.match(resultAction)) {
+      const response = resultAction.payload;
+      console.log("AI design created successfully:", response);
+
+      // Tạo tên file với timestamp để tránh trùng lặp
+      const timestamp = new Date().getTime();
+      const imageName = `design-${timestamp}.png`;
+      const pdfName = `design-${timestamp}.pdf`;
+
+      // Tải ảnh về máy người dùng
+      const imgLink = document.createElement("a");
+      imgLink.download = imageName;
+      imgLink.href = dataURL;
+      imgLink.click();
+
+      // Tải PDF về máy người dùng
+      pdf.save(pdfName);
+
+      // Hiển thị thông báo thành công
+      setSnackbar({
+        open: true,
+        message: "Thiết kế đã được xuất thành công dưới dạng ảnh PNG và PDF!",
+        severity: "success",
+      });
+      
+      // Highlight nút Order
+      const orderButton = document.querySelector(".order-button");
+      if (orderButton) {
+        orderButton.classList.add("animate-pulse");
+        setTimeout(() => {
+          orderButton.classList.remove("animate-pulse");
+        }, 3000);
+      }
+    } else {
+      console.error("Failed to create AI design:", resultAction.error);
+      setSnackbar({
+        open: true,
+        message:
+          "Có lỗi xảy ra khi lưu thiết kế. Tệp vẫn được tải xuống nhưng chưa lưu vào hệ thống.",
+        severity: "warning",
       });
 
-      // 4. Gửi request tạo AI design
-      const resultAction = await dispatch(
-        createAIDesign({
-          customerDetailId,
-          designTemplateId,
-          customerNote: note, // Sử dụng giá trị mặc định nếu rỗng
-          aiImage,
-        })
-      );
+      // Vẫn cho phép tải ảnh và PDF xuống dù API có lỗi
+      const imgLink = document.createElement("a");
+      imgLink.download = "design.png";
+      imgLink.href = dataURL;
+      imgLink.click();
 
-      // 5. Xử lý kết quả
-      if (createAIDesign.fulfilled.match(resultAction)) {
-        const response = resultAction.payload;
-        console.log("AI design created successfully:", response);
-
-        // Tải ảnh về máy người dùng
-        const link = document.createElement("a");
-        link.download = "edited-design.png";
-        link.href = dataURL;
-        link.click();
-
-        // Hiển thị thông báo thành công
-        setSnackbar({
-          open: true,
-          message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
-          severity: "success",
-        });
-        const orderButton = document.querySelector(".order-button");
-        if (orderButton) {
-          orderButton.classList.add("animate-pulse");
-          setTimeout(() => {
-            orderButton.classList.remove("animate-pulse");
-          }, 3000);
-        }
-      } else {
-        console.error("Failed to create AI design:", resultAction.error);
-        setSnackbar({
-          open: true,
-          message:
-            "Có lỗi xảy ra khi lưu thiết kế. Ảnh đã được tải xuống nhưng chưa lưu vào hệ thống.",
-          severity: "warning",
-        });
-
-        // Vẫn cho phép tải ảnh xuống dù API có lỗi
-        const link = document.createElement("a");
-        link.download = "edited-design.png";
-        link.href = dataURL;
-        link.click();
-      }
-    } catch (error) {
-      console.error("Error exporting design:", error);
-
-      // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
-      try {
-        const canvasContainer = canvasRef.current.parentElement;
-        const canvas = await html2canvas(canvasContainer, {
-          allowTaint: true,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-
-        // Convert to blob and download
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = "design-screenshot.png";
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
-        }, "image/png");
-
-        setSnackbar({
-          open: true,
-          message:
-            "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
-          severity: "warning",
-        });
-      } catch (html2canvasError) {
-        console.error("html2canvas failed:", html2canvasError);
-        setSnackbar({
-          open: true,
-          message:
-            "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
-          severity: "error",
-        });
-      }
-    } finally {
-      setIsExporting(false); // Turn off the local loading state instead of global
+      pdf.save("design.pdf");
     }
-  };
+  } catch (error) {
+    console.error("Error exporting design:", error);
+
+    // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
+    try {
+      const canvasContainer = canvasRef.current.parentElement;
+      const canvas = await html2canvas(canvasContainer, {
+        allowTaint: true,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        scale: 2, // Tăng độ phân giải
+      });
+
+      // Convert to blob and download as image
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const imgLink = document.createElement("a");
+        imgLink.download = "design-screenshot.png";
+        imgLink.href = url;
+        imgLink.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+
+      // Cũng tạo PDF từ canvas backup nhưng chỉ có hình, không có chữ
+      try {
+        const backupDataURL = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        // Tính toán kích thước vừa với trang
+        const imgWidth = pdfWidth - 10;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Căn giữa hình ảnh
+        const xPos = (pdfWidth - imgWidth) / 2;
+        const yPos = (pdfHeight - imgHeight) / 2;
+        
+        pdf.addImage(backupDataURL, 'PNG', xPos, yPos, imgWidth, imgHeight);
+        pdf.save("design-backup.pdf");
+      } catch (pdfError) {
+        console.error("Failed to create PDF from backup canvas:", pdfError);
+      }
+
+      setSnackbar({
+        open: true,
+        message:
+          "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
+        severity: "warning",
+      });
+    } catch (html2canvasError) {
+      console.error("html2canvas failed:", html2canvasError);
+      setSnackbar({
+        open: true,
+        message:
+          "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
+        severity: "error",
+      });
+    }
+  } finally {
+    setIsExporting(false);
+  }
+};
   useEffect(() => {
     if (currentStep === 4.5 && billboardType) {
       console.log("Fetching design templates for product type:", billboardType);
