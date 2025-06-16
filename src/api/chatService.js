@@ -23,7 +23,7 @@ chatService.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-//test
+
 chatService.interceptors.response.use(
   (response) => response,
   (error) => {
