@@ -1246,6 +1246,8 @@ const AIDesign = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadImagePreview, setUploadImagePreview] = useState("");
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1321,6 +1323,70 @@ const AIDesign = () => {
         });
     }
   }, [currentStep, user?.id, dispatch]);
+  const handleImageUpload = (e) => {
+    const files = e.target.files;
+    if (!files || !files[0]) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setUploadedImage(file);
+      setUploadImagePreview(reader.result);
+
+      // Thêm ảnh vào canvas
+      addImageToCanvas(reader.result);
+
+      setSnackbar({
+        open: true,
+        message: "Ảnh đã được thêm vào thiết kế",
+        severity: "success",
+      });
+    };
+
+    reader.readAsDataURL(file);
+  };
+  const addImageToCanvas = (imageUrl) => {
+    if (!fabricCanvas) return;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = function () {
+      const fabricImg = new fabric.Image(img, {
+        left: 100,
+        top: 100,
+        name: "userUploadedImage",
+      });
+
+      // Giới hạn kích thước ảnh để vừa với canvas
+      const canvasWidth = fabricCanvas.width;
+      const canvasHeight = fabricCanvas.height;
+      const maxWidth = canvasWidth / 2;
+      const maxHeight = canvasHeight / 2;
+      const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+
+      fabricImg.set({
+        scaleX: scale,
+        scaleY: scale,
+      });
+
+      fabricCanvas.add(fabricImg);
+      fabricCanvas.setActiveObject(fabricImg);
+      fabricCanvas.renderAll();
+    };
+
+    img.onerror = function (error) {
+      console.error("Lỗi khi tải ảnh:", error);
+      setSnackbar({
+        open: true,
+        message: "Không thể tải ảnh. Vui lòng thử lại.",
+        severity: "error",
+      });
+    };
+
+    img.src = imageUrl;
+  };
   const addBusinessInfoToCanvas = (type, content) => {
     if (!fabricCanvas || !content) {
       console.log("Canvas or content not available:", {
@@ -1722,10 +1788,19 @@ const AIDesign = () => {
     }));
   };
 
-  const deleteSelectedText = () => {
-    if (!selectedText) return;
-    fabricCanvas.remove(selectedText);
-    setSelectedText(null);
+  const deleteSelectedObject = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) return;
+
+    fabricCanvas.remove(activeObject);
+
+    if (activeObject.type === "text") {
+      setSelectedText(null);
+    }
+
+    fabricCanvas.renderAll();
   };
 
   const exportDesign = async () => {
@@ -3555,9 +3630,19 @@ const AIDesign = () => {
                         <FaPlus className="mr-1" />
                         Thêm text
                       </button>
+                      <label className="px-3 py-2 bg-custom-primary text-white rounded-lg hover:bg-custom-primary/90 flex items-center text-sm cursor-pointer">
+                        <FaPlus className="mr-1" />
+                        Thêm ảnh
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
                       <button
-                        onClick={deleteSelectedText}
-                        disabled={!selectedText}
+                        onClick={deleteSelectedObject}
+                        disabled={!fabricCanvas?.getActiveObject()}
                         className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center text-sm"
                       >
                         <FaTrash className="mr-1" />
