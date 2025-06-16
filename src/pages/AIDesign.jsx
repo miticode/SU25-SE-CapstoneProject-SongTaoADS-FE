@@ -18,6 +18,7 @@ import {
   Alert,
   Backdrop,
   CircularProgress,
+  Button,
 } from "@mui/material";
 import {
   FaCheck,
@@ -26,6 +27,7 @@ import {
   FaRobot,
   FaEdit,
   FaSave,
+  FaTimes,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -99,6 +101,7 @@ import {
   selectImageGenerationStatus,
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
+import jsPDF from "jspdf";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -128,6 +131,8 @@ const ModernBillboardForm = ({
   const [editingSizeId, setEditingSizeId] = useState(null);
   const [editingSizeValue, setEditingSizeValue] = useState("");
   const [customerChoiceSizes, setCustomerChoiceSizes] = useState({});
+  const [editedSizes, setEditedSizes] = useState({});
+  const [isEditingSizes, setIsEditingSizes] = useState(false);
   const totalAmount = useSelector(selectTotalAmount);
 
   const fetchCustomerChoiceStatus = useSelector(
@@ -135,115 +140,119 @@ const ModernBillboardForm = ({
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const handleEditSizes = () => {
+    // Khởi tạo giá trị ban đầu từ form data hiện tại
+    const initialEditValues = {};
+    productTypeSizes.forEach((ptSize) => {
+      const sizeId = ptSize.sizes.id;
+      const fieldName = `size_${sizeId}`;
+      initialEditValues[sizeId] = formData[fieldName] || "";
+    });
 
-  const handleSizeUpdate = async (customerChoiceSizeId, sizeId) => {
+    setEditedSizes(initialEditValues);
+    setIsEditingSizes(true);
+  };
+
+  // Thêm hàm xử lý thay đổi giá trị kích thước đang chỉnh sửa
+  const handleSizeEditChange = (sizeId, value) => {
+    setEditedSizes((prev) => ({
+      ...prev,
+      [sizeId]: value,
+    }));
+  };
+
+  // Thêm hàm xử lý cập nhật tất cả kích thước
+  const handleUpdateAllSizes = async () => {
     try {
-      console.log("Updating size with ID:", customerChoiceSizeId);
-      console.log("New size value:", editingSizeValue);
+      // Validate các giá trị đã nhập
+      let hasErrors = false;
+      const newValidationErrors = {};
 
-      // Đánh dấu trạng thái loading ngay từ đầu
-      dispatch({ type: "customers/fetchCustomerChoice/pending" });
-
-      // Lưu lại giá trị subtotal hiện tại trước khi cập nhật
-      const currentSubtotals = {};
-      Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
-        if (detail && detail.subTotal !== undefined) {
-          currentSubtotals[attrId] = detail.subTotal;
-          previousSubTotalsRef.current[attrId] = detail.subTotal;
+      for (const ptSize of productTypeSizes) {
+        const sizeId = ptSize.sizes.id;
+        if (
+          !editedSizes[sizeId] ||
+          isNaN(editedSizes[sizeId]) ||
+          parseFloat(editedSizes[sizeId]) <= 0
+        ) {
+          hasErrors = true;
+          const fieldName = `size_${sizeId}`;
+          newValidationErrors[
+            fieldName
+          ] = `Kích thước "${ptSize.sizes.name}" phải lớn hơn 0`;
         }
-      });
-
-      // Cập nhật kích thước
-      const result = await dispatch(
-        updateCustomerChoiceSize({
-          customerChoiceSizeId,
-          sizeValue: editingSizeValue,
-        })
-      ).unwrap();
-
-      console.log("Update result:", result);
-
-      // Cập nhật trạng thái local cho UI
-      const numericValue = parseFloat(editingSizeValue);
-      setCustomerChoiceSizes({
-        ...customerChoiceSizes,
-        [sizeId]: {
-          ...customerChoiceSizes[sizeId],
-          sizeValue: numericValue,
-        },
-      });
-      setFormData({
-        ...formData,
-        [`size_${sizeId}`]: editingSizeValue,
-      });
-
-      // Reset trạng thái chỉnh sửa
-      setEditingSizeId(null);
-      setEditingSizeValue("");
-
-      // Đợi để đảm bảo backend đã xử lý xong
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      try {
-        // KHÔNG xóa toàn bộ giá trị subtotal
-        // KHÔNG dispatch resetCustomerChoiceDetails
-
-        // Fetch lại toàn bộ dữ liệu
-        if (currentOrder?.id) {
-          // Đầu tiên, fetch chi tiết để cập nhật subtotal cho từng thuộc tính
-          await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
-
-          // Sau đó fetch tổng số tiền
-          await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
-
-          // Cập nhật UI
-          setRefreshCounter((prev) => prev + 1);
-
-          // Hiển thị thông báo thành công
-          setSnackbar({
-            open: true,
-            message: "Cập nhật kích thước thành công",
-            severity: "success",
-          });
-        }
-      } catch (error) {
-        console.error("Error refreshing data after size update:", error);
-
-        // Phục hồi giá trị subtotal trước đó để UI không bị mất giá trị
-        // Khôi phục các giá trị subtotal từ biến tạm
-        previousSubTotalsRef.current = { ...currentSubtotals };
-
-        // Thử lại lần nữa
-        setTimeout(async () => {
-          if (currentOrder?.id) {
-            try {
-              await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
-              await dispatch(fetchCustomerChoice(currentOrder.id));
-              setRefreshCounter((prev) => prev + 1);
-            } catch (retryError) {
-              console.error("Retry failed:", retryError);
-            }
-          }
-        }, 1000);
-
-        setSnackbar({
-          open: true,
-          message: "Đã cập nhật kích thước, đang tải lại dữ liệu...",
-          severity: "info",
-        });
       }
-    } catch (error) {
-      console.error("Failed to update size:", error);
-      setSizeValidationError(
-        "Có lỗi xảy ra khi cập nhật kích thước. Vui lòng thử lại."
-      );
+
+      if (hasErrors) {
+        setValidationErrors(newValidationErrors);
+        return;
+      }
+
+      // Update each size
+      const customerChoiceId = currentOrder?.id;
+      if (!customerChoiceId) {
+        setSizeValidationError("Không tìm thấy đơn hàng hiện tại");
+        return;
+      }
+
+      // Show loading state
       setSnackbar({
         open: true,
-        message: "Cập nhật kích thước thất bại",
+        message: "Đang cập nhật kích thước...",
+        severity: "info",
+      });
+
+      // Update all sizes
+      for (const ptSize of productTypeSizes) {
+        const sizeId = ptSize.sizes.id;
+        const value = editedSizes[sizeId];
+
+        // Thay đổi tham số truyền vào API để phù hợp với API
+        await dispatch(
+          updateCustomerChoiceSize({
+            customerChoiceSizeId: customerChoiceSizes[sizeId]?.id,
+            sizeValue: value, // Sửa lại tham số theo đúng yêu cầu API
+          })
+        ).unwrap();
+
+        // Update form data
+        const fieldName = `size_${sizeId}`;
+        setFormData((prev) => ({
+          ...prev,
+          [fieldName]: value,
+        }));
+      }
+
+      // Reset editing state
+      setIsEditingSizes(false);
+
+      // Refresh data
+      setRefreshCounter((prev) => prev + 1);
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: "Kích thước đã được cập nhật thành công",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error updating sizes:", error);
+      setSnackbar({
+        open: true,
+        message:
+          "Có lỗi xảy ra khi cập nhật kích thước: " +
+          (error.message || "Lỗi không xác định"),
         severity: "error",
       });
     }
   };
+
+  // Thêm hàm hủy chỉnh sửa kích thước
+  const handleCancelEditSizes = () => {
+    setIsEditingSizes(false);
+    setEditedSizes({});
+  };
+
   useEffect(() => {
     if (currentOrder?.id) {
       // Load saved sizes for existing customer choice
@@ -695,101 +704,66 @@ const ModernBillboardForm = ({
               >
                 <span className="inline-block w-1 h-4 bg-blue-500 mr-2 rounded"></span>
                 KÍCH THƯỚC
+                {sizesConfirmed && !isEditingSizes && (
+                  <Button
+                    size="small"
+                    startIcon={<FaEdit size={12} />}
+                    sx={{ ml: 2, fontSize: "0.75rem", textTransform: "none" }}
+                    onClick={handleEditSizes}
+                  >
+                    Chỉnh sửa
+                  </Button>
+                )}
               </Typography>
 
               <Grid container spacing={1.5}>
                 {productTypeSizes.map((ptSize) => {
                   const sizeId = ptSize.sizes.id;
                   const fieldName = `size_${sizeId}`;
-                  const isEditing = editingSizeId === sizeId;
                   const savedSize = customerChoiceSizes[sizeId];
 
                   return (
-                    <Grid
-                      key={ptSize.id}
-                      style={{
-                        gridColumn: {
-                          xs: "span 6",
-                          sm: "span 4",
-                          md: "span 3",
-                        },
-                      }}
-                    >
-                      <div className="relative">
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label={ptSize.sizes.name}
-                          name={fieldName}
-                          type="number"
-                          value={
-                            isEditing
-                              ? editingSizeValue
-                              : formData[fieldName] || ""
-                          }
-                          onChange={
-                            isEditing
-                              ? (e) => setEditingSizeValue(e.target.value)
-                              : handleChange
-                          }
-                          disabled={sizesConfirmed && !isEditing}
-                          error={!!validationErrors[fieldName]}
-                          helperText={validationErrors[fieldName]}
-                          InputProps={{
-                            inputProps: { min: 0, step: 0.01 },
-                            startAdornment: (
-                              <span className="text-gray-400 mr-1 text-xs">
-                                #
-                              </span>
-                            ),
-                            endAdornment: (
-                              <span className="text-gray-500 text-xs">m</span>
-                            ),
-                            style: { fontSize: "0.8rem", height: "36px" },
-                          }}
-                          InputLabelProps={{ style: { fontSize: "0.8rem" } }}
-                          variant="outlined"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "4px",
-                            },
-                          }}
-                        />
-
-                        {sizesConfirmed && savedSize && (
-                          <div className="absolute right-0 top-0 flex">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (isEditing) {
-                                  handleSizeUpdate(savedSize.id, sizeId);
-                                } else {
-                                  setEditingSizeId(sizeId);
-                                  setEditingSizeValue(
-                                    savedSize.sizeValue.toString()
-                                  );
-                                }
-                              }}
-                              className={`p-1 text-white rounded-full transition-colors ${
-                                isEditing
-                                  ? "bg-green-500 hover:bg-green-600"
-                                  : "bg-blue-500 hover:bg-blue-600"
-                              }`}
-                              title={
-                                isEditing
-                                  ? "Lưu thay đổi"
-                                  : "Chỉnh sửa kích thước"
-                              }
-                            >
-                              {isEditing ? (
-                                <FaSave size={12} />
-                              ) : (
-                                <FaEdit size={12} />
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    <Grid item key={ptSize.id} xs={6} sm={4} md={3}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label={ptSize.sizes.name}
+                        name={fieldName}
+                        type="number"
+                        value={
+                          isEditingSizes
+                            ? editedSizes[sizeId] || ""
+                            : formData[fieldName] || ""
+                        }
+                        onChange={
+                          isEditingSizes
+                            ? (e) =>
+                                handleSizeEditChange(sizeId, e.target.value)
+                            : handleChange
+                        }
+                        disabled={sizesConfirmed && !isEditingSizes}
+                        error={!!validationErrors[fieldName]}
+                        helperText={validationErrors[fieldName]}
+                        InputProps={{
+                          inputProps: { min: 0, step: 0.01 },
+                          startAdornment: (
+                            <span className="text-gray-400 mr-1 text-xs">
+                              #
+                            </span>
+                          ),
+                          endAdornment: (
+                            <span className="text-gray-500 text-xs">m</span>
+                          ),
+                          style: { fontSize: "0.8rem", height: "36px" },
+                        }}
+                        InputLabelProps={{ style: { fontSize: "0.8rem" } }}
+                        variant="outlined"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "4px",
+                          },
+                        }}
+                      />
                     </Grid>
                   );
                 })}
@@ -806,7 +780,7 @@ const ModernBillboardForm = ({
                 </Typography>
               )}
 
-              {/* Confirm Size Button */}
+              {/* Confirm Size Button or Update All Sizes */}
               {!sizesConfirmed ? (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
                   <motion.button
@@ -845,6 +819,46 @@ const ModernBillboardForm = ({
                       </>
                     )}
                   </motion.button>
+                </Box>
+              ) : isEditingSizes ? (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mt: 2,
+                    gap: 2,
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<FaTimes size={12} />}
+                    size="small"
+                    onClick={handleCancelEditSizes}
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<FaSave size={12} />}
+                    size="small"
+                    onClick={handleUpdateAllSizes}
+                    disabled={sizesStatus === "loading"}
+                  >
+                    {sizesStatus === "loading" ? (
+                      <>
+                        <CircularProgress
+                          size={14}
+                          color="inherit"
+                          sx={{ mr: 1 }}
+                        />
+                        Đang cập nhật...
+                      </>
+                    ) : (
+                      "Cập nhật kích thước"
+                    )}
+                  </Button>
                 </Box>
               ) : (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
@@ -912,7 +926,7 @@ const ModernBillboardForm = ({
                       {attrs.map((attr) => {
                         console.log(
                           `Rendering attribute ${attr.id}, details:`,
-                          customerChoiceDetails[attr.id]
+                          customerChoiceDetails[attr.id] || "Not loaded yet"
                         );
                         const attributeValues =
                           attributeValuesState[attr.id] || [];
@@ -942,7 +956,10 @@ const ModernBillboardForm = ({
                                 value={formData[attr.id] || ""}
                                 onChange={handleChange}
                                 label={attr.name}
-                                disabled={isLoadingValues}
+                                disabled={
+                                  isLoadingValues ||
+                                  fetchCustomerChoiceStatus === "loading"
+                                }
                                 sx={{
                                   display: "block",
                                   width: "100%",
@@ -1230,6 +1247,8 @@ const AIDesign = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadImagePreview, setUploadImagePreview] = useState("");
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     tagLine: "",
@@ -1305,6 +1324,70 @@ const AIDesign = () => {
         });
     }
   }, [currentStep, user?.id, dispatch]);
+  const handleImageUpload = (e) => {
+    const files = e.target.files;
+    if (!files || !files[0]) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setUploadedImage(file);
+      setUploadImagePreview(reader.result);
+
+      // Thêm ảnh vào canvas
+      addImageToCanvas(reader.result);
+
+      setSnackbar({
+        open: true,
+        message: "Ảnh đã được thêm vào thiết kế",
+        severity: "success",
+      });
+    };
+
+    reader.readAsDataURL(file);
+  };
+  const addImageToCanvas = (imageUrl) => {
+    if (!fabricCanvas) return;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = function () {
+      const fabricImg = new fabric.Image(img, {
+        left: 100,
+        top: 100,
+        name: "userUploadedImage",
+      });
+
+      // Giới hạn kích thước ảnh để vừa với canvas
+      const canvasWidth = fabricCanvas.width;
+      const canvasHeight = fabricCanvas.height;
+      const maxWidth = canvasWidth / 2;
+      const maxHeight = canvasHeight / 2;
+      const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+
+      fabricImg.set({
+        scaleX: scale,
+        scaleY: scale,
+      });
+
+      fabricCanvas.add(fabricImg);
+      fabricCanvas.setActiveObject(fabricImg);
+      fabricCanvas.renderAll();
+    };
+
+    img.onerror = function (error) {
+      console.error("Lỗi khi tải ảnh:", error);
+      setSnackbar({
+        open: true,
+        message: "Không thể tải ảnh. Vui lòng thử lại.",
+        severity: "error",
+      });
+    };
+
+    img.src = imageUrl;
+  };
   const addBusinessInfoToCanvas = (type, content) => {
     if (!fabricCanvas || !content) {
       console.log("Canvas or content not available:", {
@@ -1706,159 +1789,241 @@ const AIDesign = () => {
     }));
   };
 
-  const deleteSelectedText = () => {
-    if (!selectedText) return;
-    fabricCanvas.remove(selectedText);
-    setSelectedText(null);
-  };
-
-  const exportDesign = async () => {
+  const deleteSelectedObject = () => {
     if (!fabricCanvas) return;
 
-    try {
-      setIsExporting(true); // Use local loading state instead of global
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) return;
 
-      // 1. Lấy ảnh từ canvas
-      const dataURL = fabricCanvas.toDataURL({
-        format: "png",
-        quality: 1,
+    fabricCanvas.remove(activeObject);
+
+    if (activeObject.type === "text") {
+      setSelectedText(null);
+    }
+
+    fabricCanvas.renderAll();
+  };
+
+ const exportDesign = async () => {
+  if (!fabricCanvas) return;
+
+  try {
+    setIsExporting(true);
+
+    // 1. Lấy ảnh từ canvas với chất lượng cao
+    const dataURL = fabricCanvas.toDataURL({
+      format: "png",
+      quality: 1,
+      multiplier: 2, // Tăng độ phân giải gấp đôi để PDF rõ nét hơn
+    });
+
+    // 2. Convert dataURL thành File object
+    const blobBin = atob(dataURL.split(",")[1]);
+    const array = [];
+    for (let i = 0; i < blobBin.length; i++) {
+      array.push(blobBin.charCodeAt(i));
+    }
+    const file = new Blob([new Uint8Array(array)], { type: "image/png" });
+    const aiImage = new File([file], "canvas-design.png", {
+      type: "image/png",
+    });
+
+    // 3. Tạo PDF chỉ chứa hình ảnh, không có văn bản
+    const canvasWidth = fabricCanvas.width;
+    const canvasHeight = fabricCanvas.height;
+    
+    // Tính toán kích thước PDF dựa trên tỷ lệ canvas (ngang)
+    const pdf = new jsPDF({
+      orientation: canvasWidth > canvasHeight ? 'landscape' : 'portrait',
+      unit: 'mm',
+    });
+    
+    // Lấy kích thước trang PDF
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    // Tính toán tỷ lệ để ảnh vừa với trang PDF nhưng giữ đúng tỷ lệ
+    const ratio = canvasWidth / canvasHeight;
+    
+    // Sử dụng toàn bộ trang PDF cho hình ảnh, với lề tối thiểu 5mm mỗi bên
+    let imgWidth = pdfWidth - 10; // Trừ lề 5mm mỗi bên
+    let imgHeight = imgWidth / ratio;
+    
+    // Nếu ảnh quá cao so với trang, điều chỉnh dựa trên chiều cao
+    if (imgHeight > pdfHeight - 10) {
+      imgHeight = pdfHeight - 10; // Trừ lề 5mm trên và dưới
+      imgWidth = imgHeight * ratio;
+    }
+    
+    // Tính toán vị trí để căn giữa ảnh trên trang
+    const xPos = (pdfWidth - imgWidth) / 2;
+    const yPos = (pdfHeight - imgHeight) / 2;
+    
+    // Thêm ảnh vào trang (căn giữa)
+    pdf.addImage(dataURL, 'PNG', xPos, yPos, imgWidth, imgHeight);
+    
+    // 4. Lấy customerDetailId và designTemplateId
+    if (!customerDetail?.id) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
+        severity: "error",
       });
+      setIsExporting(false);
+      return;
+    }
 
-      // 2. Convert dataURL thành File object
-      const blobBin = atob(dataURL.split(",")[1]);
-      const array = [];
-      for (let i = 0; i < blobBin.length; i++) {
-        array.push(blobBin.charCodeAt(i));
-      }
-      const file = new Blob([new Uint8Array(array)], { type: "image/png" });
-      const aiImage = new File([file], "canvas-design.png", {
-        type: "image/png",
+    const customerDetailId = customerDetail.id;
+    const designTemplateId = selectedSampleProduct;
+
+    if (!designTemplateId) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
+        severity: "error",
       });
+      setIsExporting(false);
+      return;
+    }
 
-      // 3. Lấy customerDetailId và designTemplateId
-      if (!customerDetail?.id) {
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
-          severity: "error",
-        });
-        setIsExporting(false);
-        return;
-      }
+    // Đảm bảo customerNote không bao giờ là null/undefined
+    const note = customerNote || "Thiết kế từ người dùng";
 
-      const customerDetailId = customerDetail.id;
-      const designTemplateId = selectedSampleProduct;
+    console.log("Preparing to send AI request with:", {
+      customerDetailId,
+      designTemplateId,
+      customerNote: note,
+      hasImage: !!aiImage,
+    });
 
-      if (!designTemplateId) {
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
-          severity: "error",
-        });
-        setIsExporting(false);
-        return;
-      }
-
-      // Đảm bảo customerNote không bao giờ là null/undefined
-      const note = customerNote || "Thiết kế từ người dùng";
-
-      console.log("Preparing to send AI request with:", {
+    // 5. Gửi request tạo AI design
+    const resultAction = await dispatch(
+      createAIDesign({
         customerDetailId,
         designTemplateId,
         customerNote: note,
-        hasImage: !!aiImage,
+        aiImage,
+      })
+    );
+
+    // 6. Xử lý kết quả
+    if (createAIDesign.fulfilled.match(resultAction)) {
+      const response = resultAction.payload;
+      console.log("AI design created successfully:", response);
+
+      // Tạo tên file với timestamp để tránh trùng lặp
+      const timestamp = new Date().getTime();
+      const imageName = `design-${timestamp}.png`;
+      const pdfName = `design-${timestamp}.pdf`;
+
+      // Tải ảnh về máy người dùng
+      const imgLink = document.createElement("a");
+      imgLink.download = imageName;
+      imgLink.href = dataURL;
+      imgLink.click();
+
+      // Tải PDF về máy người dùng
+      pdf.save(pdfName);
+
+      // Hiển thị thông báo thành công
+      setSnackbar({
+        open: true,
+        message: "Thiết kế đã được xuất thành công dưới dạng ảnh PNG và PDF!",
+        severity: "success",
+      });
+      
+      // Highlight nút Order
+      const orderButton = document.querySelector(".order-button");
+      if (orderButton) {
+        orderButton.classList.add("animate-pulse");
+        setTimeout(() => {
+          orderButton.classList.remove("animate-pulse");
+        }, 3000);
+      }
+    } else {
+      console.error("Failed to create AI design:", resultAction.error);
+      setSnackbar({
+        open: true,
+        message:
+          "Có lỗi xảy ra khi lưu thiết kế. Tệp vẫn được tải xuống nhưng chưa lưu vào hệ thống.",
+        severity: "warning",
       });
 
-      // 4. Gửi request tạo AI design
-      const resultAction = await dispatch(
-        createAIDesign({
-          customerDetailId,
-          designTemplateId,
-          customerNote: note, // Sử dụng giá trị mặc định nếu rỗng
-          aiImage,
-        })
-      );
+      // Vẫn cho phép tải ảnh và PDF xuống dù API có lỗi
+      const imgLink = document.createElement("a");
+      imgLink.download = "design.png";
+      imgLink.href = dataURL;
+      imgLink.click();
 
-      // 5. Xử lý kết quả
-      if (createAIDesign.fulfilled.match(resultAction)) {
-        const response = resultAction.payload;
-        console.log("AI design created successfully:", response);
-
-        // Tải ảnh về máy người dùng
-        const link = document.createElement("a");
-        link.download = "edited-design.png";
-        link.href = dataURL;
-        link.click();
-
-        // Hiển thị thông báo thành công
-        setSnackbar({
-          open: true,
-          message: "Thiết kế của bạn đã được lưu và tải xuống thành công!",
-          severity: "success",
-        });
-        const orderButton = document.querySelector(".order-button");
-        if (orderButton) {
-          orderButton.classList.add("animate-pulse");
-          setTimeout(() => {
-            orderButton.classList.remove("animate-pulse");
-          }, 3000);
-        }
-      } else {
-        console.error("Failed to create AI design:", resultAction.error);
-        setSnackbar({
-          open: true,
-          message:
-            "Có lỗi xảy ra khi lưu thiết kế. Ảnh đã được tải xuống nhưng chưa lưu vào hệ thống.",
-          severity: "warning",
-        });
-
-        // Vẫn cho phép tải ảnh xuống dù API có lỗi
-        const link = document.createElement("a");
-        link.download = "edited-design.png";
-        link.href = dataURL;
-        link.click();
-      }
-    } catch (error) {
-      console.error("Error exporting design:", error);
-
-      // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
-      try {
-        const canvasContainer = canvasRef.current.parentElement;
-        const canvas = await html2canvas(canvasContainer, {
-          allowTaint: true,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-
-        // Convert to blob and download
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = "design-screenshot.png";
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
-        }, "image/png");
-
-        setSnackbar({
-          open: true,
-          message:
-            "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
-          severity: "warning",
-        });
-      } catch (html2canvasError) {
-        console.error("html2canvas failed:", html2canvasError);
-        setSnackbar({
-          open: true,
-          message:
-            "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
-          severity: "error",
-        });
-      }
-    } finally {
-      setIsExporting(false); // Turn off the local loading state instead of global
+      pdf.save("design.pdf");
     }
-  };
+  } catch (error) {
+    console.error("Error exporting design:", error);
+
+    // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
+    try {
+      const canvasContainer = canvasRef.current.parentElement;
+      const canvas = await html2canvas(canvasContainer, {
+        allowTaint: true,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        scale: 2, // Tăng độ phân giải
+      });
+
+      // Convert to blob and download as image
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const imgLink = document.createElement("a");
+        imgLink.download = "design-screenshot.png";
+        imgLink.href = url;
+        imgLink.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+
+      // Cũng tạo PDF từ canvas backup nhưng chỉ có hình, không có chữ
+      try {
+        const backupDataURL = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        // Tính toán kích thước vừa với trang
+        const imgWidth = pdfWidth - 10;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Căn giữa hình ảnh
+        const xPos = (pdfWidth - imgWidth) / 2;
+        const yPos = (pdfHeight - imgHeight) / 2;
+        
+        pdf.addImage(backupDataURL, 'PNG', xPos, yPos, imgWidth, imgHeight);
+        pdf.save("design-backup.pdf");
+      } catch (pdfError) {
+        console.error("Failed to create PDF from backup canvas:", pdfError);
+      }
+
+      setSnackbar({
+        open: true,
+        message:
+          "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
+        severity: "warning",
+      });
+    } catch (html2canvasError) {
+      console.error("html2canvas failed:", html2canvasError);
+      setSnackbar({
+        open: true,
+        message:
+          "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
+        severity: "error",
+      });
+    }
+  } finally {
+    setIsExporting(false);
+  }
+};
   useEffect(() => {
     if (currentStep === 4.5 && billboardType) {
       console.log("Fetching design templates for product type:", billboardType);
@@ -3539,9 +3704,19 @@ const AIDesign = () => {
                         <FaPlus className="mr-1" />
                         Thêm text
                       </button>
+                      <label className="px-3 py-2 bg-custom-primary text-white rounded-lg hover:bg-custom-primary/90 flex items-center text-sm cursor-pointer">
+                        <FaPlus className="mr-1" />
+                        Thêm ảnh
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
                       <button
-                        onClick={deleteSelectedText}
-                        disabled={!selectedText}
+                        onClick={deleteSelectedObject}
+                        disabled={!fabricCanvas?.getActiveObject()}
                         className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center text-sm"
                       >
                         <FaTrash className="mr-1" />
