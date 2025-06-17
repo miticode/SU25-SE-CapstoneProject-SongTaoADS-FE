@@ -103,31 +103,18 @@ const Signup = () => {
 
     if (validateForm()) {
       try {
-        // Gửi email xác thực trước
-        const verificationResult = await dispatch(
-          sendVerificationEmail({
-            fullName,
+        // Chỉ gọi register, KHÔNG gọi sendVerificationEmail nữa
+        await dispatch(
+          register({
             email,
+            password,
+            fullName,
+            phone,
           })
         ).unwrap();
 
-        if (verificationResult.success) {
-          // Nếu gửi email xác thực thành công, tiếp tục đăng ký
-          await dispatch(
-            register({
-              email,
-              password,
-              fullName,
-              phone,
-            })
-          ).unwrap();
-
-          // Hiển thị thông báo xác thực
-          setShowVerificationMessage(true);
-
-          // Chuyển hướng đến trang đăng nhập với thông báo thành công
-          navigate("/auth/login?registered=success&verify=required");
-        }
+        setShowVerificationMessage(true);
+        navigate("/auth/login?registered=success&verify=required");
       } catch (err) {
         console.error("Registration failed:", err);
       }
