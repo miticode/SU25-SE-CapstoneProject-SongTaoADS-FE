@@ -148,7 +148,7 @@ const AboutUs = () => {
             <div className="absolute -bottom-6 -right-6 bg-custom-secondary h-full w-full rounded-lg z-0"></div>
             <div className="absolute -top-6 -left-6 bg-blue-100 h-full w-full rounded-lg z-0"></div>
             <img
-              src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=1200&auto=format&fit=crop"
+              src="https://quangcaotayninh.com.vn/wp-content/uploads/2021/07/HINH-CTY-2.png"
               alt="Team working together"
               className="rounded-lg shadow-lg relative z-10 object-cover h-full"
             />
