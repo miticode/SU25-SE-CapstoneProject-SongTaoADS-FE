@@ -12,37 +12,44 @@ import {
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
+import { Link } from "react-router-dom";
 
 const services = [
   {
+    id: "quang-cao-ngoai-troi-tai-cho-long-hoa-tay-ninh",
     title: "Quảng cáo ngoài trời tại Chợ Long Hoa – Tây Ninh",
-    img: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-    desc: "Chúng tôi xin trân trọng giới thiệu một cơ hội quảng cáo đặc biệt tại Chợ Long Hoa...",
+    img: "https://quangcaotayninh.com.vn/wp-content/uploads/2024/08/quang-cao-cho-long-hoa-360x240.jpg",
+    desc: "Chúng tôi xin trân trọng giới thiệu một cơ hội quảng cáo đặc biệt tại Chợ Long Hoa, Tây Ninh – một trong những chợ lớn nhất và sầm uất nhất của khu vực, thu hút hàng ngàn lượt khách mỗi ngày. Đây là cơ hội tuyệt vời để Quý Doanh Nghiệp đưa thương hiệu […]",
   },
   {
+    id: "thiet-ke-thi-cong-phong-karaoke-tai-tay-ninh",
     title: "Thiết kế, thi công Phòng Karaoke tại Tây Ninh",
-    img: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-    desc: "Để thiết kế và thi công 1 phòng karaoke hoàn chỉnh bạn phải làm các phần như sau...",
+    img: "https://quangcaotayninh.com.vn/wp-content/uploads/2022/06/lam-phong-karaoke-kinh-doanh-3-360x240.jpg",
+    desc: "Để thiết kế và thi công 1 phòng karaoke hoàn chỉnh bạn phải làm các phần như sau: – Thiết kế 2D 3D – Xây dựng phần thô. – Hoàn thiện cách âm. – Hệ thống PCCC. – Hệ thống thông khí. – Hoàn thiện nội thất: trang trí, sân khấu, tường, vách, trần, sàn…. – Máy […].",
   },
   {
+    id: "sua-chua-man-hinh-led-tai-tay-ninh",
     title: "Sửa chữa màn hình LED tại Tây Ninh",
-    img: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-    desc: "Công ty CP Tập đoàn Song Tạo tự hào là đơn vị duy nhất đến thời điểm hiện tại...",
+    img: "https://quangcaotayninh.com.vn/wp-content/uploads/2022/02/sua-bang-led-360x240.jpg",
+    desc: "Công ty CP Tập đoàn Song Tạo tự hào là đơn vị duy nhất đến thời điểm hiện tại, thi công và sửa chữa màn hình LED tại Tây Ninh. Thị trường màn hình LED rất đa dạng, có rất nhiều quy chuẩn như: thông số kĩ thuật, tần số quét, kích thước tấm LED, […]",
   },
   {
+    id: "cho-thue-quang-cao-tai-tay-ninh",
     title: "Cho thuê quảng cáo tại Tây Ninh",
-    img: "https://bienquangcao247.com/wp-content/uploads/2024/07/bang-hieu-quang-cao-01.jpg",
-    desc: "Quảng cáo ngoài trời lớn là một trong những phương thức quảng cáo truyền thống...",
+    img: "https://quangcaotayninh.com.vn/wp-content/uploads/2020/10/vi-tri-quang-cao-cua-hoa-vien-tay-ninh-360x240.png",
+    desc: "Quảng cáo pano khổ lớn là một trong những cách quảng cáo truyền thống, được áp dụng từ rất lâu tại Việt Nam. Ưu điểm của quảng cáo trên pano khổ lớn (hoặc tên gọi khác là billboard khổ lớn) là có rất nhiều lượt xem trực tiếp tại nơi quảng cáo. Như vậy điểm […]",
   },
   {
+    id: "sua-chua-bien-hieu-tai-tay-ninh",
     title: "Sửa chữa biển hiệu tại Tây Ninh",
-    img: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-    desc: "Biển hiệu bị hư hỏng, bong tróc, mờ chữ sẽ làm mất thẩm mỹ và giảm hiệu quả quảng cáo...",
+    img: "https://quangcaotayninh.com.vn/wp-content/uploads/2020/08/sua-chua-bang-hieu-360x240.jpg",
+    desc: "Khi biển hiệu bạn bị hư, bong tróc alu, rách bạt, hoặc bảng LED bị đứt, chớp giật,… thì sẽ làm xấu đi hình ảnh của cửa hàng kinh doanh của bạn. Việc thay biển hiệu mới thì lại tốn tiền. Giải pháp chính là sử dụng dịch vụ sửa chữa biển hiệu của chúng tôi,",
   },
   {
+    id: "thiet-ke-bo-nhan-dien-thuong-hieu",
     title: "Thiết kế bộ nhận diện thương hiệu",
-    img: "https://bienquangcao247.com/wp-content/uploads/2024/07/lam-bien-quang-cao-01.jpg",
-    desc: "Khi bạn bắt đầu kinh doanh, việc đầu tiên cần làm chính là thiết kế bộ nhận diện thương hiệu...",
+    img: "https://quangcaotayninh.com.vn/wp-content/uploads/2020/08/bo-nhan-dien-thuong-hieu-360x240.jpg",
+    desc: "Khi bạn bắt đầu kinh doanh, việc đầu tiên cần làm chính là thiết kế bộ nhận diện thương hiệu, vậy bộ nhận diện thương hiệu là gì, gồm những chi tiết gì, thiết kế một bộ nhận diện thương hiệu đẹp là như thế nào, chi phí thiết kế bao nhiêu,… sẽ được giải […]",
   },
 ];
 
@@ -91,80 +98,70 @@ const testimonials = [
   {
     name: "Nguyễn Văn A",
     position: "Giám đốc Công ty ABC",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Dịch vụ rất chuyên nghiệp, đội ngũ nhân viên nhiệt tình và tận tâm. Chúng tôi rất hài lòng với kết quả đạt được. Biển quảng cáo được thiết kế đẹp mắt.",
   },
   {
     name: "Trần Thị B",
     position: "Chủ cửa hàng XYZ",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Đội ngũ thiết kế rất sáng tạo, luôn đưa ra những ý tưởng độc đáo. Chi phí hợp lý, chất lượng vượt trội. Tôi rất hài lòng với dịch vụ và sẽ tiếp tục hợp tác trong tương lai.",
   },
   {
     name: "Lê Văn C",
     position: "Doanh nhân",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Đội ngũ thiết kế rất sáng tạo, luôn đưa ra những ý tưởng độc đáo. Chi phí hợp lý, chất lượng vượt trội. Tôi rất hài lòng với dịch vụ và sẽ tiếp tục hợp tác trong tương lai.",
   },
   {
     name: "Phạm Thị D",
     position: "Quản lý Nhà hàng Hương Việt",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Biển hiệu của nhà hàng chúng tôi được thiết kế rất đẹp và chuyên nghiệp. Khách hàng rất ấn tượng với thiết kế độc đáo và chất lượng cao. Dịch vụ hậu mãi cũng rất tốt.",
   },
   {
     name: "Hoàng Văn E",
     position: "Chủ chuỗi Cafe Sài Gòn",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Chúng tôi đã hợp tác với Song Tạo để thiết kế bộ nhận diện thương hiệu cho chuỗi cafe. Kết quả vượt ngoài mong đợi, thiết kế độc đáo và chuyên nghiệp.",
   },
   {
     name: "Ngô Thị F",
     position: "Giám đốc Marketing",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Chiến dịch quảng cáo ngoài trời của chúng tôi được Song Tạo thực hiện rất thành công. Vị trí đặt biển quảng cáo được chọn lựa kỹ lưỡng, thiết kế ấn tượng. ROI vượt trội so với kỳ vọng.",
   },
   {
     name: "Đỗ Văn G",
     position: "Chủ Spa & Wellness",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Thiết kế nội thất và biển hiệu cho spa của chúng tôi được thực hiện rất chuyên nghiệp. Không gian trở nên sang trọng và đẳng cấp hơn.",
   },
   {
     name: "Lý Thị H",
     position: "Quản lý Trung tâm Anh ngữ",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Song Tạo đã giúp chúng tôi xây dựng hình ảnh thương hiệu chuyên nghiệp. Từ logo đến biển hiệu, tất cả đều được thiết kế với phong cách hiện đại và trẻ trung.",
   },
   {
     name: "Vũ Văn I",
     position: "Chủ chuỗi Gym & Fitness",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Thiết kế biển hiệu và nội thất cho chuỗi phòng tập của chúng tôi rất ấn tượng. Không gian trở nên năng động và chuyên nghiệp hơn. Hội viên rất thích không khí mới của phòng tập.",
   },
   {
     name: "Trịnh Thị K",
     position: "Giám đốc Bất động sản",
-    image:
-      "https://htmediagroup.vn/wp-content/uploads/2022/11/Anh-58-copy-min.jpg.webp",
+    image: "/default-avatar.png",
     content:
       "Song Tạo đã giúp chúng tôi thiết kế và thi công biển quảng cáo cho dự án bất động sản. Thiết kế sang trọng, chất lượng cao cấp. Khách hàng rất ấn tượng.",
   },
@@ -249,9 +246,12 @@ const Service = () => {
                   <p className="text-gray-600 mb-4 min-h-[56px] italic">
                     {service.desc}
                   </p>
-                  <button className="inline-flex items-center bg-custom-secondary text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-300 hover:translate-x-1">
+                  <Link
+                    to={`/service/${service.id}`}
+                    className="inline-flex items-center bg-custom-secondary text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-300 hover:translate-x-1"
+                  >
                     Chi tiết <FaArrowRight className="ml-2" />
-                  </button>
+                  </Link>
                 </div>
               </motion.div>
             ))}
@@ -353,6 +353,10 @@ const Service = () => {
                         src={testimonial.image}
                         className="w-16 h-16 rounded-full object-cover border-4 border-blue-100"
                         alt={testimonial.name}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "/default-avatar.png";
+                        }}
                       />
                       <div className="ml-4">
                         <h3 className="text-lg font-bold text-gray-900">

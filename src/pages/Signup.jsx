@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   register,
   resetAuthStatus,
-  sendVerificationEmail,
   resetVerificationStatus,
 } from "../store/features/auth/authSlice";
 import { isAuthenticated } from "../utils/cookieManager";
