@@ -14,6 +14,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AuthLayout from "./layouts/AuthLayout";
 import Service from "./pages/Service";
+import ServiceDetail from "./pages/ServiceDetail";
 import Blog from "./pages/Blog";
 import Aboutus from "./pages/Aboutus";
 import AIDesign from "./pages/AIDesign";
@@ -132,13 +133,13 @@ const App = () => {
           // We have a token, validate it
           try {
             const authStatus = await checkAuthStatus();
-             dispatch(
-            syncAuthState({
-              isAuthenticated: authStatus.isAuthenticated,
-              user: authStatus.user,
-              accessToken: authStatus.accessToken || accessToken,
-            })
-          );
+            dispatch(
+              syncAuthState({
+                isAuthenticated: authStatus.isAuthenticated,
+                user: authStatus.user,
+                accessToken: authStatus.accessToken || accessToken,
+              })
+            );
           } catch (validationError) {
             console.error("Token validation failed:", validationError);
 
@@ -153,7 +154,9 @@ const App = () => {
                     accessToken: refreshResult.accessToken,
                   })
                 );
-                    console.log("Token refreshed successfully during initialization");
+                console.log(
+                  "Token refreshed successfully during initialization"
+                );
               } else {
                 throw new Error("Refresh failed during initialization");
               }
@@ -227,34 +230,34 @@ const App = () => {
 
     initializeAuth();
   }, [dispatch]);
- useEffect(() => {
-  if (isAuthenticated) {
-    // Refresh token sau mỗi 25 phút (5 phút trước khi hết hạn)
-    const refreshInterval = setInterval(() => {
-      console.log("Performing scheduled token refresh");
-      refreshTokenApi()
-        .then((result) => {
-          if (result.success) {
-            dispatch(
-              syncAuthState({
-                isAuthenticated: true,
-                user: result.user || user,
-                accessToken: result.accessToken,
-              })
-            );
-            console.log("Scheduled token refresh completed successfully");
-          } else {
-            console.warn("Scheduled token refresh failed:", result.error);
-          }
-        })
-        .catch((error) => {
-          console.error("Error during scheduled token refresh:", error);
-        });
-    }, 25 * 60 * 1000); // 25 phút
-    
-    return () => clearInterval(refreshInterval);
-  }
-}, [dispatch, isAuthenticated, user]);
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Refresh token sau mỗi 25 phút (5 phút trước khi hết hạn)
+      const refreshInterval = setInterval(() => {
+        console.log("Performing scheduled token refresh");
+        refreshTokenApi()
+          .then((result) => {
+            if (result.success) {
+              dispatch(
+                syncAuthState({
+                  isAuthenticated: true,
+                  user: result.user || user,
+                  accessToken: result.accessToken,
+                })
+              );
+              console.log("Scheduled token refresh completed successfully");
+            } else {
+              console.warn("Scheduled token refresh failed:", result.error);
+            }
+          })
+          .catch((error) => {
+            console.error("Error during scheduled token refresh:", error);
+          });
+      }, 25 * 60 * 1000); // 25 phút
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [dispatch, isAuthenticated, user]);
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
     if (reason === "clickaway") {
@@ -306,6 +309,7 @@ const App = () => {
               {/* Public routes - có thể truy cập mà không cần đăng nhập */}
               <Route index element={<Home />} />
               <Route path="service" element={<Service />} />
+              <Route path="service/:id" element={<ServiceDetail />} />
               <Route path="blog" element={<Blog />} />
               <Route path="aboutus" element={<Aboutus />} />
               <Route path="ai-design" element={<AIDesign />} />

@@ -30,7 +30,7 @@ export default function Footer() {
           <FaChevronUp />
         </button>
       </div>
-      
+
       {/* Main footer content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* Company info and contact */}
@@ -38,9 +38,11 @@ export default function Footer() {
           <div className="md:w-1/2 pr-8">
             <div className="flex items-center space-x-3 mb-6">
               <SiProbot className="text-3xl text-[#2B2F4A]" />
-              <h2 className="font-bold text-2xl text-[#2B2F4A]">Song Tạo ADS</h2>
+              <h2 className="font-bold text-2xl text-[#2B2F4A]">
+                Song Tạo ADS
+              </h2>
             </div>
-            
+
             <p className="text-gray-600 mb-6 max-w-lg">
               Nền tảng tạo quảng cáo AI hàng đầu Việt Nam, giúp doanh nghiệp tối
               ưu hóa chiến lược marketing và tăng hiệu quả quảng cáo.
@@ -51,21 +53,21 @@ export default function Footer() {
                 <div className="w-8 h-8 bg-[#2B2F4A]/10 rounded-full flex items-center justify-center">
                   <FaPhoneAlt className="text-[#2B2F4A]" size={14} />
                 </div>
-                <span>(+84) 123 456 789</span>
+                <span>0899999456</span>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-[#2B2F4A]/10 rounded-full flex items-center justify-center">
                   <FaEnvelope className="text-[#2B2F4A]" size={14} />
                 </div>
-                <span>contact@songtaoads.vn</span>
+                <span>quangcaosongtao@gmail.com</span>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-[#2B2F4A]/10 rounded-full flex items-center justify-center">
                   <FaMapMarkerAlt className="text-[#2B2F4A]" size={14} />
                 </div>
-                <span>Thành phố Hồ Chí Minh, Việt Nam</span>
+                <span>623 Điện Biên Phủ, Ninh Thạnh Tp Tây Ninh, Tây Ninh</span>
               </div>
             </div>
 
@@ -139,7 +141,8 @@ export default function Footer() {
               Đăng Ký Nhận Thông Báo
             </h3>
             <p className="text-white mb-6">
-              Nhận các bản cập nhật mới nhất về các tính năng AI và khuyến mãi đặc biệt
+              Nhận các bản cập nhật mới nhất về các tính năng AI và khuyến mãi
+              đặc biệt
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -157,7 +160,9 @@ export default function Footer() {
         {/* Links section - MOVED DOWN */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-10 py-8">
           <div>
-            <h3 className="font-bold text-lg text-[#2B2F4A] mb-6 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-[#2B2F4A] after:mt-2 pb-3">Sản Phẩm</h3>
+            <h3 className="font-bold text-lg text-[#2B2F4A] mb-6 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-[#2B2F4A] after:mt-2 pb-3">
+              Sản Phẩm
+            </h3>
             <ul className="space-y-3">
               <li>
                 <a
@@ -208,7 +213,9 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="font-bold text-lg text-[#2B2F4A] mb-6 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-[#2B2F4A] after:mt-2 pb-3">Hỗ Trợ</h3>
+            <h3 className="font-bold text-lg text-[#2B2F4A] mb-6 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-[#2B2F4A] after:mt-2 pb-3">
+              Hỗ Trợ
+            </h3>
             <ul className="space-y-3">
               <li>
                 <a
@@ -259,7 +266,9 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="font-bold text-lg text-[#2B2F4A] mb-6 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-[#2B2F4A] after:mt-2 pb-3">Pháp Lý</h3>
+            <h3 className="font-bold text-lg text-[#2B2F4A] mb-6 relative after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-[#2B2F4A] after:mt-2 pb-3">
+              Pháp Lý
+            </h3>
             <ul className="space-y-3">
               <li>
                 <a
