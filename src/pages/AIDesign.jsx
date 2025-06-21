@@ -1249,9 +1249,10 @@ const AIDesign = () => {
   const [isOrdering, setIsOrdering] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadImagePreview, setUploadImagePreview] = useState("");
+  const [processedLogoUrl, setProcessedLogoUrl] = useState("");
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
-    tagLine: "",
+   address: "",
     contactInfo: "",
     customerDetailLogo: null,
     logoPreview: "", // For preview of selected logo
@@ -1303,13 +1304,13 @@ const AIDesign = () => {
       dispatch(fetchCustomerDetailByUserId(user.id))
         .unwrap()
         .then((customerData) => {
-          console.log("Customer detail loaded:", customerData);
+        
 
           // Set business presets
           setBusinessPresets({
             logoUrl: customerData.logoUrl || "",
             companyName: customerData.companyName || "",
-            tagLine: customerData.tagLine || "",
+             address: customerData.address || "",
             contactInfo: customerData.contactInfo || "",
           });
 
@@ -1415,17 +1416,17 @@ const AIDesign = () => {
         });
         break;
 
-      case "tagLine":
-        text = new fabric.Text(content, {
-          left: position.left,
-          top: position.top + 50,
-          fontFamily: "Arial",
-          fontSize: 18,
-          fill: "#666666",
-          fontStyle: "italic",
-          name: "tagLine",
-        });
-        break;
+       case "address": 
+      text = new fabric.Text(content, {
+        left: position.left,
+        top: position.top + 50,
+        fontFamily: "Arial",
+        fontSize: 18,
+        fill: "#666666",
+        fontStyle: "italic",
+        name: "address", 
+      });
+      break;
 
       case "contactInfo":
         text = new fabric.Text(content, {
@@ -2121,17 +2122,36 @@ const AIDesign = () => {
     fetchProfile();
   }, [dispatch]);
   useEffect(() => {
-    if (customerDetail) {
-      setBusinessInfo({
-        companyName: customerDetail.companyName || "",
-        tagLine: customerDetail.tagLine || "",
-        contactInfo: customerDetail.contactInfo || "",
-        customerDetailLogo: null, // Can't set file directly
-        logoPreview: customerDetail.logoUrl || "", // Use existing logo URL for preview
-      });
+  if (customerDetail) {
+    setBusinessInfo({
+      companyName: customerDetail.companyName || "",
+      address: customerDetail.address || "",
+      contactInfo: customerDetail.contactInfo || "",
+      customerDetailLogo: null, // Can't set file directly
+      logoPreview: null, // Không đặt logoPreview ở đây nữa
+    });
+    
+    // Nếu có logoUrl, gọi fetchImageFromS3
+    if (customerDetail.logoUrl) {
+      console.log("Fetching logo from S3:", customerDetail.logoUrl);
+      dispatch(fetchImageFromS3(customerDetail.logoUrl));
     }
-  }, [customerDetail]);
-
+  }
+}, [customerDetail, dispatch]);
+const s3CustomerLogo = useSelector((state) => 
+  customerDetail?.logoUrl ? selectS3Image(state, customerDetail.logoUrl) : null
+);
+useEffect(() => {
+  if (s3CustomerLogo) {
+    setProcessedLogoUrl(s3CustomerLogo);
+    console.log("Processed S3 logo URL:", s3CustomerLogo);
+  } else if (customerDetail?.logoUrl) {
+    // Fallback: Tạo URL từ API endpoint nếu không có trong state
+    const apiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(customerDetail.logoUrl)}`;
+    setProcessedLogoUrl(apiUrl);
+    console.log("Fallback logo URL:", apiUrl);
+  }
+}, [s3CustomerLogo, customerDetail?.logoUrl]);
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -2171,7 +2191,7 @@ const AIDesign = () => {
       return;
     }
     // Validate required fields
-    const requiredFields = ["companyName", "tagLine", "contactInfo"];
+    const requiredFields = ["companyName", "address", "contactInfo"];
     const missingFields = requiredFields.filter(
       (field) => !businessInfo[field]
     );
@@ -2196,7 +2216,7 @@ const AIDesign = () => {
     }
     const customerData = {
       companyName: businessInfo.companyName,
-      tagLine: businessInfo.tagLine,
+       address: businessInfo.address,
       contactInfo: businessInfo.contactInfo,
       customerDetailLogo: businessInfo.customerDetailLogo,
       userId: user.id,
@@ -2780,8 +2800,8 @@ const AIDesign = () => {
                 <input
                   type="text"
                   id="tagLine"
-                  name="tagLine"
-                  value={businessInfo.tagLine}
+                  name="address"
+                   value={businessInfo.address}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
                   required
@@ -2823,17 +2843,28 @@ const AIDesign = () => {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
                     required={!customerDetail}
                   />
-                  {(businessInfo.logoPreview || customerDetail?.logoUrl) && (
-                    <div className="mt-2 relative w-32 h-32 border rounded-lg overflow-hidden">
-                      <img
-                        src={
-                          businessInfo.logoPreview || customerDetail?.logoUrl
-                        }
-                        alt="Logo Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
+                  {(businessInfo.logoPreview || processedLogoUrl) && (
+  <div className="mt-2 relative w-32 h-32 border rounded-lg overflow-hidden">
+    <img
+      src={businessInfo.logoPreview || processedLogoUrl}
+      alt="Logo Preview"
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        console.error("Error loading logo:", e);
+        // Fallback nếu URL không tải được
+        if (customerDetail?.logoUrl && !businessInfo.logoPreview && e.target.src !== "/placeholder-logo.png") {
+          const directApiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(customerDetail.logoUrl)}`;
+          console.log("Trying direct API URL:", directApiUrl);
+          e.target.src = directApiUrl;
+        } else {
+          // Nếu vẫn không tải được, hiển thị ảnh placeholder
+          e.target.src = "/placeholder-logo.png";
+        }
+      }}
+    />
+    {businessInfo.logoPreview && <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">Logo mới</div>}
+  </div>
+)}
                 </div>
               </motion.div>
 
