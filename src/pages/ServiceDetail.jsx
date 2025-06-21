@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 
 import { motion } from "framer-motion";
@@ -22,6 +22,11 @@ import "swiper/css/autoplay";
 const ServiceDetail = () => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Scroll lên đầu trang khi component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Mock data - trong thực tế sẽ lấy từ API
   const serviceData = {
