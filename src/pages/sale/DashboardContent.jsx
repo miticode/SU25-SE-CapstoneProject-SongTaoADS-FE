@@ -190,11 +190,21 @@ const DashboardContent = ({
               onChange={(e) => onStatusFilterChange(e.target.value)}
             >
               <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
-              <MenuItem value="CANCELLED">Đã hủy</MenuItem>
+              <MenuItem value="PENDING_CONTRACT">Chờ hợp đồng</MenuItem>
+              <MenuItem value="CONTRACT_SENT">Đã gửi hợp đồng</MenuItem>
+              <MenuItem value="CONTRACT_SIGNED">Đã ký hợp đồng</MenuItem>
+              <MenuItem value="CONTRACT_DISCUSS">Đàm phán hợp đồng</MenuItem>
+              <MenuItem value="CONTRACT_CONFIRMED">Xác nhận hợp đồng</MenuItem>
               <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
-              <MenuItem value="COMPLETED">Hoàn thành</MenuItem>
-              <MenuItem value="PROCESSING">Đang xử lý</MenuItem>
+              <MenuItem value="IN_PROGRESS">Đang thực hiện</MenuItem>
+              <MenuItem value="PRODUCING">Đang sản xuất</MenuItem>
+              <MenuItem value="PRODUCTION_COMPLETED">
+                Hoàn thành sản xuất
+              </MenuItem>
+              <MenuItem value="DELIVERING">Đang giao hàng</MenuItem>
+              <MenuItem value="INSTALLED">Đã lắp đặt</MenuItem>
+              <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
+              <MenuItem value="CANCELLED">Đã hủy</MenuItem>
             </Select>
           </FormControl>
           <TextField

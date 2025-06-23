@@ -5,6 +5,7 @@ import {
   logoutApi,
   updateAuthState,
   resendVerificationApi,
+  getProfileApi,
 } from "../../../api/authService";
 
 // Initial state
@@ -79,6 +80,17 @@ export const sendVerificationEmail = createAsyncThunk(
     }
 
     return response;
+  }
+);
+
+export const fetchProfile = createAsyncThunk(
+  "auth/fetchProfile",
+  async (_, { rejectWithValue }) => {
+    const res = await getProfileApi();
+    if (!res.success) {
+      return rejectWithValue(res.error || "Không thể tải thông tin cá nhân");
+    }
+    return res.data;
   }
 );
 
@@ -181,6 +193,21 @@ const authSlice = createSlice({
         state.accessToken = null;
         state.status = "idle";
         state.error = null;
+      })
+
+      // Fetch profile cases
+      .addCase(fetchProfile.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchProfile.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchProfile.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
       });
   },
 });
@@ -188,3 +215,10 @@ const authSlice = createSlice({
 export const { resetAuthStatus, resetVerificationStatus, syncAuthState, setRefreshing } = authSlice.actions;
 
 export default authSlice.reducer;
+
+// Selectors
+export const selectAuthUser = (state) => state.auth.user;
+export const selectAuthStatus = (state) => state.auth.status;
+export const selectAuthError = (state) => state.auth.error;
+
+
