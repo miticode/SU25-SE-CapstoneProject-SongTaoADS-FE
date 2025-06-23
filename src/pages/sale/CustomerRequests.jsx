@@ -59,22 +59,22 @@ const CustomerRequests = () => {
   const [comment, setComment] = useState("");
   const [customerDetails, setCustomerDetails] = useState({});
   const [loadingCustomers, setLoadingCustomers] = useState({});
-  
+
   // Thêm state cho designer
   const [designers, setDesigners] = useState([]);
-  const [selectedDesigner, setSelectedDesigner] = useState('');
+  const [selectedDesigner, setSelectedDesigner] = useState("");
   const [loadingDesigners, setLoadingDesigners] = useState(false);
   const [assigningDesigner, setAssigningDesigner] = useState(false);
   const [assignmentError, setAssignmentError] = useState(null);
   const [rejectingRequest, setRejectingRequest] = useState(false);
   const [notification, setNotification] = useState({
     open: false,
-    message: '',
-    severity: 'success' // 'success', 'error', 'info', 'warning'
+    message: "",
+    severity: "success", // 'success', 'error', 'info', 'warning'
   });
 
   const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }));
+    setNotification((prev) => ({ ...prev, open: false }));
   };
 
   useEffect(() => {
@@ -99,7 +99,10 @@ const CustomerRequests = () => {
             !loadingCustomers[customerDetailId]
           ) {
             // Mark this customer as loading
-            setLoadingCustomers((prev) => ({ ...prev, [customerDetailId]: true }));
+            setLoadingCustomers((prev) => ({
+              ...prev,
+              [customerDetailId]: true,
+            }));
 
             try {
               const response = await getCustomerDetailByIdApi(customerDetailId);
@@ -115,7 +118,10 @@ const CustomerRequests = () => {
                 error
               );
             } finally {
-              setLoadingCustomers((prev) => ({ ...prev, [customerDetailId]: false }));
+              setLoadingCustomers((prev) => ({
+                ...prev,
+                [customerDetailId]: false,
+              }));
             }
           }
         }
@@ -129,14 +135,14 @@ const CustomerRequests = () => {
   const fetchDesigners = async () => {
     setLoadingDesigners(true);
     try {
-      const response = await getUsersByRoleApi('DESIGNER', 1, 10);
+      const response = await getUsersByRoleApi("DESIGNER", 1, 10);
       if (response.success) {
         setDesigners(response.data);
       } else {
-        console.error('Failed to fetch designers:', response.error);
+        console.error("Failed to fetch designers:", response.error);
       }
     } catch (error) {
-      console.error('Error fetching designers:', error);
+      console.error("Error fetching designers:", error);
     } finally {
       setLoadingDesigners(false);
     }
@@ -150,9 +156,9 @@ const CustomerRequests = () => {
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
-    setSelectedDesigner(request.assignDesigner || '');
+    setSelectedDesigner(request.assignDesigner || "");
     setDetailOpen(true);
-    
+
     // Fetch designers when dialog opens
     fetchDesigners();
   };
@@ -161,106 +167,114 @@ const CustomerRequests = () => {
     setDetailOpen(false);
     setSelectedRequest(null);
     setComment("");
-    setSelectedDesigner('');
+    setSelectedDesigner("");
   };
 
   const handleDesignerChange = (event) => {
     setSelectedDesigner(event.target.value);
   };
-  
+
   // Handle assign designer to request
   const handleAssignDesigner = async () => {
     if (!selectedDesigner || !selectedRequest) return;
-    
+
     setAssigningDesigner(true);
     setAssignmentError(null);
-    
+
     try {
-     const resultAction = await dispatch(assignDesignerToRequest({
-        customDesignRequestId: selectedRequest.id,
-        designerId: selectedDesigner
-      }));
-      
+      const resultAction = await dispatch(
+        assignDesignerToRequest({
+          customDesignRequestId: selectedRequest.id,
+          designerId: selectedDesigner,
+        })
+      );
+
       if (assignDesignerToRequest.fulfilled.match(resultAction)) {
         // Show success notification
-        console.log('Designer assigned successfully!');
-         setNotification({
+        console.log("Designer assigned successfully!");
+        setNotification({
           open: true,
-          message: 'Designer assigned successfully!',
-          severity: 'success'
+          message: "Designer assigned successfully!",
+          severity: "success",
         });
         // Refresh data after assignment
-        dispatch(fetchPendingDesignRequests({ 
-          page: pagination.currentPage, 
-          size: pagination.pageSize 
-        }));
-        
+        dispatch(
+          fetchPendingDesignRequests({
+            page: pagination.currentPage,
+            size: pagination.pageSize,
+          })
+        );
+
         // Close the dialog
         handleCloseDetails();
       } else {
-         setNotification({
+        setNotification({
           open: true,
-          message: resultAction.payload || 'Failed to assign designer',
-          severity: 'error'
+          message: resultAction.payload || "Failed to assign designer",
+          severity: "error",
         });
         // Show error message
-        setAssignmentError(resultAction.payload || 'Failed to assign designer');
+        setAssignmentError(resultAction.payload || "Failed to assign designer");
       }
     } catch (error) {
-        setNotification({
+      setNotification({
         open: true,
-        message: error.message || 'An error occurred',
-        severity: 'error'
+        message: error.message || "An error occurred",
+        severity: "error",
       });
-      setAssignmentError(error.message || 'An error occurred');
-      console.error('Error assigning designer:', error);
+      setAssignmentError(error.message || "An error occurred");
+      console.error("Error assigning designer:", error);
     } finally {
       setAssigningDesigner(false);
     }
   };
-  
+
   // Handle rejecting the request
   const handleRejectRequest = async () => {
     if (!selectedRequest) return;
-    
+
     setRejectingRequest(true);
-    
+
     try {
-      const resultAction = await dispatch(updateRequestStatus({
-        customDesignRequestId: selectedRequest.id,
-        status: 'REJECTED'
-      }));
-      
+      const resultAction = await dispatch(
+        updateRequestStatus({
+          customDesignRequestId: selectedRequest.id,
+          status: "REJECTED",
+        })
+      );
+
       if (updateRequestStatus.fulfilled.match(resultAction)) {
         // Show success notification
         setNotification({
           open: true,
-          message: 'Request rejected successfully!',
-          severity: 'success'
+          message: "Request rejected successfully!",
+          severity: "success",
         });
-        
+
         // Refresh data after rejection
-        dispatch(fetchPendingDesignRequests({ 
-          page: pagination.currentPage, 
-          size: pagination.pageSize 
-        }));
-        
+        dispatch(
+          fetchPendingDesignRequests({
+            page: pagination.currentPage,
+            size: pagination.pageSize,
+          })
+        );
+
         // Close the dialog
         handleCloseDetails();
       } else {
         setNotification({
           open: true,
-          message: resultAction.payload || 'Failed to reject request',
-          severity: 'error'
+          message: resultAction.payload || "Failed to reject request",
+          severity: "error",
         });
       }
     } catch (error) {
       setNotification({
         open: true,
-        message: error.message || 'An error occurred',
-        severity: 'error'
+        message: error.message || "An error occurred",
+        severity: "error",
       });
-      console.error('Error rejecting request:', error);
+      console.error("Error rejecting request:", error);
     } finally {
       setRejectingRequest(false);
     }
@@ -275,29 +289,74 @@ const CustomerRequests = () => {
     }
 
     const customerDetail = customerDetails[customerDetailId];
-    
+
     if (!customerDetail) return "Loading...";
-    
+
     // Return fullName from the users object if available
     if (customerDetail.users && customerDetail.users.fullName) {
       return customerDetail.users.fullName;
     }
-    
+
     // Fallback to company name if user fullName is not available
     return customerDetail.companyName || "Unnamed Customer";
   };
 
   const getStatusChip = (status) => {
     const statusConfig = {
-      PENDING: {
+      PENDING_CONTRACT: {
         icon: <PendingIcon />,
         color: "warning",
-        label: "Chờ xử lý",
+        label: "Chờ ký kết hợp đồng",
+      },
+      CONTRACT_SENT: {
+        icon: <PendingIcon />,
+        color: "info",
+        label: "Đã gửi hợp đồng",
+      },
+      CONTRACT_SIGNED: {
+        icon: <CheckCircleIcon />,
+        color: "success",
+        label: "Đã ký kết hợp đồng",
+      },
+      CONTRACT_DISCUSS: {
+        icon: <PendingIcon />,
+        color: "info",
+        label: "Đang thảo luận hợp đồng",
+      },
+      CONTRACT_CONFIRMED: {
+        icon: <CheckCircleIcon />,
+        color: "success",
+        label: "Đã xác nhận hợp đồng",
+      },
+      DEPOSITED: {
+        icon: <PendingIcon />,
+        color: "info",
+        label: "Đã đặt cọc",
       },
       IN_PROGRESS: {
         icon: <PendingIcon />,
         color: "info",
         label: "Đang xử lý",
+      },
+      PRODUCING: {
+        icon: <PendingIcon />,
+        color: "info",
+        label: "Đang sản xuất",
+      },
+      PRODUCTION_COMPLETED: {
+        icon: <CheckCircleIcon />,
+        color: "success",
+        label: "Đã hoàn thành sản xuất",
+      },
+      DELIVERING: {
+        icon: <PendingIcon />,
+        color: "info",
+        label: "Đang vận chuyển",
+      },
+      INSTALLED: {
+        icon: <PendingIcon />,
+        color: "info",
+        label: "Đang lắp đặt",
       },
       COMPLETED: {
         icon: <CheckCircleIcon />,
@@ -316,7 +375,7 @@ const CustomerRequests = () => {
       },
     };
 
-    const config = statusConfig[status] || statusConfig.PENDING;
+    const config = statusConfig[status] || statusConfig.PENDING_CONTRACT;
 
     return (
       <Chip
@@ -396,7 +455,9 @@ const CustomerRequests = () => {
                     <TableCell>{request.requirements}</TableCell>
                     <TableCell>{formatDate(request.createdAt)}</TableCell>
                     <TableCell>
-                      {formatCurrency(request.customerChoiceHistories.totalAmount)}
+                      {formatCurrency(
+                        request.customerChoiceHistories.totalAmount
+                      )}
                     </TableCell>
                     <TableCell>{getStatusChip(request.status)}</TableCell>
                     <TableCell>
@@ -433,7 +494,8 @@ const CustomerRequests = () => {
         {selectedRequest && (
           <>
             <DialogTitle>
-              Request Details - {getCustomerName(selectedRequest.customerDetail)}
+              Request Details -{" "}
+              {getCustomerName(selectedRequest.customerDetail)}
             </DialogTitle>
             <DialogContent>
               <Grid container spacing={3} sx={{ mt: 1 }}>
@@ -556,10 +618,14 @@ const CustomerRequests = () => {
 
                 {/* Assign Designer Section */}
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
                     Assign Designer
                   </Typography>
-                  
+
                   <FormControl fullWidth>
                     <InputLabel id="designer-select-label">Designer</InputLabel>
                     <Select
@@ -575,12 +641,12 @@ const CustomerRequests = () => {
                       </MenuItem>
                       {designers.map((designer) => (
                         <MenuItem key={designer.id} value={designer.id}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar 
-                              src={designer.avatar} 
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <Avatar
+                              src={designer.avatar}
                               sx={{ width: 24, height: 24, mr: 1 }}
                             >
-                              {designer.fullName?.charAt(0) || 'D'}
+                              {designer.fullName?.charAt(0) || "D"}
                             </Avatar>
                             <Typography>{designer.fullName}</Typography>
                           </Box>
@@ -589,7 +655,9 @@ const CustomerRequests = () => {
                     </Select>
                   </FormControl>
                   {loadingDesigners && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", mt: 1 }}
+                    >
                       <CircularProgress size={24} />
                     </Box>
                   )}
@@ -624,18 +692,30 @@ const CustomerRequests = () => {
                 color="error"
                 onClick={handleRejectRequest}
                 disabled={rejectingRequest}
-                startIcon={rejectingRequest ? <CircularProgress size={20} color="inherit" /> : <CancelIcon />}
+                startIcon={
+                  rejectingRequest ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    <CancelIcon />
+                  )
+                }
               >
-                {rejectingRequest ? 'Rejecting...' : 'Reject'}
+                {rejectingRequest ? "Rejecting..." : "Reject"}
               </Button>
               <Button
                 variant="contained"
                 color="success"
-                disabled={!selectedDesigner || assigningDesigner || loadingDesigners}
+                disabled={
+                  !selectedDesigner || assigningDesigner || loadingDesigners
+                }
                 onClick={handleAssignDesigner}
-                startIcon={assigningDesigner ? <CircularProgress size={20} color="inherit" /> : null}
+                startIcon={
+                  assigningDesigner ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : null
+                }
               >
-                {assigningDesigner ? 'Assigning...' : 'Assign Designer'}
+                {assigningDesigner ? "Assigning..." : "Assign Designer"}
               </Button>
             </DialogActions>
             {assignmentError && (
@@ -650,12 +730,12 @@ const CustomerRequests = () => {
         open={notification.open}
         autoHideDuration={6000}
         onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert 
-          onClose={handleCloseNotification} 
+        <Alert
+          onClose={handleCloseNotification}
           severity={notification.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {notification.message}
         </Alert>

@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
-  getProfileApi,
   updateUserAvatarApi,
   updateUserProfileApi,
   updateUserPasswordApi,
 } from "../api/authService";
+import {
+  fetchProfile,
+  selectAuthUser,
+  selectAuthStatus,
+  selectAuthError,
+} from "../store/features/auth/authSlice";
 import {
   Box,
   Container,
@@ -38,9 +43,10 @@ import {
 const DEFAULT_AVATAR = "https://i.imgur.com/HeIi0wU.png";
 
 const Profile = () => {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const profile = useSelector(selectAuthUser);
+  const loading = useSelector(selectAuthStatus) === "loading";
+  const error = useSelector(selectAuthError);
   const { accessToken } = useSelector((state) => state.auth);
 
   const [editName, setEditName] = useState("");
@@ -65,29 +71,18 @@ const Profile = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      setError(null);
+    if (accessToken) {
+      dispatch(fetchProfile());
+    }
+  }, [dispatch, accessToken]);
 
-      if (!accessToken) {
-        setError("Vui lòng đăng nhập để xem thông tin cá nhân");
-        setLoading(false);
-        return;
-      }
-
-      const res = await getProfileApi();
-      if (res.success) {
-        setProfile(res.data);
-        setEditName(res.data.fullName || "");
-        setEditPhone(res.data.phone || "");
-      } else {
-        setError(res.error || "Không thể tải thông tin cá nhân");
-      }
-      setLoading(false);
-    };
-
-    fetchProfile();
-  }, [accessToken]);
+  // Đồng bộ editName, editPhone khi profile Redux thay đổi
+  useEffect(() => {
+    if (profile) {
+      setEditName(profile.fullName || "");
+      setEditPhone(profile.phone || "");
+    }
+  }, [profile]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -96,8 +91,6 @@ const Profile = () => {
       // Gọi API cập nhật avatar user với file gốc
       const updateRes = await updateUserAvatarApi(profile.id, file);
       if (updateRes.success) {
-        const newAvatarUrl = updateRes.data.avatar + "?t=" + Date.now();
-        setProfile((prev) => ({ ...prev, avatar: newAvatarUrl }));
         setSnackbar({
           open: true,
           message: "Cập nhật avatar thành công!",
@@ -133,7 +126,6 @@ const Profile = () => {
     const res = await updateUserProfileApi(profile.id, editName, editPhone);
     setEditLoading(false);
     if (res.success) {
-      setProfile((prev) => ({ ...prev, fullName: editName, phone: editPhone }));
       setSnackbar({
         open: true,
         message: "Cập nhật thành công!",
