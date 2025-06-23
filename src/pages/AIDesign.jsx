@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-
+import "../styles/fonts.css";
 import StepIndicator from "../components/StepIndicator";
 import {
   TextField,
@@ -1252,7 +1252,7 @@ const AIDesign = () => {
   const [processedLogoUrl, setProcessedLogoUrl] = useState("");
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
-   address: "",
+    address: "",
     contactInfo: "",
     customerDetailLogo: null,
     logoPreview: "", // For preview of selected logo
@@ -1292,6 +1292,84 @@ const AIDesign = () => {
     "Roboto",
     "Open Sans",
     "Lato",
+    // Thêm các font UTM từ file fonts.css
+    "UTM A&S Graceland",
+    "UTM A&S Heartbeat",
+    "UTM A&S Signwriter",
+    "UTM Agin",
+    "UTM Aircona",
+    "UTM Akashi",
+    "UTM Alba Matter",
+    "UTM Alberta Heavy",
+    "UTM Alexander",
+    "UTM Alpine KT",
+    "UTM Alter Gothic",
+    "UTM Ambrose",
+    "UTM Ambrosia",
+    "UTM American Sans",
+    "UTM Americana",
+    "UTM AmericanaBT",
+    "UTM AmericanaBExt",
+    "UTM AmericanaItalic",
+    "UTM Amerika Sans",
+    "UTM Amherst",
+    "UTM Androgyne",
+    "UTM Aptima",
+    "UTM AptimaBold",
+    "UTM AptimaBoldItalic",
+    "UTM AptimaItalic",
+    "UTM Aristote",
+    "UTM Arruba",
+    "UTM Atlas_Solid",
+    "UTM Atlas",
+    "UTM Aurora",
+    "UTM Avenda",
+    "UTM Avo",
+    "UTM AvoBold_Italic",
+    "UTM AvoBold",
+    "UTM AvoItalic",
+    "UTM Azuki",
+    "UTM Banquet",
+    "UTM BanqueR",
+    "UTM Beautiful Caps",
+    "UTM Bell",
+    "UTM Bienvenue",
+    "UTM Billhead 1910",
+    "UTM Bitsumishi Pro",
+    "UTM Brewers KT",
+    "UTM BryantLG_B",
+    "UTM BryantLG",
+    "UTM Bustamalaka",
+    "UTM Cabaret",
+    "UTM Cafeta",
+    "UTM Camellia",
+    "UTM Candombe",
+    "UTM Caviar",
+    "UTM Centur",
+    "UTM CenturBold",
+    "UTM CenturBoldItalic",
+    "UTM CenturItalic",
+    "UTM Charlemagne",
+    "UTM Charlotte",
+    "UTM Chickenhawk",
+    "UTM ClassizismAntiqua",
+    "UTM Colossalis",
+    "UTM Conetoga",
+    "UTM Cookies",
+    "UTM Cool Blue",
+    "UTM Cooper Black",
+    "UTM Cooper BlackItalic",
+    "UTM Copperplate",
+    "UTM Copperplate2",
+    "UTM Dai Co Viet",
+    "UTM Davida",
+    "UTM Demian KT",
+    "UTM Deutsch Gothic",
+    "UTM Diana",
+    "UTM Dinh Tran",
+    "UTM Duepuntozero",
+    "UTM DuepuntozeroBold",
+    "UTM EdwardianB",
   ];
   const s3Logo = useSelector((state) =>
     businessPresets.logoUrl
@@ -1304,13 +1382,11 @@ const AIDesign = () => {
       dispatch(fetchCustomerDetailByUserId(user.id))
         .unwrap()
         .then((customerData) => {
-        
-
           // Set business presets
           setBusinessPresets({
             logoUrl: customerData.logoUrl || "",
             companyName: customerData.companyName || "",
-             address: customerData.address || "",
+            address: customerData.address || "",
             contactInfo: customerData.contactInfo || "",
           });
 
@@ -1416,17 +1492,17 @@ const AIDesign = () => {
         });
         break;
 
-       case "address": 
-      text = new fabric.Text(content, {
-        left: position.left,
-        top: position.top + 50,
-        fontFamily: "Arial",
-        fontSize: 18,
-        fill: "#666666",
-        fontStyle: "italic",
-        name: "address", 
-      });
-      break;
+      case "address":
+        text = new fabric.Text(content, {
+          left: position.left,
+          top: position.top + 50,
+          fontFamily: "Arial",
+          fontSize: 18,
+          fill: "#666666",
+          fontStyle: "italic",
+          name: "address",
+        });
+        break;
 
       case "contactInfo":
         text = new fabric.Text(content, {
@@ -1805,226 +1881,226 @@ const AIDesign = () => {
     fabricCanvas.renderAll();
   };
 
- const exportDesign = async () => {
-  if (!fabricCanvas) return;
+  const exportDesign = async () => {
+    if (!fabricCanvas) return;
 
-  try {
-    setIsExporting(true);
+    try {
+      setIsExporting(true);
 
-    // 1. Lấy ảnh từ canvas với chất lượng cao
-    const dataURL = fabricCanvas.toDataURL({
-      format: "png",
-      quality: 1,
-      multiplier: 2, // Tăng độ phân giải gấp đôi để PDF rõ nét hơn
-    });
-
-    // 2. Convert dataURL thành File object
-    const blobBin = atob(dataURL.split(",")[1]);
-    const array = [];
-    for (let i = 0; i < blobBin.length; i++) {
-      array.push(blobBin.charCodeAt(i));
-    }
-    const file = new Blob([new Uint8Array(array)], { type: "image/png" });
-    const aiImage = new File([file], "canvas-design.png", {
-      type: "image/png",
-    });
-
-    // 3. Tạo PDF chỉ chứa hình ảnh, không có văn bản
-    const canvasWidth = fabricCanvas.width;
-    const canvasHeight = fabricCanvas.height;
-    
-    // Tính toán kích thước PDF dựa trên tỷ lệ canvas (ngang)
-    const pdf = new jsPDF({
-      orientation: canvasWidth > canvasHeight ? 'landscape' : 'portrait',
-      unit: 'mm',
-    });
-    
-    // Lấy kích thước trang PDF
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    // Tính toán tỷ lệ để ảnh vừa với trang PDF nhưng giữ đúng tỷ lệ
-    const ratio = canvasWidth / canvasHeight;
-    
-    // Sử dụng toàn bộ trang PDF cho hình ảnh, với lề tối thiểu 5mm mỗi bên
-    let imgWidth = pdfWidth - 10; // Trừ lề 5mm mỗi bên
-    let imgHeight = imgWidth / ratio;
-    
-    // Nếu ảnh quá cao so với trang, điều chỉnh dựa trên chiều cao
-    if (imgHeight > pdfHeight - 10) {
-      imgHeight = pdfHeight - 10; // Trừ lề 5mm trên và dưới
-      imgWidth = imgHeight * ratio;
-    }
-    
-    // Tính toán vị trí để căn giữa ảnh trên trang
-    const xPos = (pdfWidth - imgWidth) / 2;
-    const yPos = (pdfHeight - imgHeight) / 2;
-    
-    // Thêm ảnh vào trang (căn giữa)
-    pdf.addImage(dataURL, 'PNG', xPos, yPos, imgWidth, imgHeight);
-    
-    // 4. Lấy customerDetailId và designTemplateId
-    if (!customerDetail?.id) {
-      setSnackbar({
-        open: true,
-        message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
-        severity: "error",
+      // 1. Lấy ảnh từ canvas với chất lượng cao
+      const dataURL = fabricCanvas.toDataURL({
+        format: "png",
+        quality: 1,
+        multiplier: 2, // Tăng độ phân giải gấp đôi để PDF rõ nét hơn
       });
-      setIsExporting(false);
-      return;
-    }
 
-    const customerDetailId = customerDetail.id;
-    const designTemplateId = selectedSampleProduct;
-
-    if (!designTemplateId) {
-      setSnackbar({
-        open: true,
-        message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
-        severity: "error",
+      // 2. Convert dataURL thành File object
+      const blobBin = atob(dataURL.split(",")[1]);
+      const array = [];
+      for (let i = 0; i < blobBin.length; i++) {
+        array.push(blobBin.charCodeAt(i));
+      }
+      const file = new Blob([new Uint8Array(array)], { type: "image/png" });
+      const aiImage = new File([file], "canvas-design.png", {
+        type: "image/png",
       });
-      setIsExporting(false);
-      return;
-    }
 
-    // Đảm bảo customerNote không bao giờ là null/undefined
-    const note = customerNote || "Thiết kế từ người dùng";
+      // 3. Tạo PDF chỉ chứa hình ảnh, không có văn bản
+      const canvasWidth = fabricCanvas.width;
+      const canvasHeight = fabricCanvas.height;
 
-    console.log("Preparing to send AI request with:", {
-      customerDetailId,
-      designTemplateId,
-      customerNote: note,
-      hasImage: !!aiImage,
-    });
+      // Tính toán kích thước PDF dựa trên tỷ lệ canvas (ngang)
+      const pdf = new jsPDF({
+        orientation: canvasWidth > canvasHeight ? "landscape" : "portrait",
+        unit: "mm",
+      });
 
-    // 5. Gửi request tạo AI design
-    const resultAction = await dispatch(
-      createAIDesign({
+      // Lấy kích thước trang PDF
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Tính toán tỷ lệ để ảnh vừa với trang PDF nhưng giữ đúng tỷ lệ
+      const ratio = canvasWidth / canvasHeight;
+
+      // Sử dụng toàn bộ trang PDF cho hình ảnh, với lề tối thiểu 5mm mỗi bên
+      let imgWidth = pdfWidth - 10; // Trừ lề 5mm mỗi bên
+      let imgHeight = imgWidth / ratio;
+
+      // Nếu ảnh quá cao so với trang, điều chỉnh dựa trên chiều cao
+      if (imgHeight > pdfHeight - 10) {
+        imgHeight = pdfHeight - 10; // Trừ lề 5mm trên và dưới
+        imgWidth = imgHeight * ratio;
+      }
+
+      // Tính toán vị trí để căn giữa ảnh trên trang
+      const xPos = (pdfWidth - imgWidth) / 2;
+      const yPos = (pdfHeight - imgHeight) / 2;
+
+      // Thêm ảnh vào trang (căn giữa)
+      pdf.addImage(dataURL, "PNG", xPos, yPos, imgWidth, imgHeight);
+
+      // 4. Lấy customerDetailId và designTemplateId
+      if (!customerDetail?.id) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy thông tin khách hàng. Vui lòng thử lại.",
+          severity: "error",
+        });
+        setIsExporting(false);
+        return;
+      }
+
+      const customerDetailId = customerDetail.id;
+      const designTemplateId = selectedSampleProduct;
+
+      if (!designTemplateId) {
+        setSnackbar({
+          open: true,
+          message: "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng thử lại.",
+          severity: "error",
+        });
+        setIsExporting(false);
+        return;
+      }
+
+      // Đảm bảo customerNote không bao giờ là null/undefined
+      const note = customerNote || "Thiết kế từ người dùng";
+
+      console.log("Preparing to send AI request with:", {
         customerDetailId,
         designTemplateId,
         customerNote: note,
-        aiImage,
-      })
-    );
-
-    // 6. Xử lý kết quả
-    if (createAIDesign.fulfilled.match(resultAction)) {
-      const response = resultAction.payload;
-      console.log("AI design created successfully:", response);
-
-      // Tạo tên file với timestamp để tránh trùng lặp
-      const timestamp = new Date().getTime();
-      const imageName = `design-${timestamp}.png`;
-      const pdfName = `design-${timestamp}.pdf`;
-
-      // Tải ảnh về máy người dùng
-      const imgLink = document.createElement("a");
-      imgLink.download = imageName;
-      imgLink.href = dataURL;
-      imgLink.click();
-
-      // Tải PDF về máy người dùng
-      pdf.save(pdfName);
-
-      // Hiển thị thông báo thành công
-      setSnackbar({
-        open: true,
-        message: "Thiết kế đã được xuất thành công dưới dạng ảnh PNG và PDF!",
-        severity: "success",
-      });
-      
-      // Highlight nút Order
-      const orderButton = document.querySelector(".order-button");
-      if (orderButton) {
-        orderButton.classList.add("animate-pulse");
-        setTimeout(() => {
-          orderButton.classList.remove("animate-pulse");
-        }, 3000);
-      }
-    } else {
-      console.error("Failed to create AI design:", resultAction.error);
-      setSnackbar({
-        open: true,
-        message:
-          "Có lỗi xảy ra khi lưu thiết kế. Tệp vẫn được tải xuống nhưng chưa lưu vào hệ thống.",
-        severity: "warning",
+        hasImage: !!aiImage,
       });
 
-      // Vẫn cho phép tải ảnh và PDF xuống dù API có lỗi
-      const imgLink = document.createElement("a");
-      imgLink.download = "design.png";
-      imgLink.href = dataURL;
-      imgLink.click();
+      // 5. Gửi request tạo AI design
+      const resultAction = await dispatch(
+        createAIDesign({
+          customerDetailId,
+          designTemplateId,
+          customerNote: note,
+          aiImage,
+        })
+      );
 
-      pdf.save("design.pdf");
-    }
-  } catch (error) {
-    console.error("Error exporting design:", error);
+      // 6. Xử lý kết quả
+      if (createAIDesign.fulfilled.match(resultAction)) {
+        const response = resultAction.payload;
+        console.log("AI design created successfully:", response);
 
-    // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
-    try {
-      const canvasContainer = canvasRef.current.parentElement;
-      const canvas = await html2canvas(canvasContainer, {
-        allowTaint: true,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        scale: 2, // Tăng độ phân giải
-      });
+        // Tạo tên file với timestamp để tránh trùng lặp
+        const timestamp = new Date().getTime();
+        const imageName = `design-${timestamp}.png`;
+        const pdfName = `design-${timestamp}.pdf`;
 
-      // Convert to blob and download as image
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
+        // Tải ảnh về máy người dùng
         const imgLink = document.createElement("a");
-        imgLink.download = "design-screenshot.png";
-        imgLink.href = url;
+        imgLink.download = imageName;
+        imgLink.href = dataURL;
         imgLink.click();
-        URL.revokeObjectURL(url);
-      }, "image/png");
 
-      // Cũng tạo PDF từ canvas backup nhưng chỉ có hình, không có chữ
-      try {
-        const backupDataURL = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
+        // Tải PDF về máy người dùng
+        pdf.save(pdfName);
+
+        // Hiển thị thông báo thành công
+        setSnackbar({
+          open: true,
+          message: "Thiết kế đã được xuất thành công dưới dạng ảnh PNG và PDF!",
+          severity: "success",
         });
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        
-        // Tính toán kích thước vừa với trang
-        const imgWidth = pdfWidth - 10;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        // Căn giữa hình ảnh
-        const xPos = (pdfWidth - imgWidth) / 2;
-        const yPos = (pdfHeight - imgHeight) / 2;
-        
-        pdf.addImage(backupDataURL, 'PNG', xPos, yPos, imgWidth, imgHeight);
-        pdf.save("design-backup.pdf");
-      } catch (pdfError) {
-        console.error("Failed to create PDF from backup canvas:", pdfError);
-      }
 
-      setSnackbar({
-        open: true,
-        message:
-          "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
-        severity: "warning",
-      });
-    } catch (html2canvasError) {
-      console.error("html2canvas failed:", html2canvasError);
-      setSnackbar({
-        open: true,
-        message:
-          "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
-        severity: "error",
-      });
+        // Highlight nút Order
+        const orderButton = document.querySelector(".order-button");
+        if (orderButton) {
+          orderButton.classList.add("animate-pulse");
+          setTimeout(() => {
+            orderButton.classList.remove("animate-pulse");
+          }, 3000);
+        }
+      } else {
+        console.error("Failed to create AI design:", resultAction.error);
+        setSnackbar({
+          open: true,
+          message:
+            "Có lỗi xảy ra khi lưu thiết kế. Tệp vẫn được tải xuống nhưng chưa lưu vào hệ thống.",
+          severity: "warning",
+        });
+
+        // Vẫn cho phép tải ảnh và PDF xuống dù API có lỗi
+        const imgLink = document.createElement("a");
+        imgLink.download = "design.png";
+        imgLink.href = dataURL;
+        imgLink.click();
+
+        pdf.save("design.pdf");
+      }
+    } catch (error) {
+      console.error("Error exporting design:", error);
+
+      // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
+      try {
+        const canvasContainer = canvasRef.current.parentElement;
+        const canvas = await html2canvas(canvasContainer, {
+          allowTaint: true,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          scale: 2, // Tăng độ phân giải
+        });
+
+        // Convert to blob and download as image
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const imgLink = document.createElement("a");
+          imgLink.download = "design-screenshot.png";
+          imgLink.href = url;
+          imgLink.click();
+          URL.revokeObjectURL(url);
+        }, "image/png");
+
+        // Cũng tạo PDF từ canvas backup nhưng chỉ có hình, không có chữ
+        try {
+          const backupDataURL = canvas.toDataURL("image/png");
+          const pdf = new jsPDF({
+            orientation: "landscape",
+            unit: "mm",
+          });
+
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+
+          // Tính toán kích thước vừa với trang
+          const imgWidth = pdfWidth - 10;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          // Căn giữa hình ảnh
+          const xPos = (pdfWidth - imgWidth) / 2;
+          const yPos = (pdfHeight - imgHeight) / 2;
+
+          pdf.addImage(backupDataURL, "PNG", xPos, yPos, imgWidth, imgHeight);
+          pdf.save("design-backup.pdf");
+        } catch (pdfError) {
+          console.error("Failed to create PDF from backup canvas:", pdfError);
+        }
+
+        setSnackbar({
+          open: true,
+          message:
+            "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
+          severity: "warning",
+        });
+      } catch (html2canvasError) {
+        console.error("html2canvas failed:", html2canvasError);
+        setSnackbar({
+          open: true,
+          message:
+            "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
+          severity: "error",
+        });
+      }
+    } finally {
+      setIsExporting(false);
     }
-  } finally {
-    setIsExporting(false);
-  }
-};
+  };
   useEffect(() => {
     if (currentStep === 4.5 && billboardType) {
       console.log("Fetching design templates for product type:", billboardType);
@@ -2122,36 +2198,40 @@ const AIDesign = () => {
     fetchProfile();
   }, [dispatch]);
   useEffect(() => {
-  if (customerDetail) {
-    setBusinessInfo({
-      companyName: customerDetail.companyName || "",
-      address: customerDetail.address || "",
-      contactInfo: customerDetail.contactInfo || "",
-      customerDetailLogo: null, // Can't set file directly
-      logoPreview: null, // Không đặt logoPreview ở đây nữa
-    });
-    
-    // Nếu có logoUrl, gọi fetchImageFromS3
-    if (customerDetail.logoUrl) {
-      console.log("Fetching logo from S3:", customerDetail.logoUrl);
-      dispatch(fetchImageFromS3(customerDetail.logoUrl));
+    if (customerDetail) {
+      setBusinessInfo({
+        companyName: customerDetail.companyName || "",
+        address: customerDetail.address || "",
+        contactInfo: customerDetail.contactInfo || "",
+        customerDetailLogo: null, // Can't set file directly
+        logoPreview: null, // Không đặt logoPreview ở đây nữa
+      });
+
+      // Nếu có logoUrl, gọi fetchImageFromS3
+      if (customerDetail.logoUrl) {
+        console.log("Fetching logo from S3:", customerDetail.logoUrl);
+        dispatch(fetchImageFromS3(customerDetail.logoUrl));
+      }
     }
-  }
-}, [customerDetail, dispatch]);
-const s3CustomerLogo = useSelector((state) => 
-  customerDetail?.logoUrl ? selectS3Image(state, customerDetail.logoUrl) : null
-);
-useEffect(() => {
-  if (s3CustomerLogo) {
-    setProcessedLogoUrl(s3CustomerLogo);
-    console.log("Processed S3 logo URL:", s3CustomerLogo);
-  } else if (customerDetail?.logoUrl) {
-    // Fallback: Tạo URL từ API endpoint nếu không có trong state
-    const apiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(customerDetail.logoUrl)}`;
-    setProcessedLogoUrl(apiUrl);
-    console.log("Fallback logo URL:", apiUrl);
-  }
-}, [s3CustomerLogo, customerDetail?.logoUrl]);
+  }, [customerDetail, dispatch]);
+  const s3CustomerLogo = useSelector((state) =>
+    customerDetail?.logoUrl
+      ? selectS3Image(state, customerDetail.logoUrl)
+      : null
+  );
+  useEffect(() => {
+    if (s3CustomerLogo) {
+      setProcessedLogoUrl(s3CustomerLogo);
+      console.log("Processed S3 logo URL:", s3CustomerLogo);
+    } else if (customerDetail?.logoUrl) {
+      // Fallback: Tạo URL từ API endpoint nếu không có trong state
+      const apiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
+        customerDetail.logoUrl
+      )}`;
+      setProcessedLogoUrl(apiUrl);
+      console.log("Fallback logo URL:", apiUrl);
+    }
+  }, [s3CustomerLogo, customerDetail?.logoUrl]);
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -2216,7 +2296,7 @@ useEffect(() => {
     }
     const customerData = {
       companyName: businessInfo.companyName,
-       address: businessInfo.address,
+      address: businessInfo.address,
       contactInfo: businessInfo.contactInfo,
       customerDetailLogo: businessInfo.customerDetailLogo,
       userId: user.id,
@@ -2801,7 +2881,7 @@ useEffect(() => {
                   type="text"
                   id="tagLine"
                   name="address"
-                   value={businessInfo.address}
+                  value={businessInfo.address}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
                   required
@@ -2844,27 +2924,37 @@ useEffect(() => {
                     required={!customerDetail}
                   />
                   {(businessInfo.logoPreview || processedLogoUrl) && (
-  <div className="mt-2 relative w-32 h-32 border rounded-lg overflow-hidden">
-    <img
-      src={businessInfo.logoPreview || processedLogoUrl}
-      alt="Logo Preview"
-      className="w-full h-full object-cover"
-      onError={(e) => {
-        console.error("Error loading logo:", e);
-        // Fallback nếu URL không tải được
-        if (customerDetail?.logoUrl && !businessInfo.logoPreview && e.target.src !== "/placeholder-logo.png") {
-          const directApiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(customerDetail.logoUrl)}`;
-          console.log("Trying direct API URL:", directApiUrl);
-          e.target.src = directApiUrl;
-        } else {
-          // Nếu vẫn không tải được, hiển thị ảnh placeholder
-          e.target.src = "/placeholder-logo.png";
-        }
-      }}
-    />
-    {businessInfo.logoPreview && <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">Logo mới</div>}
-  </div>
-)}
+                    <div className="mt-2 relative w-32 h-32 border rounded-lg overflow-hidden">
+                      <img
+                        src={businessInfo.logoPreview || processedLogoUrl}
+                        alt="Logo Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error("Error loading logo:", e);
+                          // Fallback nếu URL không tải được
+                          if (
+                            customerDetail?.logoUrl &&
+                            !businessInfo.logoPreview &&
+                            e.target.src !== "/placeholder-logo.png"
+                          ) {
+                            const directApiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
+                              customerDetail.logoUrl
+                            )}`;
+                            console.log("Trying direct API URL:", directApiUrl);
+                            e.target.src = directApiUrl;
+                          } else {
+                            // Nếu vẫn không tải được, hiển thị ảnh placeholder
+                            e.target.src = "/placeholder-logo.png";
+                          }
+                        }}
+                      />
+                      {businessInfo.logoPreview && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
+                          Logo mới
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
 
@@ -3817,13 +3907,16 @@ useEffect(() => {
                           className="w-full p-1.5 border border-gray-300 rounded-lg text-sm"
                         >
                           {fonts.map((font) => (
-                            <option key={font} value={font}>
+                            <option
+                              key={font}
+                              value={font}
+                              style={{ fontFamily: font }}
+                            >
                               {font}
                             </option>
                           ))}
                         </select>
                       </div>
-
                       {/* Font Size */}
                       <div>
                         <label className="block text-sm font-medium mb-1">

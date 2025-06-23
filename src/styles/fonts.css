@@ -1,0 +1,608 @@
+@font-face {
+  font-family: 'UTM A&S Graceland';
+  src: url('../../public/fonts/UTM\ A&S\ Graceland.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM A&S Heartbeat';
+  src: url('../../public/fonts/UTM\ A&S\ Heartbeat.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM A&S Signwriter';
+  src: url('../../public/fonts/UTM\ A&S\ Signwriter.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM Agin';
+  src: url('../../public/fonts/UTM\ Agin.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM Aircona';
+  src: url('../../public/fonts/UTM\ Aircona.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM Akashi';
+  src: url('../../public/fonts/UTM\ Akashi.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM Alba Matter';
+  src: url('../../public/fonts/UTM\ Alba\ Matter.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Alberta Heavy';
+  src: url('../../public/fonts/UTM\ Alberta\ Heavy.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Alexander';
+  src: url('../../public/fonts/UTM\ Alexander.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Alpine KT';
+  src: url('../../public/fonts/UTM\ Alpine\ KT.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Alter Gothic';
+  src: url('../../public/fonts/UTM\ Alter\ Gothic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Ambrose';
+  src: url('../../public/fonts/UTM\ Ambrose.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Ambrosia';
+  src: url('../../public/fonts/UTM\ Ambrosia.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM American Sans';
+  src: url('../../public/fonts/UTM\ American\ Sans.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Americana';
+  src: url('../../public/fonts/UTM\ Americana.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AmericanaBT';
+  src: url('../../public/fonts/UTM\ AmericanaBT.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AmericanaBExt';
+  src: url('../../public/fonts/UTM\ AmericanaBExt.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AmericanaItalic';
+  src: url('../../public/fonts/UTM\ AmericanaItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Amerika Sans';
+  src: url('../../public/fonts/UTM\ Amerika\ Sans.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Amherst';
+  src: url('../../public/fonts/UTM\ Amherst.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Androgyne';
+  src: url('../../public/fonts/UTM\ Androgyne.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM Aptima';
+  src: url('../../public/fonts/UTM\ Aptima.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AptimaBold';
+  src: url('../../public/fonts/UTM\ AptimaBold.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AptimaBoldItalic';
+  src: url('../../public/fonts/UTM\ AptimaBoldItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AptimaItalic';
+  src: url('../../public/fonts/UTM\ AptimaItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Aristote';
+  src: url('../../public/fonts/UTM\ Aristote.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Arruba';
+  src: url('../../public/fonts/UTM\ Arruba.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Atlas_Solid';
+  src: url('../../public/fonts/UTM\ Atlas_Solid.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Atlas';
+  src: url('../../public/fonts/UTM\ Atlas.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Aurora';
+  src: url('../../public/fonts/UTM\ Aurora.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Avenda';
+  src: url('../../public/fonts/UTM\ Avenda.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Avo';
+  src: url('../../public/fonts/UTM\ Avo.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AvoBold_Italic';
+  src: url('../../public/fonts/UTM\ AvoBold_Italic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AvoBold';
+  src: url('../../public/fonts/UTM\ AvoBold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM AvoItalic';
+  src: url('../../public/fonts/UTM\ AvoItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Azuki';
+  src: url('../../public/fonts/UTM\ Azuki.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Banquet';
+  src: url('../../public/fonts/UTM\ Banquet.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM BanqueR';
+  src: url('../../public/fonts/UTM\ BanqueR.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Beautiful Caps';
+  src: url('../../public/fonts/UTM\ Beautiful\ Caps.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Bell';
+  src: url('../../public/fonts/UTM\ Bell.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Bienvenue';
+  src: url('../../public/fonts/UTM\ Bienvenue.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Billhead 1910';
+  src: url('../../public/fonts/UTM\ Billhead\ 1910.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Bitsumishi Pro';
+  src: url('../../public/fonts/UTM\ Bitsumishi\ Pro.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Brewers KT';
+  src: url('../../public/fonts/UTM\ Brewers\ KT.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM BryantLG_B';
+  src: url('../../public/fonts/UTM\ BryantLG_B.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM BryantLG';
+  src: url('../../public/fonts/UTM\ BryantLG.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Bustamalaka';
+  src: url('../../public/fonts/UTM\ Bustamalaka.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Cabaret';
+  src: url('../../public/fonts/UTM\ Cabaret.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Cafeta';
+  src: url('../../public/fonts/UTM\ Cafeta.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Camellia';
+  src: url('../../public/fonts/UTM\ Camellia.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Candombe';
+  src: url('../../public/fonts/UTM\ Candombe.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Caviar';
+  src: url('../../public/fonts/UTM\ Caviar.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Centur';
+  src: url('../../public/fonts/UTM\ Centur.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM CenturBold';
+  src: url('../../public/fonts/UTM\ CenturBold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM CenturBoldItalic';
+  src: url('../../public/fonts/UTM\ CenturBoldItalic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM CenturItalic';
+  src: url('../../public/fonts/UTM\ CenturItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Charlemagne';
+  src: url('../../public/fonts/UTM\ Charlemagne.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Charlotte';
+  src: url('../../public/fonts/UTM\ Charlotte.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Chickenhawk';
+  src: url('../../public/fonts/UTM\ Chickenhawk.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM ClassizismAntiqua';
+  src: url('../../public/fonts/UTM\ ClassizismAntiqua.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Colossalis';
+  src: url('../../public/fonts/UTM\ Colossalis.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UTM Conetoga';
+  src: url('../../public/fonts/UTM\ Conetoga.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Cookies';
+  src: url('../../public/fonts/UTM\ Cookies.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Cool Blue';
+  src: url('../../public/fonts/UTM\ Cool\ Blue.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Cooper Black';
+  src: url('../../public/fonts/UTM\ Cooper\ Black.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Cooper BlackItalic';
+  src: url('../../public/fonts/UTM\ Cooper\ BlackItalic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Copperplate';
+  src: url('../../public/fonts/UTM\ Copperplate.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Copperplate2';
+  src: url('../../public/fonts/UTM\ Copperplate2.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Dai Co Viet';
+  src: url('../../public/fonts/UTM\ Dai\ Co\ Viet.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Davida';
+  src: url('../../public/fonts/UTM\ Davida.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Demian KT';
+  src: url('../../public/fonts/UTM\ Demian\ KT.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Deutsch Gothic';
+  src: url('../../public/fonts/UTM\ Deutsch\ Gothic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Diana';
+  src: url('../../public/fonts/UTM\ Diana.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Dinh Tran';
+  src: url('../../public/fonts/UTM\ Dinh\ Tran.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM Duepuntozero';
+  src: url('../../public/fonts/UTM\ Duepuntozero.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM DuepuntozeroBold';
+  src: url('../../public/fonts/UTM\ DuepuntozeroBold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'UTM EdwardianB';
+  src: url('../../public/fonts/UTM\ EdwardianB.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
