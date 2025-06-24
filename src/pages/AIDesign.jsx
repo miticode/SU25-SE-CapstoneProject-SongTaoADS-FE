@@ -229,12 +229,44 @@ const ModernBillboardForm = ({
       // Refresh data
       setRefreshCounter((prev) => prev + 1);
 
-      // Show success message
-      setSnackbar({
-        open: true,
-        message: "Kích thước đã được cập nhật thành công",
-        severity: "success",
-      });
+      setTimeout(async () => {
+      try {
+        // Fetch lại toàn bộ thông tin chi tiết và tổng tiền
+        await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
+        await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+        
+        // Quan trọng: Cập nhật lại giá cho từng thuộc tính đã chọn
+        const attributeValues = { ...formData };
+        for (const attributeId in attributeValues) {
+          if (attributes.some(attr => attr.id === attributeId) && attributeValues[attributeId]) {
+            // Nếu là một thuộc tính và có giá trị, gọi API để cập nhật hoặc liên kết lại
+            const existingChoiceDetail = customerChoiceDetails[attributeId];
+            
+            if (existingChoiceDetail) {
+              // Cập nhật lại giá trị thuộc tính đã có - điều này sẽ kích hoạt tính toán lại giá dựa trên kích thước mới
+              await dispatch(updateCustomerChoiceDetail({
+                customerChoiceDetailId: existingChoiceDetail.id,
+                attributeValueId: attributeValues[attributeId],
+                attributeId: attributeId
+              })).unwrap();
+            }
+          }
+        }
+        
+        // Sau khi cập nhật tất cả thuộc tính, fetch lại để hiển thị giá mới
+        await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
+        await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+        
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: "Kích thước và giá đã được cập nhật thành công",
+          severity: "success",
+        });
+      } catch (error) {
+        console.error("Error refreshing prices after size update:", error);
+      }
+    }, 800);
     } catch (error) {
       console.error("Error updating sizes:", error);
       setSnackbar({
@@ -923,176 +955,188 @@ const ModernBillboardForm = ({
                     </Typography>
 
                     <Grid container spacing={2}>
-                      {attrs.map((attr) => {
-                        console.log(
-                          `Rendering attribute ${attr.id}, details:`,
-                          customerChoiceDetails[attr.id] || "Not loaded yet"
-                        );
-                        const attributeValues =
-                          attributeValuesState[attr.id] || [];
-                        const isLoadingValues =
-                          attributeValuesStatusState[attr.id] === "loading";
-                        // Get price for this attribute if available
-                        const attributePrice =
-                          customerChoiceDetails[attr.id]?.subTotal;
-                        const hasPrice = attributePrice !== undefined;
+                     {attrs.map((attr) => {
+  console.log(
+    `Rendering attribute ${attr.id}, details:`,
+    customerChoiceDetails[attr.id] || "Not loaded yet"
+  );
+  const attributeValues =
+    attributeValuesState[attr.id] || [];
+  const isLoadingValues =
+    attributeValuesStatusState[attr.id] === "loading";
+  // Get price for this attribute if available
+  const attributePrice =
+    customerChoiceDetails[attr.id]?.subTotal;
+  const hasPrice = attributePrice !== undefined;
 
-                        return (
-                          <Grid item xs={12} sm={6} md={6} key={attr.id}>
-                            <FormControl
-                              fullWidth
-                              size="small"
-                              variant="outlined"
-                            >
-                              <InputLabel
-                                id={`${attr.id}-label`}
-                                sx={{ fontSize: "0.8rem" }}
-                              >
-                                {attr.name}
-                              </InputLabel>
-                              <Select
-                                labelId={`${attr.id}-label`}
-                                name={attr.id}
-                                value={formData[attr.id] || ""}
-                                onChange={handleChange}
-                                label={attr.name}
-                                disabled={
-                                  isLoadingValues ||
-                                  fetchCustomerChoiceStatus === "loading"
-                                }
-                                sx={{
-                                  display: "block",
-                                  width: "100%",
-                                  fontSize: "0.8rem",
-                                  height: "36px",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  "& .MuiSelect-select": {
-                                    minWidth: "150px",
-                                    paddingRight: "32px",
-                                  },
-                                }}
-                                MenuProps={{
-                                  PaperProps: {
-                                    style: {
-                                      maxHeight: 300,
-                                      width: "auto",
-                                      minWidth: "250px",
-                                    },
-                                  },
-                                  anchorOrigin: {
-                                    vertical: "bottom",
-                                    horizontal: "left",
-                                  },
-                                  transformOrigin: {
-                                    vertical: "top",
-                                    horizontal: "left",
-                                  },
-                                }}
-                              >
-                                <MenuItem value="" disabled>
-                                  {attr.name}
-                                </MenuItem>
-                                {attributeValues.map((value) => (
-                                  <MenuItem
-                                    key={value.id}
-                                    value={value.id}
-                                    sx={{
-                                      fontSize: "0.8rem",
-                                      whiteSpace: "normal",
-                                      wordBreak: "break-word",
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                    }}
-                                  >
-                                    <span>{value.name}</span>
-                                    {value.unitPrice !== undefined && (
-                                      <span className="ml-4 text-green-600 font-medium">
-                                        {value.unitPrice.toLocaleString(
-                                          "vi-VN"
-                                        )}{" "}
-                                        đ
-                                      </span>
-                                    )}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                              {validationErrors[attr.id] && (
-                                <Typography color="error" variant="caption">
-                                  {validationErrors[attr.id]}
-                                </Typography>
-                              )}
-                              {isLoadingValues && (
-                                <Box
-                                  display="flex"
-                                  justifyContent="center"
-                                  mt={0.5}
-                                >
-                                  <CircularProgress size={14} />
-                                </Box>
-                              )}
+  return (
+    <Grid item xs={12} sm={6} md={6} key={attr.id}>
+      <FormControl
+        fullWidth
+        size="small"
+        variant="outlined"
+      >
+        <InputLabel
+          id={`${attr.id}-label`}
+          sx={{ fontSize: "0.8rem" }}
+        >
+          {attr.name}
+        </InputLabel>
+      <Select
+  labelId={`${attr.id}-label`}
+  name={attr.id}
+  value={formData[attr.id] || ""}
+  onChange={handleChange}
+  label={attr.name}
+  disabled={
+    isLoadingValues ||
+    fetchCustomerChoiceStatus === "loading"
+  }
+  sx={{
+    display: "block",
+    width: "100%",
+    fontSize: "0.8rem",
+    height: "36px",
+    "& .MuiSelect-select": {
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      minWidth: "150px",
+      paddingRight: "32px",
+    },
+  }}
+  renderValue={(selected) => {
+    // Tìm tên của giá trị đã chọn từ attributeValues
+    const selectedValue = attributeValues.find(value => value.id === selected);
+    if (!selectedValue) return "";
+    
+    // Giới hạn độ dài tên hiển thị khi đã chọn
+    const displayName = selectedValue.name;
+    return displayName.length > 25 ? displayName.substring(0, 22) + "..." : displayName;
+  }}
+  MenuProps={{
+    PaperProps: {
+      style: {
+        maxHeight: 300,
+        width: "auto",
+        minWidth: "250px",
+      },
+    },
+    anchorOrigin: {
+      vertical: "bottom",
+      horizontal: "left",
+    },
+    transformOrigin: {
+      vertical: "top",
+      horizontal: "left",
+    },
+  }}
+>
+  <MenuItem value="" disabled>
+    {attr.name}
+  </MenuItem>
+  {attributeValues.map((value) => (
+    <MenuItem
+      key={value.id}
+      value={value.id}
+      sx={{
+        fontSize: "0.8rem",
+        display: "flex",
+        justifyContent: "space-between",
+        flexWrap: "nowrap",
+        padding: "8px",
+      }}
+    >
+      <Typography 
+        sx={{ 
+          maxWidth: "calc(100% - 90px)",
+          whiteSpace: "normal", // Thay đổi thành normal để hiển thị đầy đủ
+          lineHeight: "1.4",
+          wordBreak: "break-word" // Cho phép xuống dòng nếu cần
+        }}
+      >
+        {value.name}
+      </Typography>
+      {value.unitPrice !== undefined && (
+        <Typography
+          sx={{
+            ml: 1,
+            color: "green.600",
+            fontWeight: "medium",
+            flexShrink: 0,
+            fontSize: "0.8rem",
+            whiteSpace: "nowrap"
+          }}
+        >
+          {value.unitPrice.toLocaleString("vi-VN")} đ
+        </Typography>
+      )}
+    </MenuItem>
+  ))}
+</Select>
+        {validationErrors[attr.id] && (
+          <Typography color="error" variant="caption">
+            {validationErrors[attr.id]}
+          </Typography>
+        )}
+        {isLoadingValues && (
+          <Box display="flex" justifyContent="center" mt={0.5}>
+            <CircularProgress size={14} />
+          </Box>
+        )}
 
-                              {/* Show attribute price if available */}
-                              {(customerChoiceDetails[attr.id]?.subTotal !==
-                                undefined ||
-                                previousSubTotalsRef.current[attr.id]) && (
-                                <Box
-                                  mt={0.5}
-                                  display="flex"
-                                  justifyContent="flex-end"
-                                  key={`price-${attr.id}-${refreshCounter}`}
-                                  sx={{
-                                    transition: "opacity 0.3s ease",
-                                    opacity:
-                                      fetchCustomerChoiceStatus === "loading"
-                                        ? 0.6
-                                        : 1,
-                                  }}
-                                >
-                                  <Typography
-                                    variant="caption"
-                                    color="success.main"
-                                    fontWeight="medium"
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      bgcolor: "success.lightest",
-                                      py: 0.5,
-                                      px: 1,
-                                      borderRadius: 1,
-                                    }}
-                                  >
-                                    {fetchCustomerChoiceStatus === "loading" ? (
-                                      <CircularProgress
-                                        size={10}
-                                        sx={{ mr: 0.5 }}
-                                      />
-                                    ) : (
-                                      <FaCheckCircle
-                                        size={10}
-                                        className="mr-1 text-green-500"
-                                      />
-                                    )}
-                                    Giá:{" "}
-                                    <span className="font-bold ml-1">
-                                      {(customerChoiceDetails[attr.id]
-                                        ?.subTotal !== undefined
-                                        ? customerChoiceDetails[attr.id]
-                                            .subTotal
-                                        : previousSubTotalsRef.current[
-                                            attr.id
-                                          ] || 0
-                                      ).toLocaleString("vi-VN")}{" "}
-                                      đ
-                                    </span>
-                                  </Typography>
-                                </Box>
-                              )}
-                            </FormControl>
-                          </Grid>
-                        );
-                      })}
+        {/* Show attribute price if available */}
+        {(customerChoiceDetails[attr.id]?.subTotal !== undefined ||
+          previousSubTotalsRef.current[attr.id]) && (
+          <Box
+            mt={0.5}
+            display="flex"
+            justifyContent="flex-end"
+            key={`price-${attr.id}-${refreshCounter}`}
+            sx={{
+              transition: "opacity 0.3s ease",
+              opacity:
+                fetchCustomerChoiceStatus === "loading"
+                  ? 0.6
+                  : 1,
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="success.main"
+              fontWeight="medium"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                bgcolor: "success.lightest",
+                py: 0.5,
+                px: 1,
+                borderRadius: 1,
+              }}
+            >
+              {fetchCustomerChoiceStatus === "loading" ? (
+                <CircularProgress size={10} sx={{ mr: 0.5 }} />
+              ) : (
+                <FaCheckCircle
+                  size={10}
+                  className="mr-1 text-green-500"
+                />
+              )}
+              Giá:{" "}
+              <span className="font-bold ml-1">
+                {(customerChoiceDetails[attr.id]?.subTotal !== undefined
+                  ? customerChoiceDetails[attr.id].subTotal
+                  : previousSubTotalsRef.current[attr.id] || 0
+                ).toLocaleString("vi-VN")}{" "}
+                đ
+              </span>
+            </Typography>
+          </Box>
+        )}
+      </FormControl>
+    </Grid>
+  );
+})}
                     </Grid>
                   </Box>
                 </Grid>
