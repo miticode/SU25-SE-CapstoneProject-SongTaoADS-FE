@@ -36,20 +36,26 @@ import {
   Pending as PendingIcon,
 } from "@mui/icons-material";
 import {
-  fetchPendingDesignRequests,
-  selectPendingDesignRequests,
+  fetchAllDesignRequests,
+  selectAllDesignRequests,
   selectStatus,
   selectError,
   selectPagination,
   assignDesignerToRequest,
   updateRequestStatus,
+  CUSTOM_DESIGN_STATUS_MAP,
 } from "../../store/features/customeDesign/customerDesignSlice";
 import { getCustomerDetailByIdApi } from "../../api/customerService";
 import { getUsersByRoleApi } from "../../api/userService";
+import { createProposal } from "../../store/features/price/priceSlice";
+import {
+  getPriceProposals,
+  updatePriceProposalPricing,
+} from "../../api/priceService";
 
 const CustomerRequests = () => {
   const dispatch = useDispatch();
-  const designRequests = useSelector(selectPendingDesignRequests);
+  const designRequests = useSelector(selectAllDesignRequests);
   const status = useSelector(selectStatus);
   const error = useSelector(selectError);
   const pagination = useSelector(selectPagination);
@@ -73,13 +79,37 @@ const CustomerRequests = () => {
     severity: "success", // 'success', 'error', 'info', 'warning'
   });
 
+  // State cho form báo giá
+  const [priceForm, setPriceForm] = useState({
+    totalPrice: "",
+    depositAmount: "",
+  });
+  const [creatingProposal, setCreatingProposal] = useState(false);
+
+  const [selectedStatus, setSelectedStatus] = useState("PENDING"); // Mặc định là PENDING
+
+  const [priceProposals, setPriceProposals] = useState([]);
+  const [loadingProposals, setLoadingProposals] = useState(false);
+  const [updateDialog, setUpdateDialog] = useState({
+    open: false,
+    proposalId: null,
+  });
+  const [updateForm, setUpdateForm] = useState({
+    totalPrice: "",
+    depositAmount: "",
+  });
+  const [actionLoading, setActionLoading] = useState(false);
+
   const handleCloseNotification = () => {
     setNotification((prev) => ({ ...prev, open: false }));
   };
 
   useEffect(() => {
-    dispatch(fetchPendingDesignRequests({ page: 1, size: 10 }));
-  }, [dispatch]);
+    // Fetch theo status mỗi khi selectedStatus thay đổi
+    dispatch(
+      fetchAllDesignRequests({ status: selectedStatus, page: 1, size: 10 })
+    );
+  }, [dispatch, selectedStatus]);
 
   // Fetch customer details when design requests load
   useEffect(() => {
@@ -150,7 +180,7 @@ const CustomerRequests = () => {
 
   const handlePageChange = (event, value) => {
     dispatch(
-      fetchPendingDesignRequests({ page: value, size: pagination.pageSize })
+      fetchAllDesignRequests({ page: value, size: pagination.pageSize })
     );
   };
 
@@ -199,7 +229,7 @@ const CustomerRequests = () => {
         });
         // Refresh data after assignment
         dispatch(
-          fetchPendingDesignRequests({
+          fetchAllDesignRequests({
             page: pagination.currentPage,
             size: pagination.pageSize,
           })
@@ -253,7 +283,7 @@ const CustomerRequests = () => {
 
         // Refresh data after rejection
         dispatch(
-          fetchPendingDesignRequests({
+          fetchAllDesignRequests({
             page: pagination.currentPage,
             size: pagination.pageSize,
           })
@@ -302,84 +332,12 @@ const CustomerRequests = () => {
   };
 
   const getStatusChip = (status) => {
-    const statusConfig = {
-      PENDING_CONTRACT: {
-        icon: <PendingIcon />,
-        color: "warning",
-        label: "Chờ ký kết hợp đồng",
-      },
-      CONTRACT_SENT: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đã gửi hợp đồng",
-      },
-      CONTRACT_SIGNED: {
-        icon: <CheckCircleIcon />,
-        color: "success",
-        label: "Đã ký kết hợp đồng",
-      },
-      CONTRACT_DISCUSS: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đang thảo luận hợp đồng",
-      },
-      CONTRACT_CONFIRMED: {
-        icon: <CheckCircleIcon />,
-        color: "success",
-        label: "Đã xác nhận hợp đồng",
-      },
-      DEPOSITED: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đã đặt cọc",
-      },
-      IN_PROGRESS: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đang xử lý",
-      },
-      PRODUCING: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đang sản xuất",
-      },
-      PRODUCTION_COMPLETED: {
-        icon: <CheckCircleIcon />,
-        color: "success",
-        label: "Đã hoàn thành sản xuất",
-      },
-      DELIVERING: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đang vận chuyển",
-      },
-      INSTALLED: {
-        icon: <PendingIcon />,
-        color: "info",
-        label: "Đang lắp đặt",
-      },
-      COMPLETED: {
-        icon: <CheckCircleIcon />,
-        color: "success",
-        label: "Hoàn thành",
-      },
-      CANCELLED: {
-        icon: <CancelIcon />,
-        color: "error",
-        label: "Đã hủy",
-      },
-      REJECTED: {
-        icon: <CancelIcon />,
-        color: "error",
-        label: "Đã từ chối",
-      },
+    const config = CUSTOM_DESIGN_STATUS_MAP[status] || {
+      label: status,
+      color: "default",
     };
-
-    const config = statusConfig[status] || statusConfig.PENDING_CONTRACT;
-
     return (
       <Chip
-        icon={config.icon}
         label={config.label}
         color={config.color}
         size="small"
@@ -404,6 +362,104 @@ const CustomerRequests = () => {
     }).format(amount);
   };
 
+  // Hàm báo giá
+  const handleCreateProposal = async () => {
+    if (!selectedRequest) return;
+    setCreatingProposal(true);
+    try {
+      const data = {
+        totalPrice: Number(priceForm.totalPrice),
+        depositAmount: Number(priceForm.depositAmount),
+      };
+      const resultAction = await dispatch(
+        createProposal({
+          customDesignRequestId: selectedRequest.id,
+          data,
+        })
+      );
+      if (createProposal.fulfilled.match(resultAction)) {
+        setNotification({
+          open: true,
+          message: "Báo giá thành công!",
+          severity: "success",
+        });
+        handleCloseDetails();
+        // Có thể reload lại danh sách đơn thiết kế nếu muốn
+      } else {
+        setNotification({
+          open: true,
+          message: resultAction.payload || "Báo giá thất bại",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: error.message || "Có lỗi xảy ra",
+        severity: "error",
+      });
+    } finally {
+      setCreatingProposal(false);
+    }
+  };
+
+  // Fetch price proposals when detailOpen or selectedRequest changes
+  useEffect(() => {
+    if (detailOpen && selectedRequest) {
+      setLoadingProposals(true);
+      getPriceProposals(selectedRequest.id).then((res) => {
+        if (res.success) {
+          setPriceProposals(res.result);
+        } else {
+          setPriceProposals([]);
+        }
+        setLoadingProposals(false);
+      });
+    }
+  }, [detailOpen, selectedRequest]);
+
+  const handleOpenUpdateDialog = (proposal) => {
+    setUpdateDialog({ open: true, proposalId: proposal.id });
+    setUpdateForm({
+      totalPrice: proposal.totalPriceOffer || proposal.totalPrice || "",
+      depositAmount:
+        proposal.depositAmountOffer || proposal.depositAmount || "",
+    });
+  };
+
+  const handleCloseUpdateDialog = () => {
+    setUpdateDialog({ open: false, proposalId: null });
+  };
+
+  const handleUpdateSubmit = async () => {
+    setActionLoading(true);
+    const { proposalId } = updateDialog;
+    const data = {
+      totalPrice: Number(updateForm.totalPrice),
+      depositAmount: Number(updateForm.depositAmount),
+    };
+    const res = await updatePriceProposalPricing(proposalId, data);
+    if (res.success) {
+      setNotification({
+        open: true,
+        message: "Cập nhật giá thành công!",
+        severity: "success",
+      });
+      handleCloseUpdateDialog();
+      // Reload proposals
+      getPriceProposals(selectedRequest.id).then(
+        (r) => r.success && setPriceProposals(r.result)
+      );
+    } else {
+      setNotification({
+        open: true,
+        message: res.error || "Cập nhật giá thất bại",
+        severity: "error",
+      });
+    }
+    setActionLoading(false);
+  };
+
   if (status === "loading" && designRequests.length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
@@ -426,8 +482,36 @@ const CustomerRequests = () => {
         Custom Design Requests
       </Typography>
 
+      {/* Dropdown filter status */}
+      <FormControl size="small" sx={{ minWidth: 200, mb: 2 }}>
+        <InputLabel id="status-filter-label">Trạng thái</InputLabel>
+        <Select
+          labelId="status-filter-label"
+          value={selectedStatus}
+          label="Trạng thái"
+          onChange={(e) => setSelectedStatus(e.target.value)}
+        >
+          <MenuItem value="">Tất cả</MenuItem>
+          <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
+          <MenuItem value="PRICING_NOTIFIED">Đã báo giá</MenuItem>
+          <MenuItem value="NEGOTIATING">Đang thương lượng</MenuItem>
+          <MenuItem value="APPROVED_PRICING">Đã duyệt giá</MenuItem>
+          <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
+          <MenuItem value="ASSIGNED_DESIGNER">Đã giao designer</MenuItem>
+          <MenuItem value="PROCESSING">Đang thiết kế</MenuItem>
+          <MenuItem value="DESIGNER_REJECTED">Designer từ chối</MenuItem>
+          <MenuItem value="DEMO_SUBMITTED">Đã nộp demo</MenuItem>
+          <MenuItem value="REVISION_REQUESTED">Yêu cầu chỉnh sửa</MenuItem>
+          <MenuItem value="WAITING_FULL_PAYMENT">Chờ thanh toán đủ</MenuItem>
+          <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
+          <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
+          <MenuItem value="CANCEL">Đã hủy</MenuItem>
+          <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
+        </Select>
+      </FormControl>
+
       {designRequests.length === 0 && status === "succeeded" ? (
-        <Alert severity="info">No pending design requests found.</Alert>
+        <Alert severity="info">No design requests found.</Alert>
       ) : (
         <>
           <TableContainer component={Paper} elevation={0}>
@@ -673,19 +757,179 @@ const CustomerRequests = () => {
                     onChange={(e) => setComment(e.target.value)}
                   />
                 </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Tổng giá (VND)"
+                    type="number"
+                    value={priceForm.totalPrice}
+                    onChange={(e) =>
+                      setPriceForm((f) => ({
+                        ...f,
+                        totalPrice: e.target.value,
+                      }))
+                    }
+                    InputProps={{ inputProps: { min: 0 } }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Tiền cọc (VND)"
+                    type="number"
+                    value={priceForm.depositAmount}
+                    onChange={(e) =>
+                      setPriceForm((f) => ({
+                        ...f,
+                        depositAmount: e.target.value,
+                      }))
+                    }
+                    InputProps={{ inputProps: { min: 0 } }}
+                  />
+                </Grid>
+
+                {/* Lịch sử báo giá */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" mt={2}>
+                    Lịch sử báo giá
+                  </Typography>
+                  {loadingProposals ? (
+                    <Box display="flex" justifyContent="center" py={2}>
+                      <CircularProgress />
+                    </Box>
+                  ) : priceProposals.length === 0 ? (
+                    <Typography>Chưa có báo giá nào.</Typography>
+                  ) : (
+                    <Box>
+                      {priceProposals.map((proposal) => (
+                        <Box
+                          key={proposal.id}
+                          mb={2}
+                          p={2}
+                          border={1}
+                          borderRadius={2}
+                          borderColor="grey.300"
+                        >
+                          <Typography>
+                            <b>Giá báo:</b>{" "}
+                            {proposal.totalPrice?.toLocaleString("vi-VN")}₫
+                          </Typography>
+                          <Typography>
+                            <b>Tiền cọc:</b>{" "}
+                            {proposal.depositAmount?.toLocaleString("vi-VN")}₫
+                          </Typography>
+                          {proposal.totalPriceOffer && (
+                            <Typography>
+                              <b>Giá offer:</b>{" "}
+                              {proposal.totalPriceOffer?.toLocaleString(
+                                "vi-VN"
+                              )}
+                              ₫
+                            </Typography>
+                          )}
+                          {proposal.depositAmountOffer && (
+                            <Typography>
+                              <b>Cọc offer:</b>{" "}
+                              {proposal.depositAmountOffer?.toLocaleString(
+                                "vi-VN"
+                              )}
+                              ₫
+                            </Typography>
+                          )}
+                          <Typography>
+                            <b>Trạng thái:</b> {proposal.status}
+                          </Typography>
+                          <Typography>
+                            <b>Ngày báo giá:</b>{" "}
+                            {new Date(proposal.createAt).toLocaleString(
+                              "vi-VN"
+                            )}
+                          </Typography>
+                          {/* Nếu trạng thái là NEGOTIATING thì Sale được cập nhật lại giá */}
+                          {proposal.status === "NEGOTIATING" && (
+                            <Box mt={1}>
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick={() => handleOpenUpdateDialog(proposal)}
+                                disabled={actionLoading}
+                              >
+                                Cập nhật lại giá
+                              </Button>
+                            </Box>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                  {/* Dialog cập nhật lại giá */}
+                  <Dialog
+                    open={updateDialog.open}
+                    onClose={handleCloseUpdateDialog}
+                  >
+                    <DialogTitle>Cập nhật lại giá báo</DialogTitle>
+                    <DialogContent>
+                      <TextField
+                        label="Tổng giá mới (VND)"
+                        type="number"
+                        fullWidth
+                        margin="normal"
+                        value={updateForm.totalPrice}
+                        onChange={(e) =>
+                          setUpdateForm((f) => ({
+                            ...f,
+                            totalPrice: e.target.value,
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="Tiền cọc mới (VND)"
+                        type="number"
+                        fullWidth
+                        margin="normal"
+                        value={updateForm.depositAmount}
+                        onChange={(e) =>
+                          setUpdateForm((f) => ({
+                            ...f,
+                            depositAmount: e.target.value,
+                          }))
+                        }
+                      />
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={handleCloseUpdateDialog}>Hủy</Button>
+                      <Button
+                        onClick={handleUpdateSubmit}
+                        variant="contained"
+                        color="primary"
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          "Cập nhật"
+                        )}
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
+                </Grid>
               </Grid>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseDetails}>Close</Button>
+              <Button onClick={handleCloseDetails}>Đóng</Button>
               <Button
                 variant="contained"
                 color="primary"
-                onClick={() => {
-                  // Handle submit comment
-                  handleCloseDetails();
-                }}
+                onClick={handleCreateProposal}
+                disabled={creatingProposal}
               >
-                Submit Notes
+                {creatingProposal ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  "Báo giá"
+                )}
               </Button>
               <Button
                 variant="contained"
@@ -700,7 +944,7 @@ const CustomerRequests = () => {
                   )
                 }
               >
-                {rejectingRequest ? "Rejecting..." : "Reject"}
+                {rejectingRequest ? "Đang từ chối..." : "Từ chối"}
               </Button>
               <Button
                 variant="contained"
@@ -715,7 +959,7 @@ const CustomerRequests = () => {
                   ) : null
                 }
               >
-                {assigningDesigner ? "Assigning..." : "Assign Designer"}
+                {assigningDesigner ? "Đang giao..." : "Giao task thiết kế"}
               </Button>
             </DialogActions>
             {assignmentError && (

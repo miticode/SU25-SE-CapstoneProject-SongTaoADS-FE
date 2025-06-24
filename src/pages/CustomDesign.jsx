@@ -29,6 +29,7 @@ import {
   Alert,
 } from "@mui/material";
 import { FaRulerCombined, FaListAlt, FaRegStickyNote } from "react-icons/fa";
+
 import { motion } from "framer-motion";
 import {
   fetchAttributesByProductTypeId,
@@ -231,7 +232,9 @@ const CustomDesign = () => {
               {businessInfo?.companyName}
             </dd>
             <dt className="font-medium text-gray-700">Địa chỉ:</dt>
-            <dd className="col-span-2 text-black">{businessInfo?.address}</dd>
+            <dd className="col-span-2 text-black">
+              {businessInfo?.address || "-"}
+            </dd>
             <dt className="font-medium text-gray-700">Liên hệ:</dt>
             <dd className="col-span-2 text-black">
               {businessInfo?.contactInfo}

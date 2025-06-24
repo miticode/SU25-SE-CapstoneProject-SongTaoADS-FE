@@ -1,16 +1,24 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi, getOrderByIdApi } from '../../../api/orderService';
+import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi, getOrderByIdApi, getOrdersByUserIdApi } from '../../../api/orderService';
 
-// Định nghĩa tất cả các trạng thái hợp lệ
-export const ALL_ORDER_STATUSES = [
-  "PENDING",
-  "APPROVED",
-  "REJECTED",
-  "CANCELLED",
-  "DEPOSITED",
-  "COMPLETED",
-  "PROCESSING"
-];
+
+
+// Định nghĩa mapping trạng thái đơn hàng thiết kế AI
+export const ORDER_STATUS_MAP = {
+  PENDING_CONTRACT: { label: "Chờ hợp đồng", color: "warning" },
+  CONTRACT_SENT: { label: "Đã gửi hợp đồng", color: "info" },
+  CONTRACT_SIGNED: { label: "Đã ký hợp đồng", color: "primary" },
+  CONTRACT_DISCUSS: { label: "Đàm phán hợp đồng", color: "secondary" },
+  CONTRACT_CONFIRMED: { label: "Xác nhận hợp đồng", color: "success" },
+  DEPOSITED: { label: "Đã đặt cọc", color: "info" },
+  IN_PROGRESS: { label: "Đang thực hiện", color: "primary" },
+  PRODUCING: { label: "Đang sản xuất", color: "primary" },
+  PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
+  DELIVERING: { label: "Đang giao hàng", color: "info" },
+  INSTALLED: { label: "Đã lắp đặt", color: "success" },
+  COMPLETED: { label: "Hoàn tất", color: "success" },
+  CANCELLED: { label: "Đã hủy", color: "error" },
+};
 
 // Async thunks
 export const createOrder = createAsyncThunk(
@@ -40,7 +48,7 @@ export const fetchOrders = createAsyncThunk(
     let allOrders = [];
     if (!orderStatus) {
       // Nếu không truyền gì, lấy tất cả trạng thái
-      orderStatus = ALL_ORDER_STATUSES;
+      orderStatus = ORDER_STATUS_MAP;
     }
     if (Array.isArray(orderStatus)) {
       // Nếu là mảng, gọi API cho từng trạng thái và gộp kết quả
@@ -78,6 +86,17 @@ export const fetchOrderById = createAsyncThunk(
   async (orderId, { rejectWithValue }) => {
     const response = await getOrderByIdApi(orderId);
     if (response.success) return response.data;
+    return rejectWithValue(response.error);
+  }
+);
+
+export const fetchOrdersByUserId = createAsyncThunk(
+  'order/fetchOrdersByUserId',
+  async (userId, { rejectWithValue }) => {
+    const response = await getOrdersByUserIdApi(userId);
+    if (response.success) {
+      return response.data;
+    }
     return rejectWithValue(response.error);
   }
 );
@@ -171,6 +190,18 @@ const orderSlice = createSlice({
       .addCase(fetchOrderById.rejected, (state, action) => {
         state.currentOrderStatus = 'failed';
         state.currentOrderError = action.payload;
+      })
+      .addCase(fetchOrdersByUserId.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByUserId.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders = action.payload;
+      })
+      .addCase(fetchOrdersByUserId.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   }
 });

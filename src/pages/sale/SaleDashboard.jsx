@@ -5,10 +5,9 @@ import {
   fetchOrderById,
   selectCurrentOrder,
   selectCurrentOrderStatus,
+  ORDER_STATUS_MAP,
 } from "../../store/features/order/orderSlice";
-import { ALL_ORDER_STATUSES } from "../../store/features/order/orderSlice";
 import {
-  getOrderByIdApi,
   updateOrderStatusApi,
   saleConfirmOrderApi,
 } from "../../api/orderService";
@@ -94,26 +93,9 @@ const SaleDashboard = () => {
     setAvatarAnchorEl(null);
   };
 
-  //   const handleLogout = async () => {
-  //     try {
-  //       await logoutApi();
-  //       localStorage.removeItem("accessToken");
-  //       dispatch(
-  //         syncAuthState({
-  //           isAuthenticated: false,
-  //           user: null,
-  //           accessToken: null,
-  //         })
-  //       );
-  //       navigate("/auth/login");
-  //     } catch (error) {
-  //       console.error("Logout failed:", error);
-  //     }
-  //   };
-
   useEffect(() => {
     // Lấy tất cả đơn hàng với mọi trạng thái khi load trang
-    dispatch(fetchOrders(ALL_ORDER_STATUSES));
+    dispatch(fetchOrders());
   }, [dispatch]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
@@ -150,8 +132,12 @@ const SaleDashboard = () => {
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
 
   const menuItems = [
-    { id: "dashboard", label: "Đơn hàng", icon: <DashboardIcon /> },
-    { id: "customers", label: "Yêu cầu khách hàng", icon: <CustomerIcon /> },
+    { id: "dashboard", label: "Đơn hàng thiết kế AI", icon: <DashboardIcon /> },
+    {
+      id: "customers",
+      label: "Đơn hàng thiết kế thủ công",
+      icon: <CustomerIcon />,
+    },
     { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
   ];
 
@@ -161,7 +147,7 @@ const SaleDashboard = () => {
     if (status) {
       dispatch(fetchOrders(status));
     } else {
-      dispatch(fetchOrders(ALL_ORDER_STATUSES));
+      dispatch(fetchOrders());
     }
   };
 
@@ -231,7 +217,7 @@ const SaleDashboard = () => {
     try {
       const res = await updateOrderStatusApi(orderId, "CANCELLED");
       if (res.success) {
-        dispatch(fetchOrders(ALL_ORDER_STATUSES));
+        dispatch(fetchOrders());
         handleCloseDialog();
       } else {
         alert(res.error || "Cập nhật trạng thái thất bại!");
@@ -253,7 +239,7 @@ const SaleDashboard = () => {
       } else {
         alert(res.error || "Cập nhật ngày giao dự kiến thất bại!");
       }
-    } catch (err) {
+    } catch {
       alert("Cập nhật ngày giao dự kiến thất bại!");
     } finally {
       setDeliveryLoading(false);
@@ -502,62 +488,12 @@ const SaleDashboard = () => {
                       </Typography>
                       <Chip
                         label={
-                          selectedOrder.status === "PENDING_CONTRACT"
-                            ? "Chờ hợp đồng"
-                            : selectedOrder.status === "CONTRACT_SENT"
-                            ? "Đã gửi hợp đồng"
-                            : selectedOrder.status === "CONTRACT_SIGNED"
-                            ? "Đã ký hợp đồng"
-                            : selectedOrder.status === "CONTRACT_DISCUSS"
-                            ? "Đàm phán hợp đồng"
-                            : selectedOrder.status === "CONTRACT_CONFIRMED"
-                            ? "Xác nhận hợp đồng"
-                            : selectedOrder.status === "DEPOSITED"
-                            ? "Đã đặt cọc"
-                            : selectedOrder.status === "IN_PROGRESS"
-                            ? "Đang thực hiện"
-                            : selectedOrder.status === "PRODUCING"
-                            ? "Đang sản xuất"
-                            : selectedOrder.status === "PRODUCTION_COMPLETED"
-                            ? "Hoàn thành sản xuất"
-                            : selectedOrder.status === "DELIVERING"
-                            ? "Đang giao hàng"
-                            : selectedOrder.status === "INSTALLED"
-                            ? "Đã lắp đặt"
-                            : selectedOrder.status === "COMPLETED"
-                            ? "Hoàn tất"
-                            : selectedOrder.status === "CANCELLED"
-                            ? "Đã hủy"
-                            : "N/A"
+                          ORDER_STATUS_MAP[selectedOrder.status]?.label ||
+                          selectedOrder.status
                         }
                         color={
-                          selectedOrder.status === "PENDING_CONTRACT"
-                            ? "warning"
-                            : selectedOrder.status === "CONTRACT_SENT"
-                            ? "info"
-                            : selectedOrder.status === "CONTRACT_SIGNED"
-                            ? "primary"
-                            : selectedOrder.status === "CONTRACT_DISCUSS"
-                            ? "secondary"
-                            : selectedOrder.status === "CONTRACT_CONFIRMED"
-                            ? "success"
-                            : selectedOrder.status === "DEPOSITED"
-                            ? "info"
-                            : selectedOrder.status === "IN_PROGRESS"
-                            ? "primary"
-                            : selectedOrder.status === "PRODUCING"
-                            ? "primary"
-                            : selectedOrder.status === "PRODUCTION_COMPLETED"
-                            ? "success"
-                            : selectedOrder.status === "DELIVERING"
-                            ? "info"
-                            : selectedOrder.status === "INSTALLED"
-                            ? "success"
-                            : selectedOrder.status === "COMPLETED"
-                            ? "success"
-                            : selectedOrder.status === "CANCELLED"
-                            ? "error"
-                            : "default"
+                          ORDER_STATUS_MAP[selectedOrder.status]?.color ||
+                          "default"
                         }
                         size="small"
                         sx={{ fontWeight: 600, fontSize: 15 }}
