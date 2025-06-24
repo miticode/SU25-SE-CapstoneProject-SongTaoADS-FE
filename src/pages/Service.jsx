@@ -96,72 +96,82 @@ const faqItems = [
 
 const testimonials = [
   {
-    name: "Nguyễn Văn A",
-    position: "Giám đốc Công ty ABC",
-    image: "/default-avatar.png",
+    name: "Nguyễn Phúc Điền",
+    position: "Sinh viên đại học UEF",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-6/486372826_1908311693073530_4717594133454776338_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=a5f93a&_nc_ohc=YYAakexcTXIQ7kNvwFHxvTh&_nc_oc=AdlRlWZHs00PpnHPb0Ng61Ts7zS_A2l_6QtdFf8mzX1HfqWxB2fQ44iT0ydCaxQAd7kNc0wewoTe_UGfAAe34GbS&_nc_zt=23&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=QHET_kWYfHwePIBM3bO7pQ&oh=00_AfOMmp8dLU0pu_fz0g44yN5ofeNvIzMVlEE6CnAeJfdZWQ&oe=685C401D",
     content:
       "Dịch vụ rất chuyên nghiệp, đội ngũ nhân viên nhiệt tình và tận tâm. Chúng tôi rất hài lòng với kết quả đạt được. Biển quảng cáo được thiết kế đẹp mắt.",
   },
   {
-    name: "Trần Thị B",
-    position: "Chủ cửa hàng XYZ",
-    image: "/default-avatar.png",
+    name: "Lê Huỳnh Minh Trí",
+    position: "Sinh viên đại học FPT",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-6/475554460_1292635475291377_1940374684795260500_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=a5f93a&_nc_ohc=iTbcMWzcIM0Q7kNvwFBNMEx&_nc_oc=AdnmqiQrmcTfZsHCi25DRW8oh-z4eexGzZ4Y0YqqaR1V7jQv-nqlpN_L03KsKkfxLMBqtp-jOID8oe3CwwXXJq7m&_nc_zt=23&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=a2dFYPhVDlXl11SyIHqsAQ&oh=00_AfN5U_bpVKF4QI9ElV1kpwLM5KIVovLC9h1w5VvdFhDuVg&oe=685C5B41",
     content:
       "Đội ngũ thiết kế rất sáng tạo, luôn đưa ra những ý tưởng độc đáo. Chi phí hợp lý, chất lượng vượt trội. Tôi rất hài lòng với dịch vụ và sẽ tiếp tục hợp tác trong tương lai.",
   },
   {
-    name: "Lê Văn C",
-    position: "Doanh nhân",
-    image: "/default-avatar.png",
+    name: "Lê Văn Cường",
+    position: " Cửa hàng Mobile  ",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-1/466044415_9591419737540008_3689680488213239073_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=104&ccb=1-7&_nc_sid=1d2534&_nc_ohc=pZ2MmFC01NQQ7kNvwF09WRc&_nc_oc=AdnSkulFFVbDOLwZjX3D-GJ-76vC0ky4zazzqQ4K8PGGlxqZG3s_i7pA4IKpe0ztO3yctjrv5E6k3wifqq8etf0W&_nc_zt=24&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=Vjhw4sNfGSTe56fhYNL1hw&oh=00_AfPwVF2Q3PUPTXVs_dH92zUT7Qhaca_AcaNhJTDP7Yxgdg&oe=685C3A20",
     content:
       "Đội ngũ thiết kế rất sáng tạo, luôn đưa ra những ý tưởng độc đáo. Chi phí hợp lý, chất lượng vượt trội. Tôi rất hài lòng với dịch vụ và sẽ tiếp tục hợp tác trong tương lai.",
   },
   {
-    name: "Phạm Thị D",
+    name: "Phạm Thị Dung",
     position: "Quản lý Nhà hàng Hương Việt",
-    image: "/default-avatar.png",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-1/476201073_1177681377119379_8441144991947410886_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=100&ccb=1-7&_nc_sid=1d2534&_nc_ohc=M_lxdE3eJCwQ7kNvwExga5-&_nc_oc=AdnLiU_M23V_FA2Pi5lgwTaCHILQgeMKrz4CVji_lNJWaM72U6cxdhEB4mZLh6Y7PJcFf6wnceO0_C67QmG8s3Vk&_nc_zt=24&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=0xmqmElWPXzNKbs4XqbCZw&oh=00_AfNpW9taWyD3H1ZxZTg-RZXwX3ufEW66XJv9LpYN-Ug6Aw&oe=685C5516",
     content:
       "Biển hiệu của nhà hàng chúng tôi được thiết kế rất đẹp và chuyên nghiệp. Khách hàng rất ấn tượng với thiết kế độc đáo và chất lượng cao. Dịch vụ hậu mãi cũng rất tốt.",
   },
   {
-    name: "Hoàng Văn E",
+    name: "Hoàng Văn Bách",
     position: "Chủ chuỗi Cafe Sài Gòn",
-    image: "/default-avatar.png",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t1.6435-9/73047937_2590645814334441_5140576082327502848_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=ILL7SXsh5X8Q7kNvwFsYb5W&_nc_oc=AdmIGJ4u_ZScUE_d0FHKRpeN7tjX1aedJcN_6PEWyyycRIbleXQ1E9ROpJ7V7dqWEdHh-PLrH7LJRUocH0iq-dx8&_nc_zt=23&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=UVUkPEyqzZyTZ5oA7Gfv9A&oh=00_AfNUhXpbZCuM_qIUaUt8w9q2OGn4_lF2PG3GqjQj9eYW9Q&oe=687DFBE7",
     content:
       "Chúng tôi đã hợp tác với Song Tạo để thiết kế bộ nhận diện thương hiệu cho chuỗi cafe. Kết quả vượt ngoài mong đợi, thiết kế độc đáo và chuyên nghiệp.",
   },
   {
-    name: "Ngô Thị F",
-    position: "Giám đốc Marketing",
-    image: "/default-avatar.png",
+    name: "Ngô Thị Hồng",
+    position: "Thuốc Tây Long Châu",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-1/492428252_1458447908469605_3048505589054172134_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=110&ccb=1-7&_nc_sid=e99d92&_nc_ohc=beM_6Cdnb1QQ7kNvwES2lqd&_nc_oc=AdkYjGcsv3OsAfu-dNtg81yfk5zWX_cvr6-pMRgTIkFmPUjMw7aSHsHo_ABGj9iJqbKhDFDc9gfQR0b88_TROByD&_nc_zt=24&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=n-sZTLNBIk6nOYXc_-MwvQ&oh=00_AfPyUGjqvQHCHQ1BoaLeA-sWvOcDxp2_8uqJWfYdPK1NKw&oe=685C5AF4",
     content:
       "Chiến dịch quảng cáo ngoài trời của chúng tôi được Song Tạo thực hiện rất thành công. Vị trí đặt biển quảng cáo được chọn lựa kỹ lưỡng, thiết kế ấn tượng. ROI vượt trội so với kỳ vọng.",
   },
   {
-    name: "Đỗ Văn G",
+    name: "Đỗ Văn Gia",
     position: "Chủ Spa & Wellness",
-    image: "/default-avatar.png",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-1/334584745_873149203781993_7213589805829994615_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=104&ccb=1-7&_nc_sid=e99d92&_nc_ohc=WsGrEZdwNGgQ7kNvwHVUjtX&_nc_oc=AdmiLu8tzDGhztc507lale0W1n8cVjzFZ_xio8CPaRKnL9q3g0M4vu2PSpcOjprhBpNIp_tHQehzi_Ndz7UdrZkN&_nc_zt=24&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=iheRTuwm9VSqjynEICp6sQ&oh=00_AfM0EHsKFyqRc_vr8vLAX0bqRvG7r0o2Ynv_nxWnCW_CNA&oe=685C4550",
     content:
       "Thiết kế nội thất và biển hiệu cho spa của chúng tôi được thực hiện rất chuyên nghiệp. Không gian trở nên sang trọng và đẳng cấp hơn.",
   },
   {
-    name: "Lý Thị H",
+    name: "Lý Thị Hương",
     position: "Quản lý Trung tâm Anh ngữ",
-    image: "/default-avatar.png",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-1/504889068_4213311758939685_3102044818002115296_n.jpg?stp=dst-jpg_s200x200_tt6&_nc_cat=105&ccb=1-7&_nc_sid=e99d92&_nc_ohc=6X7pP6h7z9oQ7kNvwEsVjGu&_nc_oc=AdmjU7_F7Z2G1fHZP-2H51boCVg7uN41Et5wMazwyl9lGrHmVIuKKEw-OI4p9uRYTd5OCXAnG_e7XoHhcF3sI2oZ&_nc_zt=24&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=KWbmN9l5anwsmtTSeXY6ZA&oh=00_AfPEozryFPeGsp12f_RZ7IhY9o0TvcfkkJhzwqLaPZJEmA&oe=685C5F39",
     content:
       "Song Tạo đã giúp chúng tôi xây dựng hình ảnh thương hiệu chuyên nghiệp. Từ logo đến biển hiệu, tất cả đều được thiết kế với phong cách hiện đại và trẻ trung.",
   },
   {
-    name: "Vũ Văn I",
+    name: "Vũ Văn Đạt",
     position: "Chủ chuỗi Gym & Fitness",
-    image: "/default-avatar.png",
+    image:
+      "https://scontent.fsgn16-1.fna.fbcdn.net/v/t39.30808-1/440975833_7658696037553544_9082727295338207759_n.jpg?stp=c0.299.1554.1553a_dst-jpg_s200x200_tt6&_nc_cat=102&ccb=1-7&_nc_sid=1d2534&_nc_ohc=vQCr9w3z1MQQ7kNvwGotHLs&_nc_oc=Adkj_jr6UJbDAXnfM0Jme1jjo-1kywV09Mp8qy_QUqAosejSRlNBbvftW-153aS0lDz5dJaNYo8G3wMyfc4uJPJn&_nc_zt=24&_nc_ht=scontent.fsgn16-1.fna&_nc_gid=QhVJl_8R3A-h7Fxr8KBHLg&oh=00_AfPkl72AwJo-bTnB9DAkhDzr6oPOHs1EFmdAaxyOOmFrsQ&oe=685C4B44",
     content:
       "Thiết kế biển hiệu và nội thất cho chuỗi phòng tập của chúng tôi rất ấn tượng. Không gian trở nên năng động và chuyên nghiệp hơn. Hội viên rất thích không khí mới của phòng tập.",
   },
   {
-    name: "Trịnh Thị K",
-    position: "Giám đốc Bất động sản",
-    image: "/default-avatar.png",
+    name: "Trịnh Thị Kim",
+    position: " Bất động sản Kim Oanh",
+    image:
+      "https://media.vov.vn/sites/default/files/styles/large_watermark/public/2023-01/1_94.jpg",
     content:
       "Song Tạo đã giúp chúng tôi thiết kế và thi công biển quảng cáo cho dự án bất động sản. Thiết kế sang trọng, chất lượng cao cấp. Khách hàng rất ấn tượng.",
   },

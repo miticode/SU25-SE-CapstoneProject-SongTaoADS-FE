@@ -260,6 +260,23 @@ const SaleDashboard = () => {
     }
   };
 
+  // Chỉ sử dụng các status mới
+  const ORDER_STATUSES = [
+    "PENDING_CONTRACT",
+    "CONTRACT_SENT",
+    "CONTRACT_SIGNED",
+    "CONTRACT_DISCUSS",
+    "CONTRACT_CONFIRMED",
+    "DEPOSITED",
+    "IN_PROGRESS",
+    "PRODUCING",
+    "PRODUCTION_COMPLETED",
+    "DELIVERING",
+    "INSTALLED",
+    "COMPLETED",
+    "CANCELLED",
+  ];
+
   return (
     <Box sx={{ display: "flex", bgcolor: "#f4f6f8", minHeight: "100vh" }}>
       {/* Sidebar */}
@@ -485,23 +502,60 @@ const SaleDashboard = () => {
                       </Typography>
                       <Chip
                         label={
-                          selectedOrder.status === "PENDING"
-                            ? "Chờ xác nhận"
-                            : selectedOrder.status === "APPROVED"
-                            ? "Đã xác nhận"
-                            : selectedOrder.status === "REJECTED"
-                            ? "Đã từ chối"
+                          selectedOrder.status === "PENDING_CONTRACT"
+                            ? "Chờ hợp đồng"
+                            : selectedOrder.status === "CONTRACT_SENT"
+                            ? "Đã gửi hợp đồng"
+                            : selectedOrder.status === "CONTRACT_SIGNED"
+                            ? "Đã ký hợp đồng"
+                            : selectedOrder.status === "CONTRACT_DISCUSS"
+                            ? "Đàm phán hợp đồng"
+                            : selectedOrder.status === "CONTRACT_CONFIRMED"
+                            ? "Xác nhận hợp đồng"
+                            : selectedOrder.status === "DEPOSITED"
+                            ? "Đã đặt cọc"
+                            : selectedOrder.status === "IN_PROGRESS"
+                            ? "Đang thực hiện"
+                            : selectedOrder.status === "PRODUCING"
+                            ? "Đang sản xuất"
+                            : selectedOrder.status === "PRODUCTION_COMPLETED"
+                            ? "Hoàn thành sản xuất"
+                            : selectedOrder.status === "DELIVERING"
+                            ? "Đang giao hàng"
+                            : selectedOrder.status === "INSTALLED"
+                            ? "Đã lắp đặt"
+                            : selectedOrder.status === "COMPLETED"
+                            ? "Hoàn tất"
                             : selectedOrder.status === "CANCELLED"
                             ? "Đã hủy"
-                            : selectedOrder.status
+                            : "N/A"
                         }
                         color={
-                          selectedOrder.status === "PENDING"
+                          selectedOrder.status === "PENDING_CONTRACT"
                             ? "warning"
-                            : selectedOrder.status === "APPROVED"
+                            : selectedOrder.status === "CONTRACT_SENT"
+                            ? "info"
+                            : selectedOrder.status === "CONTRACT_SIGNED"
+                            ? "primary"
+                            : selectedOrder.status === "CONTRACT_DISCUSS"
+                            ? "secondary"
+                            : selectedOrder.status === "CONTRACT_CONFIRMED"
                             ? "success"
-                            : selectedOrder.status === "REJECTED" ||
-                              selectedOrder.status === "CANCELLED"
+                            : selectedOrder.status === "DEPOSITED"
+                            ? "info"
+                            : selectedOrder.status === "IN_PROGRESS"
+                            ? "primary"
+                            : selectedOrder.status === "PRODUCING"
+                            ? "primary"
+                            : selectedOrder.status === "PRODUCTION_COMPLETED"
+                            ? "success"
+                            : selectedOrder.status === "DELIVERING"
+                            ? "info"
+                            : selectedOrder.status === "INSTALLED"
+                            ? "success"
+                            : selectedOrder.status === "COMPLETED"
+                            ? "success"
+                            : selectedOrder.status === "CANCELLED"
                             ? "error"
                             : "default"
                         }
@@ -522,7 +576,7 @@ const SaleDashboard = () => {
               </Grid>
             </DialogContent>
             <DialogActions sx={{ justifyContent: "center", gap: 2, mt: 1 }}>
-              {selectedOrder.status === "PENDING" &&
+              {selectedOrder.status === "PENDING_CONTRACT" &&
                 selectedOrder.isCustomDesign && (
                   <>
                     <Button
@@ -537,7 +591,10 @@ const SaleDashboard = () => {
                       variant="contained"
                       color="success"
                       onClick={() =>
-                        handleUpdateStatus(selectedOrder.id, "APPROVED")
+                        handleUpdateStatus(
+                          selectedOrder.id,
+                          "CONTRACT_CONFIRMED"
+                        )
                       }
                       startIcon={<CheckCircleIcon />}
                     >

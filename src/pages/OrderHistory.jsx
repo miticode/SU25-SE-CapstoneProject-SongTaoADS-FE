@@ -8,12 +8,18 @@ import {
   Button,
   Stack,
   CircularProgress,
+  Tabs,
+  Tab,
+  Badge,
 } from "@mui/material";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import HistoryIcon from "@mui/icons-material/History";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
+import BrushIcon from "@mui/icons-material/Brush";
 import { getOrdersByUserIdApi } from "../api/orderService";
 import { getProfileApi } from "../api/authService";
+import { fetchCustomDesignRequestsByCustomerDetail } from "../store/features/customeDesign/customerDesignSlice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -30,7 +36,17 @@ const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tab, setTab] = useState(0);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Redux state for custom design requests
+  const customDesignState = useSelector((state) => state.customDesign);
+  const {
+    designRequests,
+    status: customStatus,
+    error: customError,
+  } = customDesignState;
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -60,14 +76,34 @@ const OrderHistory = () => {
         } else {
           setError(ordersRes.error || "Không thể lấy lịch sử đơn hàng.");
         }
-      } catch (err) {
-        console.error("Error fetching orders:", err);
+      } catch {
         setError("Có lỗi xảy ra khi tải lịch sử đơn hàng.");
       }
       setLoading(false);
     };
     if (isAuthenticated) fetchOrders();
   }, [isAuthenticated, user]);
+
+  // Gọi API lấy đơn thiết kế thủ công khi chuyển tab hoặc khi user/customerDetailId thay đổi
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      user?.customerDetailId &&
+      tab === 1 // tab 1 là đơn thiết kế thủ công
+    ) {
+      dispatch(
+        fetchCustomDesignRequestsByCustomerDetail({
+          customerDetailId: user.customerDetailId,
+          page: 1,
+          size: 10,
+        })
+      );
+    }
+  }, [isAuthenticated, user, tab, dispatch]);
+
+  // Phân loại đơn thiết kế AI và thủ công
+  const aiDesigns = designRequests.filter((d) => d.type === "AI");
+  const manualDesigns = designRequests; // Lấy toàn bộ đơn trả về cho tab thủ công
 
   const handleDeposit = (order) => {
     navigate("/checkout", {
@@ -142,7 +178,9 @@ const OrderHistory = () => {
                         </Typography>
                         <Typography color="info.main" fontSize={14}>
                           Còn lại:{" "}
-                          {order.remainingAmount?.toLocaleString("vi-VN") || 0}₫
+                          {order.remainingAmount?.toLocaleDateString("vi-VN") ||
+                            0}
+                          ₫
                         </Typography>
                       </>
                     )}

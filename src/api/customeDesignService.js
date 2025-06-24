@@ -64,6 +64,7 @@ export const fetchCustomDesignRequestsApi = async (status = 'PENDING', page = 1,
     };
   }
 };
+
 export const assignDesignerToRequestApi = async (customDesignRequestId, designerId) => {
   try {
     const response = await customDesignService.patch(
@@ -79,6 +80,7 @@ export const assignDesignerToRequestApi = async (customDesignRequestId, designer
     };
   }
 };
+
 export const updateRequestStatusApi = async (customDesignRequestId, status) => {
   try {
     const response = await customDesignService.patch(
@@ -95,6 +97,56 @@ export const updateRequestStatusApi = async (customDesignRequestId, status) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to update request status'
+    };
+  }
+};
+
+// Designer reject task
+export const rejectCustomDesignRequestApi = async (customDesignRequestId) => {
+  try {
+    const response = await customDesignService.patch(
+      `/api/custom-design-requests/${customDesignRequestId}/reject`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to reject custom design request'
+    };
+  }
+};
+
+// Designer approve task
+export const approveCustomDesignRequestApi = async (customDesignRequestId) => {
+  try {
+    const response = await customDesignService.patch(
+      `/api/custom-design-requests/${customDesignRequestId}/approve`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to approve custom design request'
+    };
+  }
+};
+
+export const fetchCustomDesignRequestsByCustomerDetailApi = async (customerDetailId, page = 1, size = 10) => {
+  try {
+    const response = await customDesignService.get(
+      `/api/customer-details/${customerDetailId}/custom-design-requests`,
+      {
+        params: { page, size }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch custom design requests by customer detail'
     };
   }
 };
