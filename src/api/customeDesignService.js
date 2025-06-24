@@ -31,7 +31,7 @@ customDesignService.interceptors.request.use(
     
     return config;
   },
-  (error) => {
+  (error) => { 
     return Promise.reject(error);
   }
 );
@@ -49,12 +49,11 @@ customDesignService.interceptors.response.use(
 );
 
 // Fetch custom design requests with filtering options
-export const fetchCustomDesignRequestsApi = async (status = 'PENDING', page = 1, size = 10) => {
+export const fetchCustomDesignRequestsApi = async (status, page = 1, size = 10) => {
   try {
-    const response = await customDesignService.get('/api/custom-design-requests', {
-      params: { status, page, size }
-    });
-    
+    const params = { page, size };
+    if (status) params.status = status;
+    const response = await customDesignService.get('/api/custom-design-requests', { params });
     return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);

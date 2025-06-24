@@ -18,6 +18,18 @@ const authService = axios.create({
   withCredentials: true, // Cho phép gửi và nhận cookies từ API
 });
 
+// Thêm interceptor request để tự động gắn token
+authService.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Interceptor đơn giản để xử lý lỗi
 authService.interceptors.response.use(
   (response) => response,
@@ -174,26 +186,10 @@ export const registerApi = async (userData) => {
 export const logoutApi = async () => {
   try {
     console.log("Attempting logout");
-    // Lấy token từ localStorage
-    const accessToken = localStorage.getItem("accessToken");
-
-    if (!accessToken) {
-      console.warn("No access token found when logging out");
-      // Vẫn reset trạng thái nếu không có token
-      authState.isAuthenticated = false;
-      authState.user = null;
-      return { success: true, message: "Already logged out (no token)" };
-    }
-
-    // Gửi request với token trong header
+    // Không cần lấy token và gắn header thủ công nữa
     const response = await authService.post(
       "/api/auth/logout",
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
+      {}
     );
 
     console.log("Logout response:", response.data);
@@ -246,12 +242,8 @@ export const checkAuthStatus = async () => {
 
     if (accessToken) {
       try {
-        // Try to validate the token with the server
-        const response = await authService.get("/api/users/profile", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        // Không cần gắn header thủ công nữa
+        const response = await authService.get("/api/users/profile");
 
         if (response.data.success) {
           // Token is valid, update auth state
@@ -301,20 +293,8 @@ export const checkAuthStatus = async () => {
 // Lấy profile người dùng hiện tại
 export const getProfileApi = async () => {
   try {
-    const accessToken = localStorage.getItem("accessToken");
-
-    if (!accessToken) {
-      return {
-        success: false,
-        error: "No access token found. Please login.",
-      };
-    }
-
-    const response = await authService.get("/api/users/profile", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    // Không cần lấy/gắn token thủ công nữa
+    const response = await authService.get("/api/users/profile");
 
     const { success, result, message } = response.data;
 
