@@ -26,7 +26,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import BrushIcon from "@mui/icons-material/Brush";
 import CloseIcon from "@mui/icons-material/Close";
-import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
+import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
@@ -457,119 +457,144 @@ const OrderHistory = () => {
           ) : (
             <Stack spacing={2}>
               {orders.map((order) => (
-  <Card 
-    key={order.id} 
-    sx={{ 
-      borderRadius: 2, 
-      boxShadow: 2,
-      borderLeft: order.aiDesigns ? '4px solid #6A1B9A' : 
-                order.customDesignRequests ? '4px solid #0277BD' :
-                '4px solid #558B2F'
-    }}
-  >
-    <CardContent>
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={2}
-        alignItems={{ sm: "center" }}
-        justifyContent="space-between"
-      >
-        <Box>
-          <Stack direction="row" spacing={1} alignItems="center" mb={1}>
-            {order.aiDesigns ? (
-              <Chip 
-                icon={<SmartToyIcon />} 
-                label="AI Design" 
-                size="small" 
-                color="secondary"
-                sx={{ fontWeight: 500 }}
-              />
-            ) : order.customDesignRequests ? (
-              <Chip 
-                icon={<BrushIcon />} 
-                label="Custom Design" 
-                size="small" 
-                color="primary"
-                sx={{ fontWeight: 500 }}
-              />
-            ) : (
-              <Chip 
-                icon={<ShoppingBagIcon />} 
-                label="Đơn hàng thường" 
-                size="small" 
-                color="success"
-                sx={{ fontWeight: 500 }}
-              />
-            )}
-          </Stack>
-          
-          <Typography fontWeight={600}>
-            Mã đơn: {order.id}
-          </Typography>
-          
-          {order.customDesignRequests && (
-            <Typography color="text.secondary" fontSize={14}>
-              <b>Yêu cầu thiết kế:</b> {order.customDesignRequests.requirements?.substring(0, 50)}
-              {order.customDesignRequests.requirements?.length > 50 ? '...' : ''}
-            </Typography>
-          )}
-          
-          {order.aiDesigns && (
-            <Typography color="text.secondary" fontSize={14}>
-              <b>Ghi chú:</b> {order.aiDesigns.customerNote?.substring(0, 50)}
-              {order.aiDesigns.customerNote?.length > 50 ? '...' : ''}
-            </Typography>
-          )}
-          
-          <Typography color="text.secondary" fontSize={14}>
-            Ngày đặt:{" "}
-            {new Date(order.orderDate).toLocaleDateString("vi-VN")}
-          </Typography>
-          <Typography color="text.secondary" fontSize={14}>
-            Tổng tiền:{" "}
-            {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
-          </Typography>
-          {order.status === "DEPOSITED" && (
-            <>
-              <Typography color="success.main" fontSize={14}>
-                Đã đặt cọc:{" "}
-                {order.depositAmount?.toLocaleString("vi-VN") || 0}₫
-              </Typography>
-              <Typography color="info.main" fontSize={14}>
-                Còn lại:{" "}
-                {order.remainingAmount?.toLocaleString("vi-VN") || 0}₫
-              </Typography>
-            </>
-          )}
-          {order.deliveryDate && (
-            <Typography color="primary.main" fontSize={14}>
-              Ngày giao dự kiến:{" "}
-              {new Date(order.deliveryDate).toLocaleDateString("vi-VN")}
-            </Typography>
-          )}
-        </Box>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Chip
-            label={statusMap[order.status]?.label || order.status}
-            color={statusMap[order.status]?.color || "default"}
-          />
-          {["APPROVED", "CONFIRMED", "PENDING"].includes(
-            (order.status || "").toUpperCase()
-          ) && (
-            <Button
-              variant="contained"
-              color="warning"
-              size="small"
-              onClick={() => handleDeposit(order)}
-            >
-              ĐẶT CỌC
-            </Button>
-          )}
-        </Stack>
-      </Stack>
-    </CardContent>
-  </Card>
-))}
+                <Card
+                  key={order.id}
+                  sx={{
+                    borderRadius: 2,
+                    boxShadow: 2,
+                    borderLeft: order.aiDesigns
+                      ? "4px solid #6A1B9A"
+                      : order.customDesignRequests
+                      ? "4px solid #0277BD"
+                      : "4px solid #558B2F",
+                  }}
+                >
+                  <CardContent>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={2}
+                      alignItems={{ sm: "center" }}
+                      justifyContent="space-between"
+                    >
+                      <Box>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          mb={1}
+                        >
+                          {order.aiDesigns ? (
+                            <Chip
+                              icon={<SmartToyIcon />}
+                              label="AI Design"
+                              size="small"
+                              color="secondary"
+                              sx={{ fontWeight: 500 }}
+                            />
+                          ) : order.customDesignRequests ? (
+                            <Chip
+                              icon={<BrushIcon />}
+                              label="Custom Design"
+                              size="small"
+                              color="primary"
+                              sx={{ fontWeight: 500 }}
+                            />
+                          ) : (
+                            <Chip
+                              icon={<ShoppingBagIcon />}
+                              label="Đơn hàng thường"
+                              size="small"
+                              color="success"
+                              sx={{ fontWeight: 500 }}
+                            />
+                          )}
+                        </Stack>
+
+                        <Typography fontWeight={600}>
+                          Mã đơn: {order.id}
+                        </Typography>
+
+                        {order.customDesignRequests && (
+                          <Typography color="text.secondary" fontSize={14}>
+                            <b>Yêu cầu thiết kế:</b>{" "}
+                            {order.customDesignRequests.requirements?.substring(
+                              0,
+                              50
+                            )}
+                            {order.customDesignRequests.requirements?.length >
+                            50
+                              ? "..."
+                              : ""}
+                          </Typography>
+                        )}
+
+                        {order.aiDesigns && (
+                          <Typography color="text.secondary" fontSize={14}>
+                            <b>Ghi chú:</b>{" "}
+                            {order.aiDesigns.customerNote?.substring(0, 50)}
+                            {order.aiDesigns.customerNote?.length > 50
+                              ? "..."
+                              : ""}
+                          </Typography>
+                        )}
+
+                        <Typography color="text.secondary" fontSize={14}>
+                          Ngày đặt:{" "}
+                          {new Date(order.orderDate).toLocaleDateString(
+                            "vi-VN"
+                          )}
+                        </Typography>
+                        <Typography color="text.secondary" fontSize={14}>
+                          Tổng tiền:{" "}
+                          {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
+                        </Typography>
+                        {order.status === "DEPOSITED" && (
+                          <>
+                            <Typography color="success.main" fontSize={14}>
+                              Đã đặt cọc:{" "}
+                              {order.depositAmount?.toLocaleString("vi-VN") ||
+                                0}
+                              ₫
+                            </Typography>
+                            <Typography color="info.main" fontSize={14}>
+                              Còn lại:{" "}
+                              {order.remainingAmount?.toLocaleString("vi-VN") ||
+                                0}
+                              ₫
+                            </Typography>
+                          </>
+                        )}
+                        {order.deliveryDate && (
+                          <Typography color="primary.main" fontSize={14}>
+                            Ngày giao dự kiến:{" "}
+                            {new Date(order.deliveryDate).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Chip
+                          label={statusMap[order.status]?.label || order.status}
+                          color={statusMap[order.status]?.color || "default"}
+                        />
+                        {["APPROVED", "CONFIRMED", "PENDING"].includes(
+                          (order.status || "").toUpperCase()
+                        ) && (
+                          <Button
+                            variant="contained"
+                            color="warning"
+                            size="small"
+                            onClick={() => handleDeposit(order)}
+                          >
+                            ĐẶT CỌC
+                          </Button>
+                        )}
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
             </Stack>
           )}
         </>
@@ -663,7 +688,7 @@ const OrderHistory = () => {
                     </Box>
 
                     {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái FULLY_PAID và chưa có lựa chọn */}
-                    {req.status === "FULLY_PAID" &&
+                    {req.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
                       req.isNeedSupport === null &&
                       !orders.some(
                         (order) => order.customDesignRequests?.id === req.id
@@ -719,7 +744,7 @@ const OrderHistory = () => {
                       )}
 
                     {/* Hiển thị lựa chọn thi công đã chọn trong card */}
-                    {req.status === "FULLY_PAID" && (
+                    {req.status === "COMPLETED" && ( // Thay "FULLY_PAID" thành "COMPLETED"
                       <>
                         {req.isNeedSupport === true &&
                         orders.some(
@@ -1054,7 +1079,7 @@ const OrderHistory = () => {
             <Typography>Không có dữ liệu.</Typography>
           )}
           {currentDesignRequest &&
-            currentDesignRequest.status === "FULLY_PAID" &&
+            currentDesignRequest.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
             currentDesignRequest.isNeedSupport === null &&
             !orders.some(
               (order) =>
@@ -1113,7 +1138,7 @@ const OrderHistory = () => {
             )}
           {/* Hiển thị lựa chọn thi công đã chọn */}
           {currentDesignRequest &&
-            currentDesignRequest.status === "FULLY_PAID" && (
+            currentDesignRequest.status === "COMPLETED" && ( // Thay "FULLY_PAID" thành "COMPLETED"
               <>
                 {currentDesignRequest.isNeedSupport === true &&
                 orders.some(

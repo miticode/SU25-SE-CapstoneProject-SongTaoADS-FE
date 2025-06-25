@@ -13,8 +13,11 @@ import chatReducer from "./features/chat/chatSlice";
 import attributeValueReducer from "./features/attribute/attributeValueSlice";
 import customDesignReducer from "./features/customeDesign/customerDesignSlice";
 import priceReducer from "./features/price/priceSlice";
-import paymentReducer from './features/payment/paymentSlice';
-import demoReducer from './features/demo/demoSlice';
+
+import contractReducer from "./features/contract/contractSlice";
+
+import paymentReducer from "./features/payment/paymentSlice";
+import demoReducer from "./features/demo/demoSlice";
 
 export const store = configureStore({
   reducer: {
@@ -27,14 +30,16 @@ export const store = configureStore({
     users: userReducer,
     ai: aiReducer,
     size: sizeReducer,
+
     s3: s3Reducer,
     attributeValue: attributeValueReducer,
     chat: chatReducer,
     customDesign: customDesignReducer,
     price: priceReducer,
+    contract: contractReducer,
     payment: paymentReducer,
-    demo: demoReducer, 
-    
+    demo: demoReducer,
+
     // Thêm các reducer khác tại đây
   },
 });
