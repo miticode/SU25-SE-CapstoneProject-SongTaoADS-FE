@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi, getOrderByIdApi, getOrdersByUserIdApi } from '../../../api/orderService';
+import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi, getOrderByIdApi, getOrdersByUserIdApi, createOrderFromDesignRequestApi } from '../../../api/orderService';
 
 
 
@@ -100,7 +100,16 @@ export const fetchOrdersByUserId = createAsyncThunk(
     return rejectWithValue(response.error);
   }
 );
-
+export const createOrderFromDesignRequest = createAsyncThunk(
+  'order/createOrderFromDesignRequest',
+  async (customDesignRequestId, { rejectWithValue }) => {
+    const response = await createOrderFromDesignRequestApi(customDesignRequestId);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
 const initialState = {
   orders: [],
   loading: false,
@@ -202,7 +211,21 @@ const orderSlice = createSlice({
       .addCase(fetchOrdersByUserId.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-      });
+      })
+      .addCase(createOrderFromDesignRequest.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(createOrderFromDesignRequest.fulfilled, (state, action) => {
+      state.loading = false;
+      state.orders.push(action.payload);
+      state.currentOrder = action.payload;
+      state.error = null;
+    })
+    .addCase(createOrderFromDesignRequest.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || "Không thể tạo đơn hàng";
+    });
   }
 });
 
