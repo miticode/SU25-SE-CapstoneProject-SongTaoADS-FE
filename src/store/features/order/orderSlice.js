@@ -1,7 +1,13 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createAiOrderApi, createOrderApi, getOrdersApi, updateOrderStatusApi, getOrderByIdApi, getOrdersByUserIdApi, createOrderFromDesignRequestApi } from '../../../api/orderService';
-
-
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import {
+  createAiOrderApi,
+  createOrderApi,
+  getOrdersApi,
+  updateOrderStatusApi,
+  getOrderByIdApi,
+  getOrdersByUserIdApi,
+  createOrderFromDesignRequestApi,
+} from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
 export const ORDER_STATUS_MAP = {
@@ -22,7 +28,7 @@ export const ORDER_STATUS_MAP = {
 
 // Async thunks
 export const createOrder = createAsyncThunk(
-  'order/createOrder',
+  "order/createOrder",
   async ({ customerChoiceId, orderData }, { rejectWithValue }) => {
     const response = await createOrderApi(customerChoiceId, orderData);
     if (response.success) {
@@ -32,9 +38,13 @@ export const createOrder = createAsyncThunk(
   }
 );
 export const createAiOrder = createAsyncThunk(
-  'order/createAiOrder',
+  "order/createAiOrder",
   async ({ aiDesignId, customerChoiceId, orderData }, { rejectWithValue }) => {
-    const response = await createAiOrderApi(aiDesignId, customerChoiceId, orderData);
+    const response = await createAiOrderApi(
+      aiDesignId,
+      customerChoiceId,
+      orderData
+    );
     if (response.success) {
       return response.data;
     }
@@ -42,28 +52,49 @@ export const createAiOrder = createAsyncThunk(
   }
 );
 export const fetchOrders = createAsyncThunk(
-  'order/fetchOrders',
-  async (orderStatus, { rejectWithValue }) => {
-    // orderStatus có thể là undefined, string hoặc mảng
-    let allOrders = [];
-    if (!orderStatus) {
-      // Nếu không truyền gì, lấy tất cả trạng thái
-      orderStatus = ORDER_STATUS_MAP;
+  "order/fetchOrders",
+  async (params, { rejectWithValue }) => {
+    // Kiểm tra nếu params là object hoặc string
+    let orderStatus, page, size;
+
+    if (typeof params === "object" && params !== null) {
+      // Nếu là object, trích xuất tham số
+      orderStatus = params.orderStatus;
+      page = params.page || 1;
+      size = params.size || 10;
+    } else {
+      // Nếu là string, xem như orderStatus
+      orderStatus = params;
+      page = 1;
+      size = 10;
     }
+
+    // Nếu orderStatus là mảng, gọi api cho từng trạng thái
     if (Array.isArray(orderStatus)) {
-      // Nếu là mảng, gọi API cho từng trạng thái và gộp kết quả
+      let allOrders = [];
+      let pagination = null;
+
       for (const status of orderStatus) {
-        const response = await getOrdersApi(status);
+        const response = await getOrdersApi(status, page, size);
         if (response.success) {
           allOrders = allOrders.concat(response.data);
+          // Lấy pagination của lần gọi cuối cùng
+          pagination = response.pagination;
         }
       }
-      return allOrders;
+
+      return {
+        orders: allOrders,
+        pagination,
+      };
     } else {
-      // Nếu là string
-      const response = await getOrdersApi(orderStatus);
+      // Nếu orderStatus là string
+      const response = await getOrdersApi(orderStatus, page, size);
       if (response.success) {
-        return response.data;
+        return {
+          orders: response.data,
+          pagination: response.pagination,
+        };
       }
       return rejectWithValue(response.error);
     }
@@ -71,7 +102,7 @@ export const fetchOrders = createAsyncThunk(
 );
 
 export const updateOrderStatus = createAsyncThunk(
-  'order/updateStatus',
+  "order/updateStatus",
   async ({ orderId, status }, { rejectWithValue }) => {
     const response = await updateOrderStatusApi(orderId, status);
     if (response.success) {
@@ -82,7 +113,7 @@ export const updateOrderStatus = createAsyncThunk(
 );
 
 export const fetchOrderById = createAsyncThunk(
-  'order/fetchOrderById',
+  "order/fetchOrderById",
   async (orderId, { rejectWithValue }) => {
     const response = await getOrderByIdApi(orderId);
     if (response.success) return response.data;
@@ -91,7 +122,7 @@ export const fetchOrderById = createAsyncThunk(
 );
 
 export const fetchOrdersByUserId = createAsyncThunk(
-  'order/fetchOrdersByUserId',
+  "order/fetchOrdersByUserId",
   async (userId, { rejectWithValue }) => {
     const response = await getOrdersByUserIdApi(userId);
     if (response.success) {
@@ -101,9 +132,11 @@ export const fetchOrdersByUserId = createAsyncThunk(
   }
 );
 export const createOrderFromDesignRequest = createAsyncThunk(
-  'order/createOrderFromDesignRequest',
+  "order/createOrderFromDesignRequest",
   async (customDesignRequestId, { rejectWithValue }) => {
-    const response = await createOrderFromDesignRequestApi(customDesignRequestId);
+    const response = await createOrderFromDesignRequestApi(
+      customDesignRequestId
+    );
     if (response.success) {
       return response.data;
     }
@@ -115,12 +148,18 @@ const initialState = {
   loading: false,
   error: null,
   currentOrder: null,
-  currentOrderStatus: 'idle',
-  currentOrderError: null
+  currentOrderStatus: "idle",
+  currentOrderError: null,
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0,
+  },
 };
 
 const orderSlice = createSlice({
-  name: 'order',
+  name: "order",
   initialState,
   reducers: {
     clearError: (state) => {
@@ -128,7 +167,7 @@ const orderSlice = createSlice({
     },
     setCurrentOrder: (state, action) => {
       state.currentOrder = action.payload;
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -153,7 +192,10 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload;
+        state.orders = action.payload.orders;
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
@@ -166,7 +208,9 @@ const orderSlice = createSlice({
       })
       .addCase(updateOrderStatus.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.orders.findIndex(order => order.id === action.payload.id);
+        const index = state.orders.findIndex(
+          (order) => order.id === action.payload.id
+        );
         if (index !== -1) {
           state.orders[index] = action.payload;
         }
@@ -175,7 +219,7 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-        .addCase(createAiOrder.pending, (state) => {
+      .addCase(createAiOrder.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -189,15 +233,15 @@ const orderSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(fetchOrderById.pending, (state) => {
-        state.currentOrderStatus = 'loading';
+        state.currentOrderStatus = "loading";
         state.currentOrderError = null;
       })
       .addCase(fetchOrderById.fulfilled, (state, action) => {
-        state.currentOrderStatus = 'succeeded';
+        state.currentOrderStatus = "succeeded";
         state.currentOrder = action.payload;
       })
       .addCase(fetchOrderById.rejected, (state, action) => {
-        state.currentOrderStatus = 'failed';
+        state.currentOrderStatus = "failed";
         state.currentOrderError = action.payload;
       })
       .addCase(fetchOrdersByUserId.pending, (state) => {
@@ -213,25 +257,30 @@ const orderSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(createOrderFromDesignRequest.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    })
-    .addCase(createOrderFromDesignRequest.fulfilled, (state, action) => {
-      state.loading = false;
-      state.orders.push(action.payload);
-      state.currentOrder = action.payload;
-      state.error = null;
-    })
-    .addCase(createOrderFromDesignRequest.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload || "Không thể tạo đơn hàng";
-    });
-  }
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createOrderFromDesignRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders.push(action.payload);
+        state.currentOrder = action.payload;
+        state.error = null;
+      })
+      .addCase(createOrderFromDesignRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Không thể tạo đơn hàng";
+      });
+  },
 });
 
 export const { clearError, setCurrentOrder } = orderSlice.actions;
 export default orderSlice.reducer;
 
 export const selectCurrentOrder = (state) => state.order.currentOrder;
-export const selectCurrentOrderStatus = (state) => state.order.currentOrderStatus;
+export const selectCurrentOrderStatus = (state) =>
+  state.order.currentOrderStatus;
 export const selectCurrentOrderError = (state) => state.order.currentOrderError;
+export const selectOrders = (state) => state.order.orders;
+export const selectOrderStatus = (state) => state.order.loading ? 'loading' : state.order.error ? 'failed' : 'succeeded';
+export const selectOrderError = (state) => state.order.error;
+export const selectOrderPagination = (state) => state.order.pagination;

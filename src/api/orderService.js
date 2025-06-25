@@ -116,18 +116,27 @@ export const createAiOrderApi = async (aiDesignId, customerChoiceId, orderData) 
   }
 };
 // Hàm lấy danh sách đơn hàng
-export const getOrdersApi = async (orderStatus) => {
+export const getOrdersApi = async (orderStatus, page = 1, size = 10) => {
   if (!orderStatus) {
     throw new Error('orderStatus is required!');
   }
   try {
-    const url = `/api/orders?orderStatus=${orderStatus}`;
+    const url = `/api/orders?orderStatus=${orderStatus}&page=${page}&size=${size}`;
     const response = await orderService.get(url);
 
-    const { success, result, message } = response.data;
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
     if (success) {
-      return { success: true, data: result };
+      return { 
+        success: true, 
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
     }
 
     return { success: false, error: message || 'Invalid response format' };
