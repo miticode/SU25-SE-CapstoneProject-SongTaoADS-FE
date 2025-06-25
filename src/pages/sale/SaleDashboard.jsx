@@ -61,6 +61,8 @@ import {
 import CustomerRequests from "./CustomerRequests";
 import DesignerChat from "./DesignerChat";
 import DashboardContent from "./DashboardContent";
+import FeedbackList from "../../components/Feedback/FeedbackList";
+import FeedbackDetailDialog from "../../components/Feedback/FeedbackDetailDialog";
 
 const drawerWidth = 240;
 
@@ -76,6 +78,8 @@ const SaleDashboard = () => {
   const [deliveryDate, setDeliveryDate] = useState(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   const selectedOrder = useSelector(selectCurrentOrder);
   const currentOrderStatus = useSelector(selectCurrentOrderStatus);
@@ -139,6 +143,7 @@ const SaleDashboard = () => {
       icon: <CustomerIcon />,
     },
     { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
+    { id: "feedback", label: "Feedback", icon: <MoneyIcon /> },
   ];
 
   // Khi filter trạng thái
@@ -157,6 +162,37 @@ const SaleDashboard = () => {
         return <CustomerRequests />;
       case "designer":
         return <DesignerChat />;
+      case "feedback":
+        return (
+          <>
+            <FeedbackList
+              onView={(fb) => {
+                setSelectedFeedback(fb);
+                setFeedbackDialogOpen(true);
+              }}
+              onDelete={(fb) => {
+                // Xử lý xóa feedback (mock)
+                alert("Xóa feedback: " + fb.id);
+              }}
+            />
+            <FeedbackDetailDialog
+              open={feedbackDialogOpen}
+              feedback={selectedFeedback}
+              onClose={() => setFeedbackDialogOpen(false)}
+              onRespond={(response) => {
+                alert("Phản hồi: " + response);
+                setFeedbackDialogOpen(false);
+              }}
+              onDelete={() => {
+                alert("Xóa feedback: " + selectedFeedback?.id);
+                setFeedbackDialogOpen(false);
+              }}
+              onUpdateImage={(img) => {
+                alert("Cập nhật ảnh: " + img.name);
+              }}
+            />
+          </>
+        );
       default:
         return (
           <DashboardContent
