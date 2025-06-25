@@ -258,5 +258,23 @@ export const deleteOrderApi = async (orderId) => {
     };
   }
 };
-
+export const createOrderFromDesignRequestApi = async (customDesignRequestId) => {
+  try {
+    const response = await orderService.post(`/api/custom-design-request/${customDesignRequestId}/orders`);
+    
+    const { success, result, message } = response.data;
+    
+    if (success) {
+      return { success: true, data: result };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error creating order from design request:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create order from design request'
+    };
+  }
+};
 export default orderService;
