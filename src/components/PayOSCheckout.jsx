@@ -17,7 +17,7 @@ const PayOSCheckout = forwardRef(
     }, []);
 
     const payOSConfig = {
-      RETURN_URL: "http://localhost:8080/api/orders/payment-success",
+      RETURN_URL: "http://localhost:5173/",
       ELEMENT_ID: "payos-checkout-container",
       CHECKOUT_URL: checkoutUrl,
       embedded: false,

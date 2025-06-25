@@ -52,6 +52,7 @@ import {
   getPriceProposals,
   updatePriceProposalPricing,
 } from "../../api/priceService";
+import Autocomplete from "@mui/material/Autocomplete";
 
 const CustomerRequests = () => {
   const dispatch = useDispatch();
@@ -62,7 +63,6 @@ const CustomerRequests = () => {
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [comment, setComment] = useState("");
   const [customerDetails, setCustomerDetails] = useState({});
   const [loadingCustomers, setLoadingCustomers] = useState({});
 
@@ -196,12 +196,7 @@ const CustomerRequests = () => {
   const handleCloseDetails = () => {
     setDetailOpen(false);
     setSelectedRequest(null);
-    setComment("");
     setSelectedDesigner("");
-  };
-
-  const handleDesignerChange = (event) => {
-    setSelectedDesigner(event.target.value);
   };
 
   // Handle assign designer to request
@@ -700,94 +695,139 @@ const CustomerRequests = () => {
                   </Typography>
                 </Grid>
 
-                {/* Assign Designer Section */}
-                <Grid item xs={12}>
-                  <Typography
-                    variant="subtitle2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    Assign Designer
-                  </Typography>
-
-                  <FormControl fullWidth>
-                    <InputLabel id="designer-select-label">Designer</InputLabel>
-                    <Select
-                      labelId="designer-select-label"
-                      id="designer-select"
-                      value={selectedDesigner}
-                      label="Designer"
-                      onChange={handleDesignerChange}
-                      disabled={loadingDesigners}
-                    >
-                      <MenuItem value="">
-                        <em>None</em>
-                      </MenuItem>
-                      {designers.map((designer) => (
-                        <MenuItem key={designer.id} value={designer.id}>
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
-                            <Avatar
-                              src={designer.avatar}
-                              sx={{ width: 24, height: 24, mr: 1 }}
-                            >
-                              {designer.fullName?.charAt(0) || "D"}
-                            </Avatar>
-                            <Typography>{designer.fullName}</Typography>
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  {loadingDesigners && (
-                    <Box
-                      sx={{ display: "flex", justifyContent: "center", mt: 1 }}
-                    >
-                      <CircularProgress size={24} />
-                    </Box>
+                {/* Nếu đã giao task thì hiển thị tag và tên designer */}
+                {selectedRequest &&
+                  selectedRequest.status === "ASSIGNED_DESIGNER" && (
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                      >
+                        <Chip label="Đã giao task" color="success" />
+                        <Typography>
+                          Designer phụ trách:{" "}
+                          {(() => {
+                            const d = designers.find(
+                              (d) => d.id === selectedRequest.assignDesigner
+                            );
+                            return d
+                              ? d.fullName
+                              : selectedRequest.assignDesigner || "Chưa rõ";
+                          })()}
+                        </Typography>
+                      </Box>
+                    </Grid>
                   )}
-                </Grid>
 
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={4}
-                    label="Notes"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                  />
-                </Grid>
+                {/* Chỉ hiện mục chọn designer khi status là DEPOSITED */}
+                {selectedRequest && selectedRequest.status === "DEPOSITED" && (
+                  <Grid item xs={6}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      Chọn Designer
+                    </Typography>
+                    <FormControl fullWidth>
+                      <InputLabel id="designer-select-label">
+                        Designer
+                      </InputLabel>
+                      <Select
+                        labelId="designer-select-label"
+                        id="designer-select"
+                        value={selectedDesigner}
+                        label="Designer"
+                        onChange={(e) => setSelectedDesigner(e.target.value)}
+                        disabled={loadingDesigners}
+                      >
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {designers.map((designer) => (
+                          <MenuItem key={designer.id} value={designer.id}>
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <Avatar
+                                src={designer.avatar}
+                                sx={{ width: 24, height: 24, mr: 1 }}
+                              >
+                                {designer.fullName?.charAt(0) || "D"}
+                              </Avatar>
+                              <Typography noWrap>
+                                {designer.fullName}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {loadingDesigners && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "center",
+                          mt: 1,
+                        }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    )}
+                  </Grid>
+                )}
 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Tổng giá (VND)"
-                    type="number"
-                    value={priceForm.totalPrice}
-                    onChange={(e) =>
-                      setPriceForm((f) => ({
-                        ...f,
-                        totalPrice: e.target.value,
-                      }))
-                    }
-                    InputProps={{ inputProps: { min: 0 } }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Tiền cọc (VND)"
-                    type="number"
-                    value={priceForm.depositAmount}
-                    onChange={(e) =>
-                      setPriceForm((f) => ({
-                        ...f,
-                        depositAmount: e.target.value,
-                      }))
-                    }
-                    InputProps={{ inputProps: { min: 0 } }}
-                  />
-                </Grid>
+                {/* Báo giá: Nếu đã có proposal thì chỉ hiện tổng giá và tiền cọc, nếu chưa thì hiện ô nhập */}
+                {priceProposals.length > 0 ? (
+                  <>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Tổng giá đã báo
+                      </Typography>
+                      <Typography variant="body1" fontWeight="bold">
+                        {formatCurrency(priceProposals[0].totalPrice)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Tiền cọc đã báo
+                      </Typography>
+                      <Typography variant="body1" fontWeight="bold">
+                        {formatCurrency(priceProposals[0].depositAmount)}
+                      </Typography>
+                    </Grid>
+                  </>
+                ) : (
+                  <>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Tổng giá (VND)"
+                        type="number"
+                        value={priceForm.totalPrice}
+                        onChange={(e) =>
+                          setPriceForm((f) => ({
+                            ...f,
+                            totalPrice: e.target.value,
+                          }))
+                        }
+                        InputProps={{ inputProps: { min: 0 } }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Tiền cọc (VND)"
+                        type="number"
+                        value={priceForm.depositAmount}
+                        onChange={(e) =>
+                          setPriceForm((f) => ({
+                            ...f,
+                            depositAmount: e.target.value,
+                          }))
+                        }
+                        InputProps={{ inputProps: { min: 0 } }}
+                      />
+                    </Grid>
+                  </>
+                )}
 
                 {/* Lịch sử báo giá */}
                 <Grid item xs={12}>
@@ -919,18 +959,21 @@ const CustomerRequests = () => {
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCloseDetails}>Đóng</Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleCreateProposal}
-                disabled={creatingProposal}
-              >
-                {creatingProposal ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  "Báo giá"
-                )}
-              </Button>
+              {/* Nút báo giá chỉ hiện khi chưa có proposal */}
+              {priceProposals.length === 0 && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleCreateProposal}
+                  disabled={creatingProposal}
+                >
+                  {creatingProposal ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Báo giá"
+                  )}
+                </Button>
+              )}
               <Button
                 variant="contained"
                 color="error"
@@ -946,21 +989,27 @@ const CustomerRequests = () => {
               >
                 {rejectingRequest ? "Đang từ chối..." : "Từ chối"}
               </Button>
-              <Button
-                variant="contained"
-                color="success"
-                disabled={
-                  !selectedDesigner || assigningDesigner || loadingDesigners
-                }
-                onClick={handleAssignDesigner}
-                startIcon={
-                  assigningDesigner ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : null
-                }
-              >
-                {assigningDesigner ? "Đang giao..." : "Giao task thiết kế"}
-              </Button>
+              {/* Nút giao task chỉ hiện khi request có status là DEPOSITED */}
+              {selectedRequest && selectedRequest.status === "DEPOSITED" && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={
+                    !selectedDesigner || assigningDesigner || loadingDesigners
+                  }
+                  onClick={async () => {
+                    await handleAssignDesigner();
+                    handleCloseDetails(); // Đóng dialog sau khi giao task thành công
+                  }}
+                  startIcon={
+                    assigningDesigner ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : null
+                  }
+                >
+                  {assigningDesigner ? "Đang giao..." : "Giao task thiết kế"}
+                </Button>
+              )}
             </DialogActions>
             {assignmentError && (
               <Box sx={{ px: 3, pb: 2 }}>
