@@ -31,6 +31,7 @@ import {
   Tabs,
   Tab,
   Badge,
+  Autocomplete,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -68,6 +69,7 @@ import {
   selectOrders,
   selectOrderStatus,
 } from "../../store/features/order/orderSlice";
+
 import ContractUploadForm from "../../components/ContractUploadForm";
 
 const CustomerRequests = () => {
@@ -79,7 +81,6 @@ const CustomerRequests = () => {
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [comment, setComment] = useState("");
   const [customerDetails, setCustomerDetails] = useState({});
   const [loadingCustomers, setLoadingCustomers] = useState({});
 
@@ -132,53 +133,53 @@ const CustomerRequests = () => {
     depositAmount: "",
   });
   const [actionLoading, setActionLoading] = useState(false);
- useEffect(() => {
-  if (currentTab === 1) {
-    // Thêm memoization để tránh fetch quá nhiều lần
-    const controller = new AbortController();
-    const signal = controller.signal;
-    
-    dispatch(
-      fetchOrders({
-        orderStatus: selectedOrderStatus,
-        page: orderPage,
-        size: orderPageSize,
-        signal
-      })
-    );
-    
-    // Cleanup function để hủy fetch nếu component re-render
-    return () => {
-      controller.abort();
-    };
-  }
-}, [currentTab, selectedOrderStatus, orderPage, orderPageSize]);
- const handleContractUploadSuccess = () => {
-  // Tránh vòng lặp bằng cách dùng nextTick/setTimeout
-  setTimeout(() => {
-    // Hiển thị thông báo thành công trước
-    setNotification({
-      open: true,
-      message: "Tải lên hợp đồng thành công!",
-      severity: "success",
-    });
-    
-    // Đóng form upload
-    setOpenContractUpload(false);
-    
-    // Sau đó mới dispatch action để fetch dữ liệu mới
-    setTimeout(() => {
+  useEffect(() => {
+    if (currentTab === 1) {
+      // Thêm memoization để tránh fetch quá nhiều lần
+      const controller = new AbortController();
+      const signal = controller.signal;
+
       dispatch(
         fetchOrders({
           orderStatus: selectedOrderStatus,
           page: orderPage,
           size: orderPageSize,
+          signal,
         })
       );
-    }, 300);
-  }, 0);
-};
- 
+
+      // Cleanup function để hủy fetch nếu component re-render
+      return () => {
+        controller.abort();
+      };
+    }
+  }, [currentTab, selectedOrderStatus, orderPage, orderPageSize]);
+  const handleContractUploadSuccess = () => {
+    // Tránh vòng lặp bằng cách dùng nextTick/setTimeout
+    setTimeout(() => {
+      // Hiển thị thông báo thành công trước
+      setNotification({
+        open: true,
+        message: "Tải lên hợp đồng thành công!",
+        severity: "success",
+      });
+
+      // Đóng form upload
+      setOpenContractUpload(false);
+
+      // Sau đó mới dispatch action để fetch dữ liệu mới
+      setTimeout(() => {
+        dispatch(
+          fetchOrders({
+            orderStatus: selectedOrderStatus,
+            page: orderPage,
+            size: orderPageSize,
+          })
+        );
+      }, 300);
+    }, 0);
+  };
+
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
@@ -191,67 +192,68 @@ const CustomerRequests = () => {
     setSelectedOrder(order);
     setOrderDetailOpen(true);
   };
-const handleCloseOrderDetails = React.useCallback(() => {
-  setSelectedOrder(null);
-  setOrderDetailOpen(false);
-}, []);
- const handleUpdateOrderStatus = async (orderId, newStatus) => {
-  setActionLoading(true);
-  try {
-    const response = await orderService.put(
-      `/api/orders/${orderId}/status?status=${newStatus}`
-    );
-    if (response.data.success) {
-      // Hiển thị thông báo thành công
-      setNotification({
-        open: true,
-        message: `Đã cập nhật trạng thái sang "${
-          ORDER_STATUS_MAP[newStatus]?.label || newStatus
-        }"!`,
-        severity: "success",
-      });
-      
-      // Sử dụng Redux dispatch thay vì gọi fetchCustomDesignOrders
-      dispatch(
-        fetchOrders({
-          orderStatus: selectedOrderStatus,
-          page: orderPage,
-          size: orderPageSize,
-        })
+  const handleCloseOrderDetails = React.useCallback(() => {
+    setSelectedOrder(null);
+    setOrderDetailOpen(false);
+  }, []);
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    setActionLoading(true);
+    try {
+      const response = await orderService.put(
+        `/api/orders/${orderId}/status?status=${newStatus}`
       );
-      
-      // Đóng dialog chi tiết đơn hàng
-      handleCloseOrderDetails();
-    } else {
+      if (response.data.success) {
+        // Hiển thị thông báo thành công
+        setNotification({
+          open: true,
+          message: `Đã cập nhật trạng thái sang "${
+            ORDER_STATUS_MAP[newStatus]?.label || newStatus
+          }"!`,
+          severity: "success",
+        });
+
+        // Sử dụng Redux dispatch thay vì gọi fetchCustomDesignOrders
+        dispatch(
+          fetchOrders({
+            orderStatus: selectedOrderStatus,
+            page: orderPage,
+            size: orderPageSize,
+          })
+        );
+
+        // Đóng dialog chi tiết đơn hàng
+        handleCloseOrderDetails();
+      } else {
+        setNotification({
+          open: true,
+          message: response.data.message || "Không thể cập nhật trạng thái",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
+
+      // Hiển thị thông báo lỗi cụ thể
+      let errorMessage = "Không thể cập nhật trạng thái đơn hàng";
+
+      if (error.response) {
+        if (error.response.status === 500) {
+          errorMessage =
+            "Lỗi máy chủ: Đơn hàng này có thể đã được cập nhật hoặc đang có vấn đề";
+        } else {
+          errorMessage = error.response.data?.message || errorMessage;
+        }
+      }
+
       setNotification({
         open: true,
-        message: response.data.message || "Không thể cập nhật trạng thái",
+        message: errorMessage,
         severity: "error",
       });
+    } finally {
+      setActionLoading(false);
     }
-  } catch (error) {
-    console.error("Error updating order status:", error);
-    
-    // Hiển thị thông báo lỗi cụ thể
-    let errorMessage = "Không thể cập nhật trạng thái đơn hàng";
-    
-    if (error.response) {
-      if (error.response.status === 500) {
-        errorMessage = "Lỗi máy chủ: Đơn hàng này có thể đã được cập nhật hoặc đang có vấn đề";
-      } else {
-        errorMessage = error.response.data?.message || errorMessage;
-      }
-    }
-    
-    setNotification({
-      open: true,
-      message: errorMessage,
-      severity: "error",
-    });
-  } finally {
-    setActionLoading(false);
-  }
-};
+  };
   const handleCloseNotification = () => {
     setNotification((prev) => ({ ...prev, open: false }));
   };
@@ -346,15 +348,11 @@ const handleCloseOrderDetails = React.useCallback(() => {
   };
 
   const handleCloseDetails = React.useCallback(() => {
-  setDetailOpen(false);
-  setSelectedRequest(null);
-  setComment("");
-  setSelectedDesigner("");
-}, []);
-
-  const handleDesignerChange = (event) => {
-    setSelectedDesigner(event.target.value);
-  };
+    setDetailOpen(false);
+    setSelectedRequest(null);
+    setComment("");
+    setSelectedDesigner("");
+  }, []);
 
   // Handle assign designer to request
   const handleAssignDesigner = async () => {
@@ -1050,94 +1048,139 @@ const handleCloseOrderDetails = React.useCallback(() => {
                   </Typography>
                 </Grid>
 
-                {/* Assign Designer Section */}
-                <Grid item xs={12}>
-                  <Typography
-                    variant="subtitle2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    Assign Designer
-                  </Typography>
-
-                  <FormControl fullWidth>
-                    <InputLabel id="designer-select-label">Designer</InputLabel>
-                    <Select
-                      labelId="designer-select-label"
-                      id="designer-select"
-                      value={selectedDesigner}
-                      label="Designer"
-                      onChange={handleDesignerChange}
-                      disabled={loadingDesigners}
-                    >
-                      <MenuItem value="">
-                        <em>None</em>
-                      </MenuItem>
-                      {designers.map((designer) => (
-                        <MenuItem key={designer.id} value={designer.id}>
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
-                            <Avatar
-                              src={designer.avatar}
-                              sx={{ width: 24, height: 24, mr: 1 }}
-                            >
-                              {designer.fullName?.charAt(0) || "D"}
-                            </Avatar>
-                            <Typography>{designer.fullName}</Typography>
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  {loadingDesigners && (
-                    <Box
-                      sx={{ display: "flex", justifyContent: "center", mt: 1 }}
-                    >
-                      <CircularProgress size={24} />
-                    </Box>
+                {/* Nếu đã giao task thì hiển thị tag và tên designer */}
+                {selectedRequest &&
+                  selectedRequest.status === "ASSIGNED_DESIGNER" && (
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                      >
+                        <Chip label="Đã giao task" color="success" />
+                        <Typography>
+                          Designer phụ trách:{" "}
+                          {(() => {
+                            const d = designers.find(
+                              (d) => d.id === selectedRequest.assignDesigner
+                            );
+                            return d
+                              ? d.fullName
+                              : selectedRequest.assignDesigner || "Chưa rõ";
+                          })()}
+                        </Typography>
+                      </Box>
+                    </Grid>
                   )}
-                </Grid>
 
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={4}
-                    label="Notes"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                  />
-                </Grid>
+                {/* Chỉ hiện mục chọn designer khi status là DEPOSITED */}
+                {selectedRequest && selectedRequest.status === "DEPOSITED" && (
+                  <Grid item xs={6}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      Chọn Designer
+                    </Typography>
+                    <FormControl fullWidth>
+                      <InputLabel id="designer-select-label">
+                        Designer
+                      </InputLabel>
+                      <Select
+                        labelId="designer-select-label"
+                        id="designer-select"
+                        value={selectedDesigner}
+                        label="Designer"
+                        onChange={(e) => setSelectedDesigner(e.target.value)}
+                        disabled={loadingDesigners}
+                      >
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {designers.map((designer) => (
+                          <MenuItem key={designer.id} value={designer.id}>
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <Avatar
+                                src={designer.avatar}
+                                sx={{ width: 24, height: 24, mr: 1 }}
+                              >
+                                {designer.fullName?.charAt(0) || "D"}
+                              </Avatar>
+                              <Typography noWrap>
+                                {designer.fullName}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {loadingDesigners && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "center",
+                          mt: 1,
+                        }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    )}
+                  </Grid>
+                )}
 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Tổng giá (VND)"
-                    type="number"
-                    value={priceForm.totalPrice}
-                    onChange={(e) =>
-                      setPriceForm((f) => ({
-                        ...f,
-                        totalPrice: e.target.value,
-                      }))
-                    }
-                    InputProps={{ inputProps: { min: 0 } }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Tiền cọc (VND)"
-                    type="number"
-                    value={priceForm.depositAmount}
-                    onChange={(e) =>
-                      setPriceForm((f) => ({
-                        ...f,
-                        depositAmount: e.target.value,
-                      }))
-                    }
-                    InputProps={{ inputProps: { min: 0 } }}
-                  />
-                </Grid>
+                {/* Báo giá: Nếu đã có proposal thì chỉ hiện tổng giá và tiền cọc, nếu chưa thì hiện ô nhập */}
+                {priceProposals.length > 0 ? (
+                  <>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Tổng giá đã báo
+                      </Typography>
+                      <Typography variant="body1" fontWeight="bold">
+                        {formatCurrency(priceProposals[0].totalPrice)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Tiền cọc đã báo
+                      </Typography>
+                      <Typography variant="body1" fontWeight="bold">
+                        {formatCurrency(priceProposals[0].depositAmount)}
+                      </Typography>
+                    </Grid>
+                  </>
+                ) : (
+                  <>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Tổng giá (VND)"
+                        type="number"
+                        value={priceForm.totalPrice}
+                        onChange={(e) =>
+                          setPriceForm((f) => ({
+                            ...f,
+                            totalPrice: e.target.value,
+                          }))
+                        }
+                        InputProps={{ inputProps: { min: 0 } }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Tiền cọc (VND)"
+                        type="number"
+                        value={priceForm.depositAmount}
+                        onChange={(e) =>
+                          setPriceForm((f) => ({
+                            ...f,
+                            depositAmount: e.target.value,
+                          }))
+                        }
+                        InputProps={{ inputProps: { min: 0 } }}
+                      />
+                    </Grid>
+                  </>
+                )}
 
                 {/* Lịch sử báo giá */}
                 <Grid item xs={12}>
@@ -1296,18 +1339,21 @@ const handleCloseOrderDetails = React.useCallback(() => {
                 </Button>
               )}
               <Button onClick={handleCloseDetails}>Đóng</Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleCreateProposal}
-                disabled={creatingProposal}
-              >
-                {creatingProposal ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  "Báo giá"
-                )}
-              </Button>
+              {/* Nút báo giá chỉ hiện khi chưa có proposal */}
+              {priceProposals.length === 0 && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleCreateProposal}
+                  disabled={creatingProposal}
+                >
+                  {creatingProposal ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Báo giá"
+                  )}
+                </Button>
+              )}
               <Button
                 variant="contained"
                 color="error"
@@ -1323,21 +1369,27 @@ const handleCloseOrderDetails = React.useCallback(() => {
               >
                 {rejectingRequest ? "Đang từ chối..." : "Từ chối"}
               </Button>
-              <Button
-                variant="contained"
-                color="success"
-                disabled={
-                  !selectedDesigner || assigningDesigner || loadingDesigners
-                }
-                onClick={handleAssignDesigner}
-                startIcon={
-                  assigningDesigner ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : null
-                }
-              >
-                {assigningDesigner ? "Đang giao..." : "Giao task thiết kế"}
-              </Button>
+              {/* Nút giao task chỉ hiện khi request có status là DEPOSITED */}
+              {selectedRequest && selectedRequest.status === "DEPOSITED" && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={
+                    !selectedDesigner || assigningDesigner || loadingDesigners
+                  }
+                  onClick={async () => {
+                    await handleAssignDesigner();
+                    handleCloseDetails(); // Đóng dialog sau khi giao task thành công
+                  }}
+                  startIcon={
+                    assigningDesigner ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : null
+                  }
+                >
+                  {assigningDesigner ? "Đang giao..." : "Giao task thiết kế"}
+                </Button>
+              )}
             </DialogActions>
             {assignmentError && (
               <Box sx={{ px: 3, pb: 2 }}>

@@ -58,3 +58,85 @@ export const getPayOSCallback = async (orderId) => {
     };
   }
 };
+
+// ====================================
+
+// 1. Webhook: Xử lý webhook từ PayOS
+export const handleWebhook = async (payload) => {
+  // payload: object dữ liệu webhook từ PayOS
+  try {
+    const response = await paymentService.post('/api/webhook/handle-webhook', payload);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể xử lý webhook',
+    };
+  }
+};
+
+// 2. Xác nhận URL webhook với PayOS
+export const confirmWebhookUrl = async (payload) => {
+  // payload: { webhookUrl: string }
+  try {
+    const response = await paymentService.post('/api/webhook/confirm-webhook-url', payload);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể xác nhận webhook URL',
+    };
+  }
+};
+
+// 3. Thanh toán hết đơn hàng (order)
+export const payOrderRemaining = async (orderId) => {
+  try {
+    const response = await paymentService.post(`/api/orders/${orderId}/remaining`);
+    return response.data; // { checkoutUrl: ... }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể thanh toán hết đơn hàng',
+    };
+  }
+};
+
+// 4. Đặt cọc theo đơn hàng (order)
+export const payOrderDeposit = async (orderId) => {
+  try {
+    const response = await paymentService.post(`/api/orders/${orderId}/deposit`);
+    return response.data; // { checkoutUrl: ... }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể đặt cọc đơn hàng',
+    };
+  }
+};
+
+// 5. Thanh toán hết thiết kế custom
+export const payCustomDesignRemaining = async (customDesignRequestId) => {
+  try {
+    const response = await paymentService.post(`/api/custom-design-requests/${customDesignRequestId}/remaining`);
+    return response.data; // { checkoutUrl: ... }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể thanh toán hết thiết kế',
+    };
+  }
+};
+
+// 6. Đặt cọc yêu cầu thiết kế custom
+export const payCustomDesignDeposit = async (customDesignRequestId) => {
+  try {
+    const response = await paymentService.post(`/api/custom-design-requests/${customDesignRequestId}/deposit`);
+    return response.data; // { checkoutUrl: ... }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể đặt cọc thiết kế',
+    };
+  }
+};
