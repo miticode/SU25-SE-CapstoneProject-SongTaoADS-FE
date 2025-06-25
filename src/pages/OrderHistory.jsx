@@ -26,12 +26,16 @@ import HistoryIcon from "@mui/icons-material/History";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import BrushIcon from "@mui/icons-material/Brush";
 import CloseIcon from "@mui/icons-material/Close";
+import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
   selectCurrentDesignRequest,
 } from "../store/features/customeDesign/customerDesignSlice";
-import { fetchOrdersByUserId } from "../store/features/order/orderSlice";
+import {
+  createOrderFromDesignRequest,
+  fetchOrdersByUserId,
+} from "../store/features/order/orderSlice";
 import { fetchCustomerDetailByUserId } from "../store/features/customer/customerSlice";
 import {
   getPriceProposals,
@@ -48,6 +52,8 @@ const statusMap = {
   DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   COMPLETED: { label: "Hoàn tất", color: "primary" },
   CANCELLED: { label: "Đã bị hủy", color: "error" },
+  FULLY_PAID: { label: "Đã thanh toán", color: "success" },
+  PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
 };
 
 const OrderHistory = () => {
@@ -55,7 +61,7 @@ const OrderHistory = () => {
   const [tab, setTab] = useState(0);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
+  const [constructionLoading, setConstructionLoading] = useState(false);
   // Redux state for custom design requests
   const customDesignState = useSelector((state) => state.customDesign);
   const {
@@ -89,8 +95,153 @@ const OrderHistory = () => {
     message: "",
     severity: "success",
   });
+
   const [depositLoadingId, setDepositLoadingId] = useState(null);
 
+  const handleConstructionOptionWithId = (
+    designRequestId,
+    needConstruction
+  ) => {
+    setConstructionLoading(true);
+
+    // Tìm design request theo ID để cập nhật UI
+    const designRequest = designRequests.find(
+      (req) => req.id === designRequestId
+    );
+
+    if (designRequest) {
+      // Cập nhật state local
+      dispatch(
+        setCurrentDesignRequest({
+          ...designRequest,
+          isNeedSupport: needConstruction,
+        })
+      );
+
+      // Nếu chọn "Có thi công" thì gọi API tạo đơn hàng
+      if (needConstruction) {
+        dispatch(createOrderFromDesignRequest(designRequestId)).then(
+          (resultAction) => {
+            if (createOrderFromDesignRequest.fulfilled.match(resultAction)) {
+              setNotification({
+                open: true,
+                message:
+                  "Đã chọn có thi công và tạo đơn hàng thành công! Vui lòng đợi hợp đồng từ chúng tôi.",
+                severity: "success",
+              });
+
+              // Tải lại danh sách đơn hàng
+              if (user?.id) {
+                dispatch(fetchOrdersByUserId(user.id));
+              }
+            } else {
+              setNotification({
+                open: true,
+                message:
+                  resultAction.payload ||
+                  "Đã chọn có thi công nhưng không thể tạo đơn hàng!",
+                severity: "error",
+              });
+            }
+            setConstructionLoading(false);
+          }
+        );
+      } else {
+        // Nếu chọn "Không thi công" thì hiện thông báo bình thường
+        setNotification({
+          open: true,
+          message: "Đơn hàng sẽ không thi công, cảm ơn bạn",
+          severity: "success",
+        });
+        setConstructionLoading(false);
+      }
+
+      // Cập nhật lại danh sách đơn thiết kế để hiển thị đúng trạng thái
+      dispatch(
+        fetchCustomDesignRequestsByCustomerDetail({
+          customerDetailId: customerDetailId,
+          page: 1,
+          size: 10,
+        })
+      );
+    } else {
+      setNotification({
+        open: true,
+        message:
+          "Không thể xác định yêu cầu thiết kế với ID: " + designRequestId,
+        severity: "error",
+      });
+      setConstructionLoading(false);
+    }
+  };
+  const handleConstructionOption = (needConstruction) => {
+    setConstructionLoading(true);
+
+    // Lưu vào state trước
+    if (currentDesignRequest) {
+      dispatch(
+        setCurrentDesignRequest({
+          ...currentDesignRequest,
+          isNeedSupport: needConstruction,
+        })
+      );
+
+      // Nếu chọn "Có thi công" thì gọi API tạo đơn hàng
+      if (needConstruction) {
+        dispatch(createOrderFromDesignRequest(currentDesignRequest.id)).then(
+          (resultAction) => {
+            if (createOrderFromDesignRequest.fulfilled.match(resultAction)) {
+              setNotification({
+                open: true,
+                message:
+                  "Đã chọn có thi công và tạo đơn hàng thành công! Vui lòng đợi hợp đồng từ chúng tôi.",
+                severity: "success",
+              });
+
+
+              // Tải lại danh sách đơn hàng
+              if (user?.id) {
+                dispatch(fetchOrdersByUserId(user.id));
+              }
+            } else {
+              setNotification({
+                open: true,
+                message:
+                  resultAction.payload ||
+                  "Đã chọn có thi công nhưng không thể tạo đơn hàng!",
+                severity: "error",
+              });
+            }
+            setConstructionLoading(false);
+          }
+        );
+      } else {
+        // Nếu chọn "Không thi công" thì hiện thông báo bình thường
+        setNotification({
+          open: true,
+          message: "Đơn hàng sẽ không thi công, cảm ơn bạn",
+          severity: "success",
+        });
+        setConstructionLoading(false);
+      }
+
+      // Cập nhật lại danh sách đơn thiết kế để hiển thị đúng trạng thái
+      dispatch(
+        fetchCustomDesignRequestsByCustomerDetail({
+          customerDetailId: customerDetailId,
+          page: 1,
+          size: 10,
+        })
+      );
+    } else {
+      setNotification({
+        open: true,
+        message: "Không thể xác định yêu cầu thiết kế hiện tại",
+        severity: "error",
+      });
+      setConstructionLoading(false);
+    }
+  };
   const handleTabChange = (event, newValue) => setTab(newValue);
 
   useEffect(() => {
@@ -306,75 +457,119 @@ const OrderHistory = () => {
           ) : (
             <Stack spacing={2}>
               {orders.map((order) => (
-                <Card key={order.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
-                  <CardContent>
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={2}
-                      alignItems={{ sm: "center" }}
-                      justifyContent="space-between"
-                    >
-                      <Box>
-                        <Typography fontWeight={600}>
-                          Mã đơn: {order.id}
-                        </Typography>
-                        <Typography color="text.secondary" fontSize={14}>
-                          Ngày đặt:{" "}
-                          {new Date(order.orderDate).toLocaleDateString(
-                            "vi-VN"
-                          )}
-                        </Typography>
-                        <Typography color="text.secondary" fontSize={14}>
-                          Tổng tiền:{" "}
-                          {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
-                        </Typography>
-                        {order.status === "DEPOSITED" && (
-                          <>
-                            <Typography color="success.main" fontSize={14}>
-                              Đã đặt cọc:{" "}
-                              {order.depositAmount?.toLocaleString("vi-VN") ||
-                                0}
-                              ₫
-                            </Typography>
-                            <Typography color="info.main" fontSize={14}>
-                              Còn lại:{" "}
-                              {order.remainingAmount?.toLocaleString("vi-VN") ||
-                                0}
-                              ₫
-                            </Typography>
-                          </>
-                        )}
-                        {order.deliveryDate && (
-                          <Typography color="primary.main" fontSize={14}>
-                            Ngày giao dự kiến:{" "}
-                            {new Date(order.deliveryDate).toLocaleDateString(
-                              "vi-VN"
-                            )}
-                          </Typography>
-                        )}
-                      </Box>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Chip
-                          label={statusMap[order.status]?.label || order.status}
-                          color={statusMap[order.status]?.color || "default"}
-                        />
-                        {["APPROVED", "CONFIRMED", "PENDING"].includes(
-                          (order.status || "").toUpperCase()
-                        ) && (
-                          <Button
-                            variant="contained"
-                            color="warning"
-                            size="small"
-                            onClick={() => handleDeposit(order)}
-                          >
-                            ĐẶT CỌC
-                          </Button>
-                        )}
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+  <Card 
+    key={order.id} 
+    sx={{ 
+      borderRadius: 2, 
+      boxShadow: 2,
+      borderLeft: order.aiDesigns ? '4px solid #6A1B9A' : 
+                order.customDesignRequests ? '4px solid #0277BD' :
+                '4px solid #558B2F'
+    }}
+  >
+    <CardContent>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        alignItems={{ sm: "center" }}
+        justifyContent="space-between"
+      >
+        <Box>
+          <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+            {order.aiDesigns ? (
+              <Chip 
+                icon={<SmartToyIcon />} 
+                label="AI Design" 
+                size="small" 
+                color="secondary"
+                sx={{ fontWeight: 500 }}
+              />
+            ) : order.customDesignRequests ? (
+              <Chip 
+                icon={<BrushIcon />} 
+                label="Custom Design" 
+                size="small" 
+                color="primary"
+                sx={{ fontWeight: 500 }}
+              />
+            ) : (
+              <Chip 
+                icon={<ShoppingBagIcon />} 
+                label="Đơn hàng thường" 
+                size="small" 
+                color="success"
+                sx={{ fontWeight: 500 }}
+              />
+            )}
+          </Stack>
+          
+          <Typography fontWeight={600}>
+            Mã đơn: {order.id}
+          </Typography>
+          
+          {order.customDesignRequests && (
+            <Typography color="text.secondary" fontSize={14}>
+              <b>Yêu cầu thiết kế:</b> {order.customDesignRequests.requirements?.substring(0, 50)}
+              {order.customDesignRequests.requirements?.length > 50 ? '...' : ''}
+            </Typography>
+          )}
+          
+          {order.aiDesigns && (
+            <Typography color="text.secondary" fontSize={14}>
+              <b>Ghi chú:</b> {order.aiDesigns.customerNote?.substring(0, 50)}
+              {order.aiDesigns.customerNote?.length > 50 ? '...' : ''}
+            </Typography>
+          )}
+          
+          <Typography color="text.secondary" fontSize={14}>
+            Ngày đặt:{" "}
+            {new Date(order.orderDate).toLocaleDateString("vi-VN")}
+          </Typography>
+          <Typography color="text.secondary" fontSize={14}>
+            Tổng tiền:{" "}
+            {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
+          </Typography>
+          {order.status === "DEPOSITED" && (
+            <>
+              <Typography color="success.main" fontSize={14}>
+                Đã đặt cọc:{" "}
+                {order.depositAmount?.toLocaleString("vi-VN") || 0}₫
+              </Typography>
+              <Typography color="info.main" fontSize={14}>
+                Còn lại:{" "}
+                {order.remainingAmount?.toLocaleString("vi-VN") || 0}₫
+              </Typography>
+            </>
+          )}
+          {order.deliveryDate && (
+            <Typography color="primary.main" fontSize={14}>
+              Ngày giao dự kiến:{" "}
+              {new Date(order.deliveryDate).toLocaleDateString("vi-VN")}
+            </Typography>
+          )}
+        </Box>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Chip
+            label={statusMap[order.status]?.label || order.status}
+            color={statusMap[order.status]?.color || "default"}
+          />
+          {["APPROVED", "CONFIRMED", "PENDING"].includes(
+            (order.status || "").toUpperCase()
+          ) && (
+            <Button
+              variant="contained"
+              color="warning"
+              size="small"
+              onClick={() => handleDeposit(order)}
+            >
+              ĐẶT CỌC
+            </Button>
+          )}
+        </Stack>
+      </Stack>
+    </CardContent>
+  </Card>
+))}
             </Stack>
           )}
         </>
@@ -390,15 +585,9 @@ const OrderHistory = () => {
             <Typography>Không có đơn thiết kế nào.</Typography>
           ) : (
             designRequests.map((req) => (
-              <Card
-                key={req.id}
-                sx={{ borderRadius: 2, boxShadow: 2, cursor: "pointer" }}
-                onClick={() => {
-                  dispatch(setCurrentDesignRequest(req));
-                  setOpenDetail(true);
-                }}
-              >
+              <Card key={req.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
                 <CardContent>
+
                   <Typography fontWeight={600}>
                     Yêu cầu: {req.requirements}
                   </Typography>
@@ -444,6 +633,132 @@ const OrderHistory = () => {
                       )}
                     </Button>
                   )}
+
+                  <Stack direction="column" spacing={1}>
+                    <Box
+                      sx={{
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        dispatch(setCurrentDesignRequest(req));
+                        setOpenDetail(true);
+                      }}
+                    >
+                      <Typography fontWeight={600}>
+                        Yêu cầu: {req.requirements}
+                      </Typography>
+                      <Typography>
+                        Tổng tiền: {req.totalPrice?.toLocaleString("vi-VN")}₫
+                      </Typography>
+                      <Typography>
+                        Đặt cọc: {req.depositAmount?.toLocaleString("vi-VN")}₫
+                      </Typography>
+                      <Typography>
+                        Trạng thái: {statusMap[req.status]?.label || req.status}
+                      </Typography>
+                      <Typography>
+                        Ngày tạo:{" "}
+                        {new Date(req.createAt).toLocaleDateString("vi-VN")}
+                      </Typography>
+                    </Box>
+
+                    {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái FULLY_PAID và chưa có lựa chọn */}
+                    {req.status === "FULLY_PAID" &&
+                      req.isNeedSupport === null &&
+                      !orders.some(
+                        (order) => order.customDesignRequests?.id === req.id
+                      ) && (
+                        <Box
+                          mt={1}
+                          p={2}
+                          border={1}
+                          borderRadius={1}
+                          borderColor="primary.light"
+                          bgcolor="#e3f2fd"
+                        >
+                          <Typography variant="body2" fontWeight="bold" mb={1}>
+                            Bạn muốn sử dụng dịch vụ thi công?
+                          </Typography>
+                          <Stack direction="row" spacing={1} mt={1}>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              disabled={constructionLoading}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConstructionOptionWithId(req.id, true);
+                              }}
+                              startIcon={
+                                constructionLoading ? (
+                                  <CircularProgress size={16} />
+                                ) : null
+                              }
+                            >
+                              Có thi công
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="primary"
+                              size="small"
+                              disabled={constructionLoading}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConstructionOptionWithId(req.id, false);
+                              }}
+                              startIcon={
+                                constructionLoading ? (
+                                  <CircularProgress size={16} />
+                                ) : null
+                              }
+                            >
+                              Không thi công
+                            </Button>
+                          </Stack>
+                        </Box>
+                      )}
+
+                    {/* Hiển thị lựa chọn thi công đã chọn trong card */}
+                    {req.status === "FULLY_PAID" && (
+                      <>
+                        {req.isNeedSupport === true &&
+                        orders.some(
+                          (order) => order.customDesignRequests?.id === req.id
+                        ) ? (
+                          <Box
+                            mt={1}
+                            p={2}
+                            border={1}
+                            borderRadius={1}
+                            borderColor="info.light"
+                            bgcolor="#e1f5fe"
+                          >
+                            <Typography variant="body2">
+                              <b>Đã chọn thi công:</b> Đơn hàng đã được tạo, vui
+                              lòng kiểm tra ở tab "Lịch sử đơn hàng"
+                            </Typography>
+                          </Box>
+                        ) : req.isNeedSupport !== null ? (
+                          <Box
+                            mt={1}
+                            p={2}
+                            border={1}
+                            borderRadius={1}
+                            borderColor="success.light"
+                            bgcolor="#e8f5e9"
+                          >
+                            <Typography variant="body2">
+                              <b>Đã chọn:</b>{" "}
+                              {req.isNeedSupport
+                                ? "Có thi công"
+                                : "Không thi công"}
+                            </Typography>
+                          </Box>
+                        ) : null}
+                      </>
+                    )}
+                  </Stack>
+
                 </CardContent>
               </Card>
             ))
@@ -738,22 +1053,126 @@ const OrderHistory = () => {
           ) : (
             <Typography>Không có dữ liệu.</Typography>
           )}
+          {currentDesignRequest &&
+            currentDesignRequest.status === "FULLY_PAID" &&
+            currentDesignRequest.isNeedSupport === null &&
+            !orders.some(
+              (order) =>
+                order.customDesignRequests?.id === currentDesignRequest.id
+            ) && (
+              <Box
+                mt={2}
+                p={2}
+                border={1}
+                borderRadius={2}
+                borderColor="primary.light"
+                bgcolor="#e3f2fd"
+              >
+                <Typography variant="subtitle1" fontWeight="bold" mb={1}>
+                  Bạn có muốn chọn dịch vụ thi công không?
+                </Typography>
+                <Stack direction="row" spacing={2} mt={1}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={constructionLoading}
+                    onClick={() =>
+                      handleConstructionOptionWithId(
+                        currentDesignRequest.id,
+                        true
+                      )
+                    }
+                    startIcon={
+                      constructionLoading ? (
+                        <CircularProgress size={20} />
+                      ) : null
+                    }
+                  >
+                    Có thi công
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    disabled={constructionLoading}
+                    onClick={() =>
+                      handleConstructionOptionWithId(
+                        currentDesignRequest.id,
+                        false
+                      )
+                    }
+                    startIcon={
+                      constructionLoading ? (
+                        <CircularProgress size={20} />
+                      ) : null
+                    }
+                  >
+                    Không thi công
+                  </Button>
+                </Stack>
+              </Box>
+            )}
+          {/* Hiển thị lựa chọn thi công đã chọn */}
+          {currentDesignRequest &&
+            currentDesignRequest.status === "FULLY_PAID" && (
+              <>
+                {currentDesignRequest.isNeedSupport === true &&
+                orders.some(
+                  (order) =>
+                    order.customDesignRequests?.id === currentDesignRequest.id
+                ) ? (
+                  <Box
+                    mt={2}
+                    p={2}
+                    border={1}
+                    borderRadius={2}
+                    borderColor="info.light"
+                    bgcolor="#e1f5fe"
+                  >
+                    <Typography variant="subtitle1">
+                      <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Bạn có thể xem đơn hàng thi công ở tab "Lịch sử đơn hàng"
+                    </Typography>
+                  </Box>
+                ) : currentDesignRequest.isNeedSupport !== null ? (
+                  <Box
+                    mt={2}
+                    p={2}
+                    border={1}
+                    borderRadius={2}
+                    borderColor="success.light"
+                    bgcolor="#e8f5e9"
+                  >
+                    <Typography variant="subtitle1">
+                      <b>Bạn đã chọn:</b>{" "}
+                      {currentDesignRequest.isNeedSupport
+                        ? "Có thi công"
+                        : "Không thi công"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Liên hệ với chúng tôi nếu bạn muốn thay đổi lựa chọn
+                    </Typography>
+                  </Box>
+                ) : null}
+              </>
+            )}
         </DialogContent>
-        <Snackbar
-          open={notification.open}
-          autoHideDuration={6000}
-          onClose={() => setNotification((n) => ({ ...n, open: false }))}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        >
-          <Alert
-            onClose={() => setNotification((n) => ({ ...n, open: false }))}
-            severity={notification.severity}
-            sx={{ width: "100%" }}
-          >
-            {notification.message}
-          </Alert>
-        </Snackbar>
       </Dialog>
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={() => setNotification((n) => ({ ...n, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setNotification((n) => ({ ...n, open: false }))}
+          severity={notification.severity}
+          sx={{ width: "100%" }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
