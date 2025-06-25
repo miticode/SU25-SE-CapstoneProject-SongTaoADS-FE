@@ -5,7 +5,10 @@ import {
   updateRequestStatusApi,
   rejectCustomDesignRequestApi,
   approveCustomDesignRequestApi,
-  fetchCustomDesignRequestsByCustomerDetailApi
+  fetchCustomDesignRequestsByCustomerDetailApi,
+  createCustomDesignRequestApi,
+  sendFinalDesignImageApi,
+  fetchDesignRequestsByDesignerApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -146,6 +149,59 @@ export const fetchAllDesignRequests = createAsyncThunk(
       return response;
     } catch (error) {
       return rejectWithValue(error.message || "An error occurred while fetching requests");
+    }
+  }
+);
+
+
+
+// 1. Tạo yêu cầu thiết kế tùy chỉnh
+// POST /api/customer-details/{customerDetailId}/customer-choices/{customerChoiceId}
+export const createCustomDesignRequest = createAsyncThunk(
+  "customDesign/createCustomDesignRequest",
+  async ({ customerDetailId, customerChoiceId, data }, { rejectWithValue }) => {
+    try {
+      const response = await createCustomDesignRequestApi(customerDetailId, customerChoiceId, data);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to create custom design request");
+      }
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while creating custom design request");
+    }
+  }
+);
+
+// 2. Designer gửi bản thiết kế chính thức
+// PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
+export const sendFinalDesignImage = createAsyncThunk(
+  "customDesign/sendFinalDesignImage",
+  async ({ customDesignRequestId, data }, { rejectWithValue }) => {
+    try {
+      const response = await sendFinalDesignImageApi(customDesignRequestId, data);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to send final design image");
+      }
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while sending final design image");
+    }
+  }
+);
+
+// 3. Designer xem các yêu cầu được giao
+// GET /api/users/{designerId}/custom-design-requests
+export const fetchDesignRequestsByDesigner = createAsyncThunk(
+  "customDesign/fetchDesignRequestsByDesigner",
+  async ({ designerId, page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await fetchDesignRequestsByDesignerApi(designerId, page, size);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to fetch design requests by designer");
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while fetching design requests by designer");
     }
   }
 );

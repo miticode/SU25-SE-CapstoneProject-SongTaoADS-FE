@@ -42,6 +42,7 @@ import {
   approvePriceProposal,
   offerPriceProposal,
 } from "../api/priceService";
+import { payCustomDesignDepositThunk } from "../store/features/payment/paymentSlice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -94,6 +95,9 @@ const OrderHistory = () => {
     message: "",
     severity: "success",
   });
+
+  const [depositLoadingId, setDepositLoadingId] = useState(null);
+
   const handleConstructionOptionWithId = (
     designRequestId,
     needConstruction
@@ -193,6 +197,7 @@ const OrderHistory = () => {
                   "Đã chọn có thi công và tạo đơn hàng thành công! Vui lòng đợi hợp đồng từ chúng tôi.",
                 severity: "success",
               });
+
 
               // Tải lại danh sách đơn hàng
               if (user?.id) {
@@ -390,6 +395,34 @@ const OrderHistory = () => {
     setActionLoading(false);
   };
 
+  // Hàm xử lý đặt cọc custom design (redirect thẳng)
+  const handleCustomDeposit = (customDesignRequestId) => {
+    setDepositLoadingId(customDesignRequestId);
+    dispatch(payCustomDesignDepositThunk(customDesignRequestId))
+      .unwrap()
+      .then((res) => {
+        setDepositLoadingId(null);
+        const checkoutUrl = res.result?.checkoutUrl;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+        } else {
+          setNotification({
+            open: true,
+            message: res.error || "Không thể tạo link thanh toán",
+            severity: "error",
+          });
+        }
+      })
+      .catch((err) => {
+        setDepositLoadingId(null);
+        setNotification({
+          open: true,
+          message: err || "Không thể tạo link thanh toán",
+          severity: "error",
+        });
+      });
+  };
+
   if (!isAuthenticated) {
     return (
       <Box
@@ -554,6 +587,53 @@ const OrderHistory = () => {
             designRequests.map((req) => (
               <Card key={req.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
                 <CardContent>
+
+                  <Typography fontWeight={600}>
+                    Yêu cầu: {req.requirements}
+                  </Typography>
+                  <Typography>
+                    Tổng tiền: {req.totalPrice?.toLocaleString("vi-VN")}₫
+                  </Typography>
+                  <Typography>
+                    Đặt cọc: {req.depositAmount?.toLocaleString("vi-VN")}₫
+                  </Typography>
+                  <Typography>
+                    Trạng thái: {statusMap[req.status]?.label || req.status}
+                  </Typography>
+                  <Typography>
+                    Ngày tạo:{" "}
+                    {new Date(req.createAt).toLocaleDateString("vi-VN")}
+                  </Typography>
+                  {req.status === "DEPOSITED" && (
+                    <Stack direction="row" spacing={1} mt={1}>
+                      <Chip
+                        label="Đợi bản demo từ designer"
+                        color="success"
+                        variant="outlined"
+                      />
+                    </Stack>
+                  )}
+                  {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
+                  {req.status === "APPROVED_PRICING" && (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      size="small"
+                      sx={{ mt: 2 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCustomDeposit(req.id);
+                      }}
+                      disabled={depositLoadingId === req.id}
+                    >
+                      {depositLoadingId === req.id ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        "Đặt cọc"
+                      )}
+                    </Button>
+                  )}
+
                   <Stack direction="column" spacing={1}>
                     <Box
                       sx={{
@@ -678,6 +758,7 @@ const OrderHistory = () => {
                       </>
                     )}
                   </Stack>
+
                 </CardContent>
               </Card>
             ))

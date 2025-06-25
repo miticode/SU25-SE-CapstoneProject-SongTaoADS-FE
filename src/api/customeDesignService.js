@@ -63,7 +63,7 @@ export const fetchCustomDesignRequestsApi = async (status, page = 1, size = 10) 
     };
   }
 };
-
+// chia task cho designer
 export const assignDesignerToRequestApi = async (customDesignRequestId, designerId) => {
   try {
     const response = await customDesignService.patch(
@@ -100,7 +100,7 @@ export const updateRequestStatusApi = async (customDesignRequestId, status) => {
   }
 };
 
-// Designer reject task
+// Designer tù chối task
 export const rejectCustomDesignRequestApi = async (customDesignRequestId) => {
   try {
     const response = await customDesignService.patch(
@@ -116,7 +116,7 @@ export const rejectCustomDesignRequestApi = async (customDesignRequestId) => {
   }
 };
 
-// Designer approve task
+// Designer đồng ý  task
 export const approveCustomDesignRequestApi = async (customDesignRequestId) => {
   try {
     const response = await customDesignService.patch(
@@ -146,6 +146,60 @@ export const fetchCustomDesignRequestsByCustomerDetailApi = async (customerDetai
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch custom design requests by customer detail'
+    };
+  }
+};
+
+// 1. Tạo yêu cầu thiết kế tùy chỉnh
+// POST /api/customer-details/{customerDetailId}/customer-choices/{customerChoiceId}
+export const createCustomDesignRequestApi = async (customerDetailId, customerChoiceId, data) => {
+  try {
+    const response = await customDesignService.post(
+      `/api/customer-details/${customerDetailId}/customer-choices/${customerChoiceId}`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create custom design request'
+    };
+  }
+};
+
+// 2. Designer gửi bản thiết kế chính thức
+// PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
+export const sendFinalDesignImageApi = async (customDesignRequestId, data) => {
+  try {
+    const response = await customDesignService.patch(
+      `/api/custom-design-requests/${customDesignRequestId}/final-design-image`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to send final design image'
+    };
+  }
+};
+
+// 3. Designer xem các yêu cầu được giao
+// GET /api/users/{designerId}/custom-design-requests
+export const fetchDesignRequestsByDesignerApi = async (designerId, page = 1, size = 10) => {
+  try {
+    const response = await customDesignService.get(
+      `/api/users/${designerId}/custom-design-requests`,
+      { params: { page, size } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch design requests by designer'
     };
   }
 };
