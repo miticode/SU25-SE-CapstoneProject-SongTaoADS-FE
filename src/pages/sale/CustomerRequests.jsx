@@ -40,6 +40,7 @@ import {
   Brush as BrushIcon,
   SmartToy as SmartToyIcon,
   Close as CloseIcon,
+  CloudUpload as CloudUploadIcon,
 } from "@mui/icons-material";
 import {
   fetchAllDesignRequests,
@@ -67,6 +68,7 @@ import {
   selectOrders,
   selectOrderStatus,
 } from "../../store/features/order/orderSlice";
+import ContractUploadForm from "../../components/ContractUploadForm";
 
 const CustomerRequests = () => {
   const dispatch = useDispatch();
@@ -105,7 +107,7 @@ const CustomerRequests = () => {
     message: "",
     severity: "success", // 'success', 'error', 'info', 'warning'
   });
-
+  const [openContractUpload, setOpenContractUpload] = useState(false);
   // State cho form báo giá
   const [priceForm, setPriceForm] = useState({
     totalPrice: "",
@@ -130,8 +132,42 @@ const CustomerRequests = () => {
     depositAmount: "",
   });
   const [actionLoading, setActionLoading] = useState(false);
-  useEffect(() => {
-    if (currentTab === 1) {
+ useEffect(() => {
+  if (currentTab === 1) {
+    // Thêm memoization để tránh fetch quá nhiều lần
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
+    dispatch(
+      fetchOrders({
+        orderStatus: selectedOrderStatus,
+        page: orderPage,
+        size: orderPageSize,
+        signal
+      })
+    );
+    
+    // Cleanup function để hủy fetch nếu component re-render
+    return () => {
+      controller.abort();
+    };
+  }
+}, [currentTab, selectedOrderStatus, orderPage, orderPageSize]);
+ const handleContractUploadSuccess = () => {
+  // Tránh vòng lặp bằng cách dùng nextTick/setTimeout
+  setTimeout(() => {
+    // Hiển thị thông báo thành công trước
+    setNotification({
+      open: true,
+      message: "Tải lên hợp đồng thành công!",
+      severity: "success",
+    });
+    
+    // Đóng form upload
+    setOpenContractUpload(false);
+    
+    // Sau đó mới dispatch action để fetch dữ liệu mới
+    setTimeout(() => {
       dispatch(
         fetchOrders({
           orderStatus: selectedOrderStatus,
@@ -139,27 +175,10 @@ const CustomerRequests = () => {
           size: orderPageSize,
         })
       );
-    }
-  }, [currentTab, selectedOrderStatus, orderPage, orderPageSize, dispatch]);
-  // const fetchCustomDesignOrders = async () => {
-  //   setOrderLoading(true);
-  //   setOrderError(null);
-  //   try {
-  //     const response = await orderService.get(
-  //       `/api/orders/custom-design?orderStatus=${selectedOrderStatus}`
-  //     );
-  //     if (response.data.success) {
-  //       setCustomOrders(response.data.result || []);
-  //     } else {
-  //       setOrderError(response.data.message || "Failed to load orders");
-  //     }
-  //   } catch (error) {
-  //     setOrderError(error.message || "An error occurred while fetching orders");
-  //     console.error("Error fetching custom design orders:", error);
-  //   } finally {
-  //     setOrderLoading(false);
-  //   }
-  // };
+    }, 300);
+  }, 0);
+};
+ 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
@@ -172,43 +191,67 @@ const CustomerRequests = () => {
     setSelectedOrder(order);
     setOrderDetailOpen(true);
   };
-  const handleCloseOrderDetails = () => {
-    setSelectedOrder(null);
-    setOrderDetailOpen(false);
-  };
-  const handleUpdateOrderStatus = async (orderId, newStatus) => {
-    setActionLoading(true);
-    try {
-      const response = await orderService.put(
-        `/api/orders/${orderId}/status?status=${newStatus}`
-      );
-      if (response.data.success) {
-        setNotification({
-          open: true,
-          message: `Đã cập nhật trạng thái sang "${
-            ORDER_STATUS_MAP[newStatus]?.label || newStatus
-          }"!`,
-          severity: "success",
-        });
-        fetchCustomDesignOrders(); // Refresh the orders list
-        handleCloseOrderDetails(); // Close the dialog
-      } else {
-        setNotification({
-          open: true,
-          message: response.data.message || "Không thể cập nhật trạng thái",
-          severity: "error",
-        });
-      }
-    } catch (error) {
+const handleCloseOrderDetails = React.useCallback(() => {
+  setSelectedOrder(null);
+  setOrderDetailOpen(false);
+}, []);
+ const handleUpdateOrderStatus = async (orderId, newStatus) => {
+  setActionLoading(true);
+  try {
+    const response = await orderService.put(
+      `/api/orders/${orderId}/status?status=${newStatus}`
+    );
+    if (response.data.success) {
+      // Hiển thị thông báo thành công
       setNotification({
         open: true,
-        message: error.message || "Đã xảy ra lỗi",
+        message: `Đã cập nhật trạng thái sang "${
+          ORDER_STATUS_MAP[newStatus]?.label || newStatus
+        }"!`,
+        severity: "success",
+      });
+      
+      // Sử dụng Redux dispatch thay vì gọi fetchCustomDesignOrders
+      dispatch(
+        fetchOrders({
+          orderStatus: selectedOrderStatus,
+          page: orderPage,
+          size: orderPageSize,
+        })
+      );
+      
+      // Đóng dialog chi tiết đơn hàng
+      handleCloseOrderDetails();
+    } else {
+      setNotification({
+        open: true,
+        message: response.data.message || "Không thể cập nhật trạng thái",
         severity: "error",
       });
-    } finally {
-      setActionLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    
+    // Hiển thị thông báo lỗi cụ thể
+    let errorMessage = "Không thể cập nhật trạng thái đơn hàng";
+    
+    if (error.response) {
+      if (error.response.status === 500) {
+        errorMessage = "Lỗi máy chủ: Đơn hàng này có thể đã được cập nhật hoặc đang có vấn đề";
+      } else {
+        errorMessage = error.response.data?.message || errorMessage;
+      }
+    }
+    
+    setNotification({
+      open: true,
+      message: errorMessage,
+      severity: "error",
+    });
+  } finally {
+    setActionLoading(false);
+  }
+};
   const handleCloseNotification = () => {
     setNotification((prev) => ({ ...prev, open: false }));
   };
@@ -302,12 +345,12 @@ const CustomerRequests = () => {
     fetchDesigners();
   };
 
-  const handleCloseDetails = () => {
-    setDetailOpen(false);
-    setSelectedRequest(null);
-    setComment("");
-    setSelectedDesigner("");
-  };
+  const handleCloseDetails = React.useCallback(() => {
+  setDetailOpen(false);
+  setSelectedRequest(null);
+  setComment("");
+  setSelectedDesigner("");
+}, []);
 
   const handleDesignerChange = (event) => {
     setSelectedDesigner(event.target.value);
@@ -1601,20 +1644,43 @@ const CustomerRequests = () => {
                             sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
                           >
                             {selectedOrder.status === "PENDING_CONTRACT" && (
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                size="small"
-                                disabled={actionLoading}
-                                onClick={() =>
-                                  handleUpdateOrderStatus(
-                                    selectedOrder.id,
-                                    "CONTRACT_SENT"
-                                  )
-                                }
-                              >
-                                Đã gửi hợp đồng
-                              </Button>
+                              <>
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  startIcon={<CloudUploadIcon />}
+                                  disabled={actionLoading}
+                                  onClick={() => setOpenContractUpload(true)}
+                                  sx={{ mr: 1 }}
+                                >
+                                  Tải lên hợp đồng
+                                </Button>
+
+                                {/* Chỉ hiển thị nút này khi cần cập nhật trạng thái thủ công */}
+                                {/* Ví dụ: khi hợp đồng được gửi qua email hoặc phương thức khác */}
+                                <Button
+                                  variant="outlined"
+                                  color="primary"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() => {
+                                    // Hiện thông báo xác nhận trước khi thay đổi trạng thái
+                                    if (
+                                      window.confirm(
+                                        "Xác nhận đã gửi hợp đồng cho khách hàng (không tải file)?"
+                                      )
+                                    ) {
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "CONTRACT_SENT"
+                                      );
+                                    }
+                                  }}
+                                >
+                                  Đánh dấu đã gửi hợp đồng
+                                </Button>
+                              </>
                             )}
 
                             {selectedOrder.status === "CONTRACT_SENT" && (
@@ -1960,6 +2026,12 @@ const CustomerRequests = () => {
           {notification.message}
         </Alert>
       </Snackbar>
+      <ContractUploadForm
+        open={openContractUpload}
+        handleClose={() => setOpenContractUpload(false)}
+        orderId={selectedOrder?.id}
+        onSuccess={handleContractUploadSuccess}
+      />
     </Box>
   );
 };

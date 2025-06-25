@@ -13,6 +13,7 @@ import chatReducer from "./features/chat/chatSlice";
 import attributeValueReducer from "./features/attribute/attributeValueSlice";
 import customDesignReducer from "./features/customeDesign/customerDesignSlice";
 import priceReducer from "./features/price/priceSlice";
+import contractReducer from "./features/contract/contractSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -29,6 +30,7 @@ export const store = configureStore({
      chat: chatReducer,
       customDesign: customDesignReducer,
       price: priceReducer,
+       contract: contractReducer,
     // Thêm các reducer khác tại đây
   },
 });
