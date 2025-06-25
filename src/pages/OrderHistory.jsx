@@ -51,6 +51,7 @@ const statusMap = {
   DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   COMPLETED: { label: "Hoàn tất", color: "primary" },
   CANCELLED: { label: "Đã bị hủy", color: "error" },
+  FULLY_PAID: { label: "Đã thanh toán", color: "success" },
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
 };
 
