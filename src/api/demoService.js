@@ -3,7 +3,6 @@ import axios from 'axios';
 const API_URL = 'https://songtaoads.online';
 const demoService = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
 
@@ -22,7 +21,7 @@ demoService.interceptors.response.use(
   (error) => Promise.reject(error)
 );
 
-// 1. Lấy lịch sử demo theo request
+// Lấy lịch sử demo theo request
 export const getDemoDesignsApi = async (customDesignRequestId) => {
   try {
     const res = await demoService.get(`/api/custom-design-requests/${customDesignRequestId}/demo-designs`);
@@ -32,7 +31,7 @@ export const getDemoDesignsApi = async (customDesignRequestId) => {
   }
 };
 
-// 2. Designer gửi bản demo cho khách hàng
+//  Designer gửi bản demo cho khách hàng
 export const createDemoDesignApi = async (customDesignRequestId, data) => {
   try {
     const res = await demoService.post(`/api/custom-design-requests/${customDesignRequestId}/demo-designs`, data);
@@ -42,7 +41,7 @@ export const createDemoDesignApi = async (customDesignRequestId, data) => {
   }
 };
 
-// 3. Khách hàng từ chối bản demo
+// Khách hàng từ chối bản demo
 export const rejectDemoDesignApi = async (customDesignId) => {
   try {
     const res = await demoService.patch(`/api/demo-designs/${customDesignId}/reject`);
@@ -52,7 +51,7 @@ export const rejectDemoDesignApi = async (customDesignId) => {
   }
 };
 
-// 4. Designer cập nhật lại hình ảnh demo
+// Designer cập nhật lại hình ảnh demo
 export const updateDemoDesignImageApi = async (customDesignId, data) => {
   try {
     const res = await demoService.patch(`/api/demo-designs/${customDesignId}/image`, data);
@@ -62,7 +61,7 @@ export const updateDemoDesignImageApi = async (customDesignId, data) => {
   }
 };
 
-// 5. Khách hàng gửi hình ảnh feedback
+// Khách hàng gửi hình ảnh feedback
 export const updateDemoDesignFeedbackImagesApi = async (customDesignId, data) => {
   try {
     const res = await demoService.patch(`/api/demo-designs/${customDesignId}/feedback-images`, data);
@@ -72,7 +71,7 @@ export const updateDemoDesignFeedbackImagesApi = async (customDesignId, data) =>
   }
 };
 
-// 6. Designer cập nhật lại miêu tả cho bản thiết kế
+// Designer cập nhật lại miêu tả cho bản thiết kế
 export const updateDemoDesignDescriptionApi = async (customDesignId, data) => {
   try {
     const res = await demoService.patch(`/api/demo-designs/${customDesignId}/designer-description`, data);
@@ -82,7 +81,7 @@ export const updateDemoDesignDescriptionApi = async (customDesignId, data) => {
   }
 };
 
-// 7. Khách hàng chấp nhận bản demo
+// Khách hàng chấp nhận bản demo
 export const approveDemoDesignApi = async (customDesignId) => {
   try {
     const res = await demoService.patch(`/api/demo-designs/${customDesignId}/approve`);
@@ -92,7 +91,7 @@ export const approveDemoDesignApi = async (customDesignId) => {
   }
 };
 
-// 8. Xóa cứng bản demo
+// Xóa cứng bản demo
 export const deleteDemoDesignApi = async (demoDesignId) => {
   try {
     const res = await demoService.delete(`/api/demo-designs/${demoDesignId}`);

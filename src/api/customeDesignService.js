@@ -6,9 +6,7 @@ const API_URL = 'https://songtaoads.online';
 // Create axios instance with interceptors
 const customDesignService = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  },
+ 
   withCredentials: true
 });
 
