@@ -43,6 +43,19 @@ import {
   approvePriceProposal,
   offerPriceProposal,
 } from "../api/priceService";
+
+import {
+  payCustomDesignDepositThunk,
+  payCustomDesignRemainingThunk,
+} from "../store/features/payment/paymentSlice";
+import {
+  getDemoDesigns,
+  approveDemoDesign,
+  rejectDemoDesign,
+} from "../store/features/demo/demoSlice";
+import { fetchUserDetail } from "../store/features/user/userSlice";
+import { unwrapResult } from "@reduxjs/toolkit";
+
 import { payCustomDesignDepositThunk } from "../store/features/payment/paymentSlice";
 import {
   CONTRACT_STATUS_MAP,
@@ -51,6 +64,7 @@ import {
   selectContractLoading,
 } from "../store/features/contract/contractSlice";
 import { openFileInNewTab } from "../api/s3Service";
+
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -62,6 +76,7 @@ const statusMap = {
   CANCELLED: { label: "Đã bị hủy", color: "error" },
   FULLY_PAID: { label: "Đã thanh toán", color: "success" },
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
+  WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
 };
 
 const OrderHistory = () => {
@@ -115,6 +130,14 @@ const OrderHistory = () => {
   });
 
   const [depositLoadingId, setDepositLoadingId] = useState(null);
+
+  const [designerMap, setDesignerMap] = useState({});
+  const [latestDemo, setLatestDemo] = useState(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [demoActionLoading, setDemoActionLoading] = useState(false);
+  const [payingRemaining, setPayingRemaining] = useState(false);
+
     const handleViewContract = async (contractUrl, contractType = "contract") => {
     if (!contractUrl) {
       setNotification({
@@ -124,6 +147,7 @@ const OrderHistory = () => {
       });
       return;
     }
+
 
     setContractViewLoading(true);
     try {
@@ -319,6 +343,42 @@ const OrderHistory = () => {
     }
   }, [openDetail, currentDesignRequest]);
 
+  // Fetch designer info khi currentDesignRequest thay đổi
+  useEffect(() => {
+    const designerId = currentDesignRequest?.assignDesigner;
+    if (designerId && !designerMap[designerId]) {
+      dispatch(fetchUserDetail(designerId))
+        .then(unwrapResult)
+        .then((user) =>
+          setDesignerMap((prev) => ({ ...prev, [designerId]: user }))
+        )
+        .catch(() =>
+          setDesignerMap((prev) => ({ ...prev, [designerId]: null }))
+        );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDesignRequest, dispatch]);
+
+  // Fetch demo mới nhất khi dialog mở hoặc currentDesignRequest thay đổi
+  useEffect(() => {
+    const fetchLatestDemo = async () => {
+      if (openDetail && currentDesignRequest) {
+        const res = await dispatch(
+          getDemoDesigns(currentDesignRequest.id)
+        ).unwrap();
+        if (res && res.length > 0) {
+          setLatestDemo(res[res.length - 1]);
+        } else {
+          setLatestDemo(null);
+        }
+      } else {
+        setLatestDemo(null);
+      }
+    };
+    fetchLatestDemo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDetail, currentDesignRequest, dispatch]);
+
   const handleDeposit = (order) => {
     navigate("/checkout", {
       state: {
@@ -429,6 +489,83 @@ const OrderHistory = () => {
       })
       .catch((err) => {
         setDepositLoadingId(null);
+        setNotification({
+          open: true,
+          message: err || "Không thể tạo link thanh toán",
+          severity: "error",
+        });
+      });
+  };
+
+  // Xử lý chấp nhận demo
+  const handleApproveDemo = async () => {
+    if (!latestDemo) return;
+    setDemoActionLoading(true);
+    try {
+      await dispatch(approveDemoDesign(latestDemo.id)).unwrap();
+      setNotification({
+        open: true,
+        message: "Chấp nhận demo thành công!",
+        severity: "success",
+      });
+      setOpenDetail(false);
+    } catch (err) {
+      setNotification({
+        open: true,
+        message: err || "Chấp nhận demo thất bại",
+        severity: "error",
+      });
+    }
+    setDemoActionLoading(false);
+  };
+  // Xử lý từ chối demo
+  const handleRejectDemo = async () => {
+    if (!latestDemo) return;
+    setDemoActionLoading(true);
+    try {
+      await dispatch(
+        rejectDemoDesign({
+          customDesignId: latestDemo.id,
+          data: { customerNote: rejectReason || "Khách hàng từ chối demo" },
+        })
+      ).unwrap();
+      setNotification({
+        open: true,
+        message: "Từ chối demo thành công!",
+        severity: "success",
+      });
+      setRejectDialogOpen(false);
+      setOpenDetail(false);
+    } catch (err) {
+      setNotification({
+        open: true,
+        message: err || "Từ chối demo thất bại",
+        severity: "error",
+      });
+    }
+    setDemoActionLoading(false);
+  };
+
+  // Thêm hàm xử lý thanh toán tiền còn lại custom design
+  const handlePayCustomDesignRemaining = (customDesignRequestId) => {
+    setPayingRemaining(true);
+    dispatch(payCustomDesignRemainingThunk(customDesignRequestId))
+      .unwrap()
+      .then((res) => {
+        setPayingRemaining(false);
+        const checkoutUrl = res.result?.checkoutUrl;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+        } else {
+          setNotification({
+            open: true,
+            message: res.error || "Không thể tạo link thanh toán",
+            severity: "error",
+          });
+        }
+      })
+      .catch((err) => {
+        setPayingRemaining(false);
         setNotification({
           open: true,
           message: err || "Không thể tạo link thanh toán",
@@ -592,7 +729,17 @@ const OrderHistory = () => {
                           label={statusMap[order.status]?.label || order.status}
                           color={statusMap[order.status]?.color || "default"}
                         />
+
+                        {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
+                        {order.status === "WAITING_FULL_PAYMENT" && (
+                          <Chip
+                            label="THANH TOÁN TIỀN CÒN LẠI"
+                            color="warning"
+                            variant="outlined"
+                          />
+
                         
+
                         {["APPROVED", "CONFIRMED", "PENDING"].includes(
                           (order.status || "").toUpperCase()
                         ) && (
@@ -646,6 +793,134 @@ const OrderHistory = () => {
             designRequests.map((req) => (
               <Card key={req.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
                 <CardContent>
+
+                  <Typography fontWeight={600}>
+                    Yêu cầu: {req.requirements}
+                  </Typography>
+                  <Typography>
+                    Tổng tiền: {req.totalPrice?.toLocaleString("vi-VN")}₫
+                  </Typography>
+                  <Typography>
+                    Đặt cọc: {req.depositAmount?.toLocaleString("vi-VN")}₫
+                  </Typography>
+                  <Typography>
+                    Trạng thái: {statusMap[req.status]?.label || req.status}
+                  </Typography>
+                  {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
+                  {req.status === "WAITING_FULL_PAYMENT" && (
+                    <Chip
+                      label="THANH TOÁN TIỀN CÒN LẠI"
+                      color="warning"
+                      variant="outlined"
+                      sx={{ mt: 1 }}
+                    />
+                  )}
+                  <Typography>
+                    Ngày tạo:{" "}
+                    {new Date(req.createAt).toLocaleDateString("vi-VN")}
+                  </Typography>
+                  {req.status === "DEPOSITED" && (
+                    <Stack direction="row" spacing={1} mt={1}>
+                      <Chip
+                        label="Đợi bản demo từ designer"
+                        color="success"
+                        variant="outlined"
+                      />
+                    </Stack>
+                  )}
+                  {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
+                  {req.status === "APPROVED_PRICING" && (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      size="small"
+                      sx={{ mt: 2 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCustomDeposit(req.id);
+                      }}
+                      disabled={depositLoadingId === req.id}
+                    >
+                      {depositLoadingId === req.id ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        "Đặt cọc"
+                      )}
+                    </Button>
+                  )}
+                  {/* Nút xem chi tiết */}
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    sx={{ mt: 2 }}
+                    onClick={() => {
+                      dispatch(setCurrentDesignRequest(req));
+                      setOpenDetail(true);
+                    }}
+                  >
+                    Xem chi tiết
+                  </Button>
+                  {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái COMPLETED và chưa có lựa chọn */}
+                  {req.status === "COMPLETED" &&
+                    req.isNeedSupport === null &&
+                    !orders.some(
+                      (order) => order.customDesignRequests?.id === req.id
+                    ) && (
+                      <Box
+                        mt={1}
+                        p={2}
+                        border={1}
+                        borderRadius={1}
+                        borderColor="primary.light"
+                        bgcolor="#e3f2fd"
+                      >
+                        <Typography variant="body2" fontWeight="bold" mb={1}>
+                          Bạn muốn sử dụng dịch vụ thi công?
+                        </Typography>
+                        <Stack direction="row" spacing={1} mt={1}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            disabled={constructionLoading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConstructionOptionWithId(req.id, true);
+                            }}
+                            startIcon={
+                              constructionLoading ? (
+                                <CircularProgress size={16} />
+                              ) : null
+                            }
+                          >
+                            Có thi công
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="primary"
+                            size="small"
+                            disabled={constructionLoading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConstructionOptionWithId(req.id, false);
+                            }}
+                            startIcon={
+                              constructionLoading ? (
+                                <CircularProgress size={16} />
+                              ) : null
+                            }
+                          >
+                            Không thi công
+                          </Button>
+                        </Stack>
+                      </Box>
+                    )}
+                  {/* Hiển thị lựa chọn thi công đã chọn trong card */}
+                  {req.status === "COMPLETED" && (
+                    <>
+                      {req.isNeedSupport === true &&
+                      orders.some(
+
                   <Stack direction="column" spacing={1}>
                     <Box
                       sx={{
@@ -707,19 +982,42 @@ const OrderHistory = () => {
                     {req.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
                       req.isNeedSupport === null &&
                       !orders.some(
+
                         (order) => order.customDesignRequests?.id === req.id
-                      ) && (
+                      ) ? (
                         <Box
                           mt={1}
                           p={2}
                           border={1}
                           borderRadius={1}
-                          borderColor="primary.light"
-                          bgcolor="#e3f2fd"
+                          borderColor="info.light"
+                          bgcolor="#e1f5fe"
                         >
-                          <Typography variant="body2" fontWeight="bold" mb={1}>
-                            Bạn muốn sử dụng dịch vụ thi công?
+                          <Typography variant="body2">
+                            <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
                           </Typography>
+
+                        </Box>
+                      ) : req.isNeedSupport !== null ? (
+                        <Box
+                          mt={1}
+                          p={2}
+                          border={1}
+                          borderRadius={1}
+                          borderColor="success.light"
+                          bgcolor="#e8f5e9"
+                        >
+                          <Typography variant="body2">
+                            <b>Đã chọn:</b>{" "}
+                            {req.isNeedSupport
+                              ? "Có thi công"
+                              : "Không thi công"}
+                          </Typography>
+                        </Box>
+                      ) : null}
+                    </>
+                  )}
+
                           <Stack direction="row" spacing={1} mt={1}>
                             <Button
                               variant="contained"
@@ -799,6 +1097,7 @@ const OrderHistory = () => {
                       </>
                     )}
                   </Stack>
+
                 </CardContent>
               </Card>
             ))
@@ -877,7 +1176,9 @@ const OrderHistory = () => {
               </Typography>
               <Typography>
                 <b>Designer phụ trách:</b>{" "}
-                {currentDesignRequest.assignDesigner || "Chưa có"}
+                {designerMap[currentDesignRequest?.assignDesigner]?.fullName ||
+                  currentDesignRequest?.assignDesigner ||
+                  "Chưa có"}
               </Typography>
               <Typography>
                 <b>Ảnh thiết kế cuối:</b>{" "}
@@ -1089,6 +1390,87 @@ const OrderHistory = () => {
                   </Button>
                 </DialogActions>
               </Dialog>
+              {/* Hiển thị demo nếu có và status là DEMO_SUBMITTED hoặc WAITING_FULL_PAYMENT */}
+              {latestDemo && (
+                <Box mt={2} mb={2}>
+                  <Typography variant="subtitle2" color="primary">
+                    Demo designer đã gửi:
+                  </Typography>
+                  <Typography>
+                    <b>Mô tả demo:</b>{" "}
+                    {latestDemo.designerDescription || "(Không có)"}
+                  </Typography>
+                  {latestDemo.demoImage && (
+                    <Box mt={1}>
+                      <img
+                        src={latestDemo.demoImage}
+                        alt="Demo đã gửi"
+                        style={{ maxWidth: 300, borderRadius: 8 }}
+                      />
+                    </Box>
+                  )}
+                  {/* Nếu status là DEMO_SUBMITTED thì hiển thị nút Chấp nhận/Từ chối demo */}
+                  {currentDesignRequest.status === "DEMO_SUBMITTED" && (
+                    <Stack direction="row" spacing={2} mt={2}>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleApproveDemo}
+                        disabled={demoActionLoading}
+                      >
+                        {demoActionLoading ? "Đang xử lý..." : "Chấp nhận demo"}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => setRejectDialogOpen(true)}
+                        disabled={demoActionLoading}
+                      >
+                        Từ chối demo
+                      </Button>
+                    </Stack>
+                  )}
+                  {/* Nếu status là WAITING_FULL_PAYMENT thì hiển thị nút Thanh Toán Tiền Còn Lại */}
+                  {currentDesignRequest.status === "WAITING_FULL_PAYMENT" && (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      sx={{ mt: 2 }}
+                      onClick={() =>
+                        handlePayCustomDesignRemaining(currentDesignRequest.id)
+                      }
+                      disabled={payingRemaining}
+                    >
+                      {payingRemaining ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        "Thanh toán tiền còn lại"
+                      )}
+                    </Button>
+                  )}
+                </Box>
+              )}
+              {/* Dưới cùng của Dialog chi tiết: nút Thanh Toán nếu còn tiền phải thanh toán */}
+              {(() => {
+                // Tìm order tương ứng với customDesignRequestId
+                const order = orders.find(
+                  (o) => o.customDesignRequests?.id === currentDesignRequest?.id
+                );
+                if (order && order.remainingAmount > 0) {
+                  return (
+                    <Box mt={3} display="flex" justifyContent="flex-end">
+                      <Button
+                        variant="contained"
+                        color="warning"
+                        onClick={() => handleDeposit(order)}
+                      >
+                        Thanh Toán
+                      </Button>
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
             </Box>
           ) : (
             <Typography>Không có dữ liệu.</Typography>
@@ -1191,6 +1573,40 @@ const OrderHistory = () => {
                 ) : null}
               </>
             )}
+          {/* Dialog nhập lý do từ chối demo */}
+          <Dialog
+            open={rejectDialogOpen}
+            onClose={() => setRejectDialogOpen(false)}
+          >
+            <DialogTitle>Lý do từ chối demo</DialogTitle>
+            <DialogContent>
+              <TextField
+                label="Lý do từ chối"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                autoFocus
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => setRejectDialogOpen(false)}
+                disabled={demoActionLoading}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleRejectDemo}
+                variant="contained"
+                color="error"
+                disabled={demoActionLoading}
+              >
+                {demoActionLoading ? "Đang gửi..." : "Xác nhận từ chối"}
+              </Button>
+            </DialogActions>
+          </Dialog>
         </DialogContent>
       </Dialog>
        <Dialog

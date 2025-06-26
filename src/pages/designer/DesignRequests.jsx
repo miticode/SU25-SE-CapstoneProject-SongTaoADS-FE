@@ -33,8 +33,15 @@ import {
   approveCustomDesignRequest,
   rejectCustomDesignRequest,
   CUSTOM_DESIGN_STATUS_MAP,
+  sendFinalDesignImage,
 } from "../../store/features/customeDesign/customerDesignSlice";
 import { fetchCustomerDetailById } from "../../store/features/customer/customerSlice";
+import {
+  createDemoDesign,
+  updateDemoDesignDescription,
+  updateDemoDesignImage,
+  getDemoDesigns,
+} from "../../store/features/demo/demoSlice";
 
 // Lấy designerId từ state đăng nhập
 import { useSelector as useAuthSelector } from "react-redux";
@@ -63,6 +70,18 @@ const DesignRequests = () => {
     message: "",
     severity: "success",
   });
+  const [openDemoDialog, setOpenDemoDialog] = useState(false);
+  const [demoForm, setDemoForm] = useState({
+    designerDescription: "",
+    customDesignImage: null,
+  });
+  const [demoFormError, setDemoFormError] = useState("");
+  const [updateDemoMode, setUpdateDemoMode] = useState(false);
+  const [currentDemoId, setCurrentDemoId] = useState(null);
+  const [latestDemo, setLatestDemo] = useState(null);
+  const [openFinalDesignDialog, setOpenFinalDesignDialog] = useState(false);
+  const [finalDesignFile, setFinalDesignFile] = useState(null);
+  const [finalDesignError, setFinalDesignError] = useState("");
 
   useEffect(() => {
     if (designerId) {
@@ -109,6 +128,22 @@ const DesignRequests = () => {
         });
     }
   }, [designerId, dispatch, pagination.currentPage, pagination.pageSize]);
+
+  // Lấy demo mới nhất khi mở dialog chi tiết
+  useEffect(() => {
+    const fetchLatestDemo = async () => {
+      if (openDialog && selectedRequest) {
+        const res = await dispatch(getDemoDesigns(selectedRequest.id)).unwrap();
+        if (res && res.length > 0) {
+          setLatestDemo(res[res.length - 1]);
+        } else {
+          setLatestDemo(null);
+        }
+      }
+    };
+    fetchLatestDemo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDialog, selectedRequest]);
 
   const handlePageChange = (event, value) => {
     setPagination((prev) => ({ ...prev, currentPage: value }));
@@ -184,6 +219,152 @@ const DesignRequests = () => {
         message: err || "Từ chối task thất bại",
         severity: "error",
       });
+    }
+    setActionLoading(false);
+  };
+
+  const handleOpenDemoDialog = async (isUpdate = false) => {
+    setDemoForm({ designerDescription: "", customDesignImage: null });
+    setDemoFormError("");
+    setUpdateDemoMode(isUpdate);
+    if (isUpdate && selectedRequest) {
+      // Lấy demoId mới nhất của đơn
+      const res = await dispatch(getDemoDesigns(selectedRequest.id)).unwrap();
+      if (res && res.length > 0) {
+        setCurrentDemoId(res[res.length - 1].id);
+      } else {
+        setCurrentDemoId(null);
+      }
+    }
+    setOpenDemoDialog(true);
+  };
+  const handleCloseDemoDialog = () => {
+    setOpenDemoDialog(false);
+    setDemoFormError("");
+  };
+  const handleDemoFormChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === "customDesignImage") {
+      setDemoForm((f) => ({ ...f, customDesignImage: files[0] }));
+    } else {
+      setDemoForm((f) => ({ ...f, [name]: value }));
+    }
+  };
+  const handleSubmitDemo = async () => {
+    if (!demoForm.designerDescription || !demoForm.customDesignImage) {
+      setDemoFormError("Vui lòng nhập mô tả và chọn ảnh demo.");
+      return;
+    }
+    setActionLoading(true);
+    setDemoFormError("");
+    try {
+      if (updateDemoMode && currentDemoId) {
+        // Cập nhật demo
+        // 1. Cập nhật mô tả
+        await dispatch(
+          updateDemoDesignDescription({
+            customDesignId: currentDemoId,
+            data: { designerDescription: demoForm.designerDescription },
+          })
+        ).unwrap();
+        // 2. Cập nhật ảnh
+        const formData = new FormData();
+        formData.append("file", demoForm.customDesignImage);
+        await dispatch(
+          updateDemoDesignImage({
+            customDesignId: currentDemoId,
+            data: formData,
+          })
+        ).unwrap();
+        setNotification({
+          open: true,
+          message: "Cập nhật demo thành công!",
+          severity: "success",
+        });
+      } else {
+        // Gửi demo lần đầu
+        const formData = new FormData();
+        formData.append("designerDescription", demoForm.designerDescription);
+        formData.append("customDesignImage", demoForm.customDesignImage);
+        await dispatch(
+          createDemoDesign({
+            customDesignRequestId: selectedRequest.id,
+            data: formData,
+          })
+        ).unwrap();
+        setNotification({
+          open: true,
+          message: "Gửi demo thành công!",
+          severity: "success",
+        });
+      }
+      setOpenDemoDialog(false);
+      setOpenDialog(false);
+      // Reload danh sách
+      dispatch(
+        fetchDesignRequestsByDesigner({
+          designerId,
+          page: pagination.currentPage,
+          size: pagination.pageSize,
+        })
+      )
+        .unwrap()
+        .then((res) => setRequests(res.result || []));
+    } catch (err) {
+      setDemoFormError(
+        err || (updateDemoMode ? "Cập nhật demo thất bại" : "Gửi demo thất bại")
+      );
+    }
+    setActionLoading(false);
+  };
+
+  const handleOpenFinalDesignDialog = () => {
+    setFinalDesignFile(null);
+    setFinalDesignError("");
+    setOpenFinalDesignDialog(true);
+  };
+  const handleCloseFinalDesignDialog = () => {
+    setOpenFinalDesignDialog(false);
+    setFinalDesignError("");
+  };
+  const handleFinalDesignFileChange = (e) => {
+    setFinalDesignFile(e.target.files[0]);
+  };
+  const handleSubmitFinalDesign = async () => {
+    if (!finalDesignFile) {
+      setFinalDesignError("Vui lòng chọn file thiết kế chính thức.");
+      return;
+    }
+    setActionLoading(true);
+    setFinalDesignError("");
+    try {
+      const formData = new FormData();
+      formData.append("finalDesignImage", finalDesignFile);
+      await dispatch(
+        sendFinalDesignImage({
+          customDesignRequestId: selectedRequest.id,
+          data: formData,
+        })
+      ).unwrap();
+      setNotification({
+        open: true,
+        message: "Gửi bản thiết kế chính thức thành công!",
+        severity: "success",
+      });
+      setOpenFinalDesignDialog(false);
+      setOpenDialog(false);
+      // Reload danh sách
+      dispatch(
+        fetchDesignRequestsByDesigner({
+          designerId,
+          page: pagination.currentPage,
+          size: pagination.pageSize,
+        })
+      )
+        .unwrap()
+        .then((res) => setRequests(res.result || []));
+    } catch (err) {
+      setFinalDesignError(err || "Gửi bản thiết kế chính thức thất bại");
     }
     setActionLoading(false);
   };
@@ -276,6 +457,27 @@ const DesignRequests = () => {
                 <Typography variant="subtitle1" gutterBottom>
                   Thông tin yêu cầu
                 </Typography>
+                {/* Hiển thị mô tả và ảnh demo nếu có */}
+                {latestDemo && (
+                  <Box mt={2} mb={2}>
+                    <Typography variant="subtitle2" color="primary">
+                      Demo đã gửi:
+                    </Typography>
+                    <Typography>
+                      <b>Mô tả demo:</b>{" "}
+                      {latestDemo.designerDescription || "(Không có)"}
+                    </Typography>
+                    {latestDemo.demoImage && (
+                      <Box mt={1}>
+                        <img
+                          src={latestDemo.demoImage}
+                          alt="Demo đã gửi"
+                          style={{ maxWidth: 300, borderRadius: 8 }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                )}
                 <Typography>
                   <b>Yêu cầu:</b> {selectedRequest.requirements}
                 </Typography>
@@ -407,36 +609,168 @@ const DesignRequests = () => {
           <Button onClick={() => setOpenDialog(false)} disabled={actionLoading}>
             Đóng
           </Button>
-          {selectedRequest && selectedRequest.status === "PROCESSING" ? (
+          {selectedRequest && selectedRequest.status === "PROCESSING" && (
             <Button
               variant="contained"
               color="primary"
-              onClick={() => {
-                /* TODO: handle gửi demo */
-              }}
+              onClick={() => handleOpenDemoDialog(false)}
+              disabled={actionLoading}
             >
               GỬI DEMO
             </Button>
-          ) : (
-            <>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={handleApprove}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Đang xử lý..." : "Chấp nhận"}
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={handleReject}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Đang xử lý..." : "Từ chối"}
-              </Button>
-            </>
           )}
+          {selectedRequest && selectedRequest.status === "DEMO_SUBMITTED" && (
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={() => handleOpenDemoDialog(true)}
+              disabled={actionLoading}
+            >
+              CẬP NHẬT DEMO
+            </Button>
+          )}
+          {selectedRequest && selectedRequest.status === "FULLY_PAID" && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleOpenFinalDesignDialog}
+              disabled={actionLoading}
+            >
+              GỬI BẢN THIẾT KẾ CHÍNH THỨC
+            </Button>
+          )}
+          {selectedRequest &&
+            !["PROCESSING", "DEMO_SUBMITTED", "FULLY_PAID"].includes(
+              selectedRequest.status
+            ) && (
+              <>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleApprove}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "Đang xử lý..." : "Chấp nhận"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={handleReject}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "Đang xử lý..." : "Từ chối"}
+                </Button>
+              </>
+            )}
+        </DialogActions>
+      </Dialog>
+      {/* Dialog gửi demo */}
+      <Dialog
+        open={openDemoDialog}
+        onClose={handleCloseDemoDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          {updateDemoMode ? "Cập nhật demo thiết kế" : "Gửi demo thiết kế"}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Mô tả demo"
+            name="designerDescription"
+            value={demoForm.designerDescription}
+            onChange={handleDemoFormChange}
+            fullWidth
+            margin="normal"
+            multiline
+            minRows={2}
+            required
+          />
+          <Button variant="outlined" component="label" fullWidth sx={{ mt: 2 }}>
+            {updateDemoMode ? "Chọn ảnh demo mới" : "Chọn ảnh demo"}
+            <input
+              type="file"
+              name="customDesignImage"
+              accept="image/*"
+              hidden
+              onChange={handleDemoFormChange}
+            />
+          </Button>
+          {demoForm.customDesignImage && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Đã chọn: {demoForm.customDesignImage.name}
+            </Typography>
+          )}
+          {demoFormError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {demoFormError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDemoDialog} disabled={actionLoading}>
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSubmitDemo}
+            variant="contained"
+            color="primary"
+            disabled={actionLoading}
+          >
+            {actionLoading
+              ? updateDemoMode
+                ? "Đang cập nhật..."
+                : "Đang gửi..."
+              : updateDemoMode
+              ? "CẬP NHẬT DEMO"
+              : "GỬI DEMO"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Dialog gửi bản thiết kế chính thức */}
+      <Dialog
+        open={openFinalDesignDialog}
+        onClose={handleCloseFinalDesignDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Gửi bản thiết kế chính thức</DialogTitle>
+        <DialogContent>
+          <Button variant="outlined" component="label" fullWidth sx={{ mt: 2 }}>
+            Chọn file thiết kế chính thức
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              hidden
+              onChange={handleFinalDesignFileChange}
+            />
+          </Button>
+          {finalDesignFile && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Đã chọn: {finalDesignFile.name}
+            </Typography>
+          )}
+          {finalDesignError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {finalDesignError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseFinalDesignDialog}
+            disabled={actionLoading}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSubmitFinalDesign}
+            variant="contained"
+            color="primary"
+            disabled={actionLoading}
+          >
+            {actionLoading ? "Đang gửi..." : "GỬI"}
+          </Button>
         </DialogActions>
       </Dialog>
       <Snackbar

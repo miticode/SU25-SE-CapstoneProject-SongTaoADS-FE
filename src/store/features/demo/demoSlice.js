@@ -19,7 +19,7 @@ const initialState = {
   actionError: null,
 };
 
-// 1. Lấy lịch sử demo theo request
+//  Lấy lịch sử demo theo request
 export const getDemoDesigns = createAsyncThunk(
   'demo/getDemoDesigns',
   async (customDesignRequestId, { rejectWithValue }) => {
@@ -29,7 +29,7 @@ export const getDemoDesigns = createAsyncThunk(
   }
 );
 
-// 2. Designer gửi bản demo cho khách hàng
+// Designer gửi bản demo cho khách hàng
 export const createDemoDesign = createAsyncThunk(
   'demo/createDemoDesign',
   async ({ customDesignRequestId, data }, { rejectWithValue }) => {
@@ -39,7 +39,7 @@ export const createDemoDesign = createAsyncThunk(
   }
 );
 
-// 3. Khách hàng từ chối bản demo
+// Khách hàng từ chối bản demo
 export const rejectDemoDesign = createAsyncThunk(
   'demo/rejectDemoDesign',
   async (customDesignId, { rejectWithValue }) => {
@@ -49,7 +49,7 @@ export const rejectDemoDesign = createAsyncThunk(
   }
 );
 
-// 4. Designer cập nhật lại hình ảnh demo
+//  Designer cập nhật lại hình ảnh demo
 export const updateDemoDesignImage = createAsyncThunk(
   'demo/updateDemoDesignImage',
   async ({ customDesignId, data }, { rejectWithValue }) => {
@@ -59,7 +59,7 @@ export const updateDemoDesignImage = createAsyncThunk(
   }
 );
 
-// 5. Khách hàng gửi hình ảnh feedback
+// Khách hàng gửi hình ảnh feedback
 export const updateDemoDesignFeedbackImages = createAsyncThunk(
   'demo/updateDemoDesignFeedbackImages',
   async ({ customDesignId, data }, { rejectWithValue }) => {
@@ -69,7 +69,7 @@ export const updateDemoDesignFeedbackImages = createAsyncThunk(
   }
 );
 
-// 6. Designer cập nhật lại miêu tả cho bản thiết kế
+//  Designer cập nhật lại miêu tả cho bản thiết kế
 export const updateDemoDesignDescription = createAsyncThunk(
   'demo/updateDemoDesignDescription',
   async ({ customDesignId, data }, { rejectWithValue }) => {
@@ -79,7 +79,7 @@ export const updateDemoDesignDescription = createAsyncThunk(
   }
 );
 
-// 7. Khách hàng chấp nhận bản demo
+//  Khách hàng chấp nhận bản demo
 export const approveDemoDesign = createAsyncThunk(
   'demo/approveDemoDesign',
   async (customDesignId, { rejectWithValue }) => {
@@ -89,7 +89,7 @@ export const approveDemoDesign = createAsyncThunk(
   }
 );
 
-// 8. Xóa cứng bản demo
+//  Xóa cứng bản demo
 export const deleteDemoDesign = createAsyncThunk(
   'demo/deleteDemoDesign',
   async (demoDesignId, { rejectWithValue }) => {
