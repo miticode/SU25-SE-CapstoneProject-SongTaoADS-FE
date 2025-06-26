@@ -161,7 +161,7 @@ export const uploadSignedContractApi = async (contractId, signedContractFile) =>
     };
 
     const response = await contractService.patch(
-      `/api/contracts/${contractId}/signed-contact`, 
+      `/api/contracts/${contractId}/signed-contract`, 
       formData, 
       config
     );
