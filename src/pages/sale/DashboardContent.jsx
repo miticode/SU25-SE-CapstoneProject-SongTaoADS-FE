@@ -29,6 +29,7 @@ import {
   MonetizationOn as MoneyIcon,
   Search as SearchIcon,
 } from "@mui/icons-material";
+import { ORDER_STATUS_MAP } from "../../store/features/order/orderSlice";
 
 const DashboardContent = ({
   stats,
@@ -259,37 +260,9 @@ const DashboardContent = ({
                   <TableCell>
                     <Chip
                       label={
-                        order.status === "pending" || order.status === "PENDING"
-                          ? "Chờ xác nhận"
-                          : order.status === "confirmed" ||
-                            order.status === "CONFIRMED"
-                          ? "Đã xác nhận"
-                          : order.status === "approved" ||
-                            order.status === "APPROVED"
-                          ? "Đã xác nhận"
-                          : order.status === "rejected" ||
-                            order.status === "REJECTED"
-                          ? "Bị từ chối"
-                          : order.status === "cancelled" ||
-                            order.status === "CANCELLED"
-                          ? "Đã hủy"
-                          : order.status
+                        ORDER_STATUS_MAP[order.status]?.label || order.status
                       }
-                      color={
-                        order.status === "pending" || order.status === "PENDING"
-                          ? "warning"
-                          : order.status === "confirmed" ||
-                            order.status === "CONFIRMED" ||
-                            order.status === "approved" ||
-                            order.status === "APPROVED"
-                          ? "success"
-                          : order.status === "rejected" ||
-                            order.status === "REJECTED" ||
-                            order.status === "cancelled" ||
-                            order.status === "CANCELLED"
-                          ? "error"
-                          : "default"
-                      }
+                      color={ORDER_STATUS_MAP[order.status]?.color || "default"}
                       size="small"
                     />
                   </TableCell>

@@ -5,7 +5,10 @@ import {
   updateRequestStatusApi,
   rejectCustomDesignRequestApi,
   approveCustomDesignRequestApi,
-  fetchCustomDesignRequestsByCustomerDetailApi
+  fetchCustomDesignRequestsByCustomerDetailApi,
+  createCustomDesignRequestApi,
+  sendFinalDesignImageApi,
+  fetchDesignRequestsByDesignerApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -18,7 +21,27 @@ const initialState = {
     totalPages: 1,
     pageSize: 10,
     totalElements: 0
-  }
+  },
+  currentDesignRequest: null
+};
+
+// Thêm hoặc cập nhật mapping trạng thái cho đơn thiết kế thủ công
+export const CUSTOM_DESIGN_STATUS_MAP = {
+  PENDING: { label: "Chờ xác nhận", color: "warning" },
+  PRICING_NOTIFIED: { label: "Đã báo giá", color: "info" },
+  NEGOTIATING: { label: "Đang thương lượng", color: "info" },
+  APPROVED_PRICING: { label: "Đã duyệt giá", color: "success" },
+  DEPOSITED: { label: "Đã đặt cọc", color: "info" },
+  ASSIGNED_DESIGNER: { label: "Đã giao designer", color: "primary" },
+  PROCESSING: { label: "Đang thiết kế", color: "primary" },
+  DESIGNER_REJECTED: { label: "Designer từ chối", color: "error" },
+  DEMO_SUBMITTED: { label: "Đã nộp demo", color: "info" },
+  REVISION_REQUESTED: { label: "Yêu cầu chỉnh sửa", color: "warning" },
+  WAITING_FULL_PAYMENT: { label: "Chờ thanh toán đủ", color: "warning" },
+  FULLY_PAID: { label: "Đã thanh toán đủ", color: "success" },
+  COMPLETED: { label: "Hoàn tất", color: "success" },
+  CANCEL: { label: "Đã hủy", color: "error" },
+  REJECTED_PRICING: { label: "Từ chối báo giá", color: "error" },
 };
 
 // Async thunk for fetching custom design requests with PENDING status
@@ -115,6 +138,74 @@ export const fetchCustomDesignRequestsByCustomerDetail = createAsyncThunk(
   }
 );
 
+export const fetchAllDesignRequests = createAsyncThunk(
+  "customDesign/fetchAllDesignRequests",
+  async ({ status = 'PENDING', page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await fetchCustomDesignRequestsApi(status, page, size);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to fetch design requests");
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while fetching requests");
+    }
+  }
+);
+
+
+
+// 1. Tạo yêu cầu thiết kế tùy chỉnh
+// POST /api/customer-details/{customerDetailId}/customer-choices/{customerChoiceId}
+export const createCustomDesignRequest = createAsyncThunk(
+  "customDesign/createCustomDesignRequest",
+  async ({ customerDetailId, customerChoiceId, data }, { rejectWithValue }) => {
+    try {
+      const response = await createCustomDesignRequestApi(customerDetailId, customerChoiceId, data);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to create custom design request");
+      }
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while creating custom design request");
+    }
+  }
+);
+
+// 2. Designer gửi bản thiết kế chính thức
+// PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
+export const sendFinalDesignImage = createAsyncThunk(
+  "customDesign/sendFinalDesignImage",
+  async ({ customDesignRequestId, data }, { rejectWithValue }) => {
+    try {
+      const response = await sendFinalDesignImageApi(customDesignRequestId, data);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to send final design image");
+      }
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while sending final design image");
+    }
+  }
+);
+
+// 3. Designer xem các yêu cầu được giao
+// GET /api/users/{designerId}/custom-design-requests
+export const fetchDesignRequestsByDesigner = createAsyncThunk(
+  "customDesign/fetchDesignRequestsByDesigner",
+  async ({ designerId, page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await fetchDesignRequestsByDesignerApi(designerId, page, size);
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to fetch design requests by designer");
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || "An error occurred while fetching design requests by designer");
+    }
+  }
+);
+
 // Create the slice
 const customerDesignSlice = createSlice({
   name: "customDesign",
@@ -123,6 +214,9 @@ const customerDesignSlice = createSlice({
     resetStatus: (state) => {
       state.status = "idle";
       state.error = null;
+    },
+    setCurrentDesignRequest: (state, action) => {
+      state.currentDesignRequest = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -234,17 +328,38 @@ const customerDesignSlice = createSlice({
       .addCase(fetchCustomDesignRequestsByCustomerDetail.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+      })
+      .addCase(fetchAllDesignRequests.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchAllDesignRequests.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.designRequests = action.payload.result;
+        state.pagination = {
+          currentPage: action.payload.currentPage,
+          totalPages: action.payload.totalPages,
+          pageSize: action.payload.pageSize,
+          totalElements: action.payload.totalElements
+        };
+        state.error = null;
+      })
+      .addCase(fetchAllDesignRequests.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
       });
   }
 });
 
 // Export actions
-export const { resetStatus } = customerDesignSlice.actions;
+export const { resetStatus, setCurrentDesignRequest } = customerDesignSlice.actions;
 
 // Selectors
 export const selectPendingDesignRequests = (state) => state.customDesign.designRequests;
 export const selectStatus = (state) => state.customDesign.status;
 export const selectError = (state) => state.customDesign.error;
 export const selectPagination = (state) => state.customDesign.pagination;
+export const selectCurrentDesignRequest = (state) => state.customDesign.currentDesignRequest;
+export const selectAllDesignRequests = (state) => state.customDesign.designRequests;
 
 export default customerDesignSlice.reducer;

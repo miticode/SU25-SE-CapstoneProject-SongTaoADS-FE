@@ -116,18 +116,27 @@ export const createAiOrderApi = async (aiDesignId, customerChoiceId, orderData) 
   }
 };
 // Hàm lấy danh sách đơn hàng
-export const getOrdersApi = async (orderStatus) => {
+export const getOrdersApi = async (orderStatus, page = 1, size = 10) => {
   if (!orderStatus) {
     throw new Error('orderStatus is required!');
   }
   try {
-    const url = `/api/orders?orderStatus=${orderStatus}`;
+    const url = `/api/orders?orderStatus=${orderStatus}&page=${page}&size=${size}`;
     const response = await orderService.get(url);
 
-    const { success, result, message } = response.data;
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
     if (success) {
-      return { success: true, data: result };
+      return { 
+        success: true, 
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
     }
 
     return { success: false, error: message || 'Invalid response format' };
@@ -258,5 +267,67 @@ export const deleteOrderApi = async (orderId) => {
     };
   }
 };
+export const createOrderFromDesignRequestApi = async (customDesignRequestId) => {
+  try {
+    const response = await orderService.post(`/api/custom-design-request/${customDesignRequestId}/orders`);
+    
+    const { success, result, message } = response.data;
+    
+    if (success) {
+      return { success: true, data: result };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error creating order from design request:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create order from design request'
+    };
+  }
+};
+export const contractResignOrderApi = async (orderId) => {
+  try {
+    console.log("Gọi API ký lại hợp đồng với orderId:", orderId);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/contract-resign`);
 
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API ký lại hợp đồng:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error contract resign order:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to contract resign order'
+    };
+  }
+};
+export const contractSignedOrderApi = async (orderId) => {
+  try {
+    console.log("Gọi API đánh dấu hợp đồng đã ký với orderId:", orderId);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/contract-signed`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API contract-signed:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error contract signed order:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to mark contract as signed'
+    };
+  }
+};
 export default orderService;
