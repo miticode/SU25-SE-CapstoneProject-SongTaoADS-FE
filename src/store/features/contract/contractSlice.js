@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
+  getOrderContractApi,
   uploadOrderContractApi,
  
 } from "../../../api/contractService";
@@ -27,7 +28,20 @@ export const uploadContract = createAsyncThunk(
     }
   }
 );
-
+export const getOrderContract = createAsyncThunk(
+  "contract/getOrderContract",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await getOrderContractApi(orderId);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể lấy thông tin hợp đồng");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể lấy thông tin hợp đồng");
+    }
+  }
+);
 
 
 const initialState = {
@@ -79,6 +93,29 @@ const contractSlice = createSlice({
         state.error = action.payload;
         state.success = false;
       })
+       .addCase(getOrderContract.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getOrderContract.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentContract = action.payload;
+        
+        // Thêm hoặc cập nhật hợp đồng trong danh sách
+        const existingContractIndex = state.contracts.findIndex(
+          (contract) => contract.id === action.payload.id
+        );
+        
+        if (existingContractIndex !== -1) {
+          state.contracts[existingContractIndex] = action.payload;
+        } else {
+          state.contracts.push(action.payload);
+        }
+      })
+      .addCase(getOrderContract.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
       
      
   },

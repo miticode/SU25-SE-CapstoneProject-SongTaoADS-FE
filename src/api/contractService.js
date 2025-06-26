@@ -62,6 +62,32 @@ export const uploadOrderContractApi = async (orderId, formData) => {
   }
 };
 
+export const getOrderContractApi = async (orderId) => {
+  try {
+    console.log("Gọi API lấy thông tin hợp đồng với orderId:", orderId);
+    const response = await contractService.get(`/api/orders/${orderId}/contract`);
 
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API lấy hợp đồng:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error getting contract:", error.response?.data || error);
+    
+    // Nếu lỗi 404 có nghĩa là chưa có hợp đồng
+    if (error.response?.status === 404) {
+      return { success: false, error: 'Chưa có hợp đồng cho đơn hàng này', notFound: true };
+    }
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to get contract'
+    };
+  }
+};
 
 export default contractService;
