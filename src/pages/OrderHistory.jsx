@@ -59,6 +59,7 @@ import { unwrapResult } from "@reduxjs/toolkit";
 import { payCustomDesignDepositThunk } from "../store/features/payment/paymentSlice";
 import {
   CONTRACT_STATUS_MAP,
+  discussContract,
   getOrderContract,
   selectContractError,
   selectContractLoading,
@@ -76,6 +77,8 @@ const statusMap = {
   CANCELLED: { label: "Đã bị hủy", color: "error" },
   FULLY_PAID: { label: "Đã thanh toán", color: "success" },
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
+  CONTRACT_SENT: { label: "Hợp đồng đã được gửi", color: "info" }, 
+  CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
   WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
 };
 
@@ -89,6 +92,7 @@ const OrderHistory = () => {
   const contractLoading = useSelector(selectContractLoading);
   const contractError = useSelector(selectContractError);
   const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
+  const [discussLoading, setDiscussLoading] = useState(false);
   const [contractDialog, setContractDialog] = useState({
     open: false,
     contract: null,
@@ -131,6 +135,48 @@ const OrderHistory = () => {
 
   const [depositLoadingId, setDepositLoadingId] = useState(null);
 
+    const handleDiscussContract = async (contractId) => {
+    if (!contractId) {
+      setNotification({
+        open: true,
+        message: "Không có ID hợp đồng",
+        severity: "error",
+      });
+      return;
+    }
+
+    setDiscussLoading(true);
+    try {
+      const result = await dispatch(discussContract(contractId));
+      if (discussContract.fulfilled.match(result)) {
+        setNotification({
+          open: true,
+          message: "Đã gửi yêu cầu thảo luận hợp đồng thành công",
+          severity: "success",
+        });
+        
+        // Cập nhật lại contract dialog với dữ liệu mới
+        setContractDialog(prev => ({
+          ...prev,
+          contract: result.payload
+        }));
+      } else {
+        setNotification({
+          open: true,
+          message: result.payload || "Không thể gửi yêu cầu thảo luận",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Lỗi khi gửi yêu cầu thảo luận",
+        severity: "error",
+      });
+    } finally {
+      setDiscussLoading(false);
+    }
+  };
   const [designerMap, setDesignerMap] = useState({});
   const [latestDemo, setLatestDemo] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -1685,7 +1731,17 @@ const OrderHistory = () => {
                     >
                       Xem hợp đồng
                     </Button>
-                  
+                    {contractDialog.contract.status === "SENT" && (
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        onClick={() => handleDiscussContract(contractDialog.contract.id)}
+                        disabled={discussLoading}
+                        startIcon={discussLoading ? <CircularProgress size={16} /> : null}
+                      >
+                        Yêu cầu thảo luận
+                      </Button>
+                    )}
                   </Stack>
                 </Box>
               )}
@@ -1716,10 +1772,18 @@ const OrderHistory = () => {
                 <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
                   <Typography variant="body2" color="warning.dark">
                     📄 Hợp đồng đã được gửi, vui lòng kiểm tra và ký hợp đồng.
+                    <br />
+                    💬 Nếu có thắc mắc, bạn có thể yêu cầu thảo luận với chúng tôi.
                   </Typography>
                 </Box>
               )}
-              
+                {contractDialog.contract.status === "DISCUSSING" && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                  <Typography variant="body2" color="info.dark">
+                    💬 Yêu cầu thảo luận đã được gửi. Chúng tôi sẽ liên hệ với bạn sớm nhất.
+                  </Typography>
+                </Box>
+              )}
               {contractDialog.contract.status === "SIGNED" && (
                 <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
                   <Typography variant="body2" color="success.dark">

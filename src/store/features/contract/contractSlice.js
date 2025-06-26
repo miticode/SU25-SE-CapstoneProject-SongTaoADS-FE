@@ -1,7 +1,9 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
+  discussContractApi,
   getOrderContractApi,
   uploadOrderContractApi,
+  uploadRevisedContractApi,
  
 } from "../../../api/contractService";
 
@@ -11,6 +13,7 @@ export const CONTRACT_STATUS_MAP = {
   SIGNED: { label: "Đã ký", color: "success" },
   REJECTED: { label: "Từ chối", color: "error" },
   PENDING_REVIEW: { label: "Chờ xem xét", color: "warning" },
+   DISCUSSING: { label: "Đang thảo luận", color: "warning" },
 };
 
 // Async thunk for uploading contract
@@ -42,7 +45,34 @@ export const getOrderContract = createAsyncThunk(
     }
   }
 );
-
+export const discussContract = createAsyncThunk(
+  "contract/discussContract",
+  async (contractId, { rejectWithValue }) => {
+    try {
+      const response = await discussContractApi(contractId);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể yêu cầu thảo luận hợp đồng");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể yêu cầu thảo luận hợp đồng");
+    }
+  }
+);
+export const uploadRevisedContract = createAsyncThunk(
+  "contract/uploadRevisedContract",
+  async ({ contractId, formData }, { rejectWithValue }) => {
+    try {
+      const response = await uploadRevisedContractApi(contractId, formData);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể tải lên hợp đồng chỉnh sửa");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tải lên hợp đồng chỉnh sửa");
+    }
+  }
+);
 
 const initialState = {
   contracts: [],
@@ -115,6 +145,55 @@ const contractSlice = createSlice({
       .addCase(getOrderContract.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(discussContract.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(discussContract.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentContract = action.payload;
+        
+        // Cập nhật hợp đồng trong danh sách
+        const existingContractIndex = state.contracts.findIndex(
+          (contract) => contract.id === action.payload.id
+        );
+        
+        if (existingContractIndex !== -1) {
+          state.contracts[existingContractIndex] = action.payload;
+        } else {
+          state.contracts.push(action.payload);
+        }
+      })
+      .addCase(discussContract.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(uploadRevisedContract.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(uploadRevisedContract.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.currentContract = action.payload;
+        
+        // Cập nhật hợp đồng trong danh sách
+        const existingContractIndex = state.contracts.findIndex(
+          (contract) => contract.id === action.payload.id
+        );
+        
+        if (existingContractIndex !== -1) {
+          state.contracts[existingContractIndex] = action.payload;
+        } else {
+          state.contracts.push(action.payload);
+        }
+      })
+      .addCase(uploadRevisedContract.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.success = false;
       });
       
      
