@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchCustomerChoiceSizesByCustomerChoiceId,
   selectCustomerChoiceSizes,
   fetchCustomerChoiceDetailsByCustomerChoiceId,
   selectCustomerChoiceDetailsList,
-  createCustomDesignOrder,
-  selectCustomDesignOrderStatus,
-  selectCustomDesignOrderError,
 } from "../store/features/customer/customerSlice";
 import { getProductTypesApi } from "../api/productTypeService";
 import { getAllSizesApi } from "../api/sizeService";
@@ -29,16 +26,16 @@ import {
   Alert,
 } from "@mui/material";
 import { FaRulerCombined, FaListAlt, FaRegStickyNote } from "react-icons/fa";
-
 import { motion } from "framer-motion";
+
 import {
   fetchAttributesByProductTypeId,
   selectAllAttributes,
 } from "../store/features/attribute/attributeSlice";
+import { createCustomDesignRequest } from "../store/features/customeDesign/customerDesignSlice";
 
 const CustomDesign = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
@@ -58,8 +55,9 @@ const CustomDesign = () => {
   const [note, setNote] = useState("");
   const attributes = useSelector(selectAllAttributes);
   const [attributeMap, setAttributeMap] = useState({});
-  const customDesignOrderStatus = useSelector(selectCustomDesignOrderStatus);
-  const customDesignOrderError = useSelector(selectCustomDesignOrderError);
+  const customDesignOrderError = useSelector(
+    (state) => state.customers?.customDesignOrderError
+  );
   const customerDetail = useSelector(
     (state) => state.customers?.customerDetail
   );
@@ -168,24 +166,28 @@ const CustomDesign = () => {
     }
     try {
       await dispatch(
-        createCustomDesignOrder({
+        createCustomDesignRequest({
           customerDetailId: customerDetail.id,
           customerChoiceId: currentOrder.id,
-          requirements: note || "",
+          data: {
+            requirements: note || "",
+            hasOrder: true,
+          },
         })
       ).unwrap();
       setSnackbar({
         open: true,
-        message: "Tạo đơn hàng thiết kế thủ công thành công!",
+        message: "Tạo yêu cầu thiết kế thủ công thành công!",
         severity: "success",
       });
       setTimeout(() => {
         window.location.href = "/";
       }, 3000);
-    } catch (err) {
+    } catch {
       setSnackbar({
         open: true,
-        message: customDesignOrderError || "Tạo đơn hàng thất bại",
+        message:
+          customDesignOrderError || "Tạo yêu cầu thiết kế thủ công thất bại",
         severity: "error",
       });
     }
@@ -393,11 +395,8 @@ const CustomDesign = () => {
                   boxShadow: 12,
                 },
               }}
-              disabled={customDesignOrderStatus === "loading"}
             >
-              {customDesignOrderStatus === "loading"
-                ? "Đang xử lý..."
-                : "Xác nhận"}
+              Xác nhận
             </Button>
           </motion.div>
         </Box>

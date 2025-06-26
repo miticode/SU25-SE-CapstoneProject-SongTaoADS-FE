@@ -350,7 +350,7 @@ const CustomerRequests = () => {
   const handleCloseDetails = React.useCallback(() => {
     setDetailOpen(false);
     setSelectedRequest(null);
-    setComment("");
+    // setComment("");
     setSelectedDesigner("");
   }, []);
 
