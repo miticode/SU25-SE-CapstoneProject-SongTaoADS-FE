@@ -56,7 +56,7 @@ import {
 import { fetchUserDetail } from "../store/features/user/userSlice";
 import { unwrapResult } from "@reduxjs/toolkit";
 
-import { payCustomDesignDepositThunk } from "../store/features/payment/paymentSlice";
+
 import {
   CONTRACT_STATUS_MAP,
   discussContract,
@@ -783,8 +783,7 @@ const OrderHistory = () => {
                             color="warning"
                             variant="outlined"
                           />
-
-                        
+                        )}
 
                         {["APPROVED", "CONFIRMED", "PENDING"].includes(
                           (order.status || "").toUpperCase()
@@ -839,134 +838,6 @@ const OrderHistory = () => {
             designRequests.map((req) => (
               <Card key={req.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
                 <CardContent>
-
-                  <Typography fontWeight={600}>
-                    Yêu cầu: {req.requirements}
-                  </Typography>
-                  <Typography>
-                    Tổng tiền: {req.totalPrice?.toLocaleString("vi-VN")}₫
-                  </Typography>
-                  <Typography>
-                    Đặt cọc: {req.depositAmount?.toLocaleString("vi-VN")}₫
-                  </Typography>
-                  <Typography>
-                    Trạng thái: {statusMap[req.status]?.label || req.status}
-                  </Typography>
-                  {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
-                  {req.status === "WAITING_FULL_PAYMENT" && (
-                    <Chip
-                      label="THANH TOÁN TIỀN CÒN LẠI"
-                      color="warning"
-                      variant="outlined"
-                      sx={{ mt: 1 }}
-                    />
-                  )}
-                  <Typography>
-                    Ngày tạo:{" "}
-                    {new Date(req.createAt).toLocaleDateString("vi-VN")}
-                  </Typography>
-                  {req.status === "DEPOSITED" && (
-                    <Stack direction="row" spacing={1} mt={1}>
-                      <Chip
-                        label="Đợi bản demo từ designer"
-                        color="success"
-                        variant="outlined"
-                      />
-                    </Stack>
-                  )}
-                  {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
-                  {req.status === "APPROVED_PRICING" && (
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      size="small"
-                      sx={{ mt: 2 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCustomDeposit(req.id);
-                      }}
-                      disabled={depositLoadingId === req.id}
-                    >
-                      {depositLoadingId === req.id ? (
-                        <CircularProgress size={20} color="inherit" />
-                      ) : (
-                        "Đặt cọc"
-                      )}
-                    </Button>
-                  )}
-                  {/* Nút xem chi tiết */}
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    sx={{ mt: 2 }}
-                    onClick={() => {
-                      dispatch(setCurrentDesignRequest(req));
-                      setOpenDetail(true);
-                    }}
-                  >
-                    Xem chi tiết
-                  </Button>
-                  {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái COMPLETED và chưa có lựa chọn */}
-                  {req.status === "COMPLETED" &&
-                    req.isNeedSupport === null &&
-                    !orders.some(
-                      (order) => order.customDesignRequests?.id === req.id
-                    ) && (
-                      <Box
-                        mt={1}
-                        p={2}
-                        border={1}
-                        borderRadius={1}
-                        borderColor="primary.light"
-                        bgcolor="#e3f2fd"
-                      >
-                        <Typography variant="body2" fontWeight="bold" mb={1}>
-                          Bạn muốn sử dụng dịch vụ thi công?
-                        </Typography>
-                        <Stack direction="row" spacing={1} mt={1}>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            disabled={constructionLoading}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConstructionOptionWithId(req.id, true);
-                            }}
-                            startIcon={
-                              constructionLoading ? (
-                                <CircularProgress size={16} />
-                              ) : null
-                            }
-                          >
-                            Có thi công
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            color="primary"
-                            size="small"
-                            disabled={constructionLoading}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConstructionOptionWithId(req.id, false);
-                            }}
-                            startIcon={
-                              constructionLoading ? (
-                                <CircularProgress size={16} />
-                              ) : null
-                            }
-                          >
-                            Không thi công
-                          </Button>
-                        </Stack>
-                      </Box>
-                    )}
-                  {/* Hiển thị lựa chọn thi công đã chọn trong card */}
-                  {req.status === "COMPLETED" && (
-                    <>
-                      {req.isNeedSupport === true &&
-                      orders.some(
-
                   <Stack direction="column" spacing={1}>
                     <Box
                       sx={{
@@ -994,6 +865,17 @@ const OrderHistory = () => {
                         {new Date(req.createAt).toLocaleDateString("vi-VN")}
                       </Typography>
                     </Box>
+
+                    {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
+                    {req.status === "WAITING_FULL_PAYMENT" && (
+                      <Chip
+                        label="THANH TOÁN TIỀN CÒN LẠI"
+                        color="warning"
+                        variant="outlined"
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+
                     {/* Hiển thị badge cho trạng thái DEPOSITED */}
                     {req.status === "DEPOSITED" && (
                       <Stack direction="row" spacing={1} mt={1}>
@@ -1004,6 +886,7 @@ const OrderHistory = () => {
                         />
                       </Stack>
                     )}
+
                     {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
                     {req.status === "APPROVED_PRICING" && (
                       <Button
@@ -1024,46 +907,37 @@ const OrderHistory = () => {
                         )}
                       </Button>
                     )}
-                    {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái FULLY_PAID và chưa có lựa chọn */}
-                    {req.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
+
+                    {/* Nút xem chi tiết */}
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      sx={{ mt: 2 }}
+                      onClick={() => {
+                        dispatch(setCurrentDesignRequest(req));
+                        setOpenDetail(true);
+                      }}
+                    >
+                      Xem chi tiết
+                    </Button>
+
+                    {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái COMPLETED và chưa có lựa chọn */}
+                    {req.status === "COMPLETED" &&
                       req.isNeedSupport === null &&
                       !orders.some(
-
                         (order) => order.customDesignRequests?.id === req.id
-                      ) ? (
+                      ) && (
                         <Box
                           mt={1}
                           p={2}
                           border={1}
                           borderRadius={1}
-                          borderColor="info.light"
-                          bgcolor="#e1f5fe"
+                          borderColor="primary.light"
+                          bgcolor="#e3f2fd"
                         >
-                          <Typography variant="body2">
-                            <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
+                          <Typography variant="body2" fontWeight="bold" mb={1}>
+                            Bạn muốn sử dụng dịch vụ thi công?
                           </Typography>
-
-                        </Box>
-                      ) : req.isNeedSupport !== null ? (
-                        <Box
-                          mt={1}
-                          p={2}
-                          border={1}
-                          borderRadius={1}
-                          borderColor="success.light"
-                          bgcolor="#e8f5e9"
-                        >
-                          <Typography variant="body2">
-                            <b>Đã chọn:</b>{" "}
-                            {req.isNeedSupport
-                              ? "Có thi công"
-                              : "Không thi công"}
-                          </Typography>
-                        </Box>
-                      ) : null}
-                    </>
-                  )}
-
                           <Stack direction="row" spacing={1} mt={1}>
                             <Button
                               variant="contained"
@@ -1104,7 +978,7 @@ const OrderHistory = () => {
                       )}
 
                     {/* Hiển thị lựa chọn thi công đã chọn trong card */}
-                    {req.status === "COMPLETED" && ( // Thay "FULLY_PAID" thành "COMPLETED"
+                    {req.status === "COMPLETED" && (
                       <>
                         {req.isNeedSupport === true &&
                         orders.some(
@@ -1143,7 +1017,6 @@ const OrderHistory = () => {
                       </>
                     )}
                   </Stack>
-
                 </CardContent>
               </Card>
             ))
