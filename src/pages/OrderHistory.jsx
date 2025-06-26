@@ -27,6 +27,7 @@ import SmartToyIcon from "@mui/icons-material/SmartToy";
 import BrushIcon from "@mui/icons-material/Brush";
 import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import DescriptionIcon from "@mui/icons-material/Description";
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
@@ -43,6 +44,13 @@ import {
   offerPriceProposal,
 } from "../api/priceService";
 import { payCustomDesignDepositThunk } from "../store/features/payment/paymentSlice";
+import {
+  CONTRACT_STATUS_MAP,
+  getOrderContract,
+  selectContractError,
+  selectContractLoading,
+} from "../store/features/contract/contractSlice";
+import { openFileInNewTab } from "../api/s3Service";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -63,6 +71,14 @@ const OrderHistory = () => {
   const dispatch = useDispatch();
   const [constructionLoading, setConstructionLoading] = useState(false);
   // Redux state for custom design requests
+  const contractLoading = useSelector(selectContractLoading);
+  const contractError = useSelector(selectContractError);
+  const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
+  const [contractDialog, setContractDialog] = useState({
+    open: false,
+    contract: null,
+    orderId: null,
+  });
   const customDesignState = useSelector((state) => state.customDesign);
   const {
     designRequests,
@@ -80,6 +96,8 @@ const OrderHistory = () => {
   const [openDetail, setOpenDetail] = useState(false);
   const [priceProposals, setPriceProposals] = useState([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
+   const [contractViewLoading, setContractViewLoading] = useState(false);
+
   const [offerDialog, setOfferDialog] = useState({
     open: false,
     proposalId: null,
@@ -97,11 +115,74 @@ const OrderHistory = () => {
   });
 
   const [depositLoadingId, setDepositLoadingId] = useState(null);
+    const handleViewContract = async (contractUrl, contractType = "contract") => {
+    if (!contractUrl) {
+      setNotification({
+        open: true,
+        message: "Không có URL hợp đồng",
+        severity: "error",
+      });
+      return;
+    }
 
-  const handleConstructionOptionWithId = (
-    designRequestId,
-    needConstruction
-  ) => {
+    setContractViewLoading(true);
+    try {
+      const result = await openFileInNewTab(contractUrl, 30);
+      if (!result.success) {
+        setNotification({
+          open: true,
+          message: result.message || "Không thể mở hợp đồng",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Lỗi khi mở hợp đồng",
+        severity: "error",
+      });
+    } finally {
+      setContractViewLoading(false);
+    }
+  };
+    
+
+  const handleGetContract = async (orderId) => {
+    try {
+      const result = await dispatch(getOrderContract(orderId));
+      if (getOrderContract.fulfilled.match(result)) {
+        setContractData((prev) => ({
+          ...prev,
+          [orderId]: result.payload,
+        }));
+        setContractDialog({
+          open: true,
+          contract: result.payload,
+          orderId: orderId,
+        });
+      } else {
+        setNotification({
+          open: true,
+          message: result.payload || "Không thể lấy thông tin hợp đồng",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Lỗi khi lấy hợp đồng",
+        severity: "error",
+      });
+    }
+  };
+  const handleCloseContractDialog = () => {
+    setContractDialog({
+      open: false,
+      contract: null,
+      orderId: null,
+    });
+  };
+  const handleConstructionChoice = (designRequestId, needConstruction) => {
     setConstructionLoading(true);
 
     // Tìm design request theo ID để cập nhật UI
@@ -174,74 +255,7 @@ const OrderHistory = () => {
       setConstructionLoading(false);
     }
   };
-  const handleConstructionOption = (needConstruction) => {
-    setConstructionLoading(true);
 
-    // Lưu vào state trước
-    if (currentDesignRequest) {
-      dispatch(
-        setCurrentDesignRequest({
-          ...currentDesignRequest,
-          isNeedSupport: needConstruction,
-        })
-      );
-
-      // Nếu chọn "Có thi công" thì gọi API tạo đơn hàng
-      if (needConstruction) {
-        dispatch(createOrderFromDesignRequest(currentDesignRequest.id)).then(
-          (resultAction) => {
-            if (createOrderFromDesignRequest.fulfilled.match(resultAction)) {
-              setNotification({
-                open: true,
-                message:
-                  "Đã chọn có thi công và tạo đơn hàng thành công! Vui lòng đợi hợp đồng từ chúng tôi.",
-                severity: "success",
-              });
-
-
-              // Tải lại danh sách đơn hàng
-              if (user?.id) {
-                dispatch(fetchOrdersByUserId(user.id));
-              }
-            } else {
-              setNotification({
-                open: true,
-                message:
-                  resultAction.payload ||
-                  "Đã chọn có thi công nhưng không thể tạo đơn hàng!",
-                severity: "error",
-              });
-            }
-            setConstructionLoading(false);
-          }
-        );
-      } else {
-        // Nếu chọn "Không thi công" thì hiện thông báo bình thường
-        setNotification({
-          open: true,
-          message: "Đơn hàng sẽ không thi công, cảm ơn bạn",
-          severity: "success",
-        });
-        setConstructionLoading(false);
-      }
-
-      // Cập nhật lại danh sách đơn thiết kế để hiển thị đúng trạng thái
-      dispatch(
-        fetchCustomDesignRequestsByCustomerDetail({
-          customerDetailId: customerDetailId,
-          page: 1,
-          size: 10,
-        })
-      );
-    } else {
-      setNotification({
-        open: true,
-        message: "Không thể xác định yêu cầu thiết kế hiện tại",
-        severity: "error",
-      });
-      setConstructionLoading(false);
-    }
-  };
   const handleTabChange = (event, newValue) => setTab(newValue);
 
   useEffect(() => {
@@ -578,6 +592,7 @@ const OrderHistory = () => {
                           label={statusMap[order.status]?.label || order.status}
                           color={statusMap[order.status]?.color || "default"}
                         />
+                        
                         {["APPROVED", "CONFIRMED", "PENDING"].includes(
                           (order.status || "").toUpperCase()
                         ) && (
@@ -588,6 +603,25 @@ const OrderHistory = () => {
                             onClick={() => handleDeposit(order)}
                           >
                             ĐẶT CỌC
+                          </Button>
+                        )}
+                        {[
+                          "CONTRACT_SENT",
+                          
+                        ].includes((order.status || "").toUpperCase()) && (
+                          <Button
+                            variant="outlined"
+                            color="info"
+                            size="small"
+                            onClick={() => handleGetContract(order.id)}
+                            disabled={contractLoading}
+                            startIcon={
+                              contractLoading ? (
+                                <CircularProgress size={16} />
+                              ) : null
+                            }
+                          >
+                            Xem hợp đồng
                           </Button>
                         )}
                       </Stack>
@@ -612,53 +646,6 @@ const OrderHistory = () => {
             designRequests.map((req) => (
               <Card key={req.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
                 <CardContent>
-
-                  <Typography fontWeight={600}>
-                    Yêu cầu: {req.requirements}
-                  </Typography>
-                  <Typography>
-                    Tổng tiền: {req.totalPrice?.toLocaleString("vi-VN")}₫
-                  </Typography>
-                  <Typography>
-                    Đặt cọc: {req.depositAmount?.toLocaleString("vi-VN")}₫
-                  </Typography>
-                  <Typography>
-                    Trạng thái: {statusMap[req.status]?.label || req.status}
-                  </Typography>
-                  <Typography>
-                    Ngày tạo:{" "}
-                    {new Date(req.createAt).toLocaleDateString("vi-VN")}
-                  </Typography>
-                  {req.status === "DEPOSITED" && (
-                    <Stack direction="row" spacing={1} mt={1}>
-                      <Chip
-                        label="Đợi bản demo từ designer"
-                        color="success"
-                        variant="outlined"
-                      />
-                    </Stack>
-                  )}
-                  {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
-                  {req.status === "APPROVED_PRICING" && (
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      size="small"
-                      sx={{ mt: 2 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCustomDeposit(req.id);
-                      }}
-                      disabled={depositLoadingId === req.id}
-                    >
-                      {depositLoadingId === req.id ? (
-                        <CircularProgress size={20} color="inherit" />
-                      ) : (
-                        "Đặt cọc"
-                      )}
-                    </Button>
-                  )}
-
                   <Stack direction="column" spacing={1}>
                     <Box
                       sx={{
@@ -686,7 +673,36 @@ const OrderHistory = () => {
                         {new Date(req.createAt).toLocaleDateString("vi-VN")}
                       </Typography>
                     </Box>
-
+                    {/* Hiển thị badge cho trạng thái DEPOSITED */}
+                    {req.status === "DEPOSITED" && (
+                      <Stack direction="row" spacing={1} mt={1}>
+                        <Chip
+                          label="Đợi bản demo từ designer"
+                          color="success"
+                          variant="outlined"
+                        />
+                      </Stack>
+                    )}
+                    {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
+                    {req.status === "APPROVED_PRICING" && (
+                      <Button
+                        variant="contained"
+                        color="warning"
+                        size="small"
+                        sx={{ mt: 2 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCustomDeposit(req.id);
+                        }}
+                        disabled={depositLoadingId === req.id}
+                      >
+                        {depositLoadingId === req.id ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          "Đặt cọc"
+                        )}
+                      </Button>
+                    )}
                     {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái FULLY_PAID và chưa có lựa chọn */}
                     {req.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
                       req.isNeedSupport === null &&
@@ -712,7 +728,7 @@ const OrderHistory = () => {
                               disabled={constructionLoading}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleConstructionOptionWithId(req.id, true);
+                                handleConstructionChoice(req.id, true);
                               }}
                               startIcon={
                                 constructionLoading ? (
@@ -729,7 +745,7 @@ const OrderHistory = () => {
                               disabled={constructionLoading}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleConstructionOptionWithId(req.id, false);
+                                handleConstructionChoice(req.id, false);
                               }}
                               startIcon={
                                 constructionLoading ? (
@@ -783,7 +799,6 @@ const OrderHistory = () => {
                       </>
                     )}
                   </Stack>
-
                 </CardContent>
               </Card>
             ))
@@ -1102,10 +1117,7 @@ const OrderHistory = () => {
                     color="primary"
                     disabled={constructionLoading}
                     onClick={() =>
-                      handleConstructionOptionWithId(
-                        currentDesignRequest.id,
-                        true
-                      )
+                      handleConstructionChoice(currentDesignRequest.id, true)
                     }
                     startIcon={
                       constructionLoading ? (
@@ -1120,10 +1132,7 @@ const OrderHistory = () => {
                     color="primary"
                     disabled={constructionLoading}
                     onClick={() =>
-                      handleConstructionOptionWithId(
-                        currentDesignRequest.id,
-                        false
-                      )
+                      handleConstructionChoice(currentDesignRequest.id, false)
                     }
                     startIcon={
                       constructionLoading ? (
@@ -1183,6 +1192,145 @@ const OrderHistory = () => {
               </>
             )}
         </DialogContent>
+      </Dialog>
+       <Dialog
+        open={contractDialog.open}
+        onClose={handleCloseContractDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Thông tin hợp đồng - Đơn hàng #{contractDialog.orderId}
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseContractDialog}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {contractDialog.contract ? (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Chi tiết hợp đồng
+              </Typography>
+              
+              <Typography sx={{ mb: 1 }}>
+                <b>ID hợp đồng:</b> {contractDialog.contract.id}
+              </Typography>
+              
+              <Typography sx={{ mb: 1 }}>
+                <b>Số hợp đồng:</b> {contractDialog.contract.contractNumber || "N/A"}
+              </Typography>
+              
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <Typography>
+                  <b>Trạng thái:</b>
+                </Typography>
+                <Chip
+                  label={CONTRACT_STATUS_MAP[contractDialog.contract.status]?.label || contractDialog.contract.status}
+                  color={CONTRACT_STATUS_MAP[contractDialog.contract.status]?.color || "default"}
+                  size="small"
+                />
+              </Stack>
+              
+              <Typography sx={{ mb: 1 }}>
+                <b>Ngày gửi:</b> {contractDialog.contract.sentDate 
+                  ? new Date(contractDialog.contract.sentDate).toLocaleString("vi-VN")
+                  : "N/A"}
+              </Typography>
+              
+              {contractDialog.contract.signedDate && (
+                <Typography sx={{ mb: 1 }}>
+                  <b>Ngày ký:</b> {new Date(contractDialog.contract.signedDate).toLocaleString("vi-VN")}
+                </Typography>
+              )}
+              
+              {contractDialog.contract.depositPercentChanged && (
+                <Typography sx={{ mb: 1 }}>
+                  <b>Tỷ lệ đặt cọc thay đổi:</b> {contractDialog.contract.depositPercentChanged}%
+                </Typography>
+              )}
+              
+              {/* Hợp đồng gốc */}
+              {contractDialog.contract.contractUrl && (
+                <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'primary.main', borderRadius: 1 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    📄 Hợp đồng gốc
+                  </Typography>
+                  <Stack direction="row" spacing={2} flexWrap="wrap">
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => handleViewContract(contractDialog.contract.contractUrl, "original")}
+                      disabled={contractViewLoading}
+                      startIcon={contractViewLoading ? <CircularProgress size={16} /> : null}
+                    >
+                      Xem hợp đồng
+                    </Button>
+                  
+                  </Stack>
+                </Box>
+              )}
+              
+              {/* Hợp đồng đã ký */}
+              {contractDialog.contract.signedContractUrl && (
+                <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'success.main', borderRadius: 1 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    ✅ Hợp đồng đã ký
+                  </Typography>
+                  <Stack direction="row" spacing={2} flexWrap="wrap">
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={() => handleViewContract(contractDialog.contract.signedContractUrl, "signed")}
+                      disabled={contractViewLoading}
+                      startIcon={contractViewLoading ? <CircularProgress size={16} /> : null}
+                    >
+                      Xem hợp đồng đã ký
+                    </Button>
+                   
+                  </Stack>
+                </Box>
+              )}
+              
+              {/* Status messages */}
+              {contractDialog.contract.status === "SENT" && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                  <Typography variant="body2" color="warning.dark">
+                    📄 Hợp đồng đã được gửi, vui lòng kiểm tra và ký hợp đồng.
+                  </Typography>
+                </Box>
+              )}
+              
+              {contractDialog.contract.status === "SIGNED" && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                  <Typography variant="body2" color="success.dark">
+                    ✅ Hợp đồng đã được ký thành công!
+                  </Typography>
+                </Box>
+              )}
+              
+              {contractDialog.contract.status === "REJECTED" && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+                  <Typography variant="body2" color="error.dark">
+                    ❌ Hợp đồng đã bị từ chối. Vui lòng liên hệ để được hỗ trợ.
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="text.secondary">
+                Chưa có hợp đồng cho đơn hàng này
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseContractDialog}>Đóng</Button>
+        </DialogActions>
       </Dialog>
       <Snackbar
         open={notification.open}
