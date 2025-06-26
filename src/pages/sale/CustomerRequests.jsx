@@ -71,6 +71,8 @@ import {
 } from "../../store/features/order/orderSlice";
 
 import ContractUploadForm from "../../components/ContractUploadForm";
+import UploadRevisedContract from "../../components/UploadRevisedContract";
+import { getOrderContractApi } from "../../api/contractService";
 
 const CustomerRequests = () => {
   const dispatch = useDispatch();
@@ -94,7 +96,8 @@ const CustomerRequests = () => {
   const [currentTab, setCurrentTab] = useState(0); // 0: Design Requests, 1: Custom Design Orders
   const [customOrders, setCustomOrders] = useState([]);
   const [orderLoading, setOrderLoading] = useState(false);
-
+  const [contractId, setContractId] = useState(null);
+  const [fetchingContract, setFetchingContract] = useState(false);
   const orders = useSelector(selectOrders);
   const orderStatus = useSelector(selectOrderStatus);
   const orderError = useSelector(selectOrderError);
@@ -109,6 +112,8 @@ const CustomerRequests = () => {
     severity: "success", // 'success', 'error', 'info', 'warning'
   });
   const [openContractUpload, setOpenContractUpload] = useState(false);
+  const [openRevisedContractUpload, setOpenRevisedContractUpload] =
+    useState(false);
   // State cho form báo giá
   const [priceForm, setPriceForm] = useState({
     totalPrice: "",
@@ -154,6 +159,62 @@ const CustomerRequests = () => {
       };
     }
   }, [currentTab, selectedOrderStatus, orderPage, orderPageSize]);
+  const getContractIdForOrder = async (orderId) => {
+    setFetchingContract(true);
+    try {
+      console.log("Fetching contract for order:", orderId);
+      const response = await getOrderContractApi(orderId);
+
+      if (response.success && response.data) {
+        console.log("Contract found:", response.data);
+        setContractId(response.data.id);
+        setOpenRevisedContractUpload(true);
+      } else {
+        console.log("No contract found:", response);
+        setNotification({
+          open: true,
+          message: "Không tìm thấy hợp đồng cho đơn hàng này",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching contract:", error);
+      setNotification({
+        open: true,
+        message: "Lỗi khi tải thông tin hợp đồng: " + error.message,
+        severity: "error",
+      });
+    } finally {
+      setFetchingContract(false);
+    }
+  };
+  const handleRevisedContractUploadSuccess = (updatedContract) => {
+    setNotification({
+      open: true,
+      message: "Tải lên hợp đồng chỉnh sửa thành công!",
+      severity: "success",
+    });
+
+    // Close upload dialog first
+    setOpenRevisedContractUpload(false);
+    setContractId(null);
+
+    // Refresh data
+    setTimeout(() => {
+      dispatch(
+        fetchOrders({
+          orderStatus: selectedOrderStatus,
+          page: orderPage,
+          size: orderPageSize,
+        })
+      );
+    }, 300);
+
+    // Close main dialog last
+    setTimeout(() => {
+      handleCloseOrderDetails();
+    }, 200);
+  };
   const handleContractUploadSuccess = () => {
     // Tránh vòng lặp bằng cách dùng nextTick/setTimeout
     setTimeout(() => {
@@ -189,12 +250,26 @@ const CustomerRequests = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
   const handleViewOrderDetails = (order) => {
+    console.log("Order data structure:", order);
     setSelectedOrder(order);
     setOrderDetailOpen(true);
   };
-  const handleCloseOrderDetails = React.useCallback(() => {
-    setSelectedOrder(null);
-    setOrderDetailOpen(false);
+   const handleCloseOrderDetails = React.useCallback(() => {
+    // Blur focused element
+    if (document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
+    
+    // Close any open nested dialogs first
+    setOpenRevisedContractUpload(false);
+    setOpenContractUpload(false);
+    setContractId(null);
+    
+    // Then close main dialog
+    setTimeout(() => {
+      setSelectedOrder(null);
+      setOrderDetailOpen(false);
+    }, 50);
   }, []);
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     setActionLoading(true);
@@ -1404,6 +1479,8 @@ const CustomerRequests = () => {
         onClose={handleCloseOrderDetails}
         maxWidth="md"
         fullWidth
+          disableRestoreFocus
+        keepMounted={false}
       >
         {selectedOrder && (
           <>
@@ -1774,6 +1851,27 @@ const CustomerRequests = () => {
                                   variant="contained"
                                   color="primary"
                                   size="small"
+                                  startIcon={
+                                    fetchingContract ? (
+                                      <CircularProgress size={16} />
+                                    ) : (
+                                      <CloudUploadIcon />
+                                    )
+                                  }
+                                  disabled={actionLoading || fetchingContract}
+                                  onClick={() =>
+                                    getContractIdForOrder(selectedOrder.id)
+                                  } // SỬA LẠI
+                                  sx={{ mr: 1 }}
+                                >
+                                  {fetchingContract
+                                    ? "Đang tải..."
+                                    : "Upload hợp đồng chỉnh sửa"}
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
                                   disabled={actionLoading}
                                   onClick={() =>
                                     handleUpdateOrderStatus(
@@ -2083,6 +2181,15 @@ const CustomerRequests = () => {
         handleClose={() => setOpenContractUpload(false)}
         orderId={selectedOrder?.id}
         onSuccess={handleContractUploadSuccess}
+      />
+       <UploadRevisedContract
+        open={openRevisedContractUpload}
+        onClose={() => {
+          setOpenRevisedContractUpload(false);
+          setContractId(null);
+        }}
+        contractId={contractId}
+        onSuccess={handleRevisedContractUploadSuccess}
       />
     </Box>
   );

@@ -89,5 +89,61 @@ export const getOrderContractApi = async (orderId) => {
     };
   }
 };
+export const discussContractApi = async (contractId) => {
+  try {
+    console.log("Gọi API thảo luận hợp đồng với contractId:", contractId);
+    const response = await contractService.patch(`/api/contracts/${contractId}/discuss`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API thảo luận hợp đồng:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error discussing contract:", error.response?.data || error);
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to discuss contract'
+    };
+  }
+};
+export const uploadRevisedContractApi = async (contractId, formData) => {
+  try {
+    console.log("Gọi API upload hợp đồng chỉnh sửa với contractId:", contractId);
+    
+    // FormData với Content-Type tự động được set là multipart/form-data
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    };
+
+    const response = await contractService.patch(
+      `/api/contracts/${contractId}/revised-contract`, 
+      formData, 
+      config
+    );
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API upload hợp đồng chỉnh sửa:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error uploading revised contract:", error.response?.data || error);
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to upload revised contract'
+    };
+  }
+};
 
 export default contractService;
