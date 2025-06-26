@@ -145,5 +145,42 @@ export const uploadRevisedContractApi = async (contractId, formData) => {
     };
   }
 };
+export const uploadSignedContractApi = async (contractId, signedContractFile) => {
+  try {
+    console.log("Gọi API upload hợp đồng đã ký với contractId:", contractId);
+    
+    // Tạo FormData để upload file
+    const formData = new FormData();
+    formData.append('signedContractFile', signedContractFile);
+    
+    // FormData với Content-Type tự động được set là multipart/form-data
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    };
 
+    const response = await contractService.patch(
+      `/api/contracts/${contractId}/signed-contract`, 
+      formData, 
+      config
+    );
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API upload hợp đồng đã ký:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error uploading signed contract:", error.response?.data || error);
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to upload signed contract'
+    };
+  }
+};
 export default contractService;

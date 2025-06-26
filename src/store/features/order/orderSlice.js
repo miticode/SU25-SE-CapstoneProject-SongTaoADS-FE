@@ -7,6 +7,8 @@ import {
   getOrderByIdApi,
   getOrdersByUserIdApi,
   createOrderFromDesignRequestApi,
+  contractResignOrderApi,
+  contractSignedOrderApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -15,6 +17,7 @@ export const ORDER_STATUS_MAP = {
   CONTRACT_SENT: { label: "Đã gửi hợp đồng", color: "info" },
   CONTRACT_SIGNED: { label: "Đã ký hợp đồng", color: "primary" },
   CONTRACT_DISCUSS: { label: "Đàm phán hợp đồng", color: "secondary" },
+  CONTRACT_RESIGNED: { label: "Yêu cầu ký lại hợp đồng", color: "warning" },
   CONTRACT_CONFIRMED: { label: "Xác nhận hợp đồng", color: "success" },
   DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   IN_PROGRESS: { label: "Đang thực hiện", color: "primary" },
@@ -143,6 +146,34 @@ export const createOrderFromDesignRequest = createAsyncThunk(
     return rejectWithValue(response.error);
   }
 );
+export const contractResignOrder = createAsyncThunk(
+  "order/contractResignOrder",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await contractResignOrderApi(orderId);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể ký lại hợp đồng");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể ký lại hợp đồng");
+    }
+  }
+);
+export const contractSignedOrder = createAsyncThunk(
+  "order/contractSignedOrder",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await contractSignedOrderApi(orderId);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể đánh dấu hợp đồng đã ký");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể đánh dấu hợp đồng đã ký");
+    }
+  }
+);
 const initialState = {
   orders: [],
   loading: false,
@@ -269,6 +300,54 @@ const orderSlice = createSlice({
       .addCase(createOrderFromDesignRequest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Không thể tạo đơn hàng";
+      })
+      .addCase(contractResignOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(contractResignOrder.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Cập nhật order trong danh sách
+        const index = state.orders.findIndex(
+          (order) => order.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === action.payload.id) {
+          state.currentOrder = action.payload;
+        }
+      })
+      .addCase(contractResignOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(contractSignedOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(contractSignedOrder.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Cập nhật order trong danh sách
+        const index = state.orders.findIndex(
+          (order) => order.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === action.payload.id) {
+          state.currentOrder = action.payload;
+        }
+      })
+      .addCase(contractSignedOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
@@ -281,6 +360,7 @@ export const selectCurrentOrderStatus = (state) =>
   state.order.currentOrderStatus;
 export const selectCurrentOrderError = (state) => state.order.currentOrderError;
 export const selectOrders = (state) => state.order.orders;
-export const selectOrderStatus = (state) => state.order.loading ? 'loading' : state.order.error ? 'failed' : 'succeeded';
+export const selectOrderStatus = (state) =>
+  state.order.loading ? "loading" : state.order.error ? "failed" : "succeeded";
 export const selectOrderError = (state) => state.order.error;
 export const selectOrderPagination = (state) => state.order.pagination;
