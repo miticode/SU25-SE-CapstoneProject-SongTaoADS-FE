@@ -286,4 +286,48 @@ export const createOrderFromDesignRequestApi = async (customDesignRequestId) => 
     };
   }
 };
+export const contractResignOrderApi = async (orderId) => {
+  try {
+    console.log("Gọi API ký lại hợp đồng với orderId:", orderId);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/contract-resign`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API ký lại hợp đồng:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error contract resign order:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to contract resign order'
+    };
+  }
+};
+export const contractSignedOrderApi = async (orderId) => {
+  try {
+    console.log("Gọi API đánh dấu hợp đồng đã ký với orderId:", orderId);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/contract-signed`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API contract-signed:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error contract signed order:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to mark contract as signed'
+    };
+  }
+};
 export default orderService;

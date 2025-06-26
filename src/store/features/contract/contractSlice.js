@@ -4,6 +4,7 @@ import {
   getOrderContractApi,
   uploadOrderContractApi,
   uploadRevisedContractApi,
+  uploadSignedContractApi,
  
 } from "../../../api/contractService";
 
@@ -14,6 +15,8 @@ export const CONTRACT_STATUS_MAP = {
   REJECTED: { label: "Từ chối", color: "error" },
   PENDING_REVIEW: { label: "Chờ xem xét", color: "warning" },
    DISCUSSING: { label: "Đang thảo luận", color: "warning" },
+   NEED_RESIGNED: { label: "Yêu cầu ký lại", color: "warning" },
+   CONFIRMED: { label: "Đã xác nhận", color: "success" },
 };
 
 // Async thunk for uploading contract
@@ -73,7 +76,20 @@ export const uploadRevisedContract = createAsyncThunk(
     }
   }
 );
-
+export const uploadSignedContract = createAsyncThunk(
+  "contract/uploadSignedContract",
+  async ({ contractId, signedContractFile }, { rejectWithValue }) => {
+    try {
+      const response = await uploadSignedContractApi(contractId, signedContractFile);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể tải lên hợp đồng đã ký");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tải lên hợp đồng đã ký");
+    }
+  }
+);
 const initialState = {
   contracts: [],
   currentContract: null,
@@ -194,8 +210,33 @@ const contractSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.success = false;
+      })
+       .addCase(uploadSignedContract.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(uploadSignedContract.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.currentContract = action.payload;
+        
+        // Cập nhật hợp đồng trong danh sách
+        const existingContractIndex = state.contracts.findIndex(
+          (contract) => contract.id === action.payload.id
+        );
+        
+        if (existingContractIndex !== -1) {
+          state.contracts[existingContractIndex] = action.payload;
+        } else {
+          state.contracts.push(action.payload);
+        }
+      })
+      .addCase(uploadSignedContract.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.success = false;
       });
-      
      
   },
 });

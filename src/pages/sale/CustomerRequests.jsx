@@ -62,6 +62,8 @@ import {
 } from "../../api/priceService";
 import orderService from "../../api/orderService";
 import {
+  contractResignOrder,
+  contractSignedOrder,
   fetchOrders,
   ORDER_STATUS_MAP,
   selectOrderError,
@@ -73,6 +75,7 @@ import {
 import ContractUploadForm from "../../components/ContractUploadForm";
 import UploadRevisedContract from "../../components/UploadRevisedContract";
 import { getOrderContractApi } from "../../api/contractService";
+import { getPresignedUrl } from "../../api/s3Service";
 
 const CustomerRequests = () => {
   const dispatch = useDispatch();
@@ -104,6 +107,13 @@ const CustomerRequests = () => {
   const orderPagination = useSelector(selectOrderPagination);
   const [orderPage, setOrderPage] = useState(1);
   const [orderPageSize, setOrderPageSize] = useState(10);
+  const [contractViewLoading, setContractViewLoading] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
   const [selectedOrderStatus, setSelectedOrderStatus] =
     useState("PENDING_CONTRACT");
   const [notification, setNotification] = useState({
@@ -128,7 +138,11 @@ const CustomerRequests = () => {
 
   const [priceProposals, setPriceProposals] = useState([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
-
+  const [contractDialog, setContractDialog] = useState({
+    open: false,
+    contract: null,
+    orderId: null,
+  });
   const [updateDialog, setUpdateDialog] = useState({
     open: false,
     proposalId: null,
@@ -159,6 +173,214 @@ const CustomerRequests = () => {
       };
     }
   }, [currentTab, selectedOrderStatus, orderPage, orderPageSize]);
+  const handleContractSigned = async (orderId) => {
+    setConfirmDialog({
+      open: true,
+      title: "Xác nhận hợp đồng đã ký",
+      message:
+        "Bạn có chắc chắn rằng khách hàng đã ký hợp đồng và muốn xác nhận hợp đồng này?",
+      onConfirm: async () => {
+        try {
+          setActionLoading(true);
+          const result = await dispatch(contractSignedOrder(orderId));
+
+          if (contractSignedOrder.fulfilled.match(result)) {
+            setNotification({
+              open: true,
+              message: "Đã xác nhận hợp đồng thành công!",
+              severity: "success",
+            });
+
+            // Refresh danh sách orders
+            await dispatch(
+              fetchOrders({
+                orderStatus: selectedOrderStatus || "PENDING_CONTRACT",
+                page: orderPage,
+                size: orderPageSize,
+              })
+            );
+
+            handleCloseOrderDetails();
+          } else {
+            setNotification({
+              open: true,
+              message: result.payload || "Không thể xác nhận hợp đồng",
+              severity: "error",
+            });
+          }
+        } catch (error) {
+          setNotification({
+            open: true,
+            message: "Lỗi: " + error.message,
+            severity: "error",
+          });
+        } finally {
+          setActionLoading(false);
+          handleCloseConfirmDialog();
+        }
+      },
+    });
+  };
+  const handleViewContract = async (orderId) => {
+    setContractViewLoading(true);
+    try {
+      const response = await getOrderContractApi(orderId);
+      if (response.success && response.data) {
+        setContractDialog({
+          open: true,
+          contract: response.data,
+          orderId: orderId,
+        });
+      } else {
+        setNotification({
+          open: true,
+          message: "Không tìm thấy hợp đồng cho đơn hàng này",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching contract:", error);
+      setNotification({
+        open: true,
+        message: "Lỗi khi tải thông tin hợp đồng: " + error.message,
+        severity: "error",
+      });
+    } finally {
+      setContractViewLoading(false);
+    }
+  };
+  const handleCloseContractDialog = () => {
+    setContractDialog({
+      open: false,
+      contract: null,
+      orderId: null,
+    });
+  };
+  const handleViewContractFile = async (contractUrl, type) => {
+    if (!contractUrl) {
+      setNotification({
+        open: true,
+        message: `Không có file hợp đồng ${
+          type === "signed" ? "đã ký" : "gốc"
+        }`,
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Hiển thị loading
+    setContractViewLoading(true);
+
+    try {
+      // Lấy key từ contractUrl
+      // Giả sử contractUrl có format: "https://domain.com/bucket/path/to/file.pdf"
+      // hoặc chỉ là key: "contracts/order-123/contract.pdf"
+      let key = contractUrl;
+
+      // Nếu contractUrl là full URL, extract key từ URL
+      if (contractUrl.startsWith("http")) {
+        const urlParts = contractUrl.split("/");
+        // Lấy phần sau domain làm key
+        const domainIndex = urlParts.findIndex((part) => part.includes("."));
+        if (domainIndex >= 0) {
+          key = urlParts.slice(domainIndex + 1).join("/");
+        }
+      }
+
+      console.log("Opening contract with key:", key);
+
+      // Gọi API để lấy presigned URL
+      const result = await getPresignedUrl(key, 60); // 60 phút
+
+      if (result.success) {
+        // Mở file trong tab mới
+        window.open(result.url, "_blank");
+
+        setNotification({
+          open: true,
+          message: `Đã mở hợp đồng ${type === "signed" ? "đã ký" : "gốc"}`,
+          severity: "success",
+        });
+      } else {
+        setNotification({
+          open: true,
+          message: `Không thể mở hợp đồng: ${result.message}`,
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error opening contract file:", error);
+      setNotification({
+        open: true,
+        message: `Lỗi khi mở hợp đồng: ${error.message}`,
+        severity: "error",
+      });
+    } finally {
+      setContractViewLoading(false);
+    }
+  };
+  const handleContractResign = async (orderId) => {
+    setConfirmDialog({
+      open: true,
+      title: "Xác nhận yêu cầu ký lại hợp đồng",
+      message: "Bạn có chắc chắn muốn yêu cầu khách hàng ký lại hợp đồng? ",
+      onConfirm: () => executeContractResign(orderId),
+    });
+  };
+  const executeContractResign = async (orderId) => {
+    setActionLoading(true);
+    try {
+      const result = await dispatch(contractResignOrder(orderId));
+
+      if (contractResignOrder.fulfilled.match(result)) {
+        setNotification({
+          open: true,
+          message: "Đã yêu cầu khách hàng ký lại hợp đồng thành công!",
+          severity: "success",
+        });
+
+        // Refresh data
+        dispatch(
+          fetchOrders({
+            orderStatus: selectedOrderStatus,
+            page: orderPage,
+            size: orderPageSize,
+          })
+        );
+
+        // Đóng dialog chi tiết đơn hàng
+        handleCloseOrderDetails();
+      } else {
+        setNotification({
+          open: true,
+          message: result.payload || "Không thể yêu cầu ký lại hợp đồng",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Lỗi khi yêu cầu ký lại hợp đồng",
+        severity: "error",
+      });
+    } finally {
+      setActionLoading(false);
+      setConfirmDialog({
+        open: false,
+        title: "",
+        message: "",
+        onConfirm: null,
+      });
+    }
+  };
+  const handleCloseConfirmDialog = () => {
+    setConfirmDialog({ open: false, title: "", message: "", onConfirm: null });
+  };
+  const handleConfirmAction = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm();
+    }
+  };
   const getContractIdForOrder = async (orderId) => {
     setFetchingContract(true);
     try {
@@ -254,17 +476,17 @@ const CustomerRequests = () => {
     setSelectedOrder(order);
     setOrderDetailOpen(true);
   };
-   const handleCloseOrderDetails = React.useCallback(() => {
+  const handleCloseOrderDetails = React.useCallback(() => {
     // Blur focused element
     if (document.activeElement && document.activeElement.blur) {
       document.activeElement.blur();
     }
-    
+
     // Close any open nested dialogs first
     setOpenRevisedContractUpload(false);
     setOpenContractUpload(false);
     setContractId(null);
-    
+
     // Then close main dialog
     setTimeout(() => {
       setSelectedOrder(null);
@@ -1479,7 +1701,7 @@ const CustomerRequests = () => {
         onClose={handleCloseOrderDetails}
         maxWidth="md"
         fullWidth
-          disableRestoreFocus
+        disableRestoreFocus
         keepMounted={false}
       >
         {selectedOrder && (
@@ -1900,20 +2122,70 @@ const CustomerRequests = () => {
                             )}
 
                             {selectedOrder.status === "CONTRACT_SIGNED" && (
-                              <Button
-                                variant="contained"
-                                color="success"
-                                size="small"
-                                disabled={actionLoading}
-                                onClick={() =>
-                                  handleUpdateOrderStatus(
-                                    selectedOrder.id,
-                                    "CONTRACT_CONFIRMED"
-                                  )
-                                }
-                              >
-                                Xác nhận hợp đồng
-                              </Button>
+                              <>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleContractSigned(selectedOrder.id)
+                                  } // Thay đổi từ handleUpdateOrderStatus
+                                >
+                                  {actionLoading ? (
+                                    <CircularProgress
+                                      size={16}
+                                      color="inherit"
+                                    />
+                                  ) : (
+                                    "Xác nhận hợp đồng"
+                                  )}
+                                </Button>
+
+                                {/* Nút xem hợp đồng */}
+                                <Button
+                                  variant="outlined"
+                                  color="info"
+                                  size="small"
+                                  disabled={contractViewLoading}
+                                  onClick={() =>
+                                    handleViewContract(selectedOrder.id)
+                                  }
+                                  startIcon={
+                                    contractViewLoading ? (
+                                      <CircularProgress size={16} />
+                                    ) : (
+                                      <VisibilityIcon />
+                                    )
+                                  }
+                                  sx={{ ml: 1 }}
+                                >
+                                  {contractViewLoading
+                                    ? "Đang tải..."
+                                    : "Xem hợp đồng"}
+                                </Button>
+
+                                {/* Nút yêu cầu gửi lại hợp đồng */}
+                                <Button
+                                  variant="outlined"
+                                  color="warning"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleContractResign(selectedOrder.id)
+                                  }
+                                  sx={{ ml: 1 }}
+                                >
+                                  {actionLoading ? (
+                                    <CircularProgress
+                                      size={16}
+                                      color="inherit"
+                                    />
+                                  ) : (
+                                    "Yêu cầu gửi lại hợp đồng"
+                                  )}
+                                </Button>
+                              </>
                             )}
 
                             {selectedOrder.status === "CONTRACT_RESIGNED" && (
@@ -2162,6 +2434,68 @@ const CustomerRequests = () => {
           </>
         )}
       </Dialog>
+      <Dialog
+        open={confirmDialog.open}
+        onClose={handleCloseConfirmDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              bgcolor: "warning.light",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Typography variant="h6" color="warning.main">
+              !
+            </Typography>
+          </Box>
+          {confirmDialog.title}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mt: 1 }}>
+            {confirmDialog.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseConfirmDialog}
+            variant="outlined"
+            disabled={actionLoading}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={handleConfirmAction}
+            variant="contained"
+            color="warning"
+            disabled={actionLoading}
+            startIcon={actionLoading ? <CircularProgress size={16} /> : null}
+          >
+            {actionLoading ? "Đang xử lý..." : "Xác nhận"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          sx={{ width: "100%" }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
       <Snackbar
         open={notification.open}
         autoHideDuration={6000}
@@ -2182,7 +2516,7 @@ const CustomerRequests = () => {
         orderId={selectedOrder?.id}
         onSuccess={handleContractUploadSuccess}
       />
-       <UploadRevisedContract
+      <UploadRevisedContract
         open={openRevisedContractUpload}
         onClose={() => {
           setOpenRevisedContractUpload(false);
@@ -2191,6 +2525,207 @@ const CustomerRequests = () => {
         contractId={contractId}
         onSuccess={handleRevisedContractUploadSuccess}
       />
+      <Dialog
+        open={contractDialog.open}
+        onClose={handleCloseContractDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Thông tin hợp đồng - Đơn hàng #{contractDialog.orderId}
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseContractDialog}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {contractDialog.contract ? (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Chi tiết hợp đồng
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    ID hợp đồng
+                  </Typography>
+                  <Typography variant="body1">
+                    {contractDialog.contract.id}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Số hợp đồng
+                  </Typography>
+                  <Typography variant="body1">
+                    {contractDialog.contract.contractNumber || "N/A"}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Trạng thái
+                  </Typography>
+                  <Chip
+                    label={contractDialog.contract.status}
+                    color={
+                      contractDialog.contract.status === "SIGNED"
+                        ? "success"
+                        : contractDialog.contract.status === "SENT"
+                        ? "info"
+                        : "default"
+                    }
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Ngày gửi
+                  </Typography>
+                  <Typography variant="body1">
+                    {contractDialog.contract.sentDate
+                      ? new Date(
+                          contractDialog.contract.sentDate
+                        ).toLocaleString("vi-VN")
+                      : "N/A"}
+                  </Typography>
+                </Grid>
+
+                {contractDialog.contract.signedDate && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Ngày ký
+                    </Typography>
+                    <Typography variant="body1">
+                      {new Date(
+                        contractDialog.contract.signedDate
+                      ).toLocaleString("vi-VN")}
+                    </Typography>
+                  </Grid>
+                )}
+
+                {contractDialog.contract.depositPercentChanged && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Tỷ lệ đặt cọc thay đổi
+                    </Typography>
+                    <Typography variant="body1">
+                      {contractDialog.contract.depositPercentChanged}%
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+
+              {/* Hợp đồng gốc */}
+              {contractDialog.contract.contractUrl && (
+                <Box
+                  sx={{
+                    mt: 3,
+                    p: 2,
+                    border: 1,
+                    borderColor: "primary.main",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
+                    📄 Hợp đồng gốc
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() =>
+                      handleViewContractFile(
+                        contractDialog.contract.contractUrl,
+                        "original"
+                      )
+                    }
+                    disabled={contractViewLoading}
+                    startIcon={
+                      contractViewLoading ? (
+                        <CircularProgress size={16} />
+                      ) : null
+                    }
+                  >
+                    {contractViewLoading ? "Đang tải..." : "Xem hợp đồng gốc"}
+                  </Button>
+                </Box>
+              )}
+
+              {/* Hợp đồng đã ký */}
+              {contractDialog.contract.signedContractUrl && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    border: 1,
+                    borderColor: "success.main",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
+                    ✅ Hợp đồng đã ký
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() =>
+                      handleViewContractFile(
+                        contractDialog.contract.signedContractUrl,
+                        "signed"
+                      )
+                    }
+                    disabled={contractViewLoading}
+                    startIcon={
+                      contractViewLoading ? (
+                        <CircularProgress size={16} />
+                      ) : null
+                    }
+                  >
+                    {contractViewLoading ? "Đang tải..." : "Xem hợp đồng đã ký"}
+                  </Button>
+                </Box>
+              )}
+
+              {/* Status information */}
+              <Box sx={{ mt: 2, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {contractDialog.contract.status === "SIGNED" &&
+                    "✅ Hợp đồng đã được ký thành công!"}
+                  {contractDialog.contract.status === "SENT" &&
+                    "📤 Hợp đồng đã được gửi, đang chờ khách hàng ký."}
+                  {contractDialog.contract.status === "DISCUSSING" &&
+                    "💬 Hợp đồng đang trong quá trình thảo luận."}
+                  {contractDialog.contract.status === "NEED_RESIGNED" &&
+                    "🔄 Hợp đồng cần được ký lại."}
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Typography color="text.secondary">
+                Chưa có hợp đồng cho đơn hàng này
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseContractDialog}>Đóng</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

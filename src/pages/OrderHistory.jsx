@@ -56,16 +56,15 @@ import {
 import { fetchUserDetail } from "../store/features/user/userSlice";
 import { unwrapResult } from "@reduxjs/toolkit";
 
-
 import {
   CONTRACT_STATUS_MAP,
   discussContract,
   getOrderContract,
   selectContractError,
   selectContractLoading,
+  uploadSignedContract,
 } from "../store/features/contract/contractSlice";
 import { openFileInNewTab } from "../api/s3Service";
-
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -77,7 +76,10 @@ const statusMap = {
   CANCELLED: { label: "Đã bị hủy", color: "error" },
   FULLY_PAID: { label: "Đã thanh toán", color: "success" },
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
-  CONTRACT_SENT: { label: "Hợp đồng đã được gửi", color: "info" }, 
+  CONTRACT_SENT: { label: "Hợp đồng đã được gửi", color: "info" },
+  CONTRACT_SIGNED: { label: "Hợp đồng đã ký", color: "success" },
+   CONTRACT_CONFIRMED: { label: "Đã xác nhận hợp đồng", color: "success" },
+  CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
   CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
   WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
 };
@@ -115,8 +117,8 @@ const OrderHistory = () => {
   const [openDetail, setOpenDetail] = useState(false);
   const [priceProposals, setPriceProposals] = useState([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
-   const [contractViewLoading, setContractViewLoading] = useState(false);
-
+  const [contractViewLoading, setContractViewLoading] = useState(false);
+  const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
   const [offerDialog, setOfferDialog] = useState({
     open: false,
     proposalId: null,
@@ -134,8 +136,71 @@ const OrderHistory = () => {
   });
 
   const [depositLoadingId, setDepositLoadingId] = useState(null);
+  const handleUploadSignedContract = async (contractId, file) => {
+    if (!file) {
+      setNotification({
+        open: true,
+        message: "Vui lòng chọn file hợp đồng đã ký",
+        severity: "error",
+      });
+      return;
+    }
 
-    const handleDiscussContract = async (contractId) => {
+    // Kiểm tra định dạng file
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setNotification({
+        open: true,
+        message: "Chỉ chấp nhận file PDF, DOC, DOCX",
+        severity: "error",
+      });
+      return;
+    }
+
+    setUploadingSignedContract(true);
+
+    try {
+      const result = await dispatch(
+        uploadSignedContract({
+          contractId,
+          signedContractFile: file,
+        })
+      );
+
+      if (uploadSignedContract.fulfilled.match(result)) {
+        setNotification({
+          open: true,
+          message: "Upload hợp đồng đã ký thành công",
+          severity: "success",
+        });
+
+        // Cập nhật lại contract dialog với dữ liệu mới
+        setContractDialog((prev) => ({
+          ...prev,
+          contract: result.payload,
+        }));
+      } else {
+        setNotification({
+          open: true,
+          message: result.payload || "Không thể upload hợp đồng đã ký",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Lỗi khi upload hợp đồng đã ký",
+        severity: "error",
+      });
+    } finally {
+      setUploadingSignedContract(false);
+    }
+  };
+  const handleDiscussContract = async (contractId) => {
     if (!contractId) {
       setNotification({
         open: true,
@@ -154,11 +219,11 @@ const OrderHistory = () => {
           message: "Đã gửi yêu cầu thảo luận hợp đồng thành công",
           severity: "success",
         });
-        
+
         // Cập nhật lại contract dialog với dữ liệu mới
-        setContractDialog(prev => ({
+        setContractDialog((prev) => ({
           ...prev,
-          contract: result.payload
+          contract: result.payload,
         }));
       } else {
         setNotification({
@@ -184,7 +249,7 @@ const OrderHistory = () => {
   const [demoActionLoading, setDemoActionLoading] = useState(false);
   const [payingRemaining, setPayingRemaining] = useState(false);
 
-    const handleViewContract = async (contractUrl, contractType = "contract") => {
+  const handleViewContract = async (contractUrl, contractType = "contract") => {
     if (!contractUrl) {
       setNotification({
         open: true,
@@ -193,7 +258,6 @@ const OrderHistory = () => {
       });
       return;
     }
-
 
     setContractViewLoading(true);
     try {
@@ -215,7 +279,6 @@ const OrderHistory = () => {
       setContractViewLoading(false);
     }
   };
-    
 
   const handleGetContract = async (orderId) => {
     try {
@@ -797,10 +860,9 @@ const OrderHistory = () => {
                             ĐẶT CỌC
                           </Button>
                         )}
-                        {[
-                          "CONTRACT_SENT",
-                          
-                        ].includes((order.status || "").toUpperCase()) && (
+                        {["CONTRACT_SENT", "CONTRACT_SIGNED","CONTRACT_RESIGNED","CONTRACT_CONFIRMED"].includes(
+                          (order.status || "").toUpperCase()
+                        ) && (
                           <Button
                             variant="outlined"
                             color="info"
@@ -1528,7 +1590,7 @@ const OrderHistory = () => {
           </Dialog>
         </DialogContent>
       </Dialog>
-       <Dialog
+      <Dialog
         open={contractDialog.open}
         onClose={handleCloseContractDialog}
         maxWidth="md"
@@ -1550,123 +1612,372 @@ const OrderHistory = () => {
               <Typography variant="h6" gutterBottom>
                 Chi tiết hợp đồng
               </Typography>
-              
+
               <Typography sx={{ mb: 1 }}>
                 <b>ID hợp đồng:</b> {contractDialog.contract.id}
               </Typography>
-              
+
               <Typography sx={{ mb: 1 }}>
-                <b>Số hợp đồng:</b> {contractDialog.contract.contractNumber || "N/A"}
+                <b>Số hợp đồng:</b>{" "}
+                {contractDialog.contract.contractNumber || "N/A"}
               </Typography>
-              
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ mb: 1 }}
+              >
                 <Typography>
                   <b>Trạng thái:</b>
                 </Typography>
                 <Chip
-                  label={CONTRACT_STATUS_MAP[contractDialog.contract.status]?.label || contractDialog.contract.status}
-                  color={CONTRACT_STATUS_MAP[contractDialog.contract.status]?.color || "default"}
+                  label={
+                    CONTRACT_STATUS_MAP[contractDialog.contract.status]
+                      ?.label || contractDialog.contract.status
+                  }
+                  color={
+                    CONTRACT_STATUS_MAP[contractDialog.contract.status]
+                      ?.color || "default"
+                  }
                   size="small"
                 />
               </Stack>
-              
+
               <Typography sx={{ mb: 1 }}>
-                <b>Ngày gửi:</b> {contractDialog.contract.sentDate 
-                  ? new Date(contractDialog.contract.sentDate).toLocaleString("vi-VN")
+                <b>Ngày gửi:</b>{" "}
+                {contractDialog.contract.sentDate
+                  ? new Date(contractDialog.contract.sentDate).toLocaleString(
+                      "vi-VN"
+                    )
                   : "N/A"}
               </Typography>
-              
+
               {contractDialog.contract.signedDate && (
                 <Typography sx={{ mb: 1 }}>
-                  <b>Ngày ký:</b> {new Date(contractDialog.contract.signedDate).toLocaleString("vi-VN")}
+                  <b>Ngày ký:</b>{" "}
+                  {new Date(contractDialog.contract.signedDate).toLocaleString(
+                    "vi-VN"
+                  )}
                 </Typography>
               )}
-              
+
               {contractDialog.contract.depositPercentChanged && (
                 <Typography sx={{ mb: 1 }}>
-                  <b>Tỷ lệ đặt cọc thay đổi:</b> {contractDialog.contract.depositPercentChanged}%
+                  <b>Tỷ lệ đặt cọc thay đổi:</b>{" "}
+                  {contractDialog.contract.depositPercentChanged}%
                 </Typography>
               )}
-              
+
               {/* Hợp đồng gốc */}
-              {contractDialog.contract.contractUrl && (
-                <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'primary.main', borderRadius: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+               {contractDialog.contract.contractUrl && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    border: 1,
+                    borderColor: "primary.main",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
                     📄 Hợp đồng gốc
                   </Typography>
                   <Stack direction="row" spacing={2} flexWrap="wrap">
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => handleViewContract(contractDialog.contract.contractUrl, "original")}
+                      onClick={() =>
+                        handleViewContract(
+                          contractDialog.contract.contractUrl,
+                          "original"
+                        )
+                      }
                       disabled={contractViewLoading}
-                      startIcon={contractViewLoading ? <CircularProgress size={16} /> : null}
+                      startIcon={
+                        contractViewLoading ? (
+                          <CircularProgress size={16} />
+                        ) : null
+                      }
                     >
                       Xem hợp đồng
                     </Button>
+                    
+                    {/* Nút cho trạng thái SENT */}
                     {contractDialog.contract.status === "SENT" && (
-                      <Button
-                        variant="outlined"
-                        color="warning"
-                        onClick={() => handleDiscussContract(contractDialog.contract.id)}
-                        disabled={discussLoading}
-                        startIcon={discussLoading ? <CircularProgress size={16} /> : null}
-                      >
-                        Yêu cầu thảo luận
-                      </Button>
+                      <>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={() =>
+                            handleDiscussContract(contractDialog.contract.id)
+                          }
+                          disabled={discussLoading}
+                          startIcon={
+                            discussLoading ? (
+                              <CircularProgress size={16} />
+                            ) : null
+                          }
+                        >
+                          Yêu cầu thảo luận
+                        </Button>
+
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              handleUploadSignedContract(
+                                contractDialog.contract.id,
+                                file
+                              );
+                            }
+                            e.target.value = "";
+                          }}
+                          style={{ display: "none" }}
+                          id={`signed-contract-upload-${contractDialog.contract.id}`}
+                        />
+                        <label
+                          htmlFor={`signed-contract-upload-${contractDialog.contract.id}`}
+                        >
+                          <Button
+                            variant="contained"
+                            color="success"
+                            component="span"
+                            disabled={uploadingSignedContract}
+                            startIcon={
+                              uploadingSignedContract ? (
+                                <CircularProgress size={16} />
+                              ) : null
+                            }
+                          >
+                            {uploadingSignedContract
+                              ? "Đang upload..."
+                              : "Xác nhận hợp đồng"}
+                          </Button>
+                        </label>
+                      </>
+                    )}
+
+                    {/* Nút cho trạng thái CONTRACT_RESIGNED - Di chuyển vào đây */}
+                    {contractDialog.contract.status === "NEED_RESIGNED" && (
+                      <>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              handleUploadSignedContract(
+                                contractDialog.contract.id,
+                                file
+                              );
+                            }
+                            e.target.value = "";
+                          }}
+                          style={{ display: "none" }}
+                          id={`resigned-contract-upload-${contractDialog.contract.id}`}
+                        />
+                        <label
+                          htmlFor={`resigned-contract-upload-${contractDialog.contract.id}`}
+                        >
+                          <Button
+                            variant="contained"
+                            color="warning"
+                            component="span"
+                            disabled={uploadingSignedContract}
+                            startIcon={
+                              uploadingSignedContract ? (
+                                <CircularProgress size={16} />
+                              ) : null
+                            }
+                          >
+                            {uploadingSignedContract
+                              ? "Đang upload..."
+                              : "Gửi lại hợp đồng đã ký"}
+                          </Button>
+                        </label>
+                      </>
                     )}
                   </Stack>
                 </Box>
               )}
-              
+   {contractDialog.contract.status === "NEED_RESIGNED" && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 3,
+                    border: 2,
+                    borderColor: "warning.main",
+                    borderRadius: 2,
+                    
+                    borderStyle: "dashed"
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                    color="warning.dark"
+                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                  >
+                    🔄 Yêu cầu gửi lại hợp đồng
+                  </Typography>
+                  <Typography variant="body2" color="warning.dark" sx={{ mb: 2 }}>
+                    Chúng tôi đã yêu cầu bạn gửi lại hợp đồng đã ký. Vui lòng kiểm tra hợp đồng gốc, 
+                    ký lại và upload file hợp đồng đã ký mới.
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() =>
+                        handleViewContract(
+                          contractDialog.contract.contractUrl,
+                          "original"
+                        )
+                      }
+                      disabled={contractViewLoading}
+                      startIcon={
+                        contractViewLoading ? (
+                          <CircularProgress size={16} />
+                        ) : null
+                      }
+                    >
+                      Xem hợp đồng gốc
+                    </Button>
+
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          handleUploadSignedContract(
+                            contractDialog.contract.id,
+                            file
+                          );
+                        }
+                        e.target.value = "";
+                      }}
+                      style={{ display: "none" }}
+                      id={`need-resign-upload-${contractDialog.contract.id}`}
+                    />
+                    <label htmlFor={`need-resign-upload-${contractDialog.contract.id}`}>
+                      <Button
+                        variant="contained"
+                        color="warning"
+                        component="span"
+                        disabled={uploadingSignedContract}
+                        startIcon={
+                          uploadingSignedContract ? (
+                            <CircularProgress size={16} />
+                          ) : null
+                        }
+                        size="large"
+                      >
+                        {uploadingSignedContract
+                          ? "Đang upload hợp đồng..."
+                          : "📤 Upload hợp đồng đã ký mới"}
+                      </Button>
+                    </label>
+                  </Box>
+                </Box>
+              )}
               {/* Hợp đồng đã ký */}
-              {contractDialog.contract.signedContractUrl && (
-                <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'success.main', borderRadius: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                {contractDialog.contract.signedContractUrl && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    border: 1,
+                    borderColor: "success.main",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
                     ✅ Hợp đồng đã ký
                   </Typography>
                   <Stack direction="row" spacing={2} flexWrap="wrap">
                     <Button
                       variant="contained"
                       color="success"
-                      onClick={() => handleViewContract(contractDialog.contract.signedContractUrl, "signed")}
+                      onClick={() =>
+                        handleViewContract(
+                          contractDialog.contract.signedContractUrl,
+                          "signed"
+                        )
+                      }
                       disabled={contractViewLoading}
-                      startIcon={contractViewLoading ? <CircularProgress size={16} /> : null}
+                      startIcon={
+                        contractViewLoading ? (
+                          <CircularProgress size={16} />
+                        ) : null
+                      }
                     >
                       Xem hợp đồng đã ký
                     </Button>
-                   
                   </Stack>
                 </Box>
               )}
-              
+
               {/* Status messages */}
               {contractDialog.contract.status === "SENT" && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                <Box sx={{ mt: 2, p: 2, borderRadius: 1 }}>
                   <Typography variant="body2" color="warning.dark">
                     📄 Hợp đồng đã được gửi, vui lòng kiểm tra và ký hợp đồng.
                     <br />
-                    💬 Nếu có thắc mắc, bạn có thể yêu cầu thảo luận với chúng tôi.
+                    💬 Nếu có thắc mắc, bạn có thể yêu cầu thảo luận với chúng
+                    tôi.
+                    <br />
+                    ✍️ Sau khi ký, hãy upload hợp đồng đã ký bằng nút "Xác nhận
+                    hợp đồng".
                   </Typography>
                 </Box>
               )}
-                {contractDialog.contract.status === "DISCUSSING" && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+              {contractDialog.contract.status === "DISCUSSING" && (
+                <Box
+                  sx={{ mt: 2, p: 2, bgcolor: "info.light", borderRadius: 1 }}
+                >
                   <Typography variant="body2" color="info.dark">
-                    💬 Yêu cầu thảo luận đã được gửi. Chúng tôi sẽ liên hệ với bạn sớm nhất.
+                    💬 Yêu cầu thảo luận đã được gửi. Chúng tôi sẽ liên hệ với
+                    bạn sớm nhất.
+                  </Typography>
+                </Box>
+              )}
+                {contractDialog.contract.status === "NEED_RESIGNED" && (
+                <Box sx={{ mt: 2, p: 2,  borderRadius: 1 }}>
+                  <Typography variant="body2" color="warning.dark">
+                    🔄 <strong>Yêu cầu gửi lại hợp đồng:</strong> Chúng tôi cần bạn ký lại hợp đồng.
+                    <br />
+                    📋 Vui lòng xem lại hợp đồng gốc, ký lại và upload file mới.
+                    <br />
+                    ⏰ Sau khi upload thành công, chúng tôi sẽ xem xét và xác nhận hợp đồng.
                   </Typography>
                 </Box>
               )}
               {contractDialog.contract.status === "SIGNED" && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                <Box sx={{ mt: 2, p: 2, borderRadius: 1 }}>
                   <Typography variant="body2" color="success.dark">
                     ✅ Hợp đồng đã được ký thành công!
                   </Typography>
                 </Box>
               )}
-              
+
               {contractDialog.contract.status === "REJECTED" && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+                <Box
+                  sx={{ mt: 2, p: 2, bgcolor: "error.light", borderRadius: 1 }}
+                >
                   <Typography variant="body2" color="error.dark">
                     ❌ Hợp đồng đã bị từ chối. Vui lòng liên hệ để được hỗ trợ.
                   </Typography>
@@ -1674,7 +1985,7 @@ const OrderHistory = () => {
               )}
             </Box>
           ) : (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Box sx={{ textAlign: "center", py: 4 }}>
               <Typography color="text.secondary">
                 Chưa có hợp đồng cho đơn hàng này
               </Typography>
