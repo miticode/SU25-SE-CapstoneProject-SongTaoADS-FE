@@ -44,9 +44,18 @@ export const payOrderRemainingThunk = createAsyncThunk(
 export const payOrderDepositThunk = createAsyncThunk(
   'payment/payOrderDeposit',
   async (orderId, { rejectWithValue }) => {
-    const response = await payOrderDeposit(orderId);
-    if (response.success) return response;
-    return rejectWithValue(response.error);
+    try {
+      const response = await payOrderDeposit(orderId);
+      console.log("PayOrderDeposit response:", response); // Debug log
+      
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("PayOrderDepositThunk error:", error);
+      return rejectWithValue(error.message || 'Failed to process deposit payment');
+    }
   }
 );
 
