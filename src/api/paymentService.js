@@ -106,8 +106,26 @@ export const payOrderRemaining = async (orderId) => {
 export const payOrderDeposit = async (orderId) => {
   try {
     const response = await paymentService.post(`/api/orders/${orderId}/deposit`);
-    return response.data; // { checkoutUrl: ... }
+    
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message } = response.data;
+    
+    if (success && result) {
+      // Trả về đúng cấu trúc để Redux thunk có thể xử lý
+      return {
+        success: true,
+        checkoutUrl: result.checkoutUrl,
+        data: result,
+        message: message
+      };
+    }
+    
+    return {
+      success: false,
+      error: message || 'Không thể đặt cọc đơn hàng',
+    };
   } catch (error) {
+    console.error("Error in payOrderDeposit:", error.response?.data || error);
     return {
       success: false,
       error: error.response?.data?.message || 'Không thể đặt cọc đơn hàng',

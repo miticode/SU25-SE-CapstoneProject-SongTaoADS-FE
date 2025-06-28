@@ -9,6 +9,8 @@ import {
   createOrderFromDesignRequestApi,
   contractResignOrderApi,
   contractSignedOrderApi,
+  updateOrderAddressApi,
+  updateOrderEstimatedDeliveryDateApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -171,6 +173,34 @@ export const contractSignedOrder = createAsyncThunk(
       return rejectWithValue(response.error || "Không thể đánh dấu hợp đồng đã ký");
     } catch (error) {
       return rejectWithValue(error.message || "Không thể đánh dấu hợp đồng đã ký");
+    }
+  }
+);
+export const updateOrderAddress = createAsyncThunk(
+  "order/updateOrderAddress",
+  async ({ orderId, addressData }, { rejectWithValue }) => {
+    try {
+      const response = await updateOrderAddressApi(orderId, addressData);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể cập nhật địa chỉ đơn hàng");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể cập nhật địa chỉ đơn hàng");
+    }
+  }
+);
+export const updateOrderEstimatedDeliveryDate = createAsyncThunk(
+  "order/updateOrderEstimatedDeliveryDate",
+  async ({ orderId, estimatedDeliveryDate }, { rejectWithValue }) => {
+    try {
+      const response = await updateOrderEstimatedDeliveryDateApi(orderId, estimatedDeliveryDate);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể cập nhật ngày giao hàng dự kiến");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể cập nhật ngày giao hàng dự kiến");
     }
   }
 );
@@ -346,6 +376,54 @@ const orderSlice = createSlice({
         }
       })
       .addCase(contractSignedOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(updateOrderAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateOrderAddress.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Cập nhật order trong danh sách
+        const index = state.orders.findIndex(
+          (order) => order.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === action.payload.id) {
+          state.currentOrder = action.payload;
+        }
+      })
+      .addCase(updateOrderAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(updateOrderEstimatedDeliveryDate.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateOrderEstimatedDeliveryDate.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Cập nhật order trong danh sách
+        const index = state.orders.findIndex(
+          (order) => order.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === action.payload.id) {
+          state.currentOrder = action.payload;
+        }
+      })
+      .addCase(updateOrderEstimatedDeliveryDate.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

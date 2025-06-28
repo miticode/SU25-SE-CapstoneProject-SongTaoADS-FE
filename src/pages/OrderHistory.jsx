@@ -47,6 +47,7 @@ import {
 import {
   payCustomDesignDepositThunk,
   payCustomDesignRemainingThunk,
+  payOrderDepositThunk,
 } from "../store/features/payment/paymentSlice";
 import {
   getDemoDesigns,
@@ -78,10 +79,15 @@ const statusMap = {
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
   CONTRACT_SENT: { label: "Hợp đồng đã được gửi", color: "info" },
   CONTRACT_SIGNED: { label: "Hợp đồng đã ký", color: "success" },
-   CONTRACT_CONFIRMED: { label: "Đã xác nhận hợp đồng", color: "success" },
+  CONTRACT_CONFIRMED: { label: "Đã xác nhận hợp đồng", color: "success" },
   CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
   CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
   WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
+  IN_PROGRESS: { label: "Đang thực hiện", color: "info" }, 
+  PRODUCING: { label: "Đang sản xuất", color: "info" },
+  PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
+  DELIVERING: { label: "Đang giao hàng", color: "info" },
+  INSTALLED: { label: "Đã lắp đặt", color: "success" },
 };
 
 const OrderHistory = () => {
@@ -119,6 +125,7 @@ const OrderHistory = () => {
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [contractViewLoading, setContractViewLoading] = useState(false);
   const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
+  const [depositingOrderId, setDepositingOrderId] = useState(null);
   const [offerDialog, setOfferDialog] = useState({
     open: false,
     proposalId: null,
@@ -489,14 +496,15 @@ const OrderHistory = () => {
   }, [openDetail, currentDesignRequest, dispatch]);
 
   const handleDeposit = (order) => {
+    // Lưu thông tin order vào localStorage để trang checkout có thể sử dụng
+    localStorage.setItem("checkoutOrderId", order.id);
+    localStorage.setItem("checkoutOrderInfo", JSON.stringify(order));
+
+    // Navigate đến trang checkout
     navigate("/checkout", {
       state: {
-        orderId: order.orderId,
-        totalAmount: order.totalAmount,
-        depositAmount: order.depositAmount,
-        remainingAmount: order.remainingAmount,
-        orderDate: order.orderDate,
-        status: order.status,
+        orderId: order.id,
+        orderInfo: order,
       },
     });
   };
@@ -736,7 +744,7 @@ const OrderHistory = () => {
                       alignItems={{ sm: "center" }}
                       justifyContent="space-between"
                     >
-                      <Box>
+                      <Box flex={1} minWidth={0}>
                         <Stack
                           direction="row"
                           spacing={1}
@@ -770,7 +778,13 @@ const OrderHistory = () => {
                           )}
                         </Stack>
 
-                        <Typography fontWeight={600}>
+                        <Typography
+                          fontWeight={600}
+                          sx={{
+                            wordBreak: "break-all", // Cho phép ngắt từ ở bất kỳ vị trí nào
+                            overflowWrap: "break-word", // Ngắt từ khi cần thiết
+                          }}
+                        >
                           Mã đơn: {order.id}
                         </Typography>
 
@@ -808,7 +822,7 @@ const OrderHistory = () => {
                           Tổng tiền:{" "}
                           {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
                         </Typography>
-                        {order.status === "DEPOSITED" && (
+                      {order.status === "DEPOSITED" && (
                           <>
                             <Typography color="success.main" fontSize={14}>
                               Đã đặt cọc:{" "}
@@ -824,6 +838,23 @@ const OrderHistory = () => {
                             </Typography>
                           </>
                         )}
+                          {order.status === "IN_PROGRESS" && order.estimatedDeliveryDate && (
+                          <Typography color="primary.main" fontSize={14} fontWeight={500}>
+                            📅 Ngày giao dự kiến:{" "}
+                            {new Date(order.estimatedDeliveryDate).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </Typography>
+                        )}
+                        {!["DEPOSITED", "IN_PROGRESS"].includes(order.status) && 
+                         order.estimatedDeliveryDate && (
+                          <Typography color="primary.main" fontSize={14}>
+                            Ngày giao dự kiến:{" "}
+                            {new Date(order.estimatedDeliveryDate).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </Typography>
+                        )}
                         {order.deliveryDate && (
                           <Typography color="primary.main" fontSize={14}>
                             Ngày giao dự kiến:{" "}
@@ -833,7 +864,13 @@ const OrderHistory = () => {
                           </Typography>
                         )}
                       </Box>
-                      <Stack direction="row" spacing={2} alignItems="center">
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        alignItems="center"
+                        flexShrink={0} // Ngăn không cho phần này bị co lại
+                        minWidth={{ xs: "100%", sm: "auto" }} // Trên mobile chiếm full width
+                      >
                         <Chip
                           label={statusMap[order.status]?.label || order.status}
                           color={statusMap[order.status]?.color || "default"}
@@ -845,9 +882,34 @@ const OrderHistory = () => {
                             label="THANH TOÁN TIỀN CÒN LẠI"
                             color="warning"
                             variant="outlined"
+                            sx={{
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap", // Không cho phép xuống dòng
+                            }}
                           />
                         )}
-
+                         {/* {order.status === "IN_PROGRESS" && (
+                          <Chip
+                            label="Đang thực hiện"
+                            color="info"
+                            variant="outlined"
+                            sx={{
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap",
+                            }}
+                          />
+                        )} */}
+                        {order.status === "DEPOSITED" && (
+                          <Chip
+                            label="Đang chờ ngày giao dự kiến"
+                            color="info"
+                            variant="outlined"
+                            sx={{
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap",
+                            }}
+                          />
+                        )}
                         {["APPROVED", "CONFIRMED", "PENDING"].includes(
                           (order.status || "").toUpperCase()
                         ) && (
@@ -856,13 +918,21 @@ const OrderHistory = () => {
                             color="warning"
                             size="small"
                             onClick={() => handleDeposit(order)}
+                            sx={{
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap",
+                              flexShrink: 0,
+                            }}
                           >
-                            ĐẶT CỌC
+                            ĐẶT CỌC NGAY
                           </Button>
                         )}
-                        {["CONTRACT_SENT", "CONTRACT_SIGNED","CONTRACT_RESIGNED","CONTRACT_CONFIRMED"].includes(
-                          (order.status || "").toUpperCase()
-                        ) && (
+                        {[
+                          "CONTRACT_SENT",
+                          "CONTRACT_SIGNED",
+                          "CONTRACT_RESIGNED",
+                          "CONTRACT_CONFIRMED",
+                        ].includes((order.status || "").toUpperCase()) && (
                           <Button
                             variant="outlined"
                             color="info"
@@ -874,8 +944,28 @@ const OrderHistory = () => {
                                 <CircularProgress size={16} />
                               ) : null
                             }
+                            sx={{
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap", // Không cho phép text trong button xuống dòng
+                              flexShrink: 0, // Không cho button bị co lại
+                            }}
                           >
                             Xem hợp đồng
+                          </Button>
+                        )}
+                        {order.status === "CONTRACT_CONFIRMED" && (
+                          <Button
+                            variant="contained"
+                            color="warning"
+                            size="small"
+                            onClick={() => handleDeposit(order)}
+                            sx={{
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap",
+                              flexShrink: 0,
+                            }}
+                          >
+                            ĐẶT CỌC NGAY
                           </Button>
                         )}
                       </Stack>
@@ -1670,7 +1760,7 @@ const OrderHistory = () => {
               )}
 
               {/* Hợp đồng gốc */}
-               {contractDialog.contract.contractUrl && (
+              {contractDialog.contract.contractUrl && (
                 <Box
                   sx={{
                     mt: 2,
@@ -1706,7 +1796,7 @@ const OrderHistory = () => {
                     >
                       Xem hợp đồng
                     </Button>
-                    
+
                     {/* Nút cho trạng thái SENT */}
                     {contractDialog.contract.status === "SENT" && (
                       <>
@@ -1807,7 +1897,7 @@ const OrderHistory = () => {
                   </Stack>
                 </Box>
               )}
-   {contractDialog.contract.status === "NEED_RESIGNED" && (
+              {contractDialog.contract.status === "NEED_RESIGNED" && (
                 <Box
                   sx={{
                     mt: 2,
@@ -1815,8 +1905,8 @@ const OrderHistory = () => {
                     border: 2,
                     borderColor: "warning.main",
                     borderRadius: 2,
-                    
-                    borderStyle: "dashed"
+
+                    borderStyle: "dashed",
                   }}
                 >
                   <Typography
@@ -1824,16 +1914,21 @@ const OrderHistory = () => {
                     fontWeight="bold"
                     gutterBottom
                     color="warning.dark"
-                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
                   >
                     🔄 Yêu cầu gửi lại hợp đồng
                   </Typography>
-                  <Typography variant="body2" color="warning.dark" sx={{ mb: 2 }}>
-                    Chúng tôi đã yêu cầu bạn gửi lại hợp đồng đã ký. Vui lòng kiểm tra hợp đồng gốc, 
-                    ký lại và upload file hợp đồng đã ký mới.
+                  <Typography
+                    variant="body2"
+                    color="warning.dark"
+                    sx={{ mb: 2 }}
+                  >
+                    Chúng tôi đã yêu cầu bạn gửi lại hợp đồng đã ký. Vui lòng
+                    kiểm tra hợp đồng gốc, ký lại và upload file hợp đồng đã ký
+                    mới.
                   </Typography>
-                  
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                     <Button
                       variant="outlined"
                       color="primary"
@@ -1869,7 +1964,9 @@ const OrderHistory = () => {
                       style={{ display: "none" }}
                       id={`need-resign-upload-${contractDialog.contract.id}`}
                     />
-                    <label htmlFor={`need-resign-upload-${contractDialog.contract.id}`}>
+                    <label
+                      htmlFor={`need-resign-upload-${contractDialog.contract.id}`}
+                    >
                       <Button
                         variant="contained"
                         color="warning"
@@ -1891,7 +1988,7 @@ const OrderHistory = () => {
                 </Box>
               )}
               {/* Hợp đồng đã ký */}
-                {contractDialog.contract.signedContractUrl && (
+              {contractDialog.contract.signedContractUrl && (
                 <Box
                   sx={{
                     mt: 2,
@@ -1955,14 +2052,15 @@ const OrderHistory = () => {
                   </Typography>
                 </Box>
               )}
-                {contractDialog.contract.status === "NEED_RESIGNED" && (
-                <Box sx={{ mt: 2, p: 2,  borderRadius: 1 }}>
+              {contractDialog.contract.status === "NEED_RESIGNED" && (
+                <Box sx={{ mt: 2, p: 2, borderRadius: 1 }}>
                   <Typography variant="body2" color="warning.dark">
-                    🔄 <strong>Yêu cầu gửi lại hợp đồng:</strong> Chúng tôi cần bạn ký lại hợp đồng.
+                    🔄 <strong>Yêu cầu gửi lại hợp đồng:</strong> Chúng tôi cần
+                    bạn ký lại hợp đồng.
                     <br />
                     📋 Vui lòng xem lại hợp đồng gốc, ký lại và upload file mới.
-                    <br />
-                    ⏰ Sau khi upload thành công, chúng tôi sẽ xem xét và xác nhận hợp đồng.
+                    <br />⏰ Sau khi upload thành công, chúng tôi sẽ xem xét và
+                    xác nhận hợp đồng.
                   </Typography>
                 </Box>
               )}

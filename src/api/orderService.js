@@ -330,4 +330,53 @@ export const contractSignedOrderApi = async (orderId) => {
     };
   }
 };
+export const updateOrderAddressApi = async (orderId, addressData) => {
+  try {
+    console.log("Gọi API cập nhật địa chỉ đơn hàng với:", { orderId, addressData });
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/address`, {
+      address: addressData.address,
+      note: addressData.note
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API cập nhật địa chỉ:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error updating order address:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update order address'
+    };
+  }
+};
+export const updateOrderEstimatedDeliveryDateApi = async (orderId, estimatedDeliveryDate) => {
+  try {
+    console.log("Gọi API cập nhật ngày giao hàng dự kiến với:", { orderId, estimatedDeliveryDate });
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/estimate-delivery-date`, {
+      estimatedDeliveryDate: estimatedDeliveryDate
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API cập nhật ngày giao hàng:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error updating order estimated delivery date:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update estimated delivery date'
+    };
+  }
+};
 export default orderService;
