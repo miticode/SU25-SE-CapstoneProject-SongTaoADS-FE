@@ -338,12 +338,10 @@ const DesignRequests = () => {
     setActionLoading(true);
     setFinalDesignError("");
     try {
-      const formData = new FormData();
-      formData.append("finalDesignImage", finalDesignFile);
       await dispatch(
         sendFinalDesignImage({
           customDesignRequestId: selectedRequest.id,
-          data: formData,
+          file: finalDesignFile,
         })
       ).unwrap();
       setNotification({

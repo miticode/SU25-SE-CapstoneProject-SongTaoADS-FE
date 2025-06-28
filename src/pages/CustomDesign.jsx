@@ -171,7 +171,7 @@ const CustomDesign = () => {
           customerChoiceId: currentOrder.id,
           data: {
             requirements: note || "",
-            hasOrder: true,
+            hasOrder: false,
           },
         })
       ).unwrap();
