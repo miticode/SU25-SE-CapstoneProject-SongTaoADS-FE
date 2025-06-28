@@ -66,6 +66,7 @@ import {
   uploadSignedContract,
 } from "../store/features/contract/contractSlice";
 import { openFileInNewTab } from "../api/s3Service";
+import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -83,7 +84,7 @@ const statusMap = {
   CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
   CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
   WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
-  IN_PROGRESS: { label: "Đang thực hiện", color: "info" }, 
+  IN_PROGRESS: { label: "Đang thực hiện", color: "info" },
   PRODUCING: { label: "Đang sản xuất", color: "info" },
   PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
   DELIVERING: { label: "Đang giao hàng", color: "info" },
@@ -98,7 +99,6 @@ const OrderHistory = () => {
   const [constructionLoading, setConstructionLoading] = useState(false);
   // Redux state for custom design requests
   const contractLoading = useSelector(selectContractLoading);
-  const contractError = useSelector(selectContractError);
   const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
   const [discussLoading, setDiscussLoading] = useState(false);
   const [contractDialog, setContractDialog] = useState({
@@ -143,6 +143,12 @@ const OrderHistory = () => {
   });
 
   const [depositLoadingId, setDepositLoadingId] = useState(null);
+  const s3FinalImageUrl = useSelector((state) =>
+    currentDesignRequest?.finalDesignImage
+      ? state.s3.images[currentDesignRequest.finalDesignImage]
+      : null
+  );
+
   const handleUploadSignedContract = async (contractId, file) => {
     if (!file) {
       setNotification({
@@ -256,7 +262,7 @@ const OrderHistory = () => {
   const [demoActionLoading, setDemoActionLoading] = useState(false);
   const [payingRemaining, setPayingRemaining] = useState(false);
 
-  const handleViewContract = async (contractUrl, contractType = "contract") => {
+  const handleViewContract = async (contractUrl) => {
     if (!contractUrl) {
       setNotification({
         open: true,
@@ -493,6 +499,16 @@ const OrderHistory = () => {
     };
     fetchLatestDemo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDetail, currentDesignRequest, dispatch]);
+
+  useEffect(() => {
+    if (
+      openDetail &&
+      currentDesignRequest?.finalDesignImage &&
+      currentDesignRequest.status === "COMPLETED"
+    ) {
+      dispatch(fetchImageFromS3(currentDesignRequest.finalDesignImage));
+    }
   }, [openDetail, currentDesignRequest, dispatch]);
 
   const handleDeposit = (order) => {
@@ -822,7 +838,7 @@ const OrderHistory = () => {
                           Tổng tiền:{" "}
                           {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
                         </Typography>
-                      {order.status === "DEPOSITED" && (
+                        {order.status === "DEPOSITED" && (
                           <>
                             <Typography color="success.main" fontSize={14}>
                               Đã đặt cọc:{" "}
@@ -838,23 +854,19 @@ const OrderHistory = () => {
                             </Typography>
                           </>
                         )}
-                          {order.status === "IN_PROGRESS" && order.estimatedDeliveryDate && (
-                          <Typography color="primary.main" fontSize={14} fontWeight={500}>
-                            📅 Ngày giao dự kiến:{" "}
-                            {new Date(order.estimatedDeliveryDate).toLocaleDateString(
-                              "vi-VN"
-                            )}
-                          </Typography>
-                        )}
-                        {!["DEPOSITED", "IN_PROGRESS"].includes(order.status) && 
-                         order.estimatedDeliveryDate && (
-                          <Typography color="primary.main" fontSize={14}>
-                            Ngày giao dự kiến:{" "}
-                            {new Date(order.estimatedDeliveryDate).toLocaleDateString(
-                              "vi-VN"
-                            )}
-                          </Typography>
-                        )}
+                        {order.status === "IN_PROGRESS" &&
+                          order.estimatedDeliveryDate && (
+                            <Typography
+                              color="primary.main"
+                              fontSize={14}
+                              fontWeight={500}
+                            >
+                              📅 Ngày giao dự kiến:{" "}
+                              {new Date(
+                                order.estimatedDeliveryDate
+                              ).toLocaleDateString("vi-VN")}
+                            </Typography>
+                          )}
                         {order.deliveryDate && (
                           <Typography color="primary.main" fontSize={14}>
                             Ngày giao dự kiến:{" "}
@@ -888,7 +900,7 @@ const OrderHistory = () => {
                             }}
                           />
                         )}
-                         {/* {order.status === "IN_PROGRESS" && (
+                        {/* {order.status === "IN_PROGRESS" && (
                           <Chip
                             label="Đang thực hiện"
                             color="info"
@@ -1480,6 +1492,26 @@ const OrderHistory = () => {
                       />
                     </Box>
                   )}
+                  {/* Hiển thị bản thiết kế chính thức nếu đã hoàn thành */}
+                  {currentDesignRequest.status === "COMPLETED" &&
+                    currentDesignRequest.finalDesignImage && (
+                      <Box mt={2}>
+                        <Typography variant="subtitle2" color="success.main">
+                          Bản thiết kế chính thức:
+                        </Typography>
+                        {s3FinalImageUrl ? (
+                          <img
+                            src={s3FinalImageUrl}
+                            alt="Thiết kế chính thức"
+                            style={{ maxWidth: 300, borderRadius: 8 }}
+                          />
+                        ) : (
+                          <Typography color="text.secondary">
+                            Đang tải ảnh...
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
                   {/* Nếu status là DEMO_SUBMITTED thì hiển thị nút Chấp nhận/Từ chối demo */}
                   {currentDesignRequest.status === "DEMO_SUBMITTED" && (
                     <Stack direction="row" spacing={2} mt={2}>
@@ -1615,7 +1647,7 @@ const OrderHistory = () => {
                     borderColor="info.light"
                     bgcolor="#e1f5fe"
                   >
-                    <Typography variant="subtitle1">
+                    <Typography variant="body2">
                       <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -1631,7 +1663,7 @@ const OrderHistory = () => {
                     borderColor="success.light"
                     bgcolor="#e8f5e9"
                   >
-                    <Typography variant="subtitle1">
+                    <Typography variant="body2">
                       <b>Bạn đã chọn:</b>{" "}
                       {currentDesignRequest.isNeedSupport
                         ? "Có thi công"
@@ -1782,10 +1814,7 @@ const OrderHistory = () => {
                       variant="contained"
                       color="primary"
                       onClick={() =>
-                        handleViewContract(
-                          contractDialog.contract.contractUrl,
-                          "original"
-                        )
+                        handleViewContract(contractDialog.contract.contractUrl)
                       }
                       disabled={contractViewLoading}
                       startIcon={
@@ -1933,10 +1962,7 @@ const OrderHistory = () => {
                       variant="outlined"
                       color="primary"
                       onClick={() =>
-                        handleViewContract(
-                          contractDialog.contract.contractUrl,
-                          "original"
-                        )
+                        handleViewContract(contractDialog.contract.contractUrl)
                       }
                       disabled={contractViewLoading}
                       startIcon={
@@ -2011,8 +2037,7 @@ const OrderHistory = () => {
                       color="success"
                       onClick={() =>
                         handleViewContract(
-                          contractDialog.contract.signedContractUrl,
-                          "signed"
+                          contractDialog.contract.signedContractUrl
                         )
                       }
                       disabled={contractViewLoading}

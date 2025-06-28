@@ -168,11 +168,14 @@ export const createCustomDesignRequestApi = async (customerDetailId, customerCho
 
 // 2. Designer gửi bản thiết kế chính thức
 // PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
-export const sendFinalDesignImageApi = async (customDesignRequestId, data) => {
+export const sendFinalDesignImageApi = async (customDesignRequestId, file) => {
   try {
+    const formData = new FormData();
+    formData.append('finalDesignImage', file);
+
     const response = await customDesignService.patch(
       `/api/custom-design-requests/${customDesignRequestId}/final-design-image`,
-      data
+      formData
     );
     return response.data;
   } catch (error) {
