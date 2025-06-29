@@ -11,6 +11,10 @@ import {
   contractSignedOrderApi,
   updateOrderAddressApi,
   updateOrderEstimatedDeliveryDateApi,
+  updateOrderToProducingApi,
+  updateOrderToProductionCompletedApi,
+  updateOrderToDeliveringApi,
+  updateOrderToInstalledApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -201,6 +205,68 @@ export const updateOrderEstimatedDeliveryDate = createAsyncThunk(
       return rejectWithValue(response.error || "Không thể cập nhật ngày giao hàng dự kiến");
     } catch (error) {
       return rejectWithValue(error.message || "Không thể cập nhật ngày giao hàng dự kiến");
+    }
+  }
+);
+export const updateOrderToProducing = createAsyncThunk(
+  "order/updateOrderToProducing",
+  async ({ orderId, draftImageFile }, { rejectWithValue }) => {
+    try {
+      const response = await updateOrderToProducingApi(orderId, draftImageFile);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể cập nhật trạng thái sản xuất");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể cập nhật trạng thái sản xuất");
+    }
+  }
+);
+export const updateOrderToProductionCompleted = createAsyncThunk(
+  'orders/updateToProductionCompleted',
+  async ({ orderId, productImageFile }, { rejectWithValue }) => {
+    try {
+      const response = await updateOrderToProductionCompletedApi(orderId, productImageFile);
+      
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to update order to production completed');
+    }
+  }
+);
+export const updateOrderToDelivering = createAsyncThunk(
+  'orders/updateToDelivering',
+  async ({ orderId, deliveryImageFile }, { rejectWithValue }) => {
+    try {
+      const response = await updateOrderToDeliveringApi(orderId, deliveryImageFile);
+      
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to update order to delivering');
+    }
+  }
+);
+export const updateOrderToInstalled = createAsyncThunk(
+  'orders/updateToInstalled',
+  async ({ orderId, installedImageFile }, { rejectWithValue }) => {
+    try {
+      const response = await updateOrderToInstalledApi(orderId, installedImageFile);
+      
+      if (response.success) {
+        return response.data;
+      } else {
+        return rejectWithValue(response.error);
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to update order to installed');
     }
   }
 );
@@ -424,6 +490,97 @@ const orderSlice = createSlice({
         }
       })
       .addCase(updateOrderEstimatedDeliveryDate.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(updateOrderToProducing.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateOrderToProducing.fulfilled, (state, action) => {
+        state.loading = false;
+
+        // Cập nhật order trong danh sách
+        const index = state.orders.findIndex(
+          (order) => order.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === action.payload.id) {
+          state.currentOrder = action.payload;
+        }
+      })
+      .addCase(updateOrderToProducing.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(updateOrderToProductionCompleted.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(updateOrderToProductionCompleted.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.error = null;
+        
+        // Cập nhật order trong danh sách
+        const updatedOrder = action.payload;
+        const index = state.orders.findIndex(order => order.id === updatedOrder.id);
+        if (index !== -1) {
+          state.orders[index] = updatedOrder;
+        }
+      })
+      .addCase(updateOrderToProductionCompleted.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+       .addCase(updateOrderToDelivering.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateOrderToDelivering.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        
+        // Cập nhật order trong danh sách
+        const updatedOrder = action.payload;
+        const index = state.orders.findIndex(order => order.id === updatedOrder.id);
+        if (index !== -1) {
+          state.orders[index] = updatedOrder;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === updatedOrder.id) {
+          state.currentOrder = updatedOrder;
+        }
+      })
+      .addCase(updateOrderToDelivering.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(updateOrderToInstalled.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateOrderToInstalled.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        
+        // Cập nhật order trong danh sách
+        const updatedOrder = action.payload;
+        const index = state.orders.findIndex(order => order.id === updatedOrder.id);
+        if (index !== -1) {
+          state.orders[index] = updatedOrder;
+        }
+
+        // Cập nhật currentOrder nếu cần
+        if (state.currentOrder && state.currentOrder.id === updatedOrder.id) {
+          state.currentOrder = updatedOrder;
+        }
+      })
+      .addCase(updateOrderToInstalled.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

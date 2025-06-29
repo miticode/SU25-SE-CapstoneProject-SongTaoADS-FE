@@ -19,6 +19,7 @@ import {
   TextField,
   Snackbar,
   Alert,
+  LinearProgress,
 } from "@mui/material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -45,9 +46,15 @@ import {
 } from "../api/priceService";
 
 import {
+  clearPaymentState,
   payCustomDesignDepositThunk,
   payCustomDesignRemainingThunk,
   payOrderDepositThunk,
+  payOrderRemainingThunk,
+  selectOrderDepositResult,
+  selectOrderRemainingResult,
+  selectPaymentError,
+  selectPaymentLoading,
 } from "../store/features/payment/paymentSlice";
 import {
   getDemoDesigns,
@@ -65,7 +72,8 @@ import {
   selectContractLoading,
   uploadSignedContract,
 } from "../store/features/contract/contractSlice";
-import { openFileInNewTab } from "../api/s3Service";
+import { getPresignedUrl, openFileInNewTab } from "../api/s3Service";
+import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -83,7 +91,7 @@ const statusMap = {
   CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
   CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
   WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
-  IN_PROGRESS: { label: "Đang thực hiện", color: "info" }, 
+  IN_PROGRESS: { label: "Đang thực hiện", color: "info" },
   PRODUCING: { label: "Đang sản xuất", color: "info" },
   PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
   DELIVERING: { label: "Đang giao hàng", color: "info" },
@@ -98,7 +106,6 @@ const OrderHistory = () => {
   const [constructionLoading, setConstructionLoading] = useState(false);
   // Redux state for custom design requests
   const contractLoading = useSelector(selectContractLoading);
-  const contractError = useSelector(selectContractError);
   const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
   const [discussLoading, setDiscussLoading] = useState(false);
   const [contractDialog, setContractDialog] = useState({
@@ -126,6 +133,17 @@ const OrderHistory = () => {
   const [contractViewLoading, setContractViewLoading] = useState(false);
   const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
   const [depositingOrderId, setDepositingOrderId] = useState(null);
+  const paymentLoading = useSelector(selectPaymentLoading);
+  const paymentError = useSelector(selectPaymentError);
+  const orderDepositResult = useSelector(selectOrderDepositResult);
+  const orderRemainingResult = useSelector(selectOrderRemainingResult);
+  const [remainingPaymentLoading, setRemainingPaymentLoading] = useState({});
+  const [imageDialog, setImageDialog] = useState({
+    open: false,
+    imageUrl: null,
+    loading: false,
+    title: "",
+  });
   const [offerDialog, setOfferDialog] = useState({
     open: false,
     proposalId: null,
@@ -143,6 +161,452 @@ const OrderHistory = () => {
   });
 
   const [depositLoadingId, setDepositLoadingId] = useState(null);
+  const s3FinalImageUrl = useSelector((state) =>
+    currentDesignRequest?.finalDesignImage
+      ? state.s3.images[currentDesignRequest.finalDesignImage]
+      : null
+  );
+  const handlePayRemaining = async (order) => {
+    if (!order?.id) {
+      setNotification({
+        open: true,
+        message: "Thông tin đơn hàng không hợp lệ",
+        severity: "error",
+      });
+      return;
+    }
+
+    // Set loading cho order này
+    setRemainingPaymentLoading((prev) => ({ ...prev, [order.id]: true }));
+
+    try {
+      const resultAction = await dispatch(payOrderRemainingThunk(order.id));
+
+      if (payOrderRemainingThunk.fulfilled.match(resultAction)) {
+        const { checkoutUrl } = resultAction.payload;
+
+        if (checkoutUrl) {
+          // Redirect đến trang thanh toán
+          window.location.href = checkoutUrl;
+        } else {
+          setNotification({
+            open: true,
+            message: "Không thể tạo link thanh toán",
+            severity: "error",
+          });
+        }
+      } else {
+        // Xử lý lỗi
+        const errorMessage =
+          resultAction.payload || "Có lỗi xảy ra khi tạo thanh toán";
+        setNotification({
+          open: true,
+          message: errorMessage,
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error paying remaining:", error);
+      setNotification({
+        open: true,
+        message: "Có lỗi xảy ra khi thanh toán",
+        severity: "error",
+      });
+    } finally {
+      // Clear loading cho order này
+      setRemainingPaymentLoading((prev) => ({ ...prev, [order.id]: false }));
+    }
+  };
+  useEffect(() => {
+    if (orderRemainingResult?.success) {
+      setNotification({
+        open: true,
+        message: "Tạo thanh toán thành công! Đang chuyển hướng...",
+        severity: "success",
+      });
+
+      // Clear state sau khi xử lý
+      dispatch(clearPaymentState());
+    }
+  }, [orderRemainingResult, dispatch]);
+  useEffect(() => {
+    if (paymentError) {
+      setNotification({
+        open: true,
+        message: paymentError,
+        severity: "error",
+      });
+
+      // Clear error sau khi hiển thị
+      dispatch(clearPaymentState());
+    }
+  }, [paymentError, dispatch]);
+  const getProductionProgress = (status) => {
+    const steps = [
+      { key: "PRODUCING", label: "Đang thi công", progress: 25 },
+      { key: "PRODUCTION_COMPLETED", label: "Đã thi công", progress: 50 },
+      { key: "DELIVERING", label: "Đang vận chuyển", progress: 75 },
+      { key: "INSTALLED", label: "Đã lắp đặt", progress: 100 },
+    ];
+
+    const currentStepIndex = steps.findIndex((step) => step.key === status);
+
+    return {
+      steps,
+      currentStepIndex,
+      progress: currentStepIndex >= 0 ? steps[currentStepIndex].progress : 0,
+      currentStep: currentStepIndex >= 0 ? steps[currentStepIndex] : null,
+    };
+  };
+  const ProductionProgressBar = ({ status, order }) => {
+    const { steps, currentStepIndex, progress, currentStep } =
+      getProductionProgress(status);
+
+    if (currentStepIndex === -1) return null;
+
+    // Cập nhật hàm handleStepClick để hỗ trợ cả draftImageUrl và productImageUrl
+    const handleStepClick = async (step, stepIndex) => {
+      let imageUrl = null;
+      let title = "";
+
+      // Xử lý cho step "Đang thi công" với draftImageUrl
+      if (step.key === "PRODUCING" && order?.draftImageUrl) {
+        imageUrl = order.draftImageUrl;
+        title = "Ảnh thiết kế - Đang thi công";
+      }
+      // Xử lý cho step "Đã thi công" với productImageUrl
+      else if (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) {
+        imageUrl = order.productImageUrl;
+        title = "Ảnh sản phẩm đã hoàn thành";
+      } else if (step.key === "DELIVERING" && order?.deliveryImageUrl) {
+        imageUrl = order.deliveryImageUrl;
+        title = "Ảnh vận chuyển - Đang vận chuyển";
+      } else if (step.key === "INSTALLED" && order?.installationImageUrl) {
+        imageUrl = order.installationImageUrl;
+        title = "Ảnh lắp đặt hoàn thành - Đã lắp đặt";
+      }
+      // Nếu không có ảnh thì không làm gì
+      if (!imageUrl) return;
+
+      setImageDialog({
+        open: true,
+        imageUrl: null,
+        loading: true,
+        title: title,
+      });
+
+      try {
+        const result = await getPresignedUrl(imageUrl, 30);
+        if (result.success) {
+          setImageDialog((prev) => ({
+            ...prev,
+            imageUrl: result.url,
+            loading: false,
+          }));
+        } else {
+          setImageDialog((prev) => ({
+            ...prev,
+            loading: false,
+          }));
+          setNotification({
+            open: true,
+            message:
+              "Không thể tải ảnh: " + (result.message || "Lỗi không xác định"),
+            severity: "error",
+          });
+        }
+      } catch (error) {
+        console.error("Error getting presigned URL:", error);
+        setImageDialog((prev) => ({
+          ...prev,
+          loading: false,
+        }));
+        setNotification({
+          open: true,
+          message: "Có lỗi xảy ra khi tải ảnh",
+          severity: "error",
+        });
+      }
+    };
+
+    return (
+      <Box sx={{ mt: 2, mb: 1 }}>
+        <Typography
+          variant="body2"
+          color="primary.main"
+          fontWeight={600}
+          gutterBottom
+        >
+          🔨 Tiến độ thi công
+        </Typography>
+
+        {/* Progress Bar */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {currentStep?.label}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {progress}%
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: "grey.200",
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 4,
+                backgroundColor:
+                  progress === 100 ? "success.main" : "primary.main",
+              },
+            }}
+          />
+        </Box>
+
+        {/* Step indicators */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            position: "relative",
+          }}
+        >
+          {steps.map((step, index) => {
+            // Kiểm tra xem step có thể click được không
+            const isClickable =
+              (step.key === "PRODUCING" && order?.draftImageUrl) ||
+              (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) ||
+              (step.key === "DELIVERING" && order?.deliveryImageUrl) ||
+              (step.key === "INSTALLED" && order?.installationImageUrl);
+            const isCurrentStep = index === currentStepIndex;
+            const isCompletedStep = index < currentStepIndex;
+
+            return (
+              <Box
+                key={step.key}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  flex: 1,
+                  position: "relative",
+                  cursor: isClickable ? "pointer" : "default",
+                  "&:hover": isClickable
+                    ? {
+                        "& .step-circle": {
+                          transform: "scale(1.1)",
+                          boxShadow: 3,
+                        },
+                      }
+                    : {},
+                }}
+                onClick={() => handleStepClick(step, index)}
+              >
+                {/* Step circle */}
+                <Box
+                  className="step-circle"
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    backgroundColor:
+                      index <= currentStepIndex
+                        ? index === currentStepIndex
+                          ? "primary.main"
+                          : "success.main"
+                        : "grey.300",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    mb: 1,
+                    zIndex: 2,
+                    border: "2px solid white",
+                    boxShadow: 1,
+                    transition: "all 0.2s ease-in-out",
+                    ...(isClickable && {
+                      border: "2px solid",
+                      borderColor:
+                        isCurrentStep || isCompletedStep
+                          ? "primary.dark"
+                          : "primary.light",
+                      "&:hover": {
+                        borderColor: "primary.dark",
+                        boxShadow: 2,
+                      },
+                    }),
+                  }}
+                >
+                  {index < currentStepIndex ? (
+                    <Typography
+                      variant="caption"
+                      color="white"
+                      fontWeight="bold"
+                    >
+                      ✓
+                    </Typography>
+                  ) : index === currentStepIndex ? (
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        backgroundColor: "white",
+                      }}
+                    />
+                  ) : null}
+                </Box>
+
+                {/* Step label */}
+                <Typography
+                  variant="caption"
+                  color={
+                    index <= currentStepIndex
+                      ? "text.primary"
+                      : "text.secondary"
+                  }
+                  fontWeight={index === currentStepIndex ? 600 : 400}
+                  textAlign="center"
+                  sx={{
+                    fontSize: "0.7rem",
+                    lineHeight: 1.2,
+                    maxWidth: 70,
+                    ...(isClickable && {
+                      color: "primary.main",
+                      fontWeight: 600,
+                      textDecoration: "underline",
+                    }),
+                  }}
+                >
+                  {step.label}
+                  {isClickable && " 📷"}
+                </Typography>
+
+                {/* Connecting line */}
+                {index < steps.length - 1 && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 12,
+                      left: "50%",
+                      right: "-50%",
+                      height: 2,
+                      backgroundColor:
+                        index < currentStepIndex ? "success.main" : "grey.300",
+                      zIndex: 1,
+                    }}
+                  />
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+
+        {/* Status message */}
+        <Box
+          sx={{
+            mt: 2,
+            p: 1.5,
+            backgroundColor: "primary.50",
+            borderRadius: 1,
+            border: "1px solid",
+            borderColor: "primary.200",
+          }}
+        >
+          <Typography variant="body2" color="primary.dark">
+            {status === "PRODUCING" && (
+              <>
+                🔨 Đơn hàng đang được thi công
+                {order?.draftImageUrl && (
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5, fontStyle: "italic" }}
+                  >
+                    💡 Click vào "Đang thi công" để xem ảnh thiết kế
+                  </Typography>
+                )}
+              </>
+            )}
+            {status === "PRODUCTION_COMPLETED" && (
+              <>
+                ✅ Thi công hoàn tất, chuẩn bị vận chuyển
+                {order?.productImageUrl && (
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5, fontStyle: "italic" }}
+                  >
+                    💡 Click vào "Đã thi công" để xem ảnh sản phẩm hoàn thành
+                  </Typography>
+                )}
+              </>
+            )}
+            {status === "DELIVERING" && (
+              <>
+                🚛 Đang vận chuyển đến địa chỉ của bạn
+                {order?.deliveryImageUrl && (
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5, fontStyle: "italic" }}
+                  >
+                    💡 Click vào "Đang vận chuyển" để xem ảnh vận chuyển
+                  </Typography>
+                )}
+                {/* Hiển thị hint cho các ảnh có thể xem từ các bước trước */}
+                {(order?.draftImageUrl || order?.productImageUrl) && (
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5, fontStyle: "italic" }}
+                  >
+                    💡 Click vào các bước có biểu tượng 📷 để xem ảnh
+                  </Typography>
+                )}
+              </>
+            )}
+            {status === "INSTALLED" && (
+              <>
+                🎉 Đã lắp đặt hoàn tất!
+                {order?.installationImageUrl && (
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5, fontStyle: "italic" }}
+                  >
+                    💡 Click vào "Đã lắp đặt" để xem ảnh lắp đặt hoàn thành
+                  </Typography>
+                )}
+                {/* Hiển thị hint cho tất cả các ảnh có thể xem từ các bước trước */}
+                {(order?.draftImageUrl ||
+                  order?.productImageUrl ||
+                  order?.deliveryImageUrl) && (
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5, fontStyle: "italic" }}
+                  >
+                    💡 Click vào các bước có biểu tượng 📷 để xem ảnh
+                  </Typography>
+                )}
+              </>
+            )}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+  const handleCloseImageDialog = () => {
+    setImageDialog({
+      open: false,
+      imageUrl: null,
+      loading: false,
+      title: "",
+    });
+  };
   const handleUploadSignedContract = async (contractId, file) => {
     if (!file) {
       setNotification({
@@ -256,7 +720,7 @@ const OrderHistory = () => {
   const [demoActionLoading, setDemoActionLoading] = useState(false);
   const [payingRemaining, setPayingRemaining] = useState(false);
 
-  const handleViewContract = async (contractUrl, contractType = "contract") => {
+  const handleViewContract = async (contractUrl) => {
     if (!contractUrl) {
       setNotification({
         open: true,
@@ -493,6 +957,16 @@ const OrderHistory = () => {
     };
     fetchLatestDemo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDetail, currentDesignRequest, dispatch]);
+
+  useEffect(() => {
+    if (
+      openDetail &&
+      currentDesignRequest?.finalDesignImage &&
+      currentDesignRequest.status === "COMPLETED"
+    ) {
+      dispatch(fetchImageFromS3(currentDesignRequest.finalDesignImage));
+    }
   }, [openDetail, currentDesignRequest, dispatch]);
 
   const handleDeposit = (order) => {
@@ -822,7 +1296,7 @@ const OrderHistory = () => {
                           Tổng tiền:{" "}
                           {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
                         </Typography>
-                      {order.status === "DEPOSITED" && (
+                        {order.status === "DEPOSITED" && (
                           <>
                             <Typography color="success.main" fontSize={14}>
                               Đã đặt cọc:{" "}
@@ -838,23 +1312,59 @@ const OrderHistory = () => {
                             </Typography>
                           </>
                         )}
-                          {order.status === "IN_PROGRESS" && order.estimatedDeliveryDate && (
-                          <Typography color="primary.main" fontSize={14} fontWeight={500}>
-                            📅 Ngày giao dự kiến:{" "}
-                            {new Date(order.estimatedDeliveryDate).toLocaleDateString(
-                              "vi-VN"
+                        {order.status === "INSTALLED" && (
+                          <>
+                            <Typography color="success.main" fontSize={14}>
+                              Đã đặt cọc:{" "}
+                              {order.depositAmount?.toLocaleString("vi-VN") ||
+                                0}
+                              ₫
+                            </Typography>
+                            {order.remainingAmount > 0 ? (
+                              <Typography
+                                color="warning.main"
+                                fontSize={14}
+                                fontWeight={600}
+                              >
+                                🔔 Còn lại cần thanh toán:{" "}
+                                {order.remainingAmount?.toLocaleString(
+                                  "vi-VN"
+                                ) || 0}
+                                ₫
+                              </Typography>
+                            ) : (
+                              <Typography
+                                color="success.main"
+                                fontSize={14}
+                                fontWeight={600}
+                              >
+                                ✅ Đã thanh toán đầy đủ
+                              </Typography>
                             )}
-                          </Typography>
+                          </>
                         )}
-                        {!["DEPOSITED", "IN_PROGRESS"].includes(order.status) && 
-                         order.estimatedDeliveryDate && (
-                          <Typography color="primary.main" fontSize={14}>
-                            Ngày giao dự kiến:{" "}
-                            {new Date(order.estimatedDeliveryDate).toLocaleDateString(
-                              "vi-VN"
-                            )}
-                          </Typography>
-                        )}
+                        {!["DEPOSITED", "INSTALLED"].includes(order.status) &&
+                          order.remainingAmount > 0 && (
+                            <Typography color="info.main" fontSize={14}>
+                              Còn lại:{" "}
+                              {order.remainingAmount?.toLocaleString("vi-VN") ||
+                                0}
+                              ₫
+                            </Typography>
+                          )}
+                        {order.status === "IN_PROGRESS" &&
+                          order.estimatedDeliveryDate && (
+                            <Typography
+                              color="primary.main"
+                              fontSize={14}
+                              fontWeight={500}
+                            >
+                              📅 Ngày giao dự kiến:{" "}
+                              {new Date(
+                                order.estimatedDeliveryDate
+                              ).toLocaleDateString("vi-VN")}
+                            </Typography>
+                          )}
                         {order.deliveryDate && (
                           <Typography color="primary.main" fontSize={14}>
                             Ngày giao dự kiến:{" "}
@@ -862,6 +1372,18 @@ const OrderHistory = () => {
                               "vi-VN"
                             )}
                           </Typography>
+                        )}
+                        {/* Thêm thanh tiến trình cho các trạng thái sản xuất */}
+                        {[
+                          "PRODUCING",
+                          "PRODUCTION_COMPLETED",
+                          "DELIVERING",
+                          "INSTALLED",
+                        ].includes(order.status) && (
+                          <ProductionProgressBar
+                            status={order.status}
+                            order={order}
+                          />
                         )}
                       </Box>
                       <Stack
@@ -884,11 +1406,11 @@ const OrderHistory = () => {
                             variant="outlined"
                             sx={{
                               minWidth: "fit-content",
-                              whiteSpace: "nowrap", // Không cho phép xuống dòng
+                              whiteSpace: "nowrap",
                             }}
                           />
                         )}
-                         {/* {order.status === "IN_PROGRESS" && (
+                        {/* {order.status === "IN_PROGRESS" && (
                           <Chip
                             label="Đang thực hiện"
                             color="info"
@@ -910,6 +1432,7 @@ const OrderHistory = () => {
                             }}
                           />
                         )}
+
                         {["APPROVED", "CONFIRMED", "PENDING"].includes(
                           (order.status || "").toUpperCase()
                         ) && (
@@ -970,6 +1493,76 @@ const OrderHistory = () => {
                         )}
                       </Stack>
                     </Stack>
+                    {order.status === "INSTALLED" &&
+                      order.remainingAmount > 0 && (
+                        <Box
+                          sx={{
+                            mt: 3,
+                            pt: 2,
+                            borderTop: "1px solid",
+                            borderColor: "grey.200",
+                          }}
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems="center"
+                            justifyContent="space-between"
+                          >
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                color="warning.main"
+                                fontWeight={600}
+                              >
+                                🔔 Còn lại cần thanh toán:{" "}
+                                {order.remainingAmount?.toLocaleString(
+                                  "vi-VN"
+                                ) || 0}
+                                ₫
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Đơn hàng đã lắp đặt hoàn tất, vui lòng thanh
+                                toán số tiền còn lại
+                              </Typography>
+                            </Box>
+                            <Button
+                              variant="contained"
+                              color="warning"
+                              size="large"
+                              onClick={() => handlePayRemaining(order)} // ✅ Thay đổi function call
+                              disabled={
+                                remainingPaymentLoading[order.id] ||
+                                paymentLoading
+                              } // ✅ Thêm disabled state
+                              sx={{
+                                minWidth: "200px",
+                                fontWeight: 600,
+                                boxShadow: 2,
+                                "&:hover": {
+                                  boxShadow: 4,
+                                },
+                              }}
+                            >
+                              {remainingPaymentLoading[order.id] ? (
+                                <>
+                                  <CircularProgress
+                                    size={20}
+                                    color="inherit"
+                                    sx={{ mr: 1 }}
+                                  />
+                                  Đang xử lý...
+                                </>
+                              ) : (
+                                "💰 THANH TOÁN NGAY"
+                              )}
+                            </Button>
+                          </Stack>
+                        </Box>
+                      )}
                   </CardContent>
                 </Card>
               ))}
@@ -1480,6 +2073,26 @@ const OrderHistory = () => {
                       />
                     </Box>
                   )}
+                  {/* Hiển thị bản thiết kế chính thức nếu đã hoàn thành */}
+                  {currentDesignRequest.status === "COMPLETED" &&
+                    currentDesignRequest.finalDesignImage && (
+                      <Box mt={2}>
+                        <Typography variant="subtitle2" color="success.main">
+                          Bản thiết kế chính thức:
+                        </Typography>
+                        {s3FinalImageUrl ? (
+                          <img
+                            src={s3FinalImageUrl}
+                            alt="Thiết kế chính thức"
+                            style={{ maxWidth: 300, borderRadius: 8 }}
+                          />
+                        ) : (
+                          <Typography color="text.secondary">
+                            Đang tải ảnh...
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
                   {/* Nếu status là DEMO_SUBMITTED thì hiển thị nút Chấp nhận/Từ chối demo */}
                   {currentDesignRequest.status === "DEMO_SUBMITTED" && (
                     <Stack direction="row" spacing={2} mt={2}>
@@ -1615,7 +2228,7 @@ const OrderHistory = () => {
                     borderColor="info.light"
                     bgcolor="#e1f5fe"
                   >
-                    <Typography variant="subtitle1">
+                    <Typography variant="body2">
                       <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -1631,7 +2244,7 @@ const OrderHistory = () => {
                     borderColor="success.light"
                     bgcolor="#e8f5e9"
                   >
-                    <Typography variant="subtitle1">
+                    <Typography variant="body2">
                       <b>Bạn đã chọn:</b>{" "}
                       {currentDesignRequest.isNeedSupport
                         ? "Có thi công"
@@ -1782,10 +2395,7 @@ const OrderHistory = () => {
                       variant="contained"
                       color="primary"
                       onClick={() =>
-                        handleViewContract(
-                          contractDialog.contract.contractUrl,
-                          "original"
-                        )
+                        handleViewContract(contractDialog.contract.contractUrl)
                       }
                       disabled={contractViewLoading}
                       startIcon={
@@ -1933,10 +2543,7 @@ const OrderHistory = () => {
                       variant="outlined"
                       color="primary"
                       onClick={() =>
-                        handleViewContract(
-                          contractDialog.contract.contractUrl,
-                          "original"
-                        )
+                        handleViewContract(contractDialog.contract.contractUrl)
                       }
                       disabled={contractViewLoading}
                       startIcon={
@@ -2011,8 +2618,7 @@ const OrderHistory = () => {
                       color="success"
                       onClick={() =>
                         handleViewContract(
-                          contractDialog.contract.signedContractUrl,
-                          "signed"
+                          contractDialog.contract.signedContractUrl
                         )
                       }
                       disabled={contractViewLoading}
@@ -2094,6 +2700,159 @@ const OrderHistory = () => {
           <Button onClick={handleCloseContractDialog}>Đóng</Button>
         </DialogActions>
       </Dialog>
+      <Dialog
+        open={imageDialog.open}
+        onClose={handleCloseImageDialog}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            minHeight: "60vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            pb: 1,
+          }}
+        >
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{ display: "flex", alignItems: "center", gap: 1 }}
+          >
+            📷 {imageDialog.title}
+          </Typography>
+          <IconButton
+            onClick={handleCloseImageDialog}
+            sx={{
+              color: "grey.500",
+              "&:hover": { backgroundColor: "grey.100" },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 400,
+            p: 3,
+          }}
+        >
+          {imageDialog.loading ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <CircularProgress size={40} />
+              <Typography color="text.secondary">
+                Đang tải ảnh thiết kế...
+              </Typography>
+            </Box>
+          ) : imageDialog.imageUrl ? (
+            <Box
+              sx={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <Box
+                component="img"
+                src={imageDialog.imageUrl}
+                alt="Ảnh thiết kế"
+                sx={{
+                  maxWidth: "100%",
+                  maxHeight: "70vh",
+                  objectFit: "contain",
+                  borderRadius: 1,
+                  boxShadow: 3,
+                  border: "1px solid",
+                  borderColor: "grey.200",
+                }}
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  setNotification({
+                    open: true,
+                    message: "Không thể hiển thị ảnh",
+                    severity: "error",
+                  });
+                }}
+              />
+
+              {/* Thông tin bổ sung */}
+              <Box
+                sx={{
+                  textAlign: "center",
+                  p: 2,
+                  backgroundColor: "grey.50",
+                  borderRadius: 1,
+                  width: "100%",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  🎨 Ảnh thiết kế được tạo trong quá trình thi công
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  sx={{ mt: 0.5 }}
+                >
+                  Bạn có thể phóng to ảnh bằng cách nhấp chuột phải và chọn "Mở
+                  ảnh trong tab mới"
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+                color: "text.secondary",
+              }}
+            >
+              <Typography variant="h6">❌ Không thể tải ảnh</Typography>
+              <Typography variant="body2">
+                Vui lòng thử lại sau hoặc liên hệ hỗ trợ
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          {imageDialog.imageUrl && (
+            <Button
+              variant="outlined"
+              onClick={() => window.open(imageDialog.imageUrl, "_blank")}
+              sx={{ mr: "auto" }}
+            >
+              Mở trong tab mới
+            </Button>
+          )}
+          <Button onClick={handleCloseImageDialog} variant="contained">
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={notification.open}
         autoHideDuration={6000}

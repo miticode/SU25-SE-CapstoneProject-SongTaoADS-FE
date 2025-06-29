@@ -176,9 +176,9 @@ export const createCustomDesignRequest = createAsyncThunk(
 // PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
 export const sendFinalDesignImage = createAsyncThunk(
   "customDesign/sendFinalDesignImage",
-  async ({ customDesignRequestId, data }, { rejectWithValue }) => {
+  async ({ customDesignRequestId, file }, { rejectWithValue }) => {
     try {
-      const response = await sendFinalDesignImageApi(customDesignRequestId, data);
+      const response = await sendFinalDesignImageApi(customDesignRequestId, file);
       if (!response.success) {
         return rejectWithValue(response.error || "Failed to send final design image");
       }

@@ -1612,7 +1612,23 @@ const CustomerRequests = () => {
                                 "vi-VN"
                               )}
                             </Typography>
-                            {/* Nếu trạng thái là NEGOTIATING thì Sale được cập nhật lại giá */}
+                            {/* Nếu trạng thái là PENDING thì Sale được cập nhật lại giá */}
+                            {proposal.status === "PENDING" && (
+                              <Box mt={1}>
+                                <Button
+                                  variant="outlined"
+                                  color="primary"
+                                  size="small"
+                                  onClick={() =>
+                                    handleOpenUpdateDialog(proposal)
+                                  }
+                                  disabled={actionLoading}
+                                >
+                                  Cập nhật lại giá
+                                </Button>
+                              </Box>
+                            )}
+                            {/* Nếu trạng thái là NEGOTIATING thì vẫn giữ nút cập nhật nếu cần (nếu muốn) */}
                             {proposal.status === "NEGOTIATING" && (
                               <Box mt={1}>
                                 <Button
@@ -2428,7 +2444,7 @@ const CustomerRequests = () => {
                                 </>
                               )}
 
-                             {selectedOrder.status === "DEPOSITED" && (
+                              {selectedOrder.status === "DEPOSITED" && (
                                 <>
                                   <Button
                                     variant="contained"
@@ -2444,11 +2460,16 @@ const CustomerRequests = () => {
                                   >
                                     Bắt đầu thực hiện
                                   </Button>
-                                  
+
                                   {/* Thêm thông báo nhắc nhở */}
                                   <Box sx={{ width: "100%", mt: 1 }}>
-                                    <Typography variant="body2" color="info.main" sx={{ fontStyle: "italic" }}>
-                                      💡 Đừng quên cập nhật ngày giao hàng dự kiến trước khi chuyển trạng thái
+                                    <Typography
+                                      variant="body2"
+                                      color="info.main"
+                                      sx={{ fontStyle: "italic" }}
+                                    >
+                                      💡 Đừng quên cập nhật ngày giao hàng dự
+                                      kiến trước khi chuyển trạng thái
                                     </Typography>
                                   </Box>
                                 </>

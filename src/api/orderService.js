@@ -379,4 +379,151 @@ export const updateOrderEstimatedDeliveryDateApi = async (orderId, estimatedDeli
     };
   }
 };
+export const updateOrderToProducingApi = async (orderId, draftImageFile) => {
+  try {
+    console.log("Gọi API cập nhật trạng thái PRODUCING với:", { orderId, draftImageFile });
+    
+    // Tạo FormData để upload file
+    const formData = new FormData();
+    formData.append('draftImage', draftImageFile);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/producing`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API cập nhật PRODUCING:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error updating order to producing:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update order to producing'
+    };
+  }
+};
+export const updateOrderToProductionCompletedApi = async (orderId, productImageFile) => {
+  try {
+    console.log("Gọi API cập nhật trạng thái PRODUCTION_COMPLETED với:", { orderId, productImageFile });
+    
+    // Validate input
+    if (!orderId) {
+      throw new Error('orderId is required');
+    }
+    
+    if (!productImageFile) {
+      throw new Error('productImageFile is required');
+    }
+
+    // Tạo FormData để upload file
+    const formData = new FormData();
+    formData.append('productImage', productImageFile);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/production-completed`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API cập nhật PRODUCTION_COMPLETED:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error updating order to production completed:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update order to production completed'
+    };
+  }
+};
+export const updateOrderToDeliveringApi = async (orderId, deliveryImageFile) => {
+  try {
+    console.log("Gọi API cập nhật trạng thái DELIVERING với:", { orderId, deliveryImageFile });
+    
+    // Validate input
+    if (!orderId) {
+      throw new Error('orderId is required');
+    }
+    
+    if (!deliveryImageFile) {
+      throw new Error('deliveryImageFile is required');
+    }
+
+    // Tạo FormData để upload file
+    const formData = new FormData();
+    formData.append('deliveryImage', deliveryImageFile);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/delivering`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API cập nhật DELIVERING:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error updating order to delivering:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update order to delivering'
+    };
+  }
+};
+export const updateOrderToInstalledApi = async (orderId, installedImageFile) => {
+  try {
+    console.log("Gọi API cập nhật trạng thái INSTALLED với:", { orderId, installedImageFile });
+    
+    // Validate input
+    if (!orderId) {
+      throw new Error('orderId is required');
+    }
+    
+    if (!installedImageFile) {
+      throw new Error('installedImageFile is required');
+    }
+
+    // Tạo FormData để upload file
+    const formData = new FormData();
+    formData.append('installedImage', installedImageFile);
+    
+    const response = await orderService.patch(`/api/orders/${orderId}/installed`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API cập nhật INSTALLED:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error updating order to installed:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update order to installed'
+    };
+  }
+};
 export default orderService;

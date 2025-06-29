@@ -34,9 +34,18 @@ export const confirmWebhookUrlThunk = createAsyncThunk(
 export const payOrderRemainingThunk = createAsyncThunk(
   'payment/payOrderRemaining',
   async (orderId, { rejectWithValue }) => {
-    const response = await payOrderRemaining(orderId);
-    if (response.success) return response;
-    return rejectWithValue(response.error);
+    try {
+      const response = await payOrderRemaining(orderId);
+      console.log("PayOrderRemaining response:", response); // Debug log
+      
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("PayOrderRemainingThunk error:", error);
+      return rejectWithValue(error.message || 'Failed to process remaining payment');
+    }
   }
 );
 
