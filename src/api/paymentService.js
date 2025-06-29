@@ -93,11 +93,29 @@ export const confirmWebhookUrl = async (payload) => {
 export const payOrderRemaining = async (orderId) => {
   try {
     const response = await paymentService.post(`/api/orders/${orderId}/remaining`);
-    return response.data; // { checkoutUrl: ... }
-  } catch (error) {
+    
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message } = response.data;
+    
+    if (success && result) {
+      // Trả về đúng cấu trúc để Redux thunk có thể xử lý
+      return {
+        success: true,
+        checkoutUrl: result.checkoutUrl,
+        data: result,
+        message: message
+      };
+    }
+    
     return {
       success: false,
-      error: error.response?.data?.message || 'Không thể thanh toán hết đơn hàng',
+      error: message || 'Không thể thanh toán số tiền còn lại',
+    };
+  } catch (error) {
+    console.error("Error in payOrderRemaining:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể thanh toán số tiền còn lại',
     };
   }
 };
