@@ -63,6 +63,7 @@ import DesignerChat from "./DesignerChat";
 import DashboardContent from "./DashboardContent";
 import FeedbackList from "../../components/Feedback/FeedbackList";
 import FeedbackDetailDialog from "../../components/Feedback/FeedbackDetailDialog";
+import FeedBack from "./FeedBack";
 
 const drawerWidth = 240;
 
@@ -163,36 +164,7 @@ const SaleDashboard = () => {
       case "designer":
         return <DesignerChat />;
       case "feedback":
-        return (
-          <>
-            <FeedbackList
-              onView={(fb) => {
-                setSelectedFeedback(fb);
-                setFeedbackDialogOpen(true);
-              }}
-              onDelete={(fb) => {
-                // Xử lý xóa feedback (mock)
-                alert("Xóa feedback: " + fb.id);
-              }}
-            />
-            <FeedbackDetailDialog
-              open={feedbackDialogOpen}
-              feedback={selectedFeedback}
-              onClose={() => setFeedbackDialogOpen(false)}
-              onRespond={(response) => {
-                alert("Phản hồi: " + response);
-                setFeedbackDialogOpen(false);
-              }}
-              onDelete={() => {
-                alert("Xóa feedback: " + selectedFeedback?.id);
-                setFeedbackDialogOpen(false);
-              }}
-              onUpdateImage={(img) => {
-                alert("Cập nhật ảnh: " + img.name);
-              }}
-            />
-          </>
-        );
+       return <FeedBack />;
       default:
         return (
           <DashboardContent
