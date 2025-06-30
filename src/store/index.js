@@ -18,7 +18,7 @@ import contractReducer from "./features/contract/contractSlice";
 
 import paymentReducer from "./features/payment/paymentSlice";
 import demoReducer from "./features/demo/demoSlice";
-import feedbackReducer from "./features/feedback/feedbackSlice";
+import impressionReducer from "./features/impression/impressionSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -39,7 +39,7 @@ export const store = configureStore({
     contract: contractReducer,
     payment: paymentReducer,
     demo: demoReducer,
-    feedback: feedbackReducer,
+    impression: impressionReducer,
     // Thêm các reducer khác tại đây
   },
 });
