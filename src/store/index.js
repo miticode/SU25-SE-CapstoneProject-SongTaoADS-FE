@@ -18,7 +18,7 @@ import contractReducer from "./features/contract/contractSlice";
 
 import paymentReducer from "./features/payment/paymentSlice";
 import demoReducer from "./features/demo/demoSlice";
-import feedbackReducer from "./features/feedback/feedbackSlice.js";
+import feedbackReducer from "./features/feedBack/feedBackSlice.js";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
