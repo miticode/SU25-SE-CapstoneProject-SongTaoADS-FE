@@ -46,7 +46,7 @@ import {
   clearError,
   resetPagination,
   FEEDBACK_STATUS_MAP,
-} from '../../store/features/feedback/feedBackSlice';
+} from '../../store/features/feedback/feedbackSlice';
 import S3Avatar from '../../components/S3Avatar';
 
 // Component FeedbackList
