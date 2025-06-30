@@ -93,7 +93,7 @@ import {
   clearError as clearFeedbackError,
   FEEDBACK_STATUS_MAP, 
   selectFeedbacksByOrder,
-} from "../store/features/feedback/feedBackSlice";
+} from "../store/features/feedback/feedbackSlice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
