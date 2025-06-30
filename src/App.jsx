@@ -5,17 +5,14 @@ import { useEffect, useState } from "react";
 import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-
 import { syncAuthState, setRefreshing } from "./store/features/auth/authSlice";
 import { checkAuthStatus, refreshTokenApi } from "./api/authService";
-
 import MainLayout from "./layouts/MainLayout";
 import SaleLayout from "./layouts/SaleLayout";
 import DesignerLayout from "./layouts/DesignerLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AuthLayout from "./layouts/AuthLayout";
-import Signup from "./pages/Signup";
 import Service from "./pages/Service";
 import ServiceDetail from "./pages/ServiceDetail";
 import Blog from "./pages/Blog";
@@ -29,12 +26,14 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import OrderHistory from "./pages/OrderHistory";
 import Checkout from "./pages/Checkout";
+import Signup from "./pages/Signup";
 import AIChatbot from "./components/AIChatbot";
 import CustomDesign from "./pages/CustomDesign";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
+
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -106,6 +105,7 @@ const App = () => {
   const dispatch = useDispatch();
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   // Xử lý sự kiện đăng nhập thành công

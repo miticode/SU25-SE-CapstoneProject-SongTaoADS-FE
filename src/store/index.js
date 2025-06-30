@@ -13,34 +13,31 @@ import chatReducer from "./features/chat/chatSlice";
 import attributeValueReducer from "./features/attribute/attributeValueSlice";
 import customDesignReducer from "./features/customeDesign/customerDesignSlice";
 import priceReducer from "./features/price/priceSlice";
-
 import contractReducer from "./features/contract/contractSlice";
-
 import paymentReducer from "./features/payment/paymentSlice";
 import demoReducer from "./features/demo/demoSlice";
 import impressionReducer from "./features/impression/impressionSlice";
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     productType: productTypeReducer,
     customers: customerReducer,
     attribute: attributeReducer,
+    attributeValue: attributeValueReducer,
     order: orderReducer,
     designTemplate: designTemplateReducer,
     users: userReducer,
     ai: aiReducer,
     size: sizeReducer,
-
+    price: priceReducer,
     s3: s3Reducer,
-    attributeValue: attributeValueReducer,
     chat: chatReducer,
     customDesign: customDesignReducer,
-    price: priceReducer,
     contract: contractReducer,
     payment: paymentReducer,
     demo: demoReducer,
     impression: impressionReducer,
-    // Thêm các reducer khác tại đây
   },
 });
 
