@@ -20,6 +20,8 @@ import {
   Snackbar,
   Alert,
   LinearProgress,
+  Rating,
+  Divider,
 } from "@mui/material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +31,10 @@ import BrushIcon from "@mui/icons-material/Brush";
 import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import DescriptionIcon from "@mui/icons-material/Description";
+import StarIcon from "@mui/icons-material/Star";
+import FeedbackIcon from "@mui/icons-material/Feedback";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import DeleteIcon from "@mui/icons-material/Delete";
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
@@ -74,6 +80,20 @@ import {
 } from "../store/features/contract/contractSlice";
 import { getPresignedUrl, openFileInNewTab } from "../api/s3Service";
 import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
+import {
+   createFeedback,
+  uploadFeedbackImage,
+  fetchFeedbacksByOrderId,
+  selectFeedbackLoading,
+  selectFeedbackError,
+  selectUploadingImage,
+  selectUploadImageError,
+  selectFetchingFeedbacks,
+  selectFeedbacksByOrderId,
+  clearError as clearFeedbackError,
+  FEEDBACK_STATUS_MAP, 
+  selectFeedbacksByOrder,
+} from "../store/features/feedback/feedBackSlice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -108,6 +128,23 @@ const OrderHistory = () => {
   const contractLoading = useSelector(selectContractLoading);
   const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
   const [discussLoading, setDiscussLoading] = useState(false);
+  const [feedbackDialog, setFeedbackDialog] = useState({
+    open: false,
+    orderId: null,
+  });
+  const [feedbackForm, setFeedbackForm] = useState({
+    rating: 5,
+    comment: "",
+  });
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [createdFeedbackId, setCreatedFeedbackId] = useState(null);
+  const feedbackLoading = useSelector(selectFeedbackLoading);
+  const feedbackError = useSelector(selectFeedbackError);
+  const uploadingImage = useSelector(selectUploadingImage);
+  const uploadImageError = useSelector(selectUploadImageError);
+  const fetchingFeedbacks = useSelector(selectFetchingFeedbacks);
   const [contractDialog, setContractDialog] = useState({
     open: false,
     contract: null,
@@ -138,6 +175,8 @@ const OrderHistory = () => {
   const orderDepositResult = useSelector(selectOrderDepositResult);
   const orderRemainingResult = useSelector(selectOrderRemainingResult);
   const [remainingPaymentLoading, setRemainingPaymentLoading] = useState({});
+  const allFeedbacksByOrder = useSelector(selectFeedbacksByOrder);
+
   const [imageDialog, setImageDialog] = useState({
     open: false,
     imageUrl: null,
@@ -166,6 +205,9 @@ const OrderHistory = () => {
       ? state.s3.images[currentDesignRequest.finalDesignImage]
       : null
   );
+  const getOrderFeedbacks = (orderId) => {
+    return allFeedbacksByOrder[orderId] || [];
+  };
   const handlePayRemaining = async (order) => {
     if (!order?.id) {
       setNotification({
@@ -968,7 +1010,185 @@ const OrderHistory = () => {
       dispatch(fetchImageFromS3(currentDesignRequest.finalDesignImage));
     }
   }, [openDetail, currentDesignRequest, dispatch]);
+  useEffect(() => {
+    if (feedbackError) {
+      setNotification({
+        open: true,
+        message: feedbackError,
+        severity: "error",
+      });
+      dispatch(clearFeedbackError());
+    }
+  }, [feedbackError, dispatch]);
+  useEffect(() => {
+    if (uploadImageError) {
+      setNotification({
+        open: true,
+        message: `Lỗi upload ảnh: ${uploadImageError}`,
+        severity: "error",
+      });
+      dispatch(clearFeedbackError());
+    }
+  }, [uploadImageError, dispatch]);
+  useEffect(() => {
+    if (orders.length > 0) {
+      // Load feedback cho các đơn hàng COMPLETED
+      orders.forEach((order) => {
+        if (order.status === "COMPLETED") {
+          dispatch(fetchFeedbacksByOrderId(order.id));
+        }
+      });
+    }
+  }, [orders, dispatch]);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        setNotification({
+          open: true,
+          message: "Chỉ cho phép upload file ảnh (JPEG, JPG, PNG, GIF)",
+          severity: "error",
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        setNotification({
+          open: true,
+          message: "Kích thước file không được vượt quá 5MB",
+          severity: "error",
+        });
+        return;
+      }
+
+      setSelectedImage(file);
+
+      // Tạo preview ảnh
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    // Reset input file
+    const fileInput = document.getElementById("feedback-image-upload");
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  };
+  const handleOpenFeedbackDialog = (orderId) => {
+    setFeedbackDialog({
+      open: true,
+      orderId: orderId,
+    });
+    setFeedbackForm({
+      rating: 5,
+      comment: "",
+    });
+    setSelectedImage(null);
+    setImagePreview(null);
+    setCreatedFeedbackId(null);
+  };
+  const handleCloseFeedbackDialog = () => {
+    setFeedbackDialog({
+      open: false,
+      orderId: null,
+    });
+    setFeedbackForm({
+      rating: 5,
+      comment: "",
+    });
+    setSelectedImage(null);
+    setImagePreview(null);
+    setCreatedFeedbackId(null);
+  };
+  const handleSubmitFeedback = async () => {
+    if (!feedbackForm.comment.trim()) {
+      setNotification({
+        open: true,
+        message: "Vui lòng nhập nhận xét về đơn hàng",
+        severity: "warning",
+      });
+      return;
+    }
+
+    setSubmittingFeedback(true);
+
+    try {
+      // Bước 1: Tạo feedback trước
+      const result = await dispatch(
+        createFeedback({
+          orderId: feedbackDialog.orderId,
+          feedbackData: {
+            rating: feedbackForm.rating,
+            comment: feedbackForm.comment.trim(),
+          },
+        })
+      ).unwrap();
+
+      setCreatedFeedbackId(result.id);
+
+      // Bước 2: Upload ảnh nếu có
+      if (selectedImage && result.id) {
+        try {
+          await dispatch(
+            uploadFeedbackImage({
+              feedbackId: result.id,
+              imageFile: selectedImage,
+            })
+          ).unwrap();
+
+          setNotification({
+            open: true,
+            message: "Gửi đánh giá và ảnh thành công! Cảm ơn bạn đã phản hồi.",
+            severity: "success",
+          });
+        } catch (uploadError) {
+          setNotification({
+            open: true,
+            message:
+              "Gửi đánh giá thành công nhưng không thể upload ảnh. Vui lòng thử upload ảnh lại sau.",
+            severity: "warning",
+          });
+        }
+      } else {
+        setNotification({
+          open: true,
+          message: "Gửi đánh giá thành công! Cảm ơn bạn đã phản hồi.",
+          severity: "success",
+        });
+      }
+
+      handleCloseFeedbackDialog();
+
+      // Có thể reload lại orders để cập nhật trạng thái
+      if (user?.id) {
+        dispatch(fetchOrdersByUserId(user.id));
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: error || "Không thể gửi đánh giá. Vui lòng thử lại.",
+        severity: "error",
+      });
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
   const handleDeposit = (order) => {
     // Lưu thông tin order vào localStorage để trang checkout có thể sử dụng
     localStorage.setItem("checkoutOrderId", order.id);
@@ -1198,219 +1418,227 @@ const OrderHistory = () => {
             <Typography>Không có đơn hàng nào.</Typography>
           ) : (
             <Stack spacing={2}>
-              {orders.map((order) => (
-                <Card
-                  key={order.id}
-                  sx={{
-                    borderRadius: 2,
-                    boxShadow: 2,
-                    borderLeft: order.aiDesigns
-                      ? "4px solid #6A1B9A"
-                      : order.customDesignRequests
-                      ? "4px solid #0277BD"
-                      : "4px solid #558B2F",
-                  }}
-                >
-                  <CardContent>
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={2}
-                      alignItems={{ sm: "center" }}
-                      justifyContent="space-between"
-                    >
-                      <Box flex={1} minWidth={0}>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          mb={1}
-                        >
-                          {order.aiDesigns ? (
-                            <Chip
-                              icon={<SmartToyIcon />}
-                              label="AI Design"
-                              size="small"
-                              color="secondary"
-                              sx={{ fontWeight: 500 }}
-                            />
-                          ) : order.customDesignRequests ? (
-                            <Chip
-                              icon={<BrushIcon />}
-                              label="Custom Design"
-                              size="small"
-                              color="primary"
-                              sx={{ fontWeight: 500 }}
-                            />
-                          ) : (
-                            <Chip
-                              icon={<ShoppingBagIcon />}
-                              label="Đơn hàng thường"
-                              size="small"
-                              color="success"
-                              sx={{ fontWeight: 500 }}
-                            />
-                          )}
-                        </Stack>
+              {orders.map((order) => {
+                // ✅ Sử dụng helper function thay vì useSelector
+                const orderFeedbacks = getOrderFeedbacks(order.id);
 
-                        <Typography
-                          fontWeight={600}
-                          sx={{
-                            wordBreak: "break-all", // Cho phép ngắt từ ở bất kỳ vị trí nào
-                            overflowWrap: "break-word", // Ngắt từ khi cần thiết
-                          }}
-                        >
-                          Mã đơn: {order.id}
-                        </Typography>
-
-                        {order.customDesignRequests && (
-                          <Typography color="text.secondary" fontSize={14}>
-                            <b>Yêu cầu thiết kế:</b>{" "}
-                            {order.customDesignRequests.requirements?.substring(
-                              0,
-                              50
+                return (
+                  <Card
+                    key={order.id}
+                    sx={{
+                      borderRadius: 2,
+                      boxShadow: 2,
+                      borderLeft: order.aiDesigns
+                        ? "4px solid #6A1B9A"
+                        : order.customDesignRequests
+                        ? "4px solid #0277BD"
+                        : "4px solid #558B2F",
+                    }}
+                  >
+                    <CardContent>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={2}
+                        alignItems={{ sm: "center" }}
+                        justifyContent="space-between"
+                      >
+                        <Box flex={1} minWidth={0}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            mb={1}
+                          >
+                            {order.aiDesigns ? (
+                              <Chip
+                                icon={<SmartToyIcon />}
+                                label="AI Design"
+                                size="small"
+                                color="secondary"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            ) : order.customDesignRequests ? (
+                              <Chip
+                                icon={<BrushIcon />}
+                                label="Custom Design"
+                                size="small"
+                                color="primary"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            ) : (
+                              <Chip
+                                icon={<ShoppingBagIcon />}
+                                label="Đơn hàng thường"
+                                size="small"
+                                color="success"
+                                sx={{ fontWeight: 500 }}
+                              />
                             )}
-                            {order.customDesignRequests.requirements?.length >
-                            50
-                              ? "..."
-                              : ""}
-                          </Typography>
-                        )}
+                          </Stack>
 
-                        {order.aiDesigns && (
-                          <Typography color="text.secondary" fontSize={14}>
-                            <b>Ghi chú:</b>{" "}
-                            {order.aiDesigns.customerNote?.substring(0, 50)}
-                            {order.aiDesigns.customerNote?.length > 50
-                              ? "..."
-                              : ""}
+                          <Typography
+                            fontWeight={600}
+                            sx={{
+                              wordBreak: "break-all",
+                              overflowWrap: "break-word",
+                            }}
+                          >
+                            Mã đơn: {order.id}
                           </Typography>
-                        )}
 
-                        <Typography color="text.secondary" fontSize={14}>
-                          Ngày đặt:{" "}
-                          {new Date(order.orderDate).toLocaleDateString(
-                            "vi-VN"
+                          {order.customDesignRequests && (
+                            <Typography color="text.secondary" fontSize={14}>
+                              <b>Yêu cầu thiết kế:</b>{" "}
+                              {order.customDesignRequests.requirements?.substring(
+                                0,
+                                50
+                              )}
+                              {order.customDesignRequests.requirements?.length >
+                              50
+                                ? "..."
+                                : ""}
+                            </Typography>
                           )}
-                        </Typography>
-                        <Typography color="text.secondary" fontSize={14}>
-                          Tổng tiền:{" "}
-                          {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
-                        </Typography>
-                        {order.status === "DEPOSITED" && (
-                          <>
-                            <Typography color="success.main" fontSize={14}>
-                              Đã đặt cọc:{" "}
-                              {order.depositAmount?.toLocaleString("vi-VN") ||
-                                0}
-                              ₫
+
+                          {order.aiDesigns && (
+                            <Typography color="text.secondary" fontSize={14}>
+                              <b>Ghi chú:</b>{" "}
+                              {order.aiDesigns.customerNote?.substring(0, 50)}
+                              {order.aiDesigns.customerNote?.length > 50
+                                ? "..."
+                                : ""}
                             </Typography>
-                            <Typography color="info.main" fontSize={14}>
-                              Còn lại:{" "}
-                              {order.remainingAmount?.toLocaleString("vi-VN") ||
-                                0}
-                              ₫
-                            </Typography>
-                          </>
-                        )}
-                        {order.status === "INSTALLED" && (
-                          <>
-                            <Typography color="success.main" fontSize={14}>
-                              Đã đặt cọc:{" "}
-                              {order.depositAmount?.toLocaleString("vi-VN") ||
-                                0}
-                              ₫
-                            </Typography>
-                            {order.remainingAmount > 0 ? (
-                              <Typography
-                                color="warning.main"
-                                fontSize={14}
-                                fontWeight={600}
-                              >
-                                🔔 Còn lại cần thanh toán:{" "}
+                          )}
+
+                          <Typography color="text.secondary" fontSize={14}>
+                            Ngày đặt:{" "}
+                            {new Date(order.orderDate).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </Typography>
+                          <Typography color="text.secondary" fontSize={14}>
+                            Tổng tiền:{" "}
+                            {order.totalAmount?.toLocaleString("vi-VN") || 0}₫
+                          </Typography>
+                          {order.status === "DEPOSITED" && (
+                            <>
+                              <Typography color="success.main" fontSize={14}>
+                                Đã đặt cọc:{" "}
+                                {order.depositAmount?.toLocaleString("vi-VN") ||
+                                  0}
+                                ₫
+                              </Typography>
+                              <Typography color="info.main" fontSize={14}>
+                                Còn lại:{" "}
                                 {order.remainingAmount?.toLocaleString(
                                   "vi-VN"
                                 ) || 0}
                                 ₫
                               </Typography>
-                            ) : (
-                              <Typography
-                                color="success.main"
-                                fontSize={14}
-                                fontWeight={600}
-                              >
-                                ✅ Đã thanh toán đầy đủ
+                            </>
+                          )}
+                          {order.status === "INSTALLED" && (
+                            <>
+                              <Typography color="success.main" fontSize={14}>
+                                Đã đặt cọc:{" "}
+                                {order.depositAmount?.toLocaleString("vi-VN") ||
+                                  0}
+                                ₫
+                              </Typography>
+                              {order.remainingAmount > 0 ? (
+                                <Typography
+                                  color="warning.main"
+                                  fontSize={14}
+                                  fontWeight={600}
+                                >
+                                  🔔 Còn lại cần thanh toán:{" "}
+                                  {order.remainingAmount?.toLocaleString(
+                                    "vi-VN"
+                                  ) || 0}
+                                  ₫
+                                </Typography>
+                              ) : (
+                                <Typography
+                                  color="success.main"
+                                  fontSize={14}
+                                  fontWeight={600}
+                                >
+                                  ✅ Đã thanh toán đầy đủ
+                                </Typography>
+                              )}
+                            </>
+                          )}
+                          {!["DEPOSITED", "INSTALLED"].includes(order.status) &&
+                            order.remainingAmount > 0 && (
+                              <Typography color="info.main" fontSize={14}>
+                                Còn lại:{" "}
+                                {order.remainingAmount?.toLocaleString(
+                                  "vi-VN"
+                                ) || 0}
+                                ₫
                               </Typography>
                             )}
-                          </>
-                        )}
-                        {!["DEPOSITED", "INSTALLED"].includes(order.status) &&
-                          order.remainingAmount > 0 && (
-                            <Typography color="info.main" fontSize={14}>
-                              Còn lại:{" "}
-                              {order.remainingAmount?.toLocaleString("vi-VN") ||
-                                0}
-                              ₫
-                            </Typography>
-                          )}
-                        {order.status === "IN_PROGRESS" &&
-                          order.estimatedDeliveryDate && (
-                            <Typography
-                              color="primary.main"
-                              fontSize={14}
-                              fontWeight={500}
-                            >
-                              📅 Ngày giao dự kiến:{" "}
-                              {new Date(
-                                order.estimatedDeliveryDate
-                              ).toLocaleDateString("vi-VN")}
-                            </Typography>
-                          )}
-                        {order.deliveryDate && (
-                          <Typography color="primary.main" fontSize={14}>
-                            Ngày giao dự kiến:{" "}
-                            {new Date(order.deliveryDate).toLocaleDateString(
-                              "vi-VN"
+                          {order.status === "IN_PROGRESS" &&
+                            order.estimatedDeliveryDate && (
+                              <Typography
+                                color="primary.main"
+                                fontSize={14}
+                                fontWeight={500}
+                              >
+                                📅 Ngày giao dự kiến:{" "}
+                                {new Date(
+                                  order.estimatedDeliveryDate
+                                ).toLocaleDateString("vi-VN")}
+                              </Typography>
                             )}
-                          </Typography>
-                        )}
-                        {/* Thêm thanh tiến trình cho các trạng thái sản xuất */}
-                        {[
-                          "PRODUCING",
-                          "PRODUCTION_COMPLETED",
-                          "DELIVERING",
-                          "INSTALLED",
-                        ].includes(order.status) && (
-                          <ProductionProgressBar
-                            status={order.status}
-                            order={order}
-                          />
-                        )}
-                      </Box>
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
-                        alignItems="center"
-                        flexShrink={0} // Ngăn không cho phần này bị co lại
-                        minWidth={{ xs: "100%", sm: "auto" }} // Trên mobile chiếm full width
-                      >
-                        <Chip
-                          label={statusMap[order.status]?.label || order.status}
-                          color={statusMap[order.status]?.color || "default"}
-                        />
-
-                        {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
-                        {order.status === "WAITING_FULL_PAYMENT" && (
+                          {order.deliveryDate && (
+                            <Typography color="primary.main" fontSize={14}>
+                              Ngày giao dự kiến:{" "}
+                              {new Date(order.deliveryDate).toLocaleDateString(
+                                "vi-VN"
+                              )}
+                            </Typography>
+                          )}
+                          {/* Thêm thanh tiến trình cho các trạng thái sản xuất */}
+                          {[
+                            "PRODUCING",
+                            "PRODUCTION_COMPLETED",
+                            "DELIVERING",
+                            "INSTALLED",
+                          ].includes(order.status) && (
+                            <ProductionProgressBar
+                              status={order.status}
+                              order={order}
+                            />
+                          )}
+                        </Box>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          alignItems="center"
+                          flexShrink={0} // Ngăn không cho phần này bị co lại
+                          minWidth={{ xs: "100%", sm: "auto" }} // Trên mobile chiếm full width
+                        >
                           <Chip
-                            label="THANH TOÁN TIỀN CÒN LẠI"
-                            color="warning"
-                            variant="outlined"
-                            sx={{
-                              minWidth: "fit-content",
-                              whiteSpace: "nowrap",
-                            }}
+                            label={
+                              statusMap[order.status]?.label || order.status
+                            }
+                            color={statusMap[order.status]?.color || "default"}
                           />
-                        )}
-                        {/* {order.status === "IN_PROGRESS" && (
+
+                          {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
+                          {order.status === "WAITING_FULL_PAYMENT" && (
+                            <Chip
+                              label="THANH TOÁN TIỀN CÒN LẠI"
+                              color="warning"
+                              variant="outlined"
+                              sx={{
+                                minWidth: "fit-content",
+                                whiteSpace: "nowrap",
+                              }}
+                            />
+                          )}
+                          {/* {order.status === "IN_PROGRESS" && (
                           <Chip
                             label="Đang thực hiện"
                             color="info"
@@ -1421,151 +1649,399 @@ const OrderHistory = () => {
                             }}
                           />
                         )} */}
-                        {order.status === "DEPOSITED" && (
-                          <Chip
-                            label="Đang chờ ngày giao dự kiến"
-                            color="info"
-                            variant="outlined"
-                            sx={{
-                              minWidth: "fit-content",
-                              whiteSpace: "nowrap",
-                            }}
-                          />
-                        )}
+                          {order.status === "DEPOSITED" && (
+                            <Chip
+                              label="Đang chờ ngày giao dự kiến"
+                              color="info"
+                              variant="outlined"
+                              sx={{
+                                minWidth: "fit-content",
+                                whiteSpace: "nowrap",
+                              }}
+                            />
+                          )}
 
-                        {["APPROVED", "CONFIRMED", "PENDING"].includes(
-                          (order.status || "").toUpperCase()
-                        ) && (
-                          <Button
-                            variant="contained"
-                            color="warning"
-                            size="small"
-                            onClick={() => handleDeposit(order)}
-                            sx={{
-                              minWidth: "fit-content",
-                              whiteSpace: "nowrap",
-                              flexShrink: 0,
-                            }}
-                          >
-                            ĐẶT CỌC NGAY
-                          </Button>
-                        )}
-                        {[
-                          "CONTRACT_SENT",
-                          "CONTRACT_SIGNED",
-                          "CONTRACT_RESIGNED",
-                          "CONTRACT_CONFIRMED",
-                        ].includes((order.status || "").toUpperCase()) && (
-                          <Button
-                            variant="outlined"
-                            color="info"
-                            size="small"
-                            onClick={() => handleGetContract(order.id)}
-                            disabled={contractLoading}
-                            startIcon={
-                              contractLoading ? (
-                                <CircularProgress size={16} />
-                              ) : null
-                            }
-                            sx={{
-                              minWidth: "fit-content",
-                              whiteSpace: "nowrap", // Không cho phép text trong button xuống dòng
-                              flexShrink: 0, // Không cho button bị co lại
-                            }}
-                          >
-                            Xem hợp đồng
-                          </Button>
-                        )}
-                        {order.status === "CONTRACT_CONFIRMED" && (
-                          <Button
-                            variant="contained"
-                            color="warning"
-                            size="small"
-                            onClick={() => handleDeposit(order)}
-                            sx={{
-                              minWidth: "fit-content",
-                              whiteSpace: "nowrap",
-                              flexShrink: 0,
-                            }}
-                          >
-                            ĐẶT CỌC NGAY
-                          </Button>
-                        )}
-                      </Stack>
-                    </Stack>
-                    {order.status === "INSTALLED" &&
-                      order.remainingAmount > 0 && (
-                        <Box
-                          sx={{
-                            mt: 3,
-                            pt: 2,
-                            borderTop: "1px solid",
-                            borderColor: "grey.200",
-                          }}
-                        >
-                          <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems="center"
-                            justifyContent="space-between"
-                          >
-                            <Box>
-                              <Typography
-                                variant="body2"
-                                color="warning.main"
-                                fontWeight={600}
-                              >
-                                🔔 Còn lại cần thanh toán:{" "}
-                                {order.remainingAmount?.toLocaleString(
-                                  "vi-VN"
-                                ) || 0}
-                                ₫
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                Đơn hàng đã lắp đặt hoàn tất, vui lòng thanh
-                                toán số tiền còn lại
-                              </Typography>
-                            </Box>
+                          {["APPROVED", "CONFIRMED", "PENDING"].includes(
+                            (order.status || "").toUpperCase()
+                          ) && (
                             <Button
                               variant="contained"
                               color="warning"
-                              size="large"
-                              onClick={() => handlePayRemaining(order)} // ✅ Thay đổi function call
-                              disabled={
-                                remainingPaymentLoading[order.id] ||
-                                paymentLoading
-                              } // ✅ Thêm disabled state
+                              size="small"
+                              onClick={() => handleDeposit(order)}
                               sx={{
-                                minWidth: "200px",
-                                fontWeight: 600,
-                                boxShadow: 2,
-                                "&:hover": {
-                                  boxShadow: 4,
-                                },
+                                minWidth: "fit-content",
+                                whiteSpace: "nowrap",
+                                flexShrink: 0,
                               }}
                             >
-                              {remainingPaymentLoading[order.id] ? (
-                                <>
-                                  <CircularProgress
-                                    size={20}
-                                    color="inherit"
-                                    sx={{ mr: 1 }}
-                                  />
-                                  Đang xử lý...
-                                </>
-                              ) : (
-                                "💰 THANH TOÁN NGAY"
-                              )}
+                              ĐẶT CỌC NGAY
                             </Button>
-                          </Stack>
-                        </Box>
+                          )}
+                          {[
+                            "CONTRACT_SENT",
+                            "CONTRACT_SIGNED",
+                            "CONTRACT_RESIGNED",
+                            "CONTRACT_CONFIRMED",
+                          ].includes((order.status || "").toUpperCase()) && (
+                            <Button
+                              variant="outlined"
+                              color="info"
+                              size="small"
+                              onClick={() => handleGetContract(order.id)}
+                              disabled={contractLoading}
+                              startIcon={
+                                contractLoading ? (
+                                  <CircularProgress size={16} />
+                                ) : null
+                              }
+                              sx={{
+                                minWidth: "fit-content",
+                                whiteSpace: "nowrap", // Không cho phép text trong button xuống dòng
+                                flexShrink: 0, // Không cho button bị co lại
+                              }}
+                            >
+                              Xem hợp đồng
+                            </Button>
+                          )}
+                          {order.status === "CONTRACT_CONFIRMED" && (
+                            <Button
+                              variant="contained"
+                              color="warning"
+                              size="small"
+                              onClick={() => handleDeposit(order)}
+                              sx={{
+                                minWidth: "fit-content",
+                                whiteSpace: "nowrap",
+                                flexShrink: 0,
+                              }}
+                            >
+                              ĐẶT CỌC NGAY
+                            </Button>
+                          )}
+                        </Stack>
+                      </Stack>
+                      {order.status === "COMPLETED" && (
+                        <>
+                          <Divider sx={{ my: 2 }} />
+
+                          {/* Hiển thị feedback đã gửi */}
+                          {orderFeedbacks && orderFeedbacks.length > 0 ? (
+                            <Box
+                              sx={{
+                                p: 2,
+                                backgroundColor: "info.50",
+                                borderRadius: 1,
+                                border: "1px solid",
+                                borderColor: "info.200",
+                              }}
+                            >
+                              <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                color="info.dark"
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  mb: 2,
+                                }}
+                              >
+                                <FeedbackIcon /> Đánh giá của bạn
+                              </Typography>
+
+                              {orderFeedbacks.map((feedback, index) => (
+                                <Box
+                                  key={feedback.id}
+                                  sx={{
+                                    mb:
+                                      index < orderFeedbacks.length - 1 ? 2 : 0,
+                                    p: 2,
+                                    backgroundColor: "white",
+                                    borderRadius: 1,
+                                    border: "1px solid",
+                                    borderColor: "grey.200",
+                                  }}
+                                >
+                                  {/* Rating */}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1,
+                                      mb: 1,
+                                    }}
+                                  >
+                                    <Rating
+                                      value={feedback.rating}
+                                      readOnly
+                                      size="small"
+                                      icon={<StarIcon fontSize="inherit" />}
+                                      emptyIcon={
+                                        <StarIcon fontSize="inherit" />
+                                      }
+                                    />
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      ({feedback.rating}/5)
+                                    </Typography>
+                                  </Box>
+
+                                  {/* Comment */}
+                                  <Typography variant="body2" sx={{ mb: 1 }}>
+                                    {feedback.comment}
+                                  </Typography>
+
+                                  {/* Feedback Image */}
+                                  {feedback.feedbackImageUrl && (
+                                    <Box sx={{ mb: 1 }}>
+                                      <Box
+                                        component="img"
+                                        src={feedback.feedbackImageUrl}
+                                        alt="Ảnh feedback"
+                                        sx={{
+                                          maxWidth: 200,
+                                          height: "auto",
+                                          borderRadius: 1,
+                                          cursor: "pointer",
+                                          "&:hover": {
+                                            opacity: 0.8,
+                                          },
+                                        }}
+                                        onClick={() =>
+                                          window.open(
+                                            feedback.feedbackImageUrl,
+                                            "_blank"
+                                          )
+                                        }
+                                      />
+                                    </Box>
+                                  )}
+
+                                  {/* Feedback Info */}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      Gửi lúc:{" "}
+                                      {new Date(feedback.sendAt).toLocaleString(
+                                        "vi-VN"
+                                      )}
+                                    </Typography>
+                                    <Chip
+                                      label={
+                                        FEEDBACK_STATUS_MAP[feedback.status]
+                                          ?.label || feedback.status
+                                      }
+                                      color={
+                                        FEEDBACK_STATUS_MAP[feedback.status]
+                                          ?.color || "default"
+                                      }
+                                      size="small"
+                                    />
+                                  </Box>
+
+                                  {/* Admin Response */}
+                                  {feedback.response && (
+                                    <Box
+                                      sx={{
+                                        mt: 2,
+                                        p: 2,
+                                        backgroundColor: "success.50",
+                                        borderRadius: 1,
+                                        border: "1px solid",
+                                        borderColor: "success.200",
+                                      }}
+                                    >
+                                      <Typography
+                                        variant="subtitle2"
+                                        color="success.dark"
+                                        fontWeight={600}
+                                        sx={{ mb: 1 }}
+                                      >
+                                        💬 Phản hồi từ chúng tôi:
+                                      </Typography>
+                                      <Typography
+                                        variant="body2"
+                                        color="success.dark"
+                                      >
+                                        {feedback.response}
+                                      </Typography>
+                                      {feedback.responseAt && (
+                                        <Typography
+                                          variant="caption"
+                                          color="success.dark"
+                                          sx={{ display: "block", mt: 1 }}
+                                        >
+                                          Phản hồi lúc:{" "}
+                                          {new Date(
+                                            feedback.responseAt
+                                          ).toLocaleString("vi-VN")}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  )}
+                                </Box>
+                              ))}
+
+                              {/* Nút gửi feedback mới */}
+                              <Button
+                                variant="outlined"
+                                color="primary"
+                                startIcon={<FeedbackIcon />}
+                                onClick={() =>
+                                  handleOpenFeedbackDialog(order.id)
+                                }
+                                sx={{
+                                  mt: 2,
+                                  borderRadius: 2,
+                                  textTransform: "none",
+                                }}
+                              >
+                                Gửi đánh giá khác
+                              </Button>
+                            </Box>
+                          ) : (
+                            // Chưa có feedback nào
+                            <Box
+                              sx={{
+                                p: 2,
+                                backgroundColor: "success.50",
+                                borderRadius: 1,
+                                border: "1px solid",
+                                borderColor: "success.200",
+                              }}
+                            >
+                              <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                color="success.dark"
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  mb: 1,
+                                }}
+                              >
+                                <StarIcon /> Đơn hàng đã hoàn thành
+                              </Typography>
+
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 2 }}
+                              >
+                                🎉 Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!
+                                Hãy chia sẻ trải nghiệm của bạn để giúp chúng
+                                tôi cải thiện chất lượng dịch vụ.
+                              </Typography>
+
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<FeedbackIcon />}
+                                onClick={() =>
+                                  handleOpenFeedbackDialog(order.id)
+                                }
+                                sx={{
+                                  borderRadius: 2,
+                                  fontWeight: 600,
+                                  textTransform: "none",
+                                  boxShadow: 2,
+                                  "&:hover": {
+                                    boxShadow: 4,
+                                  },
+                                }}
+                              >
+                                Đánh giá đơn hàng
+                              </Button>
+                            </Box>
+                          )}
+                        </>
                       )}
-                  </CardContent>
-                </Card>
-              ))}
+                      {order.status === "INSTALLED" &&
+                        order.remainingAmount > 0 && (
+                          <Box
+                            sx={{
+                              mt: 3,
+                              pt: 2,
+                              borderTop: "1px solid",
+                              borderColor: "grey.200",
+                            }}
+                          >
+                            <Stack
+                              direction="row"
+                              spacing={2}
+                              alignItems="center"
+                              justifyContent="space-between"
+                            >
+                              <Box>
+                                <Typography
+                                  variant="body2"
+                                  color="warning.main"
+                                  fontWeight={600}
+                                >
+                                  🔔 Còn lại cần thanh toán:{" "}
+                                  {order.remainingAmount?.toLocaleString(
+                                    "vi-VN"
+                                  ) || 0}
+                                  ₫
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Đơn hàng đã lắp đặt hoàn tất, vui lòng thanh
+                                  toán số tiền còn lại
+                                </Typography>
+                              </Box>
+                              <Button
+                                variant="contained"
+                                color="warning"
+                                size="large"
+                                onClick={() => handlePayRemaining(order)} // ✅ Thay đổi function call
+                                disabled={
+                                  remainingPaymentLoading[order.id] ||
+                                  paymentLoading
+                                } // ✅ Thêm disabled state
+                                sx={{
+                                  minWidth: "200px",
+                                  fontWeight: 600,
+                                  boxShadow: 2,
+                                  "&:hover": {
+                                    boxShadow: 4,
+                                  },
+                                }}
+                              >
+                                {remainingPaymentLoading[order.id] ? (
+                                  <>
+                                    <CircularProgress
+                                      size={20}
+                                      color="inherit"
+                                      sx={{ mr: 1 }}
+                                    />
+                                    Đang xử lý...
+                                  </>
+                                ) : (
+                                  "💰 THANH TOÁN NGAY"
+                                )}
+                              </Button>
+                            </Stack>
+                          </Box>
+                        )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Stack>
           )}
         </>
@@ -1769,6 +2245,299 @@ const OrderHistory = () => {
         </Stack>
       )}
       {/* Popup chi tiết custom design request */}
+      <Dialog
+        open={feedbackDialog.open}
+        onClose={handleCloseFeedbackDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            pb: 1,
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "white",
+            position: "relative",
+          }}
+        >
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1,
+              fontWeight: 600,
+            }}
+          >
+            <StarIcon /> Đánh giá đơn hàng
+          </Typography>
+          <IconButton
+            onClick={handleCloseFeedbackDialog}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              color: "white",
+              "&:hover": {
+                backgroundColor: "rgba(255,255,255,0.1)",
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+              Đơn hàng #{feedbackDialog.orderId}
+            </Typography>
+            <Typography variant="h6" color="primary.main" sx={{ mb: 1 }}>
+              Bạn cảm thấy thế nào về dịch vụ của chúng tôi?
+            </Typography>
+          </Box>
+
+          {/* Rating Section */}
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+              Đánh giá chung
+            </Typography>
+            <Rating
+              name="feedback-rating"
+              value={feedbackForm.rating}
+              onChange={(event, newValue) => {
+                setFeedbackForm((prev) => ({
+                  ...prev,
+                  rating: newValue || 1,
+                }));
+              }}
+              size="large"
+              precision={1}
+              icon={<StarIcon fontSize="inherit" />}
+              emptyIcon={<StarIcon fontSize="inherit" />}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {feedbackForm.rating === 1 && "😞 Rất không hài lòng"}
+              {feedbackForm.rating === 2 && "😐 Không hài lòng"}
+              {feedbackForm.rating === 3 && "😊 Bình thường"}
+              {feedbackForm.rating === 4 && "😃 Hài lòng"}
+              {feedbackForm.rating === 5 && "🤩 Rất hài lòng"}
+            </Typography>
+          </Box>
+
+          {/* Comment Section */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+              Nhận xét chi tiết <span style={{ color: "#f44336" }}>*</span>
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              value={feedbackForm.comment}
+              onChange={(e) =>
+                setFeedbackForm((prev) => ({
+                  ...prev,
+                  comment: e.target.value,
+                }))
+              }
+              placeholder="Chia sẻ trải nghiệm của bạn về chất lượng sản phẩm, dịch vụ khách hàng, thời gian giao hàng..."
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                },
+              }}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 1, display: "block" }}
+            >
+              💡 Góp ý của bạn sẽ giúp chúng tôi cải thiện chất lượng dịch vụ
+            </Typography>
+          </Box>
+
+          {/* Image Upload Section */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+              Ảnh đính kèm (tùy chọn)
+            </Typography>
+
+            {/* Image Upload Button */}
+            {!selectedImage && (
+              <Box sx={{ textAlign: "center" }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={{ display: "none" }}
+                  id="feedback-image-upload"
+                />
+                <label htmlFor="feedback-image-upload">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<CameraAltIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: "none",
+                      borderStyle: "dashed",
+                      borderWidth: 2,
+                      py: 2,
+                      px: 3,
+                      "&:hover": {
+                        borderStyle: "dashed",
+                        borderWidth: 2,
+                      },
+                    }}
+                  >
+                    Chọn ảnh để upload
+                  </Button>
+                </label>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 1, display: "block" }}
+                >
+                  📸 Hỗ trợ định dạng: JPEG, JPG, PNG, GIF (tối đa 5MB)
+                </Typography>
+              </Box>
+            )}
+
+            {/* Image Preview */}
+            {selectedImage && imagePreview && (
+              <Box sx={{ mt: 2 }}>
+                <Box
+                  sx={{
+                    position: "relative",
+                    display: "inline-block",
+                    border: "2px solid",
+                    borderColor: "primary.main",
+                    borderRadius: 2,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={imagePreview}
+                    alt="Preview"
+                    sx={{
+                      width: "100%",
+                      maxWidth: 300,
+                      height: "auto",
+                      maxHeight: 200,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+
+                  {/* Remove button */}
+                  <IconButton
+                    onClick={handleRemoveImage}
+                    sx={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      color: "error.main",
+                      "&:hover": {
+                        backgroundColor: "rgba(255, 255, 255, 1)",
+                      },
+                    }}
+                    size="small"
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+
+                <Typography
+                  variant="body2"
+                  color="success.main"
+                  sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  ✅ Đã chọn: {selectedImage.name}
+                </Typography>
+
+                {/* Change image button */}
+                <Box sx={{ mt: 1 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    style={{ display: "none" }}
+                    id="feedback-image-change"
+                  />
+                  <label htmlFor="feedback-image-change">
+                    <Button
+                      variant="text"
+                      component="span"
+                      size="small"
+                      startIcon={<CameraAltIcon />}
+                      sx={{ textTransform: "none" }}
+                    >
+                      Chọn ảnh khác
+                    </Button>
+                  </label>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Button
+            onClick={handleCloseFeedbackDialog}
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              minWidth: 100,
+            }}
+            disabled={submittingFeedback || uploadingImage}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSubmitFeedback}
+            variant="contained"
+            color="primary"
+            disabled={
+              submittingFeedback ||
+              uploadingImage ||
+              !feedbackForm.comment.trim()
+            }
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              minWidth: 120,
+              fontWeight: 600,
+            }}
+          >
+            {submittingFeedback ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Đang gửi...
+              </>
+            ) : uploadingImage ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Đang upload ảnh...
+              </>
+            ) : (
+              "Gửi đánh giá"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog
         open={openDetail}
         onClose={() => setOpenDetail(false)}
