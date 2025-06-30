@@ -40,7 +40,7 @@ export const store = configureStore({
     payment: paymentReducer,
     demo: demoReducer,
    feedback: feedbackReducer,
-    // Thêm các reducer khác tại đây
+    // Thêm các reducer khác tại đây ok
   },
 });
 
