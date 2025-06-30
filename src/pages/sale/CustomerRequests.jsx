@@ -1439,9 +1439,10 @@ const CustomerRequests = () => {
                       </Grid>
                     )}
 
-                  {/* Chỉ hiện mục chọn designer khi status là DEPOSITED */}
+                  {/* Chỉ hiện mục chọn designer khi status là DEPOSITED hoặc DESIGNER_REJECTED */}
                   {selectedRequest &&
-                    selectedRequest.status === "DEPOSITED" && (
+                    (selectedRequest.status === "DEPOSITED" ||
+                      selectedRequest.status === "DESIGNER_REJECTED") && (
                       <Grid item xs={6}>
                         <Typography
                           variant="subtitle2"
@@ -1762,27 +1763,33 @@ const CustomerRequests = () => {
                 >
                   {rejectingRequest ? "Đang từ chối..." : "Từ chối"}
                 </Button>
-                {/* Nút giao task chỉ hiện khi request có status là DEPOSITED */}
-                {selectedRequest && selectedRequest.status === "DEPOSITED" && (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    disabled={
-                      !selectedDesigner || assigningDesigner || loadingDesigners
-                    }
-                    onClick={async () => {
-                      await handleAssignDesigner();
-                      handleCloseDetails(); // Đóng dialog sau khi giao task thành công
-                    }}
-                    startIcon={
-                      assigningDesigner ? (
-                        <CircularProgress size={20} color="inherit" />
-                      ) : null
-                    }
-                  >
-                    {assigningDesigner ? "Đang giao..." : "Giao task thiết kế"}
-                  </Button>
-                )}
+                {/* Nút giao task chỉ hiện khi request có status là DEPOSITED hoặc DESIGNER_REJECTED */}
+                {selectedRequest &&
+                  (selectedRequest.status === "DEPOSITED" ||
+                    selectedRequest.status === "DESIGNER_REJECTED") && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      disabled={
+                        !selectedDesigner ||
+                        assigningDesigner ||
+                        loadingDesigners
+                      }
+                      onClick={async () => {
+                        await handleAssignDesigner();
+                        handleCloseDetails(); // Đóng dialog sau khi giao task thành công
+                      }}
+                      startIcon={
+                        assigningDesigner ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : null
+                      }
+                    >
+                      {assigningDesigner
+                        ? "Đang giao..."
+                        : "Giao task thiết kế"}
+                    </Button>
+                  )}
               </DialogActions>
               {assignmentError && (
                 <Box sx={{ px: 3, pb: 2 }}>

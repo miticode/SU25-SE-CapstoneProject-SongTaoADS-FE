@@ -63,7 +63,7 @@ export default function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
+      className={`sticky top-0 z-50 relative transition-all duration-300 ${
         isScrolled
           ? "shadow-md bg-white"
           : "bg-gradient-to-r from-[#f8f9fa] to-[#ffffff]"

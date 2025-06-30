@@ -42,9 +42,9 @@ export const createDemoDesignApi = async (customDesignRequestId, data) => {
 };
 
 // Khách hàng từ chối bản demo
-export const rejectDemoDesignApi = async (customDesignId) => {
+export const rejectDemoDesignApi = async (customDesignId, data) => {
   try {
-    const res = await demoService.patch(`/api/demo-designs/${customDesignId}/reject`);
+    const res = await demoService.patch(`/api/demo-designs/${customDesignId}/reject`, data);
     return res.data;
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Failed to reject demo design' };
