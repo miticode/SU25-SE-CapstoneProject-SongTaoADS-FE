@@ -111,4 +111,68 @@ export const getFeedbacksByOrderIdApi = async (orderId) => {
     };
   }
 };
+export const getAllFeedbacksApi = async (page = 1, size = 10) => {
+  try {
+    console.log("Gọi API lấy tất cả feedback với:", { page, size });
+    
+    const response = await feedbackService.get('/api/feedbacks', {
+      params: {
+        page,
+        size
+      }
+    });
+
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API lấy tất cả feedback:", { 
+        success, 
+        result, 
+        pagination: { currentPage, totalPages, pageSize, totalElements }
+      });
+      return { 
+        success: true, 
+        data: result || [],
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error fetching all feedbacks:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch all feedbacks'
+    };
+  }
+};
+export const respondToFeedbackApi = async (feedbackId, responseText) => {
+  try {
+    console.log("Gọi API phản hồi feedback với:", { feedbackId, responseText });
+    
+    const response = await feedbackService.patch(`/api/feedbacks/${feedbackId}/response`, {
+      response: responseText
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API phản hồi feedback:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error responding to feedback:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to respond to feedback'
+    };
+  }
+};
 export default feedbackService;

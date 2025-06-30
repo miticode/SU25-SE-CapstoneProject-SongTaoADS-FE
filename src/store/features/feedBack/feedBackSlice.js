@@ -1,16 +1,17 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createFeedbackApi,
+  getAllFeedbacksApi,
   getFeedbacksByOrderIdApi,
+  respondToFeedbackApi,
   uploadFeedbackImageApi,
 } from "../../../api/feedBackService";
 
 // Định nghĩa mapping trạng thái feedback
 export const FEEDBACK_STATUS_MAP = {
   PENDING: { label: "Chờ xử lý", color: "warning" },
-  APPROVED: { label: "Đã duyệt", color: "success" },
-  REJECTED: { label: "Đã từ chối", color: "error" },
-  RESPONDED: { label: "Đã phản hồi", color: "info" },
+
+  ANSWERED: { label: "Đã phản hồi", color: "info" },
 };
 
 // Async thunks
@@ -44,9 +45,39 @@ export const fetchFeedbacksByOrderId = createAsyncThunk(
     return rejectWithValue(response.error);
   }
 );
+export const fetchAllFeedbacks = createAsyncThunk(
+  "feedback/fetchAllFeedbacks",
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+    const response = await getAllFeedbacksApi(page, size);
+    if (response.success) {
+      return {
+        feedbacks: response.data,
+        pagination: response.pagination,
+      };
+    }
+    return rejectWithValue(response.error);
+  }
+);
+export const respondToFeedback = createAsyncThunk(
+  "feedback/respondToFeedback",
+  async ({ feedbackId, responseText }, { rejectWithValue }) => {
+    const response = await respondToFeedbackApi(feedbackId, responseText);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
 const initialState = {
   feedbacks: [],
   feedbacksByOrder: {},
+  allFeedbacks: [], // Danh sách tất cả feedback cho admin/sale
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0,
+  },
   loading: false,
   error: null,
   currentFeedback: null,
@@ -56,6 +87,10 @@ const initialState = {
   uploadImageError: null,
   fetchingFeedbacks: false,
   fetchFeedbacksError: null,
+  fetchingAllFeedbacks: false, // Loading state cho fetch all
+  fetchAllFeedbacksError: null, // Error state cho fetch all
+  respondingToFeedback: false, // Loading state cho respond
+  respondToFeedbackError: null, // Error state cho respond
 };
 
 const feedbackSlice = createSlice({
@@ -67,6 +102,8 @@ const feedbackSlice = createSlice({
       state.currentFeedbackError = null;
       state.uploadImageError = null;
       state.fetchFeedbacksError = null;
+      state.fetchAllFeedbacksError = null;
+      state.respondToFeedbackError = null;
     },
     setCurrentFeedback: (state, action) => {
       state.currentFeedback = action.payload;
@@ -74,6 +111,7 @@ const feedbackSlice = createSlice({
     resetFeedbacks: (state) => {
       state.feedbacks = [];
       state.feedbacksByOrder = {};
+      state.allFeedbacks = [];
       state.error = null;
     },
     clearOrderFeedbacks: (state, action) => {
@@ -81,6 +119,14 @@ const feedbackSlice = createSlice({
       if (state.feedbacksByOrder[orderId]) {
         delete state.feedbacksByOrder[orderId];
       }
+    },
+    resetPagination: (state) => {
+      state.pagination = {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0,
+      };
     },
   },
   extraReducers: (builder) => {
@@ -138,6 +184,79 @@ const feedbackSlice = createSlice({
       .addCase(fetchFeedbacksByOrderId.rejected, (state, action) => {
         state.fetchingFeedbacks = false;
         state.fetchFeedbacksError = action.payload;
+      })
+      .addCase(fetchAllFeedbacks.pending, (state) => {
+        state.fetchingAllFeedbacks = true;
+        state.fetchAllFeedbacksError = null;
+      })
+      .addCase(fetchAllFeedbacks.fulfilled, (state, action) => {
+        state.fetchingAllFeedbacks = false;
+        const { feedbacks, pagination } = action.payload;
+
+        // Nếu là trang đầu tiên, thay thế toàn bộ danh sách
+        if (pagination.currentPage === 1) {
+          state.allFeedbacks = feedbacks;
+        } else {
+          // Nếu là trang tiếp theo, thêm vào danh sách hiện tại (load more)
+          state.allFeedbacks = [...state.allFeedbacks, ...feedbacks];
+        }
+
+        state.pagination = pagination;
+      })
+      .addCase(fetchAllFeedbacks.rejected, (state, action) => {
+        state.fetchingAllFeedbacks = false;
+        state.fetchAllFeedbacksError = action.payload;
+      })
+      .addCase(respondToFeedback.pending, (state) => {
+        state.respondingToFeedback = true;
+        state.respondToFeedbackError = null;
+      })
+      .addCase(respondToFeedback.fulfilled, (state, action) => {
+        state.respondingToFeedback = false;
+        const updatedFeedback = action.payload;
+
+        // Cập nhật feedback trong allFeedbacks
+        const allFeedbackIndex = state.allFeedbacks.findIndex(
+          (feedback) => feedback.id === updatedFeedback.id
+        );
+        if (allFeedbackIndex !== -1) {
+          state.allFeedbacks[allFeedbackIndex] = updatedFeedback;
+        }
+
+        // Cập nhật feedback trong feedbacksByOrder nếu có
+        if (
+          updatedFeedback.orderId &&
+          state.feedbacksByOrder[updatedFeedback.orderId]
+        ) {
+          const orderFeedbackIndex = state.feedbacksByOrder[
+            updatedFeedback.orderId
+          ].findIndex((feedback) => feedback.id === updatedFeedback.id);
+          if (orderFeedbackIndex !== -1) {
+            state.feedbacksByOrder[updatedFeedback.orderId][
+              orderFeedbackIndex
+            ] = updatedFeedback;
+          }
+        }
+
+        // Cập nhật feedback trong feedbacks
+        const feedbackIndex = state.feedbacks.findIndex(
+          (feedback) => feedback.id === updatedFeedback.id
+        );
+        if (feedbackIndex !== -1) {
+          state.feedbacks[feedbackIndex] = updatedFeedback;
+        }
+
+        // Cập nhật currentFeedback nếu cần
+        if (
+          state.currentFeedback &&
+          state.currentFeedback.id === updatedFeedback.id
+        ) {
+          state.currentFeedback = updatedFeedback;
+        }
+      })
+      .addCase(respondToFeedback.rejected, (state, action) => {
+        state.respondingToFeedback = false;
+        state.respondToFeedbackError = action.payload;
       });
   },
 });
@@ -147,6 +266,7 @@ export const {
   setCurrentFeedback,
   resetFeedbacks,
   clearOrderFeedbacks,
+  resetPagination,
 } = feedbackSlice.actions;
 export default feedbackSlice.reducer;
 
@@ -171,3 +291,17 @@ export const selectFeedbacksByOrder = (state) =>
 // Selector để lấy feedback của một đơn hàng cụ thể
 export const selectFeedbacksByOrderId = (orderId) => (state) =>
   state.feedback.feedbacksByOrder[orderId] || [];
+
+// Selectors cho admin/sale
+export const selectAllFeedbacks = (state) => state.feedback.allFeedbacks;
+export const selectFeedbackPagination = (state) => state.feedback.pagination;
+export const selectFetchingAllFeedbacks = (state) =>
+  state.feedback.fetchingAllFeedbacks;
+export const selectFetchAllFeedbacksError = (state) =>
+  state.feedback.fetchAllFeedbacksError;
+
+// Selectors cho respond to feedback
+export const selectRespondingToFeedback = (state) =>
+  state.feedback.respondingToFeedback;
+export const selectRespondToFeedbackError = (state) =>
+  state.feedback.respondToFeedbackError;
