@@ -35,18 +35,18 @@ import {
   Send as SendIcon,
 } from '@mui/icons-material';
 import {
-  fetchAllFeedbacks,
-  respondToFeedback,
-  selectAllFeedbacks,
-  selectFeedbackPagination,
-  selectFetchingAllFeedbacks,
-  selectFetchAllFeedbacksError,
-  selectRespondingToFeedback,
-  selectRespondToFeedbackError,
+  fetchAllImpressions, // Đổi từ fetchAllFeedbacks
+  respondToImpression, // Đổi từ respondToFeedback
+  selectAllImpressions, // Đổi từ selectAllFeedbacks
+  selectImpressionPagination, // Đổi từ selectFeedbackPagination
+  selectFetchingAllImpressions, // Đổi từ selectFetchingAllFeedbacks
+  selectFetchAllImpressionsError, // Đổi từ selectFetchAllFeedbacksError
+  selectRespondingToImpression, // Đổi từ selectRespondingToFeedback
+  selectRespondToImpressionError, // Đổi từ selectRespondToFeedbackError
   clearError,
   resetPagination,
-  FEEDBACK_STATUS_MAP,
-} from '../../store/features/feedback/feedbackSlice';
+  IMPRESSION_STATUS_MAP,
+} from '../../store/features/impression/impressionSlice';
 import S3Avatar from '../../components/S3Avatar';
 
 // Component FeedbackList
@@ -92,8 +92,8 @@ const FeedbackList = ({ feedbacks, onView, onDelete, onRefresh }) => {
                   </Box>
                   
                   <Chip 
-                    label={FEEDBACK_STATUS_MAP[feedback.status]?.label || feedback.status}
-                    color={FEEDBACK_STATUS_MAP[feedback.status]?.color || 'default'}
+                   label={IMPRESSION_STATUS_MAP[feedback.status]?.label || feedback.status}
+                    color={IMPRESSION_STATUS_MAP[feedback.status]?.color || 'default'}
                     size="small"
                   />
                 </Box>
@@ -204,8 +204,8 @@ const FeedbackList = ({ feedbacks, onView, onDelete, onRefresh }) => {
 // Component FeedbackDetailDialog với tích hợp API respond
 const FeedbackDetailDialog = ({ open, feedback, onClose, onRespond }) => {
   const dispatch = useDispatch();
-  const respondingToFeedback = useSelector(selectRespondingToFeedback);
-  const respondError = useSelector(selectRespondToFeedbackError);
+  const respondingToFeedback = useSelector(selectRespondingToImpression); // Đổi selector
+  const respondError = useSelector(selectRespondToImpressionError); // Đổi selector
   
   const [response, setResponse] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -220,23 +220,28 @@ const FeedbackDetailDialog = ({ open, feedback, onClose, onRespond }) => {
   if (!open || !feedback) return null;
 
   const handleSubmitResponse = async () => {
-    if (!response.trim()) return;
+  if (!response.trim()) return;
 
-    try {
-      await dispatch(respondToFeedback({
-        feedbackId: feedback.id,
-        responseText: response.trim()
-      })).unwrap();
-      
-      setShowSuccess(true);
-      setTimeout(() => {
-        onClose();
-        onRespond(); // Callback để refresh data
-      }, 1500);
-    } catch (error) {
-      console.error('Error responding to feedback:', error);
-    }
-  };
+  try {
+    await dispatch(respondToImpression({
+      impressionId: feedback.id,
+      responseText: response.trim()
+    })).unwrap();
+    
+    // Hiển thị thông báo thành công
+    setShowSuccess(true);
+    
+    // Đóng dialog và refresh data
+    setTimeout(() => {
+      onClose(); // Đóng dialog
+      onRespond(); // Refresh data
+    }, 1500); // Đợi 1.5s để user thấy thông báo thành công
+    
+  } catch (error) {
+    console.error('Error responding to feedback:', error);
+    // Lỗi sẽ được hiển thị qua respondError từ Redux
+  }
+};
 
   return (
     <>
@@ -425,10 +430,10 @@ const FeedBack = () => {
   const dispatch = useDispatch();
   
   // Redux state
-  const allFeedbacks = useSelector(selectAllFeedbacks);
-  const pagination = useSelector(selectFeedbackPagination);
-  const loading = useSelector(selectFetchingAllFeedbacks);
-  const error = useSelector(selectFetchAllFeedbacksError);
+  const allFeedbacks = useSelector(selectAllImpressions); // Đổi selector
+  const pagination = useSelector(selectImpressionPagination); // Đổi selector
+  const loading = useSelector(selectFetchingAllImpressions); // Đổi selector
+  const error = useSelector(selectFetchAllImpressionsError);
   
   // Local state
   const [selectedFeedback, setSelectedFeedback] = useState(null);
@@ -439,9 +444,10 @@ const FeedBack = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Load feedbacks khi component mount hoặc khi filter thay đổi
-  useEffect(() => {
-    dispatch(fetchAllFeedbacks({ page: currentPage, size: pageSize }));
+   useEffect(() => {
+    dispatch(fetchAllImpressions({ page: currentPage, size: pageSize })); // Đổi action
   }, [dispatch, currentPage, pageSize]);
+
 
   // Handle page change
   const handlePageChange = (event, page) => {
@@ -469,9 +475,8 @@ const FeedBack = () => {
     dispatch(clearError());
     dispatch(resetPagination());
     setCurrentPage(1);
-    dispatch(fetchAllFeedbacks({ page: 1, size: pageSize }));
+    dispatch(fetchAllImpressions({ page: 1, size: pageSize })); // Đổi action
   };
-
   const handleViewFeedback = (feedback) => {
     setSelectedFeedback(feedback);
     setFeedbackDialogOpen(true);
@@ -565,7 +570,7 @@ const FeedBack = () => {
               label="Trạng thái"
             >
               <MenuItem value="">Tất cả</MenuItem>
-              {Object.entries(FEEDBACK_STATUS_MAP).map(([status, config]) => (
+              {Object.entries(IMPRESSION_STATUS_MAP).map(([status, config]) => (
                 <MenuItem key={status} value={status}>
                   <Chip 
                     label={config.label} 

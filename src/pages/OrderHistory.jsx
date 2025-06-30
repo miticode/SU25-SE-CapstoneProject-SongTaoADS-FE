@@ -81,19 +81,19 @@ import {
 import { getPresignedUrl, openFileInNewTab } from "../api/s3Service";
 import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
 import {
-   createFeedback,
-  uploadFeedbackImage,
-  fetchFeedbacksByOrderId,
-  selectFeedbackLoading,
-  selectFeedbackError,
+  createImpression,
+  uploadImpressionImage,
+  fetchImpressionsByOrderId,
+  selectImpressionLoading,
+  selectImpressionError,
   selectUploadingImage,
   selectUploadImageError,
-  selectFetchingFeedbacks,
-  selectFeedbacksByOrderId,
-  clearError as clearFeedbackError,
-  FEEDBACK_STATUS_MAP, 
-  selectFeedbacksByOrder,
-} from "../store/features/feedback/feedbackSlice";
+  selectFetchingImpressions,
+  selectImpressionsByOrderId,
+  clearError as clearImpressionError,
+  IMPRESSION_STATUS_MAP, 
+  selectImpressionsByOrder,
+} from "../store/features/impression/impressionSlice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -128,23 +128,23 @@ const OrderHistory = () => {
   const contractLoading = useSelector(selectContractLoading);
   const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
   const [discussLoading, setDiscussLoading] = useState(false);
-  const [feedbackDialog, setFeedbackDialog] = useState({
+  const [impressionDialog, setImpressionDialog] = useState({
     open: false,
     orderId: null,
   });
-  const [feedbackForm, setFeedbackForm] = useState({
+  const [impressionForm, setImpressionForm] = useState({
     rating: 5,
     comment: "",
   });
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [createdFeedbackId, setCreatedFeedbackId] = useState(null);
-  const feedbackLoading = useSelector(selectFeedbackLoading);
-  const feedbackError = useSelector(selectFeedbackError);
+   const [submittingImpression, setSubmittingImpression] = useState(false);
+  const [createdImpressionId, setCreatedImpressionId] = useState(null);
+  const impressionLoading = useSelector(selectImpressionLoading);
+   const impressionError = useSelector(selectImpressionError);
   const uploadingImage = useSelector(selectUploadingImage);
   const uploadImageError = useSelector(selectUploadImageError);
-  const fetchingFeedbacks = useSelector(selectFetchingFeedbacks);
+ const fetchingImpressions = useSelector(selectFetchingImpressions);
   const [contractDialog, setContractDialog] = useState({
     open: false,
     contract: null,
@@ -175,7 +175,7 @@ const OrderHistory = () => {
   const orderDepositResult = useSelector(selectOrderDepositResult);
   const orderRemainingResult = useSelector(selectOrderRemainingResult);
   const [remainingPaymentLoading, setRemainingPaymentLoading] = useState({});
-  const allFeedbacksByOrder = useSelector(selectFeedbacksByOrder);
+   const allImpressionsByOrder = useSelector(selectImpressionsByOrder);
 
   const [imageDialog, setImageDialog] = useState({
     open: false,
@@ -205,8 +205,8 @@ const OrderHistory = () => {
       ? state.s3.images[currentDesignRequest.finalDesignImage]
       : null
   );
-  const getOrderFeedbacks = (orderId) => {
-    return allFeedbacksByOrder[orderId] || [];
+  const getOrderImpressions = (orderId) => {
+    return allImpressionsByOrder[orderId] || [];
   };
   const handlePayRemaining = async (order) => {
     if (!order?.id) {
@@ -1010,32 +1010,32 @@ const OrderHistory = () => {
       dispatch(fetchImageFromS3(currentDesignRequest.finalDesignImage));
     }
   }, [openDetail, currentDesignRequest, dispatch]);
-  useEffect(() => {
-    if (feedbackError) {
+ useEffect(() => {
+    if (impressionError) {
       setNotification({
         open: true,
-        message: feedbackError,
+        message: impressionError,
         severity: "error",
       });
-      dispatch(clearFeedbackError());
+      dispatch(clearImpressionError());
     }
-  }, [feedbackError, dispatch]);
-  useEffect(() => {
+  }, [impressionError, dispatch]);
+   useEffect(() => {
     if (uploadImageError) {
       setNotification({
         open: true,
         message: `Lỗi upload ảnh: ${uploadImageError}`,
         severity: "error",
       });
-      dispatch(clearFeedbackError());
+      dispatch(clearImpressionError());
     }
   }, [uploadImageError, dispatch]);
-  useEffect(() => {
+   useEffect(() => {
     if (orders.length > 0) {
-      // Load feedback cho các đơn hàng COMPLETED
+      // Load impression cho các đơn hàng COMPLETED
       orders.forEach((order) => {
         if (order.status === "COMPLETED") {
-          dispatch(fetchFeedbacksByOrderId(order.id));
+          dispatch(fetchImpressionsByOrderId(order.id));
         }
       });
     }
@@ -1090,34 +1090,34 @@ const OrderHistory = () => {
       fileInput.value = "";
     }
   };
-  const handleOpenFeedbackDialog = (orderId) => {
-    setFeedbackDialog({
+    const handleOpenImpressionDialog = (orderId) => {
+    setImpressionDialog({
       open: true,
       orderId: orderId,
     });
-    setFeedbackForm({
+    setImpressionForm({
       rating: 5,
       comment: "",
     });
     setSelectedImage(null);
     setImagePreview(null);
-    setCreatedFeedbackId(null);
+    setCreatedImpressionId(null);
   };
-  const handleCloseFeedbackDialog = () => {
-    setFeedbackDialog({
+  const handleCloseImpressionDialog = () => {
+    setImpressionDialog({
       open: false,
       orderId: null,
     });
-    setFeedbackForm({
+    setImpressionForm({
       rating: 5,
       comment: "",
     });
     setSelectedImage(null);
     setImagePreview(null);
-    setCreatedFeedbackId(null);
+    setCreatedImpressionId(null);
   };
-  const handleSubmitFeedback = async () => {
-    if (!feedbackForm.comment.trim()) {
+ const handleSubmitImpression = async () => {
+    if (!impressionForm.comment.trim()) {
       setNotification({
         open: true,
         message: "Vui lòng nhập nhận xét về đơn hàng",
@@ -1126,28 +1126,28 @@ const OrderHistory = () => {
       return;
     }
 
-    setSubmittingFeedback(true);
+    setSubmittingImpression(true);
 
     try {
-      // Bước 1: Tạo feedback trước
+      // Bước 1: Tạo impression trước
       const result = await dispatch(
-        createFeedback({
-          orderId: feedbackDialog.orderId,
-          feedbackData: {
-            rating: feedbackForm.rating,
-            comment: feedbackForm.comment.trim(),
+        createImpression({
+          orderId: impressionDialog.orderId,
+          impressionData: {
+            rating: impressionForm.rating,
+            comment: impressionForm.comment.trim(),
           },
         })
       ).unwrap();
 
-      setCreatedFeedbackId(result.id);
+      setCreatedImpressionId(result.id);
 
       // Bước 2: Upload ảnh nếu có
       if (selectedImage && result.id) {
         try {
           await dispatch(
-            uploadFeedbackImage({
-              feedbackId: result.id,
+            uploadImpressionImage({
+              impressionId: result.id,
               imageFile: selectedImage,
             })
           ).unwrap();
@@ -1173,7 +1173,7 @@ const OrderHistory = () => {
         });
       }
 
-      handleCloseFeedbackDialog();
+      handleCloseImpressionDialog();
 
       // Có thể reload lại orders để cập nhật trạng thái
       if (user?.id) {
@@ -1186,7 +1186,7 @@ const OrderHistory = () => {
         severity: "error",
       });
     } finally {
-      setSubmittingFeedback(false);
+      setSubmittingImpression(false);
     }
   };
   const handleDeposit = (order) => {
@@ -1420,7 +1420,7 @@ const OrderHistory = () => {
             <Stack spacing={2}>
               {orders.map((order) => {
                 // ✅ Sử dụng helper function thay vì useSelector
-                const orderFeedbacks = getOrderFeedbacks(order.id);
+                const orderImpressions = getOrderImpressions(order.id);
 
                 return (
                   <Card
@@ -1726,7 +1726,7 @@ const OrderHistory = () => {
                           <Divider sx={{ my: 2 }} />
 
                           {/* Hiển thị feedback đã gửi */}
-                          {orderFeedbacks && orderFeedbacks.length > 0 ? (
+                          {orderImpressions && orderImpressions.length > 0 ? (
                             <Box
                               sx={{
                                 p: 2,
@@ -1750,12 +1750,11 @@ const OrderHistory = () => {
                                 <FeedbackIcon /> Đánh giá của bạn
                               </Typography>
 
-                              {orderFeedbacks.map((feedback, index) => (
+                              {orderImpressions.map((impression, index) => (
                                 <Box
-                                  key={feedback.id}
+                                   key={impression.id}
                                   sx={{
-                                    mb:
-                                      index < orderFeedbacks.length - 1 ? 2 : 0,
+                                   mb: index < orderImpressions.length - 1 ? 2 : 0,
                                     p: 2,
                                     backgroundColor: "white",
                                     borderRadius: 1,
@@ -1773,7 +1772,7 @@ const OrderHistory = () => {
                                     }}
                                   >
                                     <Rating
-                                      value={feedback.rating}
+                                      value={impression.rating}
                                       readOnly
                                       size="small"
                                       icon={<StarIcon fontSize="inherit" />}
@@ -1785,21 +1784,21 @@ const OrderHistory = () => {
                                       variant="body2"
                                       color="text.secondary"
                                     >
-                                      ({feedback.rating}/5)
+                                      ({impression.rating}/5)
                                     </Typography>
                                   </Box>
 
                                   {/* Comment */}
                                   <Typography variant="body2" sx={{ mb: 1 }}>
-                                    {feedback.comment}
+                                    {impression.comment}
                                   </Typography>
 
                                   {/* Feedback Image */}
-                                  {feedback.feedbackImageUrl && (
+                                 {impression.feedbackImageUrl && (
                                     <Box sx={{ mb: 1 }}>
                                       <Box
                                         component="img"
-                                        src={feedback.feedbackImageUrl}
+                                        src={impression.feedbackImageUrl}
                                         alt="Ảnh feedback"
                                         sx={{
                                           maxWidth: 200,
@@ -1812,7 +1811,7 @@ const OrderHistory = () => {
                                         }}
                                         onClick={() =>
                                           window.open(
-                                            feedback.feedbackImageUrl,
+                                            impression.feedbackImageUrl,
                                             "_blank"
                                           )
                                         }
@@ -1833,25 +1832,25 @@ const OrderHistory = () => {
                                       color="text.secondary"
                                     >
                                       Gửi lúc:{" "}
-                                      {new Date(feedback.sendAt).toLocaleString(
-                                        "vi-VN"
-                                      )}
+                                     {new Date(impression.sendAt).toLocaleString(
+                                "vi-VN"
+                              )}
                                     </Typography>
                                     <Chip
                                       label={
-                                        FEEDBACK_STATUS_MAP[feedback.status]
-                                          ?.label || feedback.status
-                                      }
-                                      color={
-                                        FEEDBACK_STATUS_MAP[feedback.status]
-                                          ?.color || "default"
-                                      }
+                                IMPRESSION_STATUS_MAP[impression.status]
+                                  ?.label || impression.status
+                              }
+                                       color={
+                                IMPRESSION_STATUS_MAP[impression.status]
+                                  ?.color || "default"
+                              }
                                       size="small"
                                     />
                                   </Box>
 
                                   {/* Admin Response */}
-                                  {feedback.response && (
+                                   {impression.response && (
                                     <Box
                                       sx={{
                                         mt: 2,
@@ -1874,9 +1873,9 @@ const OrderHistory = () => {
                                         variant="body2"
                                         color="success.dark"
                                       >
-                                        {feedback.response}
+                                        {impression.response}
                                       </Typography>
-                                      {feedback.responseAt && (
+                                     {impression.responseAt && (
                                         <Typography
                                           variant="caption"
                                           color="success.dark"
@@ -1884,7 +1883,7 @@ const OrderHistory = () => {
                                         >
                                           Phản hồi lúc:{" "}
                                           {new Date(
-                                            feedback.responseAt
+                                           impression.responseAt
                                           ).toLocaleString("vi-VN")}
                                         </Typography>
                                       )}
@@ -1898,9 +1897,7 @@ const OrderHistory = () => {
                                 variant="outlined"
                                 color="primary"
                                 startIcon={<FeedbackIcon />}
-                                onClick={() =>
-                                  handleOpenFeedbackDialog(order.id)
-                                }
+                               onClick={() => handleOpenImpressionDialog(order.id)}
                                 sx={{
                                   mt: 2,
                                   borderRadius: 2,
@@ -1949,9 +1946,7 @@ const OrderHistory = () => {
                                 variant="contained"
                                 color="primary"
                                 startIcon={<FeedbackIcon />}
-                                onClick={() =>
-                                  handleOpenFeedbackDialog(order.id)
-                                }
+                               onClick={() => handleOpenImpressionDialog(order.id)}
                                 sx={{
                                   borderRadius: 2,
                                   fontWeight: 600,
@@ -2246,8 +2241,8 @@ const OrderHistory = () => {
       )}
       {/* Popup chi tiết custom design request */}
       <Dialog
-        open={feedbackDialog.open}
-        onClose={handleCloseFeedbackDialog}
+        open={impressionDialog.open}
+        onClose={handleCloseImpressionDialog}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -2279,7 +2274,7 @@ const OrderHistory = () => {
             <StarIcon /> Đánh giá đơn hàng
           </Typography>
           <IconButton
-            onClick={handleCloseFeedbackDialog}
+            onClick={handleCloseImpressionDialog}
             sx={{
               position: "absolute",
               right: 8,
@@ -2297,7 +2292,7 @@ const OrderHistory = () => {
         <DialogContent sx={{ pt: 3, pb: 2 }}>
           <Box sx={{ textAlign: "center", mb: 3 }}>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-              Đơn hàng #{feedbackDialog.orderId}
+              Đơn hàng #{impressionDialog.orderId}
             </Typography>
             <Typography variant="h6" color="primary.main" sx={{ mb: 1 }}>
               Bạn cảm thấy thế nào về dịch vụ của chúng tôi?
@@ -2311,9 +2306,9 @@ const OrderHistory = () => {
             </Typography>
             <Rating
               name="feedback-rating"
-              value={feedbackForm.rating}
+             value={impressionForm.rating}
               onChange={(event, newValue) => {
-                setFeedbackForm((prev) => ({
+                 setImpressionForm((prev) => ({
                   ...prev,
                   rating: newValue || 1,
                 }));
@@ -2324,11 +2319,11 @@ const OrderHistory = () => {
               emptyIcon={<StarIcon fontSize="inherit" />}
             />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {feedbackForm.rating === 1 && "😞 Rất không hài lòng"}
-              {feedbackForm.rating === 2 && "😐 Không hài lòng"}
-              {feedbackForm.rating === 3 && "😊 Bình thường"}
-              {feedbackForm.rating === 4 && "😃 Hài lòng"}
-              {feedbackForm.rating === 5 && "🤩 Rất hài lòng"}
+             {impressionForm.rating === 1 && "😞 Rất không hài lòng"}
+              {impressionForm.rating === 2 && "😐 Không hài lòng"}
+              {impressionForm.rating === 3 && "😊 Bình thường"}
+              {impressionForm.rating === 4 && "😃 Hài lòng"}
+              {impressionForm.rating === 5 && "🤩 Rất hài lòng"}
             </Typography>
           </Box>
 
@@ -2341,9 +2336,9 @@ const OrderHistory = () => {
               fullWidth
               multiline
               rows={4}
-              value={feedbackForm.comment}
+              value={impressionForm.comment}
               onChange={(e) =>
-                setFeedbackForm((prev) => ({
+setImpressionForm((prev) => ({
                   ...prev,
                   comment: e.target.value,
                 }))
@@ -2494,25 +2489,25 @@ const OrderHistory = () => {
 
         <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
           <Button
-            onClick={handleCloseFeedbackDialog}
+            onClick={handleCloseImpressionDialog}
             variant="outlined"
             sx={{
               borderRadius: 2,
               textTransform: "none",
               minWidth: 100,
             }}
-            disabled={submittingFeedback || uploadingImage}
+           isabled={submittingImpression || uploadingImage}
           >
             Hủy
           </Button>
           <Button
-            onClick={handleSubmitFeedback}
+             onClick={handleSubmitImpression}
             variant="contained"
             color="primary"
-            disabled={
-              submittingFeedback ||
+           disabled={
+              submittingImpression ||
               uploadingImage ||
-              !feedbackForm.comment.trim()
+              !impressionForm.comment.trim()
             }
             sx={{
               borderRadius: 2,
@@ -2521,7 +2516,7 @@ const OrderHistory = () => {
               fontWeight: 600,
             }}
           >
-            {submittingFeedback ? (
+             {submittingImpression ? (
               <>
                 <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                 Đang gửi...
