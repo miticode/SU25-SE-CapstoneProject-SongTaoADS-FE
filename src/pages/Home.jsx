@@ -53,22 +53,14 @@ const Home = () => {
                 Song Tạo ADS giúp doanh nghiệp tạo ra các quảng cáo hấp dẫn và
                 hiệu quả thông qua công nghệ AI tiên tiến nhất.
               </p>
-              <div className="mt-8 space-x-4 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-wrap gap-3">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => navigate("/ai-design")}
-                  className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer z-50 relative"
+                  className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer z-40 relative"
                 >
-                  Dùng AI
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate("/ai-design")}
-                  className="px-6 py-3 border border-white text-white font-medium rounded-md hover:bg-white hover:text-[#2B2F4A] transition-colors z-50 relative"
-                >
-                  Dùng thủ công
+                  Thiết kế ngay
                 </motion.button>
               </div>
             </motion.div>

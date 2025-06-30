@@ -2261,23 +2261,34 @@ const OrderHistory = () => {
           <Dialog
             open={rejectDialogOpen}
             onClose={() => setRejectDialogOpen(false)}
+            PaperProps={{
+              sx: { borderRadius: 3, minWidth: 350, p: 0 },
+            }}
           >
-            <DialogTitle>Lý do từ chối demo</DialogTitle>
-            <DialogContent>
+            <DialogTitle
+              sx={{ textAlign: "center", fontWeight: 700, fontSize: 22, pb: 0 }}
+            >
+              Lý do từ chối demo
+            </DialogTitle>
+            <DialogContent sx={{ p: 3, pt: 2 }}>
               <TextField
-                label="Lý do từ chối"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 fullWidth
                 multiline
-                minRows={2}
+                minRows={4}
                 autoFocus
+                variant="outlined"
+                sx={{ borderRadius: 2, mb: 2 }}
               />
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ justifyContent: "center", pb: 2, pt: 0 }}>
               <Button
                 onClick={() => setRejectDialogOpen(false)}
                 disabled={demoActionLoading}
+                variant="text"
+                color="inherit"
+                sx={{ minWidth: 90, fontWeight: 500 }}
               >
                 Hủy
               </Button>
@@ -2285,7 +2296,17 @@ const OrderHistory = () => {
                 onClick={handleRejectDemo}
                 variant="contained"
                 color="error"
-                disabled={demoActionLoading}
+                disabled={demoActionLoading || !rejectReason.trim()}
+                sx={{
+                  minWidth: 160,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  height: 48,
+                  fontSize: 16,
+                  boxShadow: 2,
+                  ml: 2,
+                }}
+                startIcon={<CloseIcon />}
               >
                 {demoActionLoading ? "Đang gửi..." : "Xác nhận từ chối"}
               </Button>

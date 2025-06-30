@@ -24,6 +24,7 @@ import {
   Pagination,
   Alert,
   Snackbar,
+  IconButton,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchDesignRequestsByDesigner } from "../../store/features/customeDesign/customerDesignSlice";
@@ -38,13 +39,12 @@ import {
 import { fetchCustomerDetailById } from "../../store/features/customer/customerSlice";
 import {
   createDemoDesign,
-  updateDemoDesignDescription,
-  updateDemoDesignImage,
   getDemoDesigns,
 } from "../../store/features/demo/demoSlice";
 
 // Lấy designerId từ state đăng nhập
 import { useSelector as useAuthSelector } from "react-redux";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 const DesignRequests = () => {
   const dispatch = useDispatch();
@@ -77,7 +77,6 @@ const DesignRequests = () => {
   });
   const [demoFormError, setDemoFormError] = useState("");
   const [updateDemoMode, setUpdateDemoMode] = useState(false);
-  const [currentDemoId, setCurrentDemoId] = useState(null);
   const [latestDemo, setLatestDemo] = useState(null);
   const [openFinalDesignDialog, setOpenFinalDesignDialog] = useState(false);
   const [finalDesignFile, setFinalDesignFile] = useState(null);
@@ -227,15 +226,6 @@ const DesignRequests = () => {
     setDemoForm({ designerDescription: "", customDesignImage: null });
     setDemoFormError("");
     setUpdateDemoMode(isUpdate);
-    if (isUpdate && selectedRequest) {
-      // Lấy demoId mới nhất của đơn
-      const res = await dispatch(getDemoDesigns(selectedRequest.id)).unwrap();
-      if (res && res.length > 0) {
-        setCurrentDemoId(res[res.length - 1].id);
-      } else {
-        setCurrentDemoId(null);
-      }
-    }
     setOpenDemoDialog(true);
   };
   const handleCloseDemoDialog = () => {
@@ -249,73 +239,6 @@ const DesignRequests = () => {
     } else {
       setDemoForm((f) => ({ ...f, [name]: value }));
     }
-  };
-  const handleSubmitDemo = async () => {
-    if (!demoForm.designerDescription || !demoForm.customDesignImage) {
-      setDemoFormError("Vui lòng nhập mô tả và chọn ảnh demo.");
-      return;
-    }
-    setActionLoading(true);
-    setDemoFormError("");
-    try {
-      if (updateDemoMode && currentDemoId) {
-        // Cập nhật demo
-        // 1. Cập nhật mô tả
-        await dispatch(
-          updateDemoDesignDescription({
-            customDesignId: currentDemoId,
-            data: { designerDescription: demoForm.designerDescription },
-          })
-        ).unwrap();
-        // 2. Cập nhật ảnh
-        const formData = new FormData();
-        formData.append("file", demoForm.customDesignImage);
-        await dispatch(
-          updateDemoDesignImage({
-            customDesignId: currentDemoId,
-            data: formData,
-          })
-        ).unwrap();
-        setNotification({
-          open: true,
-          message: "Cập nhật demo thành công!",
-          severity: "success",
-        });
-      } else {
-        // Gửi demo lần đầu
-        const formData = new FormData();
-        formData.append("designerDescription", demoForm.designerDescription);
-        formData.append("customDesignImage", demoForm.customDesignImage);
-        await dispatch(
-          createDemoDesign({
-            customDesignRequestId: selectedRequest.id,
-            data: formData,
-          })
-        ).unwrap();
-        setNotification({
-          open: true,
-          message: "Gửi demo thành công!",
-          severity: "success",
-        });
-      }
-      setOpenDemoDialog(false);
-      setOpenDialog(false);
-      // Reload danh sách
-      dispatch(
-        fetchDesignRequestsByDesigner({
-          designerId,
-          page: pagination.currentPage,
-          size: pagination.pageSize,
-        })
-      )
-        .unwrap()
-        .then((res) => setRequests(res.result || []));
-    } catch (err) {
-      setDemoFormError(
-        err || (updateDemoMode ? "Cập nhật demo thất bại" : "Gửi demo thất bại")
-      );
-    }
-    setActionLoading(false);
   };
 
   const handleOpenFinalDesignDialog = () => {
@@ -599,6 +522,18 @@ const DesignRequests = () => {
                     </TableContainer>
                   </>
                 )}
+                {/* Khi status là REVISION_REQUESTED, luôn hiển thị nút GỬI LẠI DEMO */}
+                {selectedRequest &&
+                  selectedRequest.status === "REVISION_REQUESTED" && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => setOpenDemoDialog(true)}
+                      sx={{ mt: 2 }}
+                    >
+                      GỬI LẠI DEMO
+                    </Button>
+                  )}
               </Grid>
             </Grid>
           )}
@@ -637,10 +572,24 @@ const DesignRequests = () => {
               GỬI BẢN THIẾT KẾ CHÍNH THỨC
             </Button>
           )}
+          {/* {selectedRequest &&
+            selectedRequest.status === "REVISION_REQUESTED" && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => handleOpenDemoDialog("revision")}
+                disabled={actionLoading}
+              >
+                GỬI LẠI DEMO
+              </Button>
+            )} */}
           {selectedRequest &&
-            !["PROCESSING", "DEMO_SUBMITTED", "FULLY_PAID"].includes(
-              selectedRequest.status
-            ) && (
+            ![
+              "PROCESSING",
+              "DEMO_SUBMITTED",
+              "FULLY_PAID",
+              "REVISION_REQUESTED",
+            ].includes(selectedRequest.status) && (
               <>
                 <Button
                   variant="contained"
@@ -662,7 +611,7 @@ const DesignRequests = () => {
             )}
         </DialogActions>
       </Dialog>
-      {/* Dialog gửi demo */}
+      {/* Dialog gửi/cập nhật/gửi lại demo */}
       <Dialog
         open={openDemoDialog}
         onClose={handleCloseDemoDialog}
@@ -670,9 +619,14 @@ const DesignRequests = () => {
         fullWidth
       >
         <DialogTitle>
-          {updateDemoMode ? "Cập nhật demo thiết kế" : "Gửi demo thiết kế"}
+          {updateDemoMode === "revision"
+            ? "Gửi lại demo thiết kế"
+            : updateDemoMode
+            ? "Cập nhật demo thiết kế"
+            : "Gửi demo thiết kế"}
         </DialogTitle>
         <DialogContent>
+          {/* Gửi lại demo: luôn có cả mô tả và file */}
           <TextField
             label="Mô tả demo"
             name="designerDescription"
@@ -710,15 +664,73 @@ const DesignRequests = () => {
             Hủy
           </Button>
           <Button
-            onClick={handleSubmitDemo}
+            onClick={async () => {
+              // Gửi demo (kể cả gửi lại): luôn gọi createDemoDesign
+              if (
+                !demoForm.designerDescription ||
+                !demoForm.customDesignImage
+              ) {
+                setDemoFormError("Vui lòng nhập mô tả và chọn ảnh demo.");
+                return;
+              }
+              setActionLoading(true);
+              setDemoFormError("");
+              try {
+                const formData = new FormData();
+                formData.append(
+                  "designerDescription",
+                  demoForm.designerDescription
+                );
+                formData.append(
+                  "customDesignImage",
+                  demoForm.customDesignImage
+                );
+                await dispatch(
+                  createDemoDesign({
+                    customDesignRequestId: selectedRequest.id,
+                    data: formData,
+                  })
+                ).unwrap();
+                setNotification({
+                  open: true,
+                  message:
+                    updateDemoMode === "revision"
+                      ? "Gửi lại demo thành công!"
+                      : "Gửi demo thành công!",
+                  severity: "success",
+                });
+                setOpenDemoDialog(false);
+                setOpenDialog(false);
+                // Reload danh sách
+                dispatch(
+                  fetchDesignRequestsByDesigner({
+                    designerId,
+                    page: pagination.currentPage,
+                    size: pagination.pageSize,
+                  })
+                )
+                  .unwrap()
+                  .then((res) => setRequests(res.result || []));
+              } catch (err) {
+                setDemoFormError(
+                  err?.message ||
+                    (typeof err === "string" ? err : "Gửi demo thất bại")
+                );
+              }
+              setActionLoading(false);
+            }}
             variant="contained"
             color="primary"
             disabled={actionLoading}
           >
             {actionLoading
-              ? updateDemoMode
+              ? updateDemoMode === "revision"
+                ? "Đang gửi lại..."
+                : updateDemoMode
                 ? "Đang cập nhật..."
                 : "Đang gửi..."
+              : updateDemoMode === "revision"
+              ? "GỬI LẠI DEMO"
               : updateDemoMode
               ? "CẬP NHẬT DEMO"
               : "GỬI DEMO"}

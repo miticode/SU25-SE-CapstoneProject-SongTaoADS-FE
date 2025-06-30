@@ -42,8 +42,8 @@ export const createDemoDesign = createAsyncThunk(
 // Khách hàng từ chối bản demo
 export const rejectDemoDesign = createAsyncThunk(
   'demo/rejectDemoDesign',
-  async (customDesignId, { rejectWithValue }) => {
-    const res = await rejectDemoDesignApi(customDesignId);
+  async ({ customDesignId, data }, { rejectWithValue }) => {
+    const res = await rejectDemoDesignApi(customDesignId, data);
     if (!res.success) return rejectWithValue(res.error);
     return res.result;
   }
