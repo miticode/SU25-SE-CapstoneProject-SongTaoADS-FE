@@ -39,7 +39,7 @@ export const store = configureStore({
     contract: contractReducer,
     payment: paymentReducer,
     demo: demoReducer,
-    feedback: feedbackReducer,
+      feedback: feedbackReducer,
     // Thêm các reducer khác tại đây
   },
 });
