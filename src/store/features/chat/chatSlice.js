@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, selectModelForChatApi, uploadFileExcelApi, getFineTuneJobDetailApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, selectModelForChatApi, uploadFileExcelApi, getFineTuneJobDetailApi, testChatApi, getOpenAiModelsApi, getFineTunedModelsApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
@@ -20,6 +20,9 @@ const initialState = {
   fineTuneFilesStatus: 'idle',
   fineTuneFileDetail: null,
   fineTuneFileDetailStatus: 'idle',
+  openAiModels: [],
+  openAiModelsStatus: 'idle',
+  fineTunedModels: [],
 };
 
 export const sendChatMessage = createAsyncThunk(
@@ -122,6 +125,36 @@ export const fetchFineTuneJobDetail = createAsyncThunk(
   'chat/fetchFineTuneJobDetail',
   async (fineTuneJobId, { rejectWithValue }) => {
     const response = await getFineTuneJobDetailApi(fineTuneJobId);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Test chat với model dành cho staff
+export const testChat = createAsyncThunk(
+  'chat/testChat',
+  async (data, { rejectWithValue }) => {
+    const response = await testChatApi(data);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Lấy danh sách tất cả các model OpenAI
+export const fetchOpenAiModels = createAsyncThunk(
+  'chat/fetchOpenAiModels',
+  async (_, { rejectWithValue }) => {
+    const response = await getOpenAiModelsApi();
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Lấy danh sách tất cả các model đã fine-tune
+export const fetchFineTunedModels = createAsyncThunk(
+  'chat/fetchFineTunedModels',
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+    const response = await getFineTunedModelsApi(page, size);
     if (!response.success) return rejectWithValue(response.error);
     return response.result;
   }
@@ -290,6 +323,35 @@ const chatSlice = createSlice({
       .addCase(fetchFineTuneJobDetail.rejected, (state, action) => {
         state.fineTuneFileDetailStatus = 'failed';
         state.error = action.payload;
+      })
+      // Lấy danh sách tất cả các model OpenAI
+      .addCase(fetchOpenAiModels.pending, (state) => {
+        state.openAiModelsStatus = 'loading';
+      })
+      .addCase(fetchOpenAiModels.fulfilled, (state, action) => {
+        state.openAiModelsStatus = 'succeeded';
+        // Lấy đúng danh sách model từ payload.data
+        if (
+          action.payload &&
+          Array.isArray(action.payload.data)
+        ) {
+          state.openAiModels = action.payload.data;
+        } else {
+          state.openAiModels = [];
+        }
+      })
+      .addCase(fetchOpenAiModels.rejected, (state, action) => {
+        state.openAiModelsStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy danh sách tất cả các model đã fine-tune
+      .addCase(fetchFineTunedModels.fulfilled, (state, action) => {
+        // Lưu đúng mảng model đã fine-tune từ result
+        state.fineTunedModels = Array.isArray(action.payload) ? action.payload : Array.isArray(action.payload.result) ? action.payload.result : [];
+      })
+      .addCase(fetchFineTunedModels.rejected, (state, action) => {
+        state.fineTunedModelsStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });
@@ -314,5 +376,10 @@ export const selectFineTuneFiles = (state) => state.chat.fineTuneFiles;
 export const selectFineTuneFilesStatus = (state) => state.chat.fineTuneFilesStatus;
 export const selectFineTuneFileDetail = (state) => state.chat.fineTuneFileDetail;
 export const selectFineTuneFileDetailStatus = (state) => state.chat.fineTuneFileDetailStatus;
+export const selectOpenAiModels = (state) => state.chat.openAiModels;
+export const selectOpenAiModelsStatus = (state) => state.chat.openAiModelsStatus;
+export const selectFineTunedModels = (state) => state.chat.fineTunedModels;
+export const selectSucceededFineTuneJobs = (state) =>
+  (state.chat.fineTuneJobs || []).filter(job => job.status === 'succeeded');
 
 export default chatSlice.reducer;
