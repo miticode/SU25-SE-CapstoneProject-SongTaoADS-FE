@@ -111,13 +111,9 @@ export const fineTuneModelApi = async (model, trainingFile) => {
 // hủy training model
 export const cancelFineTuneJobApi = async (fineTuningJobId) => {
   try {
-<<<<<<< HEAD
-    const response = await chatService.post(
-      `/api/chat-bot/fine-tuning-jobs/${fineTuningJobId}/cancel`
-    );
-=======
+
     const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/cancel`);
->>>>>>> cad82e2ccfb8b74a8c20fe4c9290e41a2d62ab0c
+
     const { success, result, message } = response.data;
     if (success) {
       return { success, result };
@@ -189,9 +185,7 @@ export const getFineTuneFileDetailApi = async (fileId) => {
       error: error.response?.data?.message || "Không thể lấy chi tiết file",
     };
   }
-<<<<<<< HEAD
-};
-=======
+
 }; 
 
 // Chọn model để chat từ list job
@@ -280,4 +274,4 @@ export const getFineTunedModelsApi = async (page = 1, size = 10) => {
     return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model fine-tune' };
   }
 }; 
->>>>>>> cad82e2ccfb8b74a8c20fe4c9290e41a2d62ab0c
+
