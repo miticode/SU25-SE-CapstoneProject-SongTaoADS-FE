@@ -100,7 +100,7 @@ export const fineTuneModelApi = async (model, trainingFile) => {
 // hủy training model
 export const cancelFineTuneJobApi = async (fineTuningJobId) => {
   try {
-    const response = await chatService.post(`/api/chat-bot/fine-tuning-jobs/${fineTuningJobId}/cancel`);
+    const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/cancel`);
     const { success, result, message } = response.data;
     if (success) {
       return { success, result };
@@ -213,5 +213,41 @@ export const getFineTuneJobDetailApi = async (fineTuneJobId) => {
     return { success: false, error: message || 'Lỗi khi lấy chi tiết job' };
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết job' };
+  }
+}; 
+
+// Test chat với model dành cho staff
+export const testChatApi = async (data) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/test-chat', data);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi test chat' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể test chat' };
+  }
+};
+
+// Lấy danh sách tất cả các model OpenAI
+export const getOpenAiModelsApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/models');
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model' };
+  }
+};
+
+// Lấy danh sách tất cả các model đã fine-tune (có phân trang)
+export const getFineTunedModelsApi = async (page = 1, size = 10) => {
+  try {
+    const response = await chatService.get(`/api/chat-bot/models-fine-tune?page=${page}&size=${size}`);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model fine-tune' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model fine-tune' };
   }
 }; 
