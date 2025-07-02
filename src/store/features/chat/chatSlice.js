@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, selectModelForChatApi, uploadFileExcelApi, getFineTuneJobDetailApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
@@ -92,6 +92,36 @@ export const fetchFineTuneFileDetail = createAsyncThunk(
   'chat/fetchFineTuneFileDetail',
   async (fileId, { rejectWithValue }) => {
     const response = await getFineTuneFileDetailApi(fileId);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Chọn model để chat từ list job
+export const selectModelForChat = createAsyncThunk(
+  'chat/selectModelForChat',
+  async (fineTuningJobId, { rejectWithValue }) => {
+    const response = await selectModelForChatApi(fineTuningJobId);
+    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi chọn model');
+    return response.result;
+  }
+);
+
+// Upload file excel để convert thành file jsonl
+export const uploadFileExcel = createAsyncThunk(
+  'chat/uploadFileExcel',
+  async ({ file, fileName }, { rejectWithValue }) => {
+    const response = await uploadFileExcelApi(file, fileName);
+    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi upload file excel');
+    return response.result;
+  }
+);
+
+// Lấy chi tiết job đã fine-tune
+export const fetchFineTuneJobDetail = createAsyncThunk(
+  'chat/fetchFineTuneJobDetail',
+  async (fineTuneJobId, { rejectWithValue }) => {
+    const response = await getFineTuneJobDetailApi(fineTuneJobId);
     if (!response.success) return rejectWithValue(response.error);
     return response.result;
   }
@@ -220,6 +250,44 @@ const chatSlice = createSlice({
         state.fineTuneFileDetail = action.payload;
       })
       .addCase(fetchFineTuneFileDetail.rejected, (state, action) => {
+        state.fineTuneFileDetailStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Chọn model để chat từ list job
+      .addCase(selectModelForChat.pending, (state) => {
+        state.fineTuneStatus = 'loading';
+      })
+      .addCase(selectModelForChat.fulfilled, (state, action) => {
+        state.fineTuneStatus = 'succeeded';
+        state.fineTuningJobId = action.payload.id;
+        state.error = null;
+      })
+      .addCase(selectModelForChat.rejected, (state, action) => {
+        state.fineTuneStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Upload file excel để convert thành file jsonl
+      .addCase(uploadFileExcel.pending, (state) => {
+        state.fineTuneStatus = 'loading';
+      })
+      .addCase(uploadFileExcel.fulfilled, (state, action) => {
+        state.fineTuneStatus = 'succeeded';
+        state.uploadedFile = action.payload;
+        state.error = null;
+      })
+      .addCase(uploadFileExcel.rejected, (state, action) => {
+        state.fineTuneStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy chi tiết job đã fine-tune
+      .addCase(fetchFineTuneJobDetail.pending, (state) => {
+        state.fineTuneFileDetailStatus = 'loading';
+      })
+      .addCase(fetchFineTuneJobDetail.fulfilled, (state, action) => {
+        state.fineTuneFileDetailStatus = 'succeeded';
+        state.fineTuneFileDetail = action.payload;
+      })
+      .addCase(fetchFineTuneJobDetail.rejected, (state, action) => {
         state.fineTuneFileDetailStatus = 'failed';
         state.error = action.payload;
       });

@@ -100,10 +100,20 @@ const DesignRequests = () => {
             pageSize: res.pageSize || 10,
             totalElements: res.totalElements || 0,
           });
-          // Lấy tất cả customerDetailId duy nhất
+          // Lấy tất cả customerDetailId duy nhất (luôn lấy .id nếu là object)
           const ids = Array.from(
             new Set(
-              (res.result || []).map((r) => r.customerDetail).filter(Boolean)
+              (res.result || [])
+                .map((r) => {
+                  if (
+                    typeof r.customerDetail === "object" &&
+                    r.customerDetail !== null
+                  ) {
+                    return r.customerDetail.id;
+                  }
+                  return r.customerDetail;
+                })
+                .filter(Boolean)
             )
           );
           ids.forEach((id) => {
@@ -330,7 +340,12 @@ const DesignRequests = () => {
                       {new Date(request.createAt).toLocaleDateString("vi-VN")}
                     </TableCell>
                     <TableCell>
-                      {customerDetails[request.customerDetail] || "Đang tải..."}
+                      {customerDetails[
+                        typeof request.customerDetail === "object" &&
+                        request.customerDetail !== null
+                          ? request.customerDetail.id
+                          : request.customerDetail
+                      ] || "Đang tải..."}
                     </TableCell>
                     <TableCell>
                       {request.totalPrice?.toLocaleString("vi-VN") || 0}₫
@@ -404,8 +419,12 @@ const DesignRequests = () => {
                 </Typography>
                 <Typography>
                   <b>Tên Doanh nghiệp:</b>{" "}
-                  {customerDetails[selectedRequest.customerDetail] ||
-                    "Đang tải..."}
+                  {customerDetails[
+                    typeof selectedRequest.customerDetail === "object" &&
+                    selectedRequest.customerDetail !== null
+                      ? selectedRequest.customerDetail.id
+                      : selectedRequest.customerDetail
+                  ] || "Đang tải..."}
                 </Typography>
                 <Typography>
                   <b>Tổng tiền:</b>{" "}
