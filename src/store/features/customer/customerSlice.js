@@ -524,12 +524,37 @@ const customerSlice = createSlice({
       })
       .addCase(fetchCustomerChoiceDetail.fulfilled, (state, action) => {
         state.customerChoiceDetailsStatus = "succeeded";
+        console.log("Processing customer choice details:", action.payload);
+        const detailsMap = {};
 
-        // Store the details by attribute ID
-        if (action.payload.attributeId) {
-          state.customerChoiceDetails[action.payload.attributeId] =
-            action.payload;
+        // API trả về object với result array
+        const details = action.payload?.result || action.payload || [];
+
+        if (Array.isArray(details)) {
+          details.forEach((detail) => {
+            const attributeValueId = detail.attributeValues?.id;
+
+            if (attributeValueId) {
+              // Store by attributeValueId since we don't have attributeId in response
+              // We'll map this to attributeId in the component
+              detailsMap[attributeValueId] = {
+                id: detail.id,
+                subTotal: detail.subTotal,
+                attributeValueId: detail.attributeValues?.id,
+                attributeValue: detail.attributeValues,
+                isMultiplier: detail.isMultiplier,
+                createdAt: detail.createdAt,
+                updatedAt: detail.updatedAt,
+              };
+            }
+          });
         }
+
+        state.customerChoiceDetails = detailsMap;
+        console.log(
+          "Mapped customer choice details by attributeValueId:",
+          detailsMap
+        );
       })
       .addCase(fetchCustomerChoiceDetail.rejected, (state, action) => {
         state.customerChoiceDetailsStatus = "failed";
@@ -604,38 +629,55 @@ const customerSlice = createSlice({
         state.customerChoiceDetailsStatus = "loading";
       })
       .addCase(fetchCustomerChoiceDetails.fulfilled, (state, action) => {
-        state.customerChoiceDetailsStatus = "succeeded";
-
-        // Process the details and update the price information
-        const details = action.payload;
-        if (details && Array.isArray(details)) {
-          // Create a fresh details map for each update, but preserve any existing data not in the response
-          const detailsMap = { ...state.customerChoiceDetails };
-
-          details.forEach((detail) => {
-            // Use the attribute's ID from the attributeValue relationship as the key
-            if (
-              detail.attributeValueId &&
-              detail.attributeValue &&
-              detail.attributeValue.attributeId
-            ) {
-              const attributeId = detail.attributeValue.attributeId;
-              detailsMap[attributeId] = {
-                ...detailsMap[attributeId], // Giữ lại thông tin cũ
-                ...detail,
-                attributeId: attributeId,
-                // Ensure subTotal is a number
-                subTotal: detail.subTotal !== undefined ? detail.subTotal : 0,
-              };
-            }
-          });
-
-          console.log("Processing customer choice details:", details);
-          console.log("Mapped attribute prices:", detailsMap);
-
-          // Cập nhật state với dữ liệu mới nhưng vẫn giữ lại dữ liệu cũ
-          state.customerChoiceDetails = detailsMap;
-        }
+       state.customerChoiceDetailsStatus = "succeeded";
+  console.log("Processing customer choice details:", action.payload);
+  
+  // Xử lý cấu trúc API response mới
+  let details = [];
+  
+  if (action.payload?.result) {
+    details = action.payload.result;
+  } else if (Array.isArray(action.payload)) {
+    details = action.payload;
+  } else {
+    console.warn("Unexpected API response structure:", action.payload);
+    state.customerChoiceDetails = {};
+    return;
+  }
+  
+  console.log("Processing details array:", details);
+  
+  // THAY ĐỔI: Map theo attributeValueId để có thể tìm ngược về attributeId
+  const detailsMap = {};
+  
+  if (Array.isArray(details)) {
+    details.forEach((detail, index) => {
+      console.log(`Processing detail ${index}:`, detail);
+      
+      const attributeValueId = detail.attributeValues?.id;
+      
+      if (attributeValueId) {
+        // Lưu chi tiết với attributeValueId làm key
+        detailsMap[attributeValueId] = {
+          id: detail.id,
+          subTotal: detail.subTotal,
+          attributeValueId: detail.attributeValues?.id,
+          attributeValueName: detail.attributeValues?.name,
+          isMultiplier: detail.isMultiplier,
+          createdAt: detail.createdAt,
+          updatedAt: detail.updatedAt,
+          customerChoices: detail.customerChoices
+        };
+        
+        console.log(`✅ Mapped detail with attributeValueId ${attributeValueId}:`, detailsMap[attributeValueId]);
+      } else {
+        console.warn("❌ Detail missing attributeValues.id:", detail);
+      }
+    });
+  }
+  
+  state.customerChoiceDetails = detailsMap;
+  console.log("✅ Final mapped customerChoiceDetails:", detailsMap);
       })
       .addCase(fetchCustomerChoiceDetails.rejected, (state, action) => {
         state.customerChoiceDetailsStatus = "failed";

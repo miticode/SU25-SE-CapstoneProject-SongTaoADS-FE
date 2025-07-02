@@ -270,14 +270,26 @@ export const linkCustomerToProductTypeApi = async (
       const existingChoices = await customerService.get(
         `/api/customers/${customerId}/customer-choices`
       );
+      
       if (existingChoices.data.success && existingChoices.data.result) {
-        // If exists, update instead of create
-        console.log("Customer choice exists, updating...");
-        const response = await customerService.put(
-          `/api/customers/${customerId}/product-types/${productTypeId}`
-        );
-        console.log("Update response:", response.data);
-        return response.data;
+        const existingChoice = existingChoices.data.result;
+        
+        // Check if the existing choice has the same product type
+        // CẬP NHẬT: Kiểm tra productTypes.id thay vì productTypeId
+        const existingProductTypeId = existingChoice.productTypes?.id;
+        
+        if (existingProductTypeId === productTypeId) {
+          console.log("Customer already has this product type, returning existing choice");
+          return existingChoices.data;
+        } else {
+          console.log("Customer has different product type, updating...");
+          // Update to new product type
+          const response = await customerService.put(
+            `/api/customers/${customerId}/product-types/${productTypeId}`
+          );
+          console.log("Update response:", response.data);
+          return response.data;
+        }
       }
     } catch (error) {
       console.log("No existing customer choice found, creating new...");
@@ -297,6 +309,23 @@ export const linkCustomerToProductTypeApi = async (
       customerId,
       productTypeId,
     });
+
+    // Xử lý lỗi duplicate key constraint
+    if (error.response?.data?.message?.includes("duplicate key")) {
+      console.log("Duplicate key error, fetching existing choice...");
+      try {
+        // Nếu gặp lỗi duplicate key, fetch lại existing choice
+        const existingChoices = await customerService.get(
+          `/api/customers/${customerId}/customer-choices`
+        );
+        
+        if (existingChoices.data.success && existingChoices.data.result) {
+          return existingChoices.data;
+        }
+      } catch (fetchError) {
+        console.error("Failed to fetch existing choice after duplicate error:", fetchError);
+      }
+    }
 
     return {
       success: false,

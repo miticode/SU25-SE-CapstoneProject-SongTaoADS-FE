@@ -120,6 +120,9 @@ const ModernBillboardForm = ({
   const attributeValuesStatusState = useSelector(
     (state) => state.attribute.attributeValuesStatus
   );
+  const hasRestoredSizesRef = useRef(false);
+  const hasRestoredAttributesRef = useRef(false);
+  const hasRestoredDataRef = useRef(false);
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
   const productTypeSizesError = useSelector(selectProductTypeSizesError);
@@ -134,17 +137,81 @@ const ModernBillboardForm = ({
   const [editedSizes, setEditedSizes] = useState({});
   const [isEditingSizes, setIsEditingSizes] = useState(false);
   const totalAmount = useSelector(selectTotalAmount);
-
+  const [attributePrices, setAttributePrices] = useState({});
   const fetchCustomerChoiceStatus = useSelector(
     selectFetchCustomerChoiceStatus
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
+  useEffect(() => {
+    // Tạo mapping từ attributeValueId trong customerChoiceDetails về attributeId
+    if (
+      customerChoiceDetails &&
+      Object.keys(customerChoiceDetails).length > 0 &&
+      attributes.length > 0 &&
+      Object.keys(attributeValuesState).length > 0
+    ) {
+      console.log("=== CREATING ATTRIBUTE PRICES MAPPING ===");
+
+      const newAttributePrices = {};
+
+      // Duyệt qua tất cả customerChoiceDetails (mapped by attributeValueId)
+      Object.entries(customerChoiceDetails).forEach(
+        ([attributeValueId, detail]) => {
+          console.log(
+            `Processing attributeValueId: ${attributeValueId}`,
+            detail
+          );
+
+          if (detail?.subTotal !== undefined) {
+            // Tìm attributeId tương ứng với attributeValueId này
+            let foundAttributeId = null;
+
+            for (const attribute of attributes) {
+              const attributeValues = attributeValuesState[attribute.id] || [];
+              const hasThisValue = attributeValues.some(
+                (av) => av.id === attributeValueId
+              );
+
+              if (hasThisValue) {
+                foundAttributeId = attribute.id;
+                console.log(
+                  `✅ Found attribute ${foundAttributeId} for value ${attributeValueId} with price ${detail.subTotal}`
+                );
+                break;
+              }
+            }
+
+            if (foundAttributeId) {
+              newAttributePrices[foundAttributeId] = {
+                subTotal: detail.subTotal,
+                attributeValueId: attributeValueId,
+                attributeValueName:
+                  detail.attributeValueName || detail.attributeValues?.name,
+              };
+              console.log(
+                `✅ Mapped price: ${foundAttributeId} -> ${detail.subTotal}`
+              );
+            } else {
+              console.warn(
+                `❌ Could not find attributeId for value ${attributeValueId}`
+              );
+            }
+          }
+        }
+      );
+
+      console.log("New attribute prices mapping:", newAttributePrices);
+      setAttributePrices(newAttributePrices);
+    } else {
+      console.log("Clearing attribute prices - insufficient data");
+      setAttributePrices({});
+    }
+  }, [customerChoiceDetails, attributes, attributeValuesState]);
   const handleEditSizes = () => {
-    // Khởi tạo giá trị ban đầu từ form data hiện tại
     const initialEditValues = {};
     productTypeSizes.forEach((ptSize) => {
-      const sizeId = ptSize.sizes.id;
+      const sizeId = ptSize.sizes?.id; // Thêm optional chaining
       const fieldName = `size_${sizeId}`;
       initialEditValues[sizeId] = formData[fieldName] || "";
     });
@@ -169,7 +236,7 @@ const ModernBillboardForm = ({
       const newValidationErrors = {};
 
       for (const ptSize of productTypeSizes) {
-        const sizeId = ptSize.sizes.id;
+        const sizeId = ptSize.sizes?.id; // Thêm optional chaining
         if (
           !editedSizes[sizeId] ||
           isNaN(editedSizes[sizeId]) ||
@@ -179,7 +246,7 @@ const ModernBillboardForm = ({
           const fieldName = `size_${sizeId}`;
           newValidationErrors[
             fieldName
-          ] = `Kích thước "${ptSize.sizes.name}" phải lớn hơn 0`;
+          ] = `Kích thước "${ptSize.sizes?.name}" phải lớn hơn 0`;
         }
       }
 
@@ -230,43 +297,48 @@ const ModernBillboardForm = ({
       setRefreshCounter((prev) => prev + 1);
 
       setTimeout(async () => {
-      try {
-        // Fetch lại toàn bộ thông tin chi tiết và tổng tiền
-        await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
-        await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
-        
-        // Quan trọng: Cập nhật lại giá cho từng thuộc tính đã chọn
-        const attributeValues = { ...formData };
-        for (const attributeId in attributeValues) {
-          if (attributes.some(attr => attr.id === attributeId) && attributeValues[attributeId]) {
-            // Nếu là một thuộc tính và có giá trị, gọi API để cập nhật hoặc liên kết lại
-            const existingChoiceDetail = customerChoiceDetails[attributeId];
-            
-            if (existingChoiceDetail) {
-              // Cập nhật lại giá trị thuộc tính đã có - điều này sẽ kích hoạt tính toán lại giá dựa trên kích thước mới
-              await dispatch(updateCustomerChoiceDetail({
-                customerChoiceDetailId: existingChoiceDetail.id,
-                attributeValueId: attributeValues[attributeId],
-                attributeId: attributeId
-              })).unwrap();
+        try {
+          // Fetch lại toàn bộ thông tin chi tiết và tổng tiền
+          await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
+          await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+
+          // Quan trọng: Cập nhật lại giá cho từng thuộc tính đã chọn
+          const attributeValues = { ...formData };
+          for (const attributeId in attributeValues) {
+            if (
+              attributes.some((attr) => attr.id === attributeId) &&
+              attributeValues[attributeId]
+            ) {
+              // Nếu là một thuộc tính và có giá trị, gọi API để cập nhật hoặc liên kết lại
+              const existingChoiceDetail = customerChoiceDetails[attributeId];
+
+              if (existingChoiceDetail) {
+                // Cập nhật lại giá trị thuộc tính đã có - điều này sẽ kích hoạt tính toán lại giá dựa trên kích thước mới
+                await dispatch(
+                  updateCustomerChoiceDetail({
+                    customerChoiceDetailId: existingChoiceDetail.id,
+                    attributeValueId: attributeValues[attributeId],
+                    attributeId: attributeId,
+                  })
+                ).unwrap();
+              }
             }
           }
+
+          // Sau khi cập nhật tất cả thuộc tính, fetch lại để hiển thị giá mới
+          await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
+          await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+
+          // Show success message
+          setSnackbar({
+            open: true,
+            message: "Kích thước và giá đã được cập nhật thành công",
+            severity: "success",
+          });
+        } catch (error) {
+          console.error("Error refreshing prices after size update:", error);
         }
-        
-        // Sau khi cập nhật tất cả thuộc tính, fetch lại để hiển thị giá mới
-        await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
-        await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
-        
-        // Show success message
-        setSnackbar({
-          open: true,
-          message: "Kích thước và giá đã được cập nhật thành công",
-          severity: "success",
-        });
-      } catch (error) {
-        console.error("Error refreshing prices after size update:", error);
-      }
-    }, 800);
+      }, 800);
     } catch (error) {
       console.error("Error updating sizes:", error);
       setSnackbar({
@@ -286,41 +358,63 @@ const ModernBillboardForm = ({
   };
 
   useEffect(() => {
-    if (currentOrder?.id) {
-      // Load saved sizes for existing customer choice
+    if (
+      currentOrder?.id &&
+      productTypeSizes.length > 0 &&
+      !hasRestoredDataRef.current
+    ) {
+      console.log("Fetching customer choice sizes for restore...");
+      console.log("Available productTypeSizes:", productTypeSizes);
+
+      hasRestoredDataRef.current = true;
+
       dispatch(fetchCustomerChoiceSizes(currentOrder.id))
         .unwrap()
         .then((sizes) => {
           if (sizes && sizes.length > 0) {
-            console.log("Found saved sizes:", sizes);
+            console.log("Found saved sizes for restore:", sizes);
 
-            // Create a map of the existing sizes
             const existingSizes = {};
-            sizes.forEach((size) => {
-              // Store by size ID for easy lookup
-              existingSizes[size.sizeId] = size;
+            const sizeFormData = {};
 
-              // Also update the form data to show the values
-              setFormData((prev) => ({
-                ...prev,
-                [`size_${size.sizeId}`]: size.sizeValue.toString(),
-              }));
+            sizes.forEach((size) => {
+              // API trả về sizes với structure: {sizeId, sizeValue, sizes: {id, name}}
+              const sizeId = size.sizeId || size.sizes?.id;
+
+              if (sizeId) {
+                existingSizes[sizeId] = size;
+                const fieldName = `size_${sizeId}`;
+                sizeFormData[fieldName] = size.sizeValue.toString();
+
+                console.log(`Mapped size ${sizeId}: ${size.sizeValue}`);
+              }
             });
 
-            // Save the existing sizes to state for editing later
             setCustomerChoiceSizes(existingSizes);
 
-            // If we have all required sizes, auto-confirm them
+            setFormData((prev) => {
+              const newFormData = {
+                ...prev,
+                ...sizeFormData,
+              };
+              console.log("Updated form data with sizes:", newFormData);
+              return newFormData;
+            });
+
             if (sizes.length === productTypeSizes.length) {
               setSizesConfirmed(true);
+              console.log("All sizes restored and confirmed");
             }
           }
         })
         .catch((error) => {
-          console.error("Failed to load customer choice sizes:", error);
+          console.error(
+            "Failed to load customer choice sizes for restore:",
+            error
+          );
         });
     }
-  }, [currentOrder?.id, dispatch, productTypeSizes.length]);
+  }, [currentOrder?.id, productTypeSizes.length, dispatch]);
   useEffect(() => {
     if (currentOrder?.id && sizesConfirmed) {
       dispatch(fetchCustomerChoice(currentOrder.id));
@@ -353,16 +447,25 @@ const ModernBillboardForm = ({
 
   useEffect(() => {
     if (attributes && attributes.length > 0) {
-      const initialData = {};
-      attributes.forEach((attr) => {
-        initialData[attr.id] = "";
-      });
-      setFormData(initialData);
+      console.log(
+        "🚀 Loading attribute values for attributes:",
+        attributes.map((a) => `${a.id}:${a.name}`)
+      );
 
-      // Fetch attribute values only once per attribute
+      // Fetch attribute values cho tất cả attributes với size lớn hơn
       attributes.forEach((attr) => {
-        if (attributeValuesStatusState[attr.id] === "idle") {
-          dispatch(fetchAttributeValuesByAttributeId(attr.id));
+        const currentStatus = attributeValuesStatusState[attr.id];
+        console.log(
+          `📊 Attribute ${attr.id} (${attr.name}) status:`,
+          currentStatus
+        );
+
+        if (currentStatus === "idle" || currentStatus === undefined) {
+          console.log(
+            `📥 Fetching values for attribute: ${attr.id} (${attr.name})`
+          );
+          // Sử dụng size = 50 để đảm bảo lấy đủ values
+          dispatch(fetchAttributeValuesByAttributeId(attr.id, 1, 50));
         }
       });
     }
@@ -376,13 +479,13 @@ const ModernBillboardForm = ({
   }, [productTypeId, dispatch]);
 
   useEffect(() => {
-    // Lưu giá trị subTotal hiện tại vào ref
-    Object.entries(customerChoiceDetails).forEach(([attrId, detail]) => {
-      if (detail && detail.subTotal !== undefined) {
-        previousSubTotalsRef.current[attrId] = detail.subTotal;
+    // Lưu giá trị subTotal hiện tại vào ref từ attributePrices
+    Object.entries(attributePrices).forEach(([attrId, priceInfo]) => {
+      if (priceInfo && priceInfo.subTotal !== undefined) {
+        previousSubTotalsRef.current[attrId] = priceInfo.subTotal;
       }
     });
-  }, [customerChoiceDetails]);
+  }, [attributePrices]);
   useEffect(() => {
     if (refreshCounter > 0 && currentOrder?.id) {
       console.log(
@@ -403,6 +506,13 @@ const ModernBillboardForm = ({
       updatePrices();
     }
   }, [refreshCounter, currentOrder?.id, dispatch]);
+  useEffect(() => {
+    // Cleanup function khi component unmount hoặc productTypeId thay đổi
+    return () => {
+      hasRestoredDataRef.current = false;
+      hasRestoredAttributesRef.current = false;
+    };
+  }, [productTypeId]);
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -426,11 +536,19 @@ const ModernBillboardForm = ({
       value &&
       currentOrder?.id
     ) {
-      const existingChoiceDetail = customerChoiceDetails[name];
+      // Tìm existingChoiceDetail từ attributePrices thay vì customerChoiceDetails
+      const existingPriceInfo = attributePrices[name];
+      let existingChoiceDetail = null;
+
+      if (existingPriceInfo?.attributeValueId) {
+        // Tìm detail từ customerChoiceDetails bằng attributeValueId
+        existingChoiceDetail =
+          customerChoiceDetails[existingPriceInfo.attributeValueId];
+      }
 
       // Lưu subTotal hiện tại vào ref để tránh hiệu ứng nhấp nháy
-      if (existingChoiceDetail?.subTotal !== undefined) {
-        previousSubTotalsRef.current[name] = existingChoiceDetail.subTotal;
+      if (existingPriceInfo?.subTotal !== undefined) {
+        previousSubTotalsRef.current[name] = existingPriceInfo.subTotal;
       }
 
       // Đánh dấu trạng thái loading sớm để UI phản hồi ngay lập tức
@@ -500,8 +618,7 @@ const ModernBillboardForm = ({
 
     // Check all size fields
     for (const ptSize of productTypeSizes) {
-      // Changed from ptSize.size.id to ptSize.sizes.id
-      const fieldName = `size_${ptSize.sizes.id}`;
+      const fieldName = `size_${ptSize.sizes?.id}`; // Thêm optional chaining
       const value = formData[fieldName];
 
       if (!value) {
@@ -509,15 +626,13 @@ const ModernBillboardForm = ({
         setSizeValidationError("Vui lòng nhập đầy đủ thông tin kích thước");
         return;
       } else {
-        // Ensure the value is a valid number
         const numValue = parseFloat(value);
         if (isNaN(numValue)) {
           hasErrors = true;
           setSizeValidationError("Giá trị kích thước không hợp lệ");
           return;
         } else {
-          // Changed from ptSize.size.id to ptSize.sizes.id
-          sizeInputs[ptSize.sizes.id] = numValue;
+          sizeInputs[ptSize.sizes?.id] = numValue; // Thêm optional chaining
         }
       }
     }
@@ -577,9 +692,8 @@ const ModernBillboardForm = ({
           createdSizes[sizeId] = {
             id: result.id,
             sizeValue: numericSizeValue,
-            // Changed from ptSize.size.name to ptSize.sizes.name
             sizeName:
-              productTypeSizes.find((pt) => pt.sizes.id === sizeId)?.sizes
+              productTypeSizes.find((pt) => pt.sizes?.id === sizeId)?.sizes
                 ?.name || "Size",
           };
         }
@@ -750,7 +864,7 @@ const ModernBillboardForm = ({
 
               <Grid container spacing={1.5}>
                 {productTypeSizes.map((ptSize) => {
-                  const sizeId = ptSize.sizes.id;
+                  const sizeId = ptSize.sizes?.id; // Thêm optional chaining
                   const fieldName = `size_${sizeId}`;
                   const savedSize = customerChoiceSizes[sizeId];
 
@@ -759,7 +873,7 @@ const ModernBillboardForm = ({
                       <TextField
                         fullWidth
                         size="small"
-                        label={ptSize.sizes.name}
+                        label={ptSize.sizes?.name} // Thêm optional chaining
                         name={fieldName}
                         type="number"
                         value={
@@ -955,188 +1069,206 @@ const ModernBillboardForm = ({
                     </Typography>
 
                     <Grid container spacing={2}>
-                     {attrs.map((attr) => {
-  console.log(
-    `Rendering attribute ${attr.id}, details:`,
-    customerChoiceDetails[attr.id] || "Not loaded yet"
-  );
-  const attributeValues =
-    attributeValuesState[attr.id] || [];
-  const isLoadingValues =
-    attributeValuesStatusState[attr.id] === "loading";
-  // Get price for this attribute if available
-  const attributePrice =
-    customerChoiceDetails[attr.id]?.subTotal;
-  const hasPrice = attributePrice !== undefined;
+                      {attrs.map((attr) => {
+                        console.log(
+                          `Rendering attribute ${attr.id}, details:`,
+                          customerChoiceDetails[attr.id] || "Not loaded yet"
+                        );
+                        const attributeValues =
+                          attributeValuesState[attr.id] || [];
+                        const isLoadingValues =
+                          attributeValuesStatusState[attr.id] === "loading";
+                        // Get price for this attribute if available
+                        const attributePrice =
+                          customerChoiceDetails[attr.id]?.subTotal;
+                        const hasPrice = attributePrice !== undefined;
 
-  return (
-    <Grid item xs={12} sm={6} md={6} key={attr.id}>
-      <FormControl
-        fullWidth
-        size="small"
-        variant="outlined"
-      >
-        <InputLabel
-          id={`${attr.id}-label`}
-          sx={{ fontSize: "0.8rem" }}
-        >
-          {attr.name}
-        </InputLabel>
-      <Select
-  labelId={`${attr.id}-label`}
-  name={attr.id}
-  value={formData[attr.id] || ""}
-  onChange={handleChange}
-  label={attr.name}
-  disabled={
-    isLoadingValues ||
-    fetchCustomerChoiceStatus === "loading"
-  }
-  sx={{
-    display: "block",
-    width: "100%",
-    fontSize: "0.8rem",
-    height: "36px",
-    "& .MuiSelect-select": {
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      minWidth: "150px",
-      paddingRight: "32px",
-    },
-  }}
-  renderValue={(selected) => {
-    // Tìm tên của giá trị đã chọn từ attributeValues
-    const selectedValue = attributeValues.find(value => value.id === selected);
-    if (!selectedValue) return "";
-    
-    // Giới hạn độ dài tên hiển thị khi đã chọn
-    const displayName = selectedValue.name;
-    return displayName.length > 25 ? displayName.substring(0, 22) + "..." : displayName;
-  }}
-  MenuProps={{
-    PaperProps: {
-      style: {
-        maxHeight: 300,
-        width: "auto",
-        minWidth: "250px",
-      },
-    },
-    anchorOrigin: {
-      vertical: "bottom",
-      horizontal: "left",
-    },
-    transformOrigin: {
-      vertical: "top",
-      horizontal: "left",
-    },
-  }}
->
-  <MenuItem value="" disabled>
-    {attr.name}
-  </MenuItem>
-  {attributeValues.map((value) => (
-    <MenuItem
-      key={value.id}
-      value={value.id}
-      sx={{
-        fontSize: "0.8rem",
-        display: "flex",
-        justifyContent: "space-between",
-        flexWrap: "nowrap",
-        padding: "8px",
-      }}
-    >
-      <Typography 
-        sx={{ 
-          maxWidth: "calc(100% - 90px)",
-          whiteSpace: "normal", // Thay đổi thành normal để hiển thị đầy đủ
-          lineHeight: "1.4",
-          wordBreak: "break-word" // Cho phép xuống dòng nếu cần
-        }}
-      >
-        {value.name}
-      </Typography>
-      {value.unitPrice !== undefined && (
-        <Typography
-          sx={{
-            ml: 1,
-            color: "green.600",
-            fontWeight: "medium",
-            flexShrink: 0,
-            fontSize: "0.8rem",
-            whiteSpace: "nowrap"
-          }}
-        >
-          {value.unitPrice.toLocaleString("vi-VN")} đ
-        </Typography>
-      )}
-    </MenuItem>
-  ))}
-</Select>
-        {validationErrors[attr.id] && (
-          <Typography color="error" variant="caption">
-            {validationErrors[attr.id]}
-          </Typography>
-        )}
-        {isLoadingValues && (
-          <Box display="flex" justifyContent="center" mt={0.5}>
-            <CircularProgress size={14} />
-          </Box>
-        )}
+                        return (
+                          <Grid item xs={12} sm={6} md={6} key={attr.id}>
+                            <FormControl
+                              fullWidth
+                              size="small"
+                              variant="outlined"
+                            >
+                              <InputLabel
+                                id={`${attr.id}-label`}
+                                sx={{ fontSize: "0.8rem" }}
+                              >
+                                {attr.name}
+                              </InputLabel>
+                              <Select
+                                labelId={`${attr.id}-label`}
+                                name={attr.id}
+                                value={formData[attr.id] || ""}
+                                onChange={handleChange}
+                                label={attr.name}
+                                disabled={
+                                  isLoadingValues ||
+                                  fetchCustomerChoiceStatus === "loading"
+                                }
+                                sx={{
+                                  display: "block",
+                                  width: "100%",
+                                  fontSize: "0.8rem",
+                                  height: "36px",
+                                  "& .MuiSelect-select": {
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    minWidth: "150px",
+                                    paddingRight: "32px",
+                                  },
+                                }}
+                                renderValue={(selected) => {
+                                  // Tìm tên của giá trị đã chọn từ attributeValues
+                                  const selectedValue = attributeValues.find(
+                                    (value) => value.id === selected
+                                  );
+                                  if (!selectedValue) return "";
 
-        {/* Show attribute price if available */}
-        {(customerChoiceDetails[attr.id]?.subTotal !== undefined ||
-          previousSubTotalsRef.current[attr.id]) && (
-          <Box
-            mt={0.5}
-            display="flex"
-            justifyContent="flex-end"
-            key={`price-${attr.id}-${refreshCounter}`}
-            sx={{
-              transition: "opacity 0.3s ease",
-              opacity:
-                fetchCustomerChoiceStatus === "loading"
-                  ? 0.6
-                  : 1,
-            }}
-          >
-            <Typography
-              variant="caption"
-              color="success.main"
-              fontWeight="medium"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                bgcolor: "success.lightest",
-                py: 0.5,
-                px: 1,
-                borderRadius: 1,
-              }}
-            >
-              {fetchCustomerChoiceStatus === "loading" ? (
-                <CircularProgress size={10} sx={{ mr: 0.5 }} />
-              ) : (
-                <FaCheckCircle
-                  size={10}
-                  className="mr-1 text-green-500"
-                />
-              )}
-              Giá:{" "}
-              <span className="font-bold ml-1">
-                {(customerChoiceDetails[attr.id]?.subTotal !== undefined
-                  ? customerChoiceDetails[attr.id].subTotal
-                  : previousSubTotalsRef.current[attr.id] || 0
-                ).toLocaleString("vi-VN")}{" "}
-                đ
-              </span>
-            </Typography>
-          </Box>
-        )}
-      </FormControl>
-    </Grid>
-  );
-})}
+                                  // Giới hạn độ dài tên hiển thị khi đã chọn
+                                  const displayName = selectedValue.name;
+                                  return displayName.length > 25
+                                    ? displayName.substring(0, 22) + "..."
+                                    : displayName;
+                                }}
+                                MenuProps={{
+                                  PaperProps: {
+                                    style: {
+                                      maxHeight: 300,
+                                      width: "auto",
+                                      minWidth: "250px",
+                                    },
+                                  },
+                                  anchorOrigin: {
+                                    vertical: "bottom",
+                                    horizontal: "left",
+                                  },
+                                  transformOrigin: {
+                                    vertical: "top",
+                                    horizontal: "left",
+                                  },
+                                }}
+                              >
+                                <MenuItem value="" disabled>
+                                  {attr.name}
+                                </MenuItem>
+                                {attributeValues.map((value) => (
+                                  <MenuItem
+                                    key={value.id}
+                                    value={value.id}
+                                    sx={{
+                                      fontSize: "0.8rem",
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      flexWrap: "nowrap",
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    <Typography
+                                      sx={{
+                                        maxWidth: "calc(100% - 90px)",
+                                        whiteSpace: "normal", // Thay đổi thành normal để hiển thị đầy đủ
+                                        lineHeight: "1.4",
+                                        wordBreak: "break-word", // Cho phép xuống dòng nếu cần
+                                      }}
+                                    >
+                                      {value.name}
+                                    </Typography>
+                                    {value.unitPrice !== undefined && (
+                                      <Typography
+                                        sx={{
+                                          ml: 1,
+                                          color: "green.600",
+                                          fontWeight: "medium",
+                                          flexShrink: 0,
+                                          fontSize: "0.8rem",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {value.unitPrice.toLocaleString(
+                                          "vi-VN"
+                                        )}{" "}
+                                        đ
+                                      </Typography>
+                                    )}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                              {validationErrors[attr.id] && (
+                                <Typography color="error" variant="caption">
+                                  {validationErrors[attr.id]}
+                                </Typography>
+                              )}
+                              {isLoadingValues && (
+                                <Box
+                                  display="flex"
+                                  justifyContent="center"
+                                  mt={0.5}
+                                >
+                                  <CircularProgress size={14} />
+                                </Box>
+                              )}
+
+                              {/* Show attribute price if available */}
+                              {(attributePrices[attr.id]?.subTotal !==
+                                undefined ||
+                                previousSubTotalsRef.current[attr.id]) && (
+                                <Box
+                                  mt={0.5}
+                                  display="flex"
+                                  justifyContent="flex-end"
+                                  key={`price-${attr.id}-${refreshCounter}`}
+                                  sx={{
+                                    transition: "opacity 0.3s ease",
+                                    opacity:
+                                      fetchCustomerChoiceStatus === "loading"
+                                        ? 0.6
+                                        : 1,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    color="success.main"
+                                    fontWeight="medium"
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      bgcolor: "success.lightest",
+                                      py: 0.5,
+                                      px: 1,
+                                      borderRadius: 1,
+                                    }}
+                                  >
+                                    {fetchCustomerChoiceStatus === "loading" ? (
+                                      <CircularProgress
+                                        size={10}
+                                        sx={{ mr: 0.5 }}
+                                      />
+                                    ) : (
+                                      <FaCheckCircle
+                                        size={10}
+                                        className="mr-1 text-green-500"
+                                      />
+                                    )}
+                                    Giá:{" "}
+                                    <span className="font-bold ml-1">
+                                      {(attributePrices[attr.id]?.subTotal !==
+                                      undefined
+                                        ? attributePrices[attr.id].subTotal
+                                        : previousSubTotalsRef.current[
+                                            attr.id
+                                          ] || 0
+                                      ).toLocaleString("vi-VN")}{" "}
+                                      đ
+                                    </span>
+                                  </Typography>
+                                </Box>
+                              )}
+                            </FormControl>
+                          </Grid>
+                        );
+                      })}
                     </Grid>
                   </Box>
                 </Grid>
@@ -1294,6 +1426,9 @@ const AIDesign = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadImagePreview, setUploadImagePreview] = useState("");
   const [processedLogoUrl, setProcessedLogoUrl] = useState("");
+  const [currentProductType, setCurrentProductType] = useState(null);
+  const hasFetchedDataRef = useRef(false);
+  const hasRestoredDataRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -2158,22 +2293,102 @@ const AIDesign = () => {
     if (step === "business") {
       setCurrentStep(2);
     } else if (step === "billboard") {
-      setCurrentStep(3);
       const type = params.get("type");
       if (type) {
         setBillboardType(type);
+
+        // Khôi phục currentProductType nếu có productTypes
+        if (productTypes.length > 0) {
+          const foundProductType = productTypes.find((pt) => pt.id === type);
+          if (foundProductType) {
+            setCurrentProductType(foundProductType);
+            localStorage.setItem(
+              "currentProductType",
+              JSON.stringify(foundProductType)
+            );
+          }
+        }
+
         setCurrentStep(4);
+
+        // LOẠI BỎ phần này để tránh duplicate API calls
+        // Chỉ set billboardType và currentStep, để useEffect khác xử lý việc fetch data
+      } else {
+        setCurrentStep(3);
       }
     }
-  }, [location]);
+  }, [location, productTypes]);
 
   useEffect(() => {
     if (currentStep === 3 && productTypeStatus === "idle") {
-      dispatch(fetchProductTypes());
+      // Cập nhật cách gọi với pagination parameters
+      dispatch(fetchProductTypes({ page: 1, size: 20 })); // Lấy 20 items để hiển thị đủ product types
     }
   }, [currentStep, dispatch, productTypeStatus]);
   useEffect(() => {
-    if (currentStep === 4 && billboardType) {
+    const restoreFormData = async () => {
+      // THÊM ĐIỀU KIỆN KIỂM TRA currentOrder?.id
+      if (currentStep === 4 && billboardType && currentOrder?.id) {
+        console.log("Restoring form data for step 4");
+        console.log("Current order ID:", currentOrder.id);
+
+        try {
+          // 1. Fetch customer choice details để lấy attribute values đã chọn
+          const choiceDetailsResult = await dispatch(
+            fetchCustomerChoiceDetails(currentOrder.id)
+          ).unwrap();
+          console.log("Choice details fetched:", choiceDetailsResult);
+
+          // 2. Fetch customer choice sizes để lấy sizes đã chọn
+          const existingSizes = await dispatch(
+            fetchCustomerChoiceSizes(currentOrder.id)
+          ).unwrap();
+          console.log("Existing sizes fetched:", existingSizes);
+
+          // 3. Fetch total amount
+          const choiceResult = await dispatch(
+            fetchCustomerChoice(currentOrder.id)
+          ).unwrap();
+          console.log("Choice result fetched:", choiceResult);
+
+          console.log("Form data restored successfully");
+
+          // CHỈ HIỂN thị thông báo nếu thực sự có dữ liệu để khôi phục
+          const hasChoiceDetails =
+            choiceDetailsResult && Object.keys(choiceDetailsResult).length > 0;
+          const hasSizes = existingSizes && existingSizes.length > 0;
+
+          if (hasChoiceDetails || hasSizes) {
+            setSnackbar({
+              open: true,
+              message: "Đã khôi phục thông tin đã chọn",
+              severity: "info",
+            });
+          } else {
+            console.log("No existing data found to restore");
+          }
+        } catch (error) {
+          console.error("Failed to restore form data:", error);
+          // KHÔNG hiển thị lỗi nếu chỉ là do chưa có dữ liệu
+          if (!error.message?.includes("not found")) {
+            setSnackbar({
+              open: true,
+              message: "Có lỗi khi tải thông tin đã chọn",
+              severity: "warning",
+            });
+          }
+        }
+      } else if (currentStep === 4 && billboardType && !currentOrder?.id) {
+        console.log("Step 4 but no current order - this is a new choice");
+      }
+    };
+
+    restoreFormData();
+  }, [currentStep, billboardType, currentOrder?.id, dispatch]);
+  useEffect(() => {
+    if (currentStep === 4 && billboardType && !hasFetchedDataRef.current) {
+      hasFetchedDataRef.current = true;
+
       // Fetch attributes for the product type
       if (attributeStatus === "idle") {
         dispatch(fetchAttributesByProductTypeId(billboardType));
@@ -2185,14 +2400,12 @@ const AIDesign = () => {
           .unwrap()
           .then((result) => {
             if (result) {
-              // We found an existing choice, now set it as current order
               console.log("Found existing customer choice:", result);
 
-              // Make sure the existing choice matches our current product type
-              if (result.productTypeId === billboardType) {
-                // Fetch choice details and update state
+              if (result.productTypes?.id === billboardType) {
                 dispatch(fetchCustomerChoiceDetails(result.id));
                 dispatch(fetchCustomerChoice(result.id));
+                dispatch(fetchCustomerChoiceSizes(result.id));
               }
             }
           })
@@ -2202,16 +2415,22 @@ const AIDesign = () => {
               error
             );
           });
+      } else if (currentOrder?.id && !hasRestoredDataRef.current) {
+        hasRestoredDataRef.current = true;
+        console.log("Restoring data for existing order:", currentOrder.id);
+
+        dispatch(fetchCustomerChoiceDetails(currentOrder.id));
+        dispatch(fetchCustomerChoice(currentOrder.id));
+        dispatch(fetchCustomerChoiceSizes(currentOrder.id));
       }
     }
-  }, [
-    currentStep,
-    billboardType,
-    dispatch,
-    attributeStatus,
-    currentOrder,
-    user?.id,
-  ]);
+
+    // Reset flag khi rời khỏi step 4
+    if (currentStep !== 4) {
+      hasFetchedDataRef.current = false;
+      hasRestoredDataRef.current = false;
+    }
+  }, [currentStep, billboardType, dispatch, attributeStatus, user?.id]);
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -2395,9 +2614,12 @@ const AIDesign = () => {
         console.log("Customer choices response:", customerChoicesResponse);
 
         // If we have an existing customer choice with product type
-        if (customerChoicesResponse && customerChoicesResponse.productTypeId) {
+        if (
+          customerChoicesResponse &&
+          customerChoicesResponse.productTypes?.id
+        ) {
           // We found an existing choice, skip step 3 and go to step 4
-          const existingProductTypeId = customerChoicesResponse.productTypeId;
+          const existingProductTypeId = customerChoicesResponse.productTypes.id;
           console.log("Found existing product type ID:", existingProductTypeId);
 
           // Update local state
@@ -2629,7 +2851,55 @@ const AIDesign = () => {
       });
     }
   };
-
+  useEffect(() => {
+    // Khôi phục currentProductType từ localStorage nếu chưa có
+    if (!currentProductType && billboardType) {
+      const savedProductType = localStorage.getItem("currentProductType");
+      if (savedProductType) {
+        try {
+          const parsedProductType = JSON.parse(savedProductType);
+          // Kiểm tra xem saved product type có khớp với billboardType hiện tại không
+          if (parsedProductType.id === billboardType) {
+            setCurrentProductType(parsedProductType);
+            console.log(
+              "Restored product type from localStorage:",
+              parsedProductType
+            );
+          } else {
+            // Nếu không khớp, xóa localStorage và fetch lại từ productTypes
+            localStorage.removeItem("currentProductType");
+            if (productTypes.length > 0) {
+              const foundProductType = productTypes.find(
+                (pt) => pt.id === billboardType
+              );
+              if (foundProductType) {
+                setCurrentProductType(foundProductType);
+                localStorage.setItem(
+                  "currentProductType",
+                  JSON.stringify(foundProductType)
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing saved product type:", error);
+          localStorage.removeItem("currentProductType");
+        }
+      } else if (productTypes.length > 0 && billboardType) {
+        // Nếu không có trong localStorage, tìm từ productTypes
+        const foundProductType = productTypes.find(
+          (pt) => pt.id === billboardType
+        );
+        if (foundProductType) {
+          setCurrentProductType(foundProductType);
+          localStorage.setItem(
+            "currentProductType",
+            JSON.stringify(foundProductType)
+          );
+        }
+      }
+    }
+  }, [currentProductType, billboardType, productTypes]);
   const handleBillboardTypeSelect = async (productTypeId) => {
     // First check if we have the customer details
     if (!user?.id) {
@@ -2639,14 +2909,29 @@ const AIDesign = () => {
     }
 
     try {
+      // Tìm và lưu thông tin product type hiện tại
+      const selectedProductType = productTypes.find(
+        (pt) => pt.id === productTypeId
+      );
+      setCurrentProductType(selectedProductType);
+      if (selectedProductType) {
+        localStorage.setItem(
+          "currentProductType",
+          JSON.stringify(selectedProductType)
+        );
+      }
+
+      console.log("Selected product type:", selectedProductType);
+
       // Check if user already has a customer choice for this product type
       const customerChoicesResponse = await dispatch(
         fetchCustomerChoices(user.id)
       ).unwrap();
 
+      // CẬP NHẬT: Kiểm tra productTypes.id thay vì productTypeId
       if (
         customerChoicesResponse &&
-        customerChoicesResponse.productTypeId === productTypeId
+        customerChoicesResponse.productTypes?.id === productTypeId
       ) {
         console.log(
           "User already has a customer choice for this product type:",
@@ -2675,7 +2960,7 @@ const AIDesign = () => {
         return;
       }
 
-      // If no existing choice, create a new one
+      // If no existing choice or different product type, create/update
       const userId = user.id;
       console.log(`Linking user ${userId} to product type ${productTypeId}`);
 
@@ -2704,6 +2989,31 @@ const AIDesign = () => {
         setError(
           "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
         );
+      } else if (error?.message?.includes("duplicate key")) {
+        // Xử lý trường hợp duplicate key - thử fetch lại existing choice
+        setSnackbar({
+          open: true,
+          message: "Đang tải thiết kế hiện tại...",
+          severity: "info",
+        });
+
+        try {
+          const existingChoice = await dispatch(
+            fetchCustomerChoices(user.id)
+          ).unwrap();
+          if (existingChoice) {
+            setBillboardType(productTypeId);
+            dispatch(fetchAttributesByProductTypeId(productTypeId));
+            dispatch(fetchCustomerChoiceDetails(existingChoice.id));
+            dispatch(fetchCustomerChoice(existingChoice.id));
+            setCurrentStep(4);
+            navigate(`/ai-design?step=billboard&type=${productTypeId}`);
+          }
+        } catch (fetchError) {
+          setError(
+            "Có lỗi xảy ra khi tải thiết kế hiện tại. Vui lòng thử lại."
+          );
+        }
       } else {
         setError(
           error?.message ||
@@ -2725,6 +3035,8 @@ const AIDesign = () => {
           );
           // Navigate back after successful deletion
           setBillboardType("");
+          setCurrentProductType(null); // Reset current product type
+          localStorage.removeItem("currentProductType"); // Xóa khỏi localStorage
           setCurrentStep(3);
           navigate("/ai-design?step=billboard");
         })
@@ -2738,12 +3050,16 @@ const AIDesign = () => {
           });
           // Navigate back anyway
           setBillboardType("");
+          setCurrentProductType(null); // Reset current product type
+          localStorage.removeItem("currentProductType"); // Xóa khỏi localStorage
           setCurrentStep(3);
           navigate("/ai-design?step=billboard");
         });
     } else {
       // If there's no customer choice to delete, just navigate back
       setBillboardType("");
+      setCurrentProductType(null); // Reset current product type
+      localStorage.removeItem("currentProductType"); // Xóa khỏi localStorage
       setCurrentStep(3);
       navigate("/ai-design?step=billboard");
     }
@@ -3218,7 +3534,37 @@ const AIDesign = () => {
           </motion.div>
         );
 
-      case 4:
+      case 4: {
+        // Thêm dấu ngoặc nhọn mở ở đây
+        const isRestoring =
+          currentOrder?.id &&
+          Object.keys(customerChoiceDetails).length === 0 &&
+          customerStatus === "loading";
+
+        if (isRestoring) {
+          return (
+            <motion.div
+              className="max-w-4xl mx-auto"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.h2
+                className="text-3xl font-bold text-custom-dark mb-8 text-center"
+                variants={itemVariants}
+              >
+                Thông tin biển hiệu
+              </motion.h2>
+
+              <div className="flex justify-center items-center py-12">
+                <CircularProgress color="primary" />
+                <p className="ml-4 text-gray-600">
+                  Đang khôi phục thông tin đã chọn...
+                </p>
+              </div>
+            </motion.div>
+          );
+        }
         return (
           <motion.div
             className="max-w-4xl mx-auto"
@@ -3283,74 +3629,43 @@ const AIDesign = () => {
                   Quay lại
                 </motion.button>
 
-                {/* Nút Thiết kế thủ công */}
-                <motion.button
-                  type="button"
-                  onClick={() => {
-                    navigate("/custom-design", {
-                      state: {
-                        customerChoiceId: currentOrder?.id,
-                        selectedType: billboardType,
-                        businessInfo: {
-                          companyName:
-                            businessInfo.companyName ||
-                            customerDetail?.companyName ||
-                            "",
-                          address:
-                            businessInfo.tagLine ||
-                            customerDetail?.tagLine ||
-                            "",
-                          contactInfo:
-                            businessInfo.contactInfo ||
-                            customerDetail?.contactInfo ||
-                            "",
-                          logoUrl:
-                            businessInfo.logoPreview ||
-                            customerDetail?.logoUrl ||
-                            "",
-                        },
-                      },
-                    });
-                  }}
-                  className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center mx-2"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Thiết kế thủ công
-                  <svg
-                    className="w-5 h-5 ml-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14 5l7 7m0 0l-7 7m7-7H3"
-                    />
-                  </svg>
-                </motion.button>
-
-                <motion.button
-                  type="submit"
-                  className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={attributeStatus === "loading"}
-                >
-                  {attributeStatus === "loading" ? (
-                    <>
-                      <CircularProgress
-                        size={20}
-                        color="inherit"
-                        className="mr-2"
-                      />
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    <>
-                      Thiết kế bằng AI
+                {/* Hiển thị button dựa trên isAiGenerated */}
+                <div className="flex space-x-4">
+                  {currentProductType?.isAiGenerated === false && (
+                    <motion.button
+                      type="button"
+                      onClick={() => {
+                        navigate("/custom-design", {
+                          state: {
+                            customerChoiceId: currentOrder?.id,
+                            selectedType: billboardType,
+                            businessInfo: {
+                              companyName:
+                                businessInfo.companyName ||
+                                customerDetail?.companyName ||
+                                "",
+                              address:
+                                businessInfo.address ||
+                                customerDetail?.address ||
+                                "",
+                              contactInfo:
+                                businessInfo.contactInfo ||
+                                customerDetail?.contactInfo ||
+                                "",
+                              logoUrl:
+                                businessInfo.logoPreview ||
+                                customerDetail?.logoUrl ||
+                                "",
+                            },
+                          },
+                        });
+                      }}
+                      className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <FaEdit className="w-5 h-5 mr-2" />
+                      Thiết kế thủ công
                       <svg
                         className="w-5 h-5 ml-1"
                         fill="none"
@@ -3361,16 +3676,122 @@ const AIDesign = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M5 13l4 4L19 7"
+                          d="M14 5l7 7m0 0l-7 7m7-7H3"
                         />
                       </svg>
+                    </motion.button>
+                  )}
+
+                  {currentProductType?.isAiGenerated === true && (
+                    <motion.button
+                      type="submit"
+                      className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      disabled={attributeStatus === "loading"}
+                    >
+                      {attributeStatus === "loading" ? (
+                        <>
+                          <CircularProgress
+                            size={20}
+                            color="inherit"
+                            className="mr-2"
+                          />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <FaRobot className="w-5 h-5 mr-2" />
+                          Thiết kế bằng AI
+                          <svg
+                            className="w-5 h-5 ml-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </>
+                      )}
+                    </motion.button>
+                  )}
+
+                  {/* Hiển thị cả hai button nếu không có thông tin isAiGenerated hoặc để null */}
+                  {(currentProductType?.isAiGenerated === null ||
+                    currentProductType?.isAiGenerated === undefined) && (
+                    <>
+                      <motion.button
+                        type="button"
+                        onClick={() => {
+                          navigate("/custom-design", {
+                            state: {
+                              customerChoiceId: currentOrder?.id,
+                              selectedType: billboardType,
+                              businessInfo: {
+                                companyName:
+                                  businessInfo.companyName ||
+                                  customerDetail?.companyName ||
+                                  "",
+                                address:
+                                  businessInfo.address ||
+                                  customerDetail?.address ||
+                                  "",
+                                contactInfo:
+                                  businessInfo.contactInfo ||
+                                  customerDetail?.contactInfo ||
+                                  "",
+                                logoUrl:
+                                  businessInfo.logoPreview ||
+                                  customerDetail?.logoUrl ||
+                                  "",
+                              },
+                            },
+                          });
+                        }}
+                        className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <FaEdit className="w-4 h-4 mr-2" />
+                        Thiết kế thủ công
+                      </motion.button>
+
+                      <motion.button
+                        type="submit"
+                        className="px-6 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={attributeStatus === "loading"}
+                      >
+                        {attributeStatus === "loading" ? (
+                          <>
+                            <CircularProgress
+                              size={20}
+                              color="inherit"
+                              className="mr-2"
+                            />
+                            Đang xử lý...
+                          </>
+                        ) : (
+                          <>
+                            <FaRobot className="w-4 h-4 mr-2" />
+                            Thiết kế bằng AI
+                          </>
+                        )}
+                      </motion.button>
                     </>
                   )}
-                </motion.button>
+                </div>
               </motion.div>
             </motion.form>
           </motion.div>
         );
+      }
       case 4.5:
         return (
           <motion.div

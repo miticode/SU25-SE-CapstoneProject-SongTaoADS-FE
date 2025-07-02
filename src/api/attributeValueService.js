@@ -81,30 +81,48 @@ export const createAttributeValueApi = async (attributeId, attributeValueData) =
   }
 };
 
-export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, size = 10) => {
+export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, size = 50) => {
   try {
     console.log(`Fetching attribute values for attribute ID: ${attributeId}, page: ${page}, size: ${size}`);
 
-    // Get token to ensure it's available
     const token = getToken();
     console.log('Token available:', !!token);
 
-    const response = await attributeValueService.get(
+    const response = await attributeService.get(
       `/api/attributes/${attributeId}/attribute-values`, 
       {
-        params: { page, size },
+        params: { page, size }, // Tăng size lên 50 để lấy đủ attribute values
         headers: {
-          'Authorization': `Bearer ${token}` // Ensure token is in the header
+          'Authorization': `Bearer ${token}`
         }
       }
     );
 
+    console.log('API Response for attribute values:', response.data);
+
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
-    if (success) {
+    if (success && Array.isArray(result)) {
+      // Xử lý dữ liệu để phù hợp với frontend
+      const processedData = result.map(item => ({
+        id: item.id,
+        name: item.name,
+        unit: item.unit,
+        materialPrice: item.materialPrice,
+        unitPrice: item.unitPrice,
+        isMultiplier: item.isMultiplier,
+        isAvailable: item.isAvailable,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        // Xử lý attributesId - lấy id của attribute
+        attributeId: item.attributesId?.id || attributeId // Fallback về attributeId được truyền vào
+      }));
+
+      console.log('Processed attribute values:', processedData);
+
       return { 
         success: true, 
-        data: result,
+        data: processedData,
         pagination: {
           currentPage,
           totalPages,
