@@ -2080,7 +2080,7 @@ const AIDesign = () => {
         array.push(blobBin.charCodeAt(i));
       }
       const file = new Blob([new Uint8Array(array)], { type: "image/png" });
-      const aiImage = new File([file], "canvas-design.png", {
+      const editedImage = new File([file], "canvas-design.png", {
         type: "image/png",
       });
 
@@ -2149,7 +2149,7 @@ const AIDesign = () => {
         customerDetailId,
         designTemplateId,
         customerNote: note,
-        hasImage: !!aiImage,
+        hasEditedImage: !!editedImage,
       });
 
       // 5. Gửi request tạo AI design
@@ -2158,7 +2158,7 @@ const AIDesign = () => {
           customerDetailId,
           designTemplateId,
           customerNote: note,
-          aiImage,
+          editedImage,
         })
       );
 
@@ -3565,6 +3565,23 @@ const AIDesign = () => {
             </motion.div>
           );
         }
+
+        // Lấy thông tin product type hiện tại để kiểm tra isAiGenerated
+        const currentProductTypeInfo =
+          productTypes.find((pt) => pt.id === billboardType) ||
+          currentProductType;
+        const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+        // Xác định text và icon cho nút dựa trên isAiGenerated
+        const suggestButtonText = isAiGenerated
+          ? "Đề xuất thiết kế bằng AI"
+          : "Đề xuất thiết kế bằng Background";
+        const suggestButtonIcon = isAiGenerated ? (
+          <FaRobot className="w-5 h-5 mr-2" />
+        ) : (
+          <FaPalette className="w-5 h-5 mr-2" />
+        );
+
         return (
           <motion.div
             className="max-w-4xl mx-auto"
@@ -3629,163 +3646,93 @@ const AIDesign = () => {
                   Quay lại
                 </motion.button>
 
-                {/* Hiển thị button dựa trên isAiGenerated */}
+                {/* 2 nút: Thiết kế thủ công (giữa) và Đề xuất thiết kế (phải) */}
                 <div className="flex space-x-4">
-                  {currentProductType?.isAiGenerated === false && (
-                    <motion.button
-                      type="button"
-                      onClick={() => {
-                        navigate("/custom-design", {
-                          state: {
-                            customerChoiceId: currentOrder?.id,
-                            selectedType: billboardType,
-                            businessInfo: {
-                              companyName:
-                                businessInfo.companyName ||
-                                customerDetail?.companyName ||
-                                "",
-                              address:
-                                businessInfo.address ||
-                                customerDetail?.address ||
-                                "",
-                              contactInfo:
-                                businessInfo.contactInfo ||
-                                customerDetail?.contactInfo ||
-                                "",
-                              logoUrl:
-                                businessInfo.logoPreview ||
-                                customerDetail?.logoUrl ||
-                                "",
-                            },
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      navigate("/custom-design", {
+                        state: {
+                          customerChoiceId: currentOrder?.id,
+                          selectedType: billboardType,
+                          businessInfo: {
+                            companyName:
+                              businessInfo.companyName ||
+                              customerDetail?.companyName ||
+                              "",
+                            address:
+                              businessInfo.address ||
+                              customerDetail?.address ||
+                              "",
+                            contactInfo:
+                              businessInfo.contactInfo ||
+                              customerDetail?.contactInfo ||
+                              "",
+                            logoUrl:
+                              businessInfo.logoPreview ||
+                              customerDetail?.logoUrl ||
+                              "",
                           },
-                        });
-                      }}
-                      className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                        },
+                      });
+                    }}
+                    className="px-8 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <FaEdit className="w-5 h-5 mr-2" />
+                    Thiết kế thủ công
+                    <svg
+                      className="w-5 h-5 ml-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      <FaEdit className="w-5 h-5 mr-2" />
-                      Thiết kế thủ công
-                      <svg
-                        className="w-5 h-5 ml-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M14 5l7 7m0 0l-7 7m7-7H3"
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                      />
+                    </svg>
+                  </motion.button>
+
+                  <motion.button
+                    type="submit"
+                    className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={attributeStatus === "loading"}
+                  >
+                    {attributeStatus === "loading" ? (
+                      <>
+                        <CircularProgress
+                          size={20}
+                          color="inherit"
+                          className="mr-2"
                         />
-                      </svg>
-                    </motion.button>
-                  )}
-
-                  {currentProductType?.isAiGenerated === true && (
-                    <motion.button
-                      type="submit"
-                      className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      disabled={attributeStatus === "loading"}
-                    >
-                      {attributeStatus === "loading" ? (
-                        <>
-                          <CircularProgress
-                            size={20}
-                            color="inherit"
-                            className="mr-2"
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        {suggestButtonIcon}
+                        {suggestButtonText}
+                        <svg
+                          className="w-5 h-5 ml-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
                           />
-                          Đang xử lý...
-                        </>
-                      ) : (
-                        <>
-                          <FaRobot className="w-5 h-5 mr-2" />
-                          Thiết kế bằng AI
-                          <svg
-                            className="w-5 h-5 ml-1"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </>
-                      )}
-                    </motion.button>
-                  )}
-
-                  {/* Hiển thị cả hai button nếu không có thông tin isAiGenerated hoặc để null */}
-                  {(currentProductType?.isAiGenerated === null ||
-                    currentProductType?.isAiGenerated === undefined) && (
-                    <>
-                      <motion.button
-                        type="button"
-                        onClick={() => {
-                          navigate("/custom-design", {
-                            state: {
-                              customerChoiceId: currentOrder?.id,
-                              selectedType: billboardType,
-                              businessInfo: {
-                                companyName:
-                                  businessInfo.companyName ||
-                                  customerDetail?.companyName ||
-                                  "",
-                                address:
-                                  businessInfo.address ||
-                                  customerDetail?.address ||
-                                  "",
-                                contactInfo:
-                                  businessInfo.contactInfo ||
-                                  customerDetail?.contactInfo ||
-                                  "",
-                                logoUrl:
-                                  businessInfo.logoPreview ||
-                                  customerDetail?.logoUrl ||
-                                  "",
-                              },
-                            },
-                          });
-                        }}
-                        className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <FaEdit className="w-4 h-4 mr-2" />
-                        Thiết kế thủ công
-                      </motion.button>
-
-                      <motion.button
-                        type="submit"
-                        className="px-6 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        disabled={attributeStatus === "loading"}
-                      >
-                        {attributeStatus === "loading" ? (
-                          <>
-                            <CircularProgress
-                              size={20}
-                              color="inherit"
-                              className="mr-2"
-                            />
-                            Đang xử lý...
-                          </>
-                        ) : (
-                          <>
-                            <FaRobot className="w-4 h-4 mr-2" />
-                            Thiết kế bằng AI
-                          </>
-                        )}
-                      </motion.button>
-                    </>
-                  )}
+                        </svg>
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.form>

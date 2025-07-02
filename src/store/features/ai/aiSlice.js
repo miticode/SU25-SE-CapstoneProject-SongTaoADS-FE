@@ -8,15 +8,22 @@ import {
 export const createAIDesign = createAsyncThunk(
   "ai/createAIDesign",
   async (
-    { customerDetailId, designTemplateId, customerNote, aiImage },
+    { customerDetailId, designTemplateId, customerNote, editedImage }, // Đổi từ aiImage thành editedImage
     { rejectWithValue }
   ) => {
     try {
+      console.log("Creating AI Design with params:", {
+        customerDetailId,
+        designTemplateId,
+        customerNote,
+        editedImage: editedImage ? "Image file provided" : "No image",
+      });
+
       const response = await createAIDesignApi(
         customerDetailId,
         designTemplateId,
         customerNote,
-        aiImage
+        editedImage // Đổi từ aiImage thành editedImage
       );
 
       if (!response.success) {
@@ -25,8 +32,10 @@ export const createAIDesign = createAsyncThunk(
         );
       }
 
+      console.log("AI Design created successfully:", response.result);
       return response.result;
     } catch (error) {
+      console.error("Failed to create AI design:", error);
       return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
@@ -61,6 +70,8 @@ const initialState = {
   imageGenerationStatus: "idle",
   error: null,
   imageGenerationError: null,
+  currentDesignTemplate: null,
+  currentBackground: null,
 };
 
 // Slice
@@ -87,6 +98,19 @@ const aiSlice = createSlice({
       .addCase(createAIDesign.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.currentAIDesign = action.payload;
+
+        // Lưu thêm thông tin từ response mới
+        if (action.payload.editedImage) {
+          state.generatedImage = action.payload.editedImage;
+        }
+
+        if (action.payload.designTemplates) {
+          state.currentDesignTemplate = action.payload.designTemplates;
+        }
+
+        if (action.payload.backgrounds) {
+          state.currentBackground = action.payload.backgrounds;
+        }
       })
       .addCase(createAIDesign.rejected, (state, action) => {
         state.status = "failed";
@@ -121,5 +145,9 @@ export const selectImageGenerationStatus = (state) =>
   state.ai.imageGenerationStatus;
 export const selectImageGenerationError = (state) =>
   state.ai.imageGenerationError;
-
+export const selectCurrentDesignTemplate = (state) =>
+  state.ai.currentDesignTemplate;
+export const selectCurrentBackground = (state) => state.ai.currentBackground;
+export const selectEditedImageUrl = (state) =>
+  state.ai.currentAIDesign?.editedImage;
 export default aiSlice.reducer;

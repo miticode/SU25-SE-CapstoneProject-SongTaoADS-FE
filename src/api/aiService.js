@@ -6,7 +6,7 @@ const getToken = () => {
 };
 
 // API để tạo AI design
-export const createAIDesignApi = async (customerDetailId, designTemplateId, customerNote, aiImage) => {
+export const createAIDesignApi = async (customerDetailId, designTemplateId, customerNote, editedImage) => {
   try {
     const formData = new FormData();
     
@@ -17,9 +17,9 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
     // Thêm các trường vào FormData
     formData.append('customerNote', safeNote);
     
-    // Thêm file ảnh
-    if (aiImage) {
-      formData.append('aiImage', aiImage);
+    // Thêm file ảnh - đổi từ aiImage thành editedImage
+    if (editedImage) {
+      formData.append('editedImage', editedImage);
     }
     
     const token = getToken();
@@ -27,11 +27,12 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
     
     // Log formData để kiểm tra
     for (let pair of formData.entries()) {
-      console.log(pair[0]+ ': ' + (pair[0] === 'aiImage' ? 'Image File' : pair[1]));
+      console.log(pair[0]+ ': ' + (pair[0] === 'editedImage' ? 'Image File' : pair[1]));
     }
     
+    // Cập nhật URL endpoint
     const response = await axios.post(
-      `${API_URL}/api/customer-details/${customerDetailId}/design-templates/${designTemplateId}/ai-designs`,
+      `${API_URL}/api/customer-details/${customerDetailId}/design-templates/${designTemplateId}/edited-designs`,
       formData,
       {
         headers: {
@@ -41,6 +42,7 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
       }
     );
     
+    console.log('API Response:', response.data);
     return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);
