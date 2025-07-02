@@ -32,14 +32,28 @@ productTypeService.interceptors.response.use(
 );
 
 // Hàm lấy tất cả product types
-export const getProductTypesApi = async () => {
+export const getProductTypesApi = async (page = 1, size = 10) => {
   try {
-    const response = await productTypeService.get('/api/product-types');
+    const response = await productTypeService.get('/api/product-types', {
+      params: {
+        page,
+        size
+      }
+    });
     
-    const { success, result, message } = response.data;
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
     
     if (success) {
-      return { success, data: result || [] };
+      return { 
+        success, 
+        data: result || [],
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
     }
     
     return { success: false, error: message || 'Invalid response format' };
@@ -74,16 +88,35 @@ export const getProductTypeByIdApi = async (id) => {
 // Hàm lấy product type sizes theo product type ID
 export const getProductTypeSizesByProductTypeIdApi = async (productTypeId) => {
   try {
+    console.log(`Fetching product type sizes for productTypeId: ${productTypeId}`);
+    
     const response = await productTypeService.get(`/api/product-types/${productTypeId}/product-type-sizes`);
+    
+    console.log('API Response for product type sizes:', response.data);
     
     const { success, result, message } = response.data;
     
-    if (success) {
-      return { success, data: result || [] };
+    if (success && Array.isArray(result)) {
+      // Xử lý dữ liệu để phù hợp với frontend
+      const processedData = result.map(item => ({
+        id: item.id,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        productTypes: item.productTypes,
+        sizes: item.sizes, // Giữ nguyên cấu trúc sizes object
+        // Thêm các field để tương thích với code hiện tại
+        sizeId: item.sizes?.id,
+        sizeName: item.sizes?.name
+      }));
+      
+      console.log('Processed product type sizes:', processedData);
+      
+      return { success, data: processedData };
     }
     
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch product type sizes'
