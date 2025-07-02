@@ -3,7 +3,6 @@ const API_URL = 'https://songtaoads.online';
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
   },
   withCredentials: true 
@@ -163,5 +162,56 @@ export const getFineTuneFileDetailApi = async (fileId) => {
     return { success: false, error: message || 'Lỗi khi lấy chi tiết file' };
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết file' };
+  }
+}; 
+
+// Chọn model để chat từ list job
+export const selectModelForChatApi = async (fineTuningJobId) => {
+  try {
+    const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/select-model`);
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, result };
+    }
+    return { success: false, error: message || 'Lỗi khi chọn model' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể chọn model'
+    };
+  }
+};
+
+// Upload file excel để convert thành file jsonl
+export const uploadFileExcelApi = async (file, fileName) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await chatService.post(
+      `/api/chat-bot/upload-file-excel?fileName=${encodeURIComponent(fileName)}`,
+      formData
+    );
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, result };
+    }
+    return { success: false, error: message || 'Lỗi khi upload file excel' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể upload file excel'
+    };
+  }
+};
+
+// Lấy chi tiết job đã fine-tune
+export const getFineTuneJobDetailApi = async (fineTuneJobId) => {
+  try {
+    const response = await chatService.get(`/api/chat-bot/${fineTuneJobId}/fine-tune-jobs`);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy chi tiết job' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết job' };
   }
 }; 

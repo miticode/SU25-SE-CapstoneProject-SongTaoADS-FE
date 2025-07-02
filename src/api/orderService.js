@@ -267,6 +267,7 @@ export const deleteOrderApi = async (orderId) => {
     };
   }
 };
+// Tạo đơn hàng từ request thiết kế
 export const createOrderFromDesignRequestApi = async (customDesignRequestId) => {
   try {
     const response = await orderService.post(`/api/custom-design-request/${customDesignRequestId}/orders`);

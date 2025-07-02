@@ -26,7 +26,7 @@ export const createImpression = createAsyncThunk(
 );
 
 export const uploadImpressionImage = createAsyncThunk(
-  "impression/uploadImpressionImage",
+  " /uploadImpressionImage",
   async ({ impressionId, imageFile }, { rejectWithValue }) => {
     const response = await uploadFeedbackImageApi(impressionId, imageFile);
     if (response.success) {

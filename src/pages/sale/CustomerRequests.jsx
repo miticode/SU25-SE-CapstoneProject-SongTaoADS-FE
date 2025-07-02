@@ -648,7 +648,9 @@ const CustomerRequests = () => {
             }));
 
             try {
-              const response = await getCustomerDetailByIdApi(customerDetailId);
+              const response = await getCustomerDetailByIdApi(
+                customerDetailId.id
+              );
               if (response.success) {
                 setCustomerDetails((prev) => ({
                   ...prev,
@@ -1428,11 +1430,14 @@ const CustomerRequests = () => {
                             Designer phụ trách:{" "}
                             {(() => {
                               const d = designers.find(
-                                (d) => d.id === selectedRequest.assignDesigner
+                                (d) =>
+                                  d.id ===
+                                  selectedRequest.assignDesigner.fullName
                               );
                               return d
                                 ? d.fullName
-                                : selectedRequest.assignDesigner || "Chưa rõ";
+                                : selectedRequest.assignDesigner.fullName ||
+                                    "Chưa rõ";
                             })()}
                           </Typography>
                         </Box>

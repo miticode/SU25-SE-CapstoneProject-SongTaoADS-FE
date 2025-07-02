@@ -18,6 +18,9 @@ const initialState = {
   currentPage: 1,
   totalPages: 1,
   searchQuery: "",
+  designers: [],
+  designersStatus: "idle",
+  designersError: null,
 };
 
 // Async thunk để lấy danh sách người dùng
@@ -93,6 +96,7 @@ export const toggleUserStatus = createAsyncThunk(
     return { userId, isActive };
   }
 );
+
 export const fetchUsersByRole = createAsyncThunk(
   "users/fetchUsersByRole",
   async ({ roleName, page = 1, size = 10 }, { rejectWithValue }) => {
@@ -110,6 +114,22 @@ export const fetchUsersByRole = createAsyncThunk(
     };
   }
 );
+
+// Thunk lấy danh sách designer
+export const fetchDesignersByRole = createAsyncThunk(
+  "users/fetchDesignersByRole",
+  async ({ page = 1, size = 10 }, { rejectWithValue }) => {
+    const response = await getUsersByRoleApi("DESIGNER", page, size);
+    if (!response.success) {
+      return rejectWithValue(response.error || "Failed to fetch designers");
+    }
+    return {
+      designers: response.data,
+      pagination: response.pagination,
+    };
+  }
+);
+
 const userSlice = createSlice({
   name: "users",
   initialState,
@@ -225,6 +245,18 @@ const userSlice = createSlice({
       .addCase(fetchUsersByRole.rejected, (state, action) => {
         state.usersByRoleStatus = "failed";
         state.error = action.payload;
+      })
+      .addCase(fetchDesignersByRole.pending, (state) => {
+        state.designersStatus = "loading";
+      })
+      .addCase(fetchDesignersByRole.fulfilled, (state, action) => {
+        state.designersStatus = "succeeded";
+        state.designers = action.payload.designers;
+        state.designersError = null;
+      })
+      .addCase(fetchDesignersByRole.rejected, (state, action) => {
+        state.designersStatus = "failed";
+        state.designersError = action.payload;
       });
   },
 });
@@ -233,3 +265,6 @@ export const { setSearchQuery, setCurrentPage, clearUserError } =
   userSlice.actions;
 
 export default userSlice.reducer;
+
+// Export selector lấy designers
+export const selectDesigners = (state) => state.users.designers;
