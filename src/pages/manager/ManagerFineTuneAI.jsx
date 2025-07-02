@@ -24,6 +24,10 @@ import {
   DialogContent,
   CircularProgress,
   Chip,
+  FormControl,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -52,25 +56,16 @@ import {
   selectFineTuneFilesStatus,
   selectFineTuneFileDetail,
   selectFineTuneFileDetailStatus,
+  selectModelForChat,
+  fetchFineTuneJobDetail,
+  uploadFileExcel,
+  fetchOpenAiModels,
+  selectOpenAiModels,
+  selectOpenAiModelsStatus,
+  fetchFineTunedModels,
+  selectFineTunedModels,
+  selectSucceededFineTuneJobs,
 } from "../../store/features/chat/chatSlice";
-
-const OPENAI_MODELS = [
-  "gpt-3.5-turbo-0125",
-  "gpt-3.5-turbo-1106",
-  "gpt-3.5-turbo-instruct-0914",
-  "gpt-4-0613",
-  "gpt-4-turbo-2024-04-09",
-  "gpt-4.1-2025-04-14",
-  "gpt-4.1-mini-2025-04-14",
-  "gpt-4.1-nano-2025-04-14",
-  "gpt-4.5-preview-2025-02-27",
-  "gpt-4o-2024-05-13",
-  "gpt-4o-2024-08-06",
-  "gpt-4o-2024-11-20",
-  "gpt-4o-audio-preview-2024-10-01",
-  "gpt-4o-audio-preview-2024-12-17",
-  "gpt-4o-audio-preview-2025-06-03",
-];
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -96,9 +91,9 @@ const renderStatusChip = (status) => (
 
 const ManagerFineTuneAI = () => {
   const dispatch = useDispatch();
-  const [file, setFile] = useState(null);
-  const [alert, setAlert] = useState(null);
-  const [selectedModel, setSelectedModel] = useState(OPENAI_MODELS[0]);
+  const openAiModels = useSelector(selectOpenAiModels);
+  const openAiModelsStatus = useSelector(selectOpenAiModelsStatus);
+  const [selectedModel, setSelectedModel] = useState("");
   const [tab, setTab] = useState(0);
   const [openFileDetail, setOpenFileDetail] = useState(false);
   const [fileFilter, setFileFilter] = useState("");
@@ -108,6 +103,14 @@ const ManagerFineTuneAI = () => {
   const [jobPage, setJobPage] = useState(0);
   const [jobRowsPerPage, setJobRowsPerPage] = useState(5);
   const [confirmDeleteFileId, setConfirmDeleteFileId] = useState(null);
+  const [openJobDetail, setOpenJobDetail] = useState(false);
+  const [selectedJobDetail, setSelectedJobDetail] = useState(null);
+  const [jobDetailLoading, setJobDetailLoading] = useState(false);
+  const [activeModelId, setActiveModelId] = useState(null);
+  const [fileType, setFileType] = useState("jsonl");
+  const [trainingFile, setTrainingFile] = useState(null);
+  const [uploadResult, setUploadResult] = useState(null);
+  const [alert, setAlert] = useState(null);
 
   const fineTuneStatus = useSelector(selectFineTuneStatus);
   const trainingStatus = useSelector(selectTrainingStatus);
@@ -120,6 +123,8 @@ const ManagerFineTuneAI = () => {
   const fineTuneFilesStatus = useSelector(selectFineTuneFilesStatus);
   const fineTuneFileDetail = useSelector(selectFineTuneFileDetail);
   const fineTuneFileDetailStatus = useSelector(selectFineTuneFileDetailStatus);
+  const succeededJobs = useSelector(selectSucceededFineTuneJobs);
+  const [selectedSucceededJob, setSelectedSucceededJob] = useState(null);
 
   // Debug dữ liệu file
   console.log("fineTuneFiles:", fineTuneFiles);
@@ -141,35 +146,53 @@ const ManagerFineTuneAI = () => {
     if (tab === 2) dispatch(fetchFineTuneFiles());
   }, [tab, dispatch]);
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-    setAlert(null);
-  };
-
-  const handleRemoveFile = async () => {
-    setAlert(null);
-    if (uploadedFile && uploadedFile.id) {
-      try {
-        await dispatch(deleteFineTuneFile(uploadedFile.id)).unwrap();
-        setFile(null);
-        setAlert({ type: "success", message: "Đã xoá file khỏi server." });
-      } catch (error) {
-        setAlert({ type: "error", message: error || "Lỗi khi xoá file" });
-      }
-    } else {
-      setFile(null);
+  useEffect(() => {
+    if (fineTuneJobs && fineTuneJobs.length > 0) {
+      const activeJob = fineTuneJobs.find((j) => j.active);
+      setActiveModelId(activeJob ? activeJob.id : null);
     }
+  }, [fineTuneJobs]);
+
+  useEffect(() => {
+    dispatch(fetchOpenAiModels());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (openAiModels && openAiModels.length > 0 && !selectedModel) {
+      setSelectedModel(openAiModels[0]);
+    }
+  }, [openAiModels, selectedModel]);
+
+  useEffect(() => {
+    dispatch(fetchFineTunedModels({ page: 1, size: 10 }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchFineTuneJobs());
+  }, [dispatch]);
+
+  const handleTrainingFileChange = (e) => {
+    setTrainingFile(e.target.files[0]);
+    setUploadResult(null);
+    setAlert(null);
   };
 
-  const handleUpload = async () => {
-    if (!file) {
-      setAlert({ type: "warning", message: "Vui lòng chọn file để upload." });
+  const handleUploadTrainingFile = async () => {
+    if (!trainingFile) {
+      setAlert({ type: "warning", message: "Vui lòng chọn file." });
       return;
     }
-
     try {
-      await dispatch(uploadFileFineTune(file)).unwrap();
-      setAlert({ type: "success", message: "Upload file thành công!" });
+      let result;
+      if (fileType === "jsonl") {
+        result = await dispatch(uploadFileFineTune(trainingFile)).unwrap();
+      } else {
+        result = await dispatch(
+          uploadFileExcel({ file: trainingFile, fileName: trainingFile.name })
+        ).unwrap();
+      }
+      setUploadResult(result);
+      setTrainingFile(null);
     } catch (error) {
       setAlert({ type: "error", message: error || "Lỗi khi upload file" });
     }
@@ -193,7 +216,7 @@ const ManagerFineTuneAI = () => {
     try {
       await dispatch(
         fineTuneModel({
-          model: selectedModel,
+          model: selectedModel.id,
           trainingFile: uploadedFile.id,
         })
       ).unwrap();
@@ -220,6 +243,28 @@ const ManagerFineTuneAI = () => {
     setOpenFileDetail(true);
   };
   const handleCloseFileDetail = () => setOpenFileDetail(false);
+
+  const handleSelectModelForChat = async (jobId) => {
+    try {
+      await dispatch(selectModelForChat(jobId)).unwrap();
+      setActiveModelId(jobId);
+      setAlert({ type: "success", message: "Đã chọn model này cho chat!" });
+    } catch (error) {
+      setAlert({ type: "error", message: error || "Lỗi khi chọn model chat" });
+    }
+  };
+
+  const handleViewJobDetail = async (jobId) => {
+    setJobDetailLoading(true);
+    setOpenJobDetail(true);
+    try {
+      const detail = await dispatch(fetchFineTuneJobDetail(jobId)).unwrap();
+      setSelectedJobDetail(detail);
+    } catch {
+      setSelectedJobDetail(null);
+    }
+    setJobDetailLoading(false);
+  };
 
   const filteredFiles = fineTuneFiles
     ? fineTuneFiles.filter((f) =>
@@ -270,8 +315,26 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              1. Upload Dữ Liệu Training
+              1. Upload File Training (jsonl hoặc excel)
             </Typography>
+            <FormControl sx={{ mb: 2 }}>
+              <RadioGroup
+                row
+                value={fileType}
+                onChange={(e) => setFileType(e.target.value)}
+              >
+                <FormControlLabel
+                  value="jsonl"
+                  control={<Radio />}
+                  label="File training (.jsonl)"
+                />
+                <FormControlLabel
+                  value="excel"
+                  control={<Radio />}
+                  label="File excel (.xlsx, .xls)"
+                />
+              </RadioGroup>
+            </FormControl>
             <Box display="flex" alignItems="center" gap={2}>
               <Button
                 variant="contained"
@@ -280,33 +343,39 @@ const ManagerFineTuneAI = () => {
                 disabled={fineTuneStatus === "loading"}
                 sx={{ borderRadius: 2 }}
               >
-                {file ? file.name : "Chọn File"}
-                <input type="file" hidden onChange={handleFileChange} />
-              </Button>
-              {(file || uploadedFile) && (
-                <DeleteIcon
-                  color="error"
-                  sx={{ cursor: "pointer" }}
-                  onClick={handleRemoveFile}
+                {trainingFile ? trainingFile.name : "Chọn file"}
+                <input
+                  type="file"
+                  hidden
+                  accept={fileType === "jsonl" ? ".jsonl" : ".xlsx,.xls"}
+                  onChange={handleTrainingFileChange}
                 />
-              )}
+              </Button>
               <Button
                 variant="outlined"
-                onClick={handleUpload}
-                disabled={fineTuneStatus === "loading" || !file}
+                onClick={handleUploadTrainingFile}
+                disabled={fineTuneStatus === "loading" || !trainingFile}
                 sx={{ borderRadius: 2 }}
               >
                 Upload
               </Button>
             </Box>
-            {fineTuneStatus === "loading" && (
-              <LinearProgress sx={{ mt: 2, width: 200 }} />
-            )}
-            {alert && (
+            {/* Thông báo sau khi upload file */}
+            {uploadResult ? (
+              <Alert severity="success" sx={{ mt: 2, width: 300 }}>
+                Đã upload file thành công!
+                <br />
+                {/* {uploadResult.id && (
+                  <>
+                    ID file: <b>{uploadResult.id}</b>
+                  </>
+                )} */}
+              </Alert>
+            ) : alert ? (
               <Alert severity={alert.type} sx={{ mt: 2, width: 300 }}>
                 {alert.message}
               </Alert>
-            )}
+            ) : null}
           </Paper>
           <Paper
             elevation={0}
@@ -323,10 +392,13 @@ const ManagerFineTuneAI = () => {
             <Box display="flex" alignItems="center" gap={2}>
               <Autocomplete
                 disablePortal
-                options={OPENAI_MODELS}
+                options={Array.isArray(openAiModels) ? openAiModels : []}
                 value={selectedModel}
                 onChange={(_, value) => setSelectedModel(value)}
                 sx={{ width: 300 }}
+                loading={openAiModelsStatus === "loading"}
+                getOptionLabel={(option) => option.id || ""}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
                 renderInput={(params) => (
                   <TextField {...params} label="Chọn model" />
                 )}
@@ -383,15 +455,47 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              3. Tải Model Mới Nhất
+              3. Chọn Model để tích hợp vào chatbot
             </Typography>
+            <Autocomplete
+              options={Array.isArray(succeededJobs) ? succeededJobs : []}
+              getOptionLabel={(option) => option.fine_tuned_model || ""}
+              value={selectedSucceededJob}
+              onChange={(_, value) => setSelectedSucceededJob(value)}
+              sx={{ width: 400, mb: 2 }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Chọn model fine-tune đã thành công"
+                />
+              )}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
             <Button
               variant="outlined"
               color="primary"
               startIcon={<CheckCircleIcon />}
               sx={{ borderRadius: 2 }}
+              disabled={!selectedSucceededJob}
+              onClick={async () => {
+                if (!selectedSucceededJob) return;
+                try {
+                  await dispatch(
+                    selectModelForChat(selectedSucceededJob.id)
+                  ).unwrap();
+                  setAlert({
+                    type: "success",
+                    message: "Đã tích hợp model cho chatbot!",
+                  });
+                } catch (error) {
+                  setAlert({
+                    type: "error",
+                    message: error || "Lỗi khi tích hợp model",
+                  });
+                }
+              }}
             >
-              Tải Model
+              Tích hợp model này cho chatbot
             </Button>
             <Typography variant="body2" color="text.secondary" mt={1}>
               Model đã training mới nhất có sẵn để tải xuống.
@@ -442,6 +546,7 @@ const ManagerFineTuneAI = () => {
                     <TableCell>File</TableCell>
                     <TableCell>Trạng thái</TableCell>
                     <TableCell>Thời gian tạo</TableCell>
+                    <TableCell>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -457,11 +562,35 @@ const ManagerFineTuneAI = () => {
                             ? new Date(job.created_at).toLocaleString()
                             : ""}
                         </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleSelectModelForChat(job.id)}
+                            disabled={job.status !== "succeeded"}
+                            sx={{ mr: 1, mb: 1 }}
+                          >
+                            Chọn làm model chat
+                          </Button>
+                          {activeModelId === job.id && (
+                            <Chip
+                              label="Đang dùng cho chat"
+                              color="success"
+                              size="small"
+                              sx={{ mb: 1 }}
+                            />
+                          )}
+                          <IconButton
+                            onClick={() => handleViewJobDetail(job.id)}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         Không có job nào
                       </TableCell>
                     </TableRow>
@@ -509,6 +638,55 @@ const ManagerFineTuneAI = () => {
               </Box>
             </TableContainer>
           )}
+          <Dialog
+            open={openJobDetail}
+            onClose={() => setOpenJobDetail(false)}
+            maxWidth="md"
+            fullWidth
+          >
+            <DialogTitle>Chi tiết Job Fine-tune</DialogTitle>
+            <DialogContent>
+              {jobDetailLoading ? (
+                <CircularProgress />
+              ) : selectedJobDetail ? (
+                <Box>
+                  <Typography variant="subtitle2">
+                    ID: {selectedJobDetail.id}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    Model: {selectedJobDetail.model}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    Status: {selectedJobDetail.status}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    Training file: {selectedJobDetail.training_file}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    Created at:{" "}
+                    {selectedJobDetail.created_at
+                      ? new Date(selectedJobDetail.created_at).toLocaleString()
+                      : ""}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    Finished at:{" "}
+                    {selectedJobDetail.finished_at
+                      ? new Date(selectedJobDetail.finished_at).toLocaleString()
+                      : ""}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    Hyperparameters:{" "}
+                    {selectedJobDetail.hyperparameters
+                      ? JSON.stringify(selectedJobDetail.hyperparameters)
+                      : ""}
+                  </Typography>
+                  {/* Có thể bổ sung thêm các trường khác nếu cần */}
+                </Box>
+              ) : (
+                <Typography>Không tìm thấy chi tiết job.</Typography>
+              )}
+            </DialogContent>
+          </Dialog>
         </Paper>
       )}
       {tab === 2 && (

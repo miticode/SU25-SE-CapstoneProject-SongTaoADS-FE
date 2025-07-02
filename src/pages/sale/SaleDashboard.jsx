@@ -64,6 +64,7 @@ import DashboardContent from "./DashboardContent";
 import FeedbackList from "../../components/Feedback/FeedbackList";
 import FeedbackDetailDialog from "../../components/Feedback/FeedbackDetailDialog";
 import FeedBack from "./FeedBack";
+import TicketManager from "./TicketManager";
 
 const drawerWidth = 240;
 
@@ -145,6 +146,7 @@ const SaleDashboard = () => {
     },
     { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
     { id: "feedback", label: "Feedback", icon: <MoneyIcon /> },
+    { id: "ticket", label: "Hỗ trợ", icon: <MessageIcon /> },
   ];
 
   // Khi filter trạng thái
@@ -164,7 +166,9 @@ const SaleDashboard = () => {
       case "designer":
         return <DesignerChat />;
       case "feedback":
-       return <FeedBack />;
+        return <FeedBack />;
+      case "ticket":
+        return <TicketManager />;
       default:
         return (
           <DashboardContent

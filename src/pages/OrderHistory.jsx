@@ -91,7 +91,7 @@ import {
   selectFetchingImpressions,
   selectImpressionsByOrderId,
   clearError as clearImpressionError,
-  IMPRESSION_STATUS_MAP, 
+  IMPRESSION_STATUS_MAP,
   selectImpressionsByOrder,
 } from "../store/features/impression/impressionSlice";
 
@@ -138,13 +138,13 @@ const OrderHistory = () => {
   });
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-   const [submittingImpression, setSubmittingImpression] = useState(false);
+  const [submittingImpression, setSubmittingImpression] = useState(false);
   const [createdImpressionId, setCreatedImpressionId] = useState(null);
   const impressionLoading = useSelector(selectImpressionLoading);
-   const impressionError = useSelector(selectImpressionError);
+  const impressionError = useSelector(selectImpressionError);
   const uploadingImage = useSelector(selectUploadingImage);
   const uploadImageError = useSelector(selectUploadImageError);
- const fetchingImpressions = useSelector(selectFetchingImpressions);
+  const fetchingImpressions = useSelector(selectFetchingImpressions);
   const [contractDialog, setContractDialog] = useState({
     open: false,
     contract: null,
@@ -175,7 +175,7 @@ const OrderHistory = () => {
   const orderDepositResult = useSelector(selectOrderDepositResult);
   const orderRemainingResult = useSelector(selectOrderRemainingResult);
   const [remainingPaymentLoading, setRemainingPaymentLoading] = useState({});
-   const allImpressionsByOrder = useSelector(selectImpressionsByOrder);
+  const allImpressionsByOrder = useSelector(selectImpressionsByOrder);
 
   const [imageDialog, setImageDialog] = useState({
     open: false,
@@ -756,6 +756,7 @@ const OrderHistory = () => {
     }
   };
   const [designerMap, setDesignerMap] = useState({});
+  const [demoList, setDemoList] = useState([]);
   const [latestDemo, setLatestDemo] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -969,7 +970,7 @@ const OrderHistory = () => {
   useEffect(() => {
     const designerId = currentDesignRequest?.assignDesigner;
     if (designerId && !designerMap[designerId]) {
-      dispatch(fetchUserDetail(designerId))
+      dispatch(fetchUserDetail(currentDesignRequest.assignDesigner?.id))
         .then(unwrapResult)
         .then((user) =>
           setDesignerMap((prev) => ({ ...prev, [designerId]: user }))
@@ -981,23 +982,26 @@ const OrderHistory = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDesignRequest, dispatch]);
 
-  // Fetch demo mới nhất khi dialog mở hoặc currentDesignRequest thay đổi
+  // Fetch demo list khi dialog mở hoặc currentDesignRequest thay đổi
   useEffect(() => {
-    const fetchLatestDemo = async () => {
+    const fetchDemoList = async () => {
       if (openDetail && currentDesignRequest) {
         const res = await dispatch(
           getDemoDesigns(currentDesignRequest.id)
         ).unwrap();
         if (res && res.length > 0) {
+          setDemoList(res);
           setLatestDemo(res[res.length - 1]);
         } else {
+          setDemoList([]);
           setLatestDemo(null);
         }
       } else {
+        setDemoList([]);
         setLatestDemo(null);
       }
     };
-    fetchLatestDemo();
+    fetchDemoList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openDetail, currentDesignRequest, dispatch]);
 
@@ -1010,7 +1014,7 @@ const OrderHistory = () => {
       dispatch(fetchImageFromS3(currentDesignRequest.finalDesignImage));
     }
   }, [openDetail, currentDesignRequest, dispatch]);
- useEffect(() => {
+  useEffect(() => {
     if (impressionError) {
       setNotification({
         open: true,
@@ -1020,7 +1024,7 @@ const OrderHistory = () => {
       dispatch(clearImpressionError());
     }
   }, [impressionError, dispatch]);
-   useEffect(() => {
+  useEffect(() => {
     if (uploadImageError) {
       setNotification({
         open: true,
@@ -1030,7 +1034,7 @@ const OrderHistory = () => {
       dispatch(clearImpressionError());
     }
   }, [uploadImageError, dispatch]);
-   useEffect(() => {
+  useEffect(() => {
     if (orders.length > 0) {
       // Load impression cho các đơn hàng COMPLETED
       orders.forEach((order) => {
@@ -1090,7 +1094,7 @@ const OrderHistory = () => {
       fileInput.value = "";
     }
   };
-    const handleOpenImpressionDialog = (orderId) => {
+  const handleOpenImpressionDialog = (orderId) => {
     setImpressionDialog({
       open: true,
       orderId: orderId,
@@ -1116,7 +1120,7 @@ const OrderHistory = () => {
     setImagePreview(null);
     setCreatedImpressionId(null);
   };
- const handleSubmitImpression = async () => {
+  const handleSubmitImpression = async () => {
     if (!impressionForm.comment.trim()) {
       setNotification({
         open: true,
@@ -1240,18 +1244,6 @@ const OrderHistory = () => {
   const handleOfferSubmit = async () => {
     setActionLoading(true);
     const { proposalId } = offerDialog;
-    // Lấy proposal hiện tại từ priceProposals
-    const proposal = priceProposals.find((p) => p.id === proposalId);
-    if (!["PENDING", "NEGOTIATING"].includes(proposal?.status)) {
-      setNotification({
-        open: true,
-        message:
-          "Không thể offer giá mới vì trạng thái báo giá đã thay đổi. Vui lòng tải lại trang.",
-        severity: "error",
-      });
-      setActionLoading(false);
-      return;
-    }
     const data = {
       rejectionReason:
         offerForm.rejectionReason || "Khách muốn thương lượng giá",
@@ -1266,10 +1258,11 @@ const OrderHistory = () => {
         severity: "success",
       });
       handleCloseOfferDialog();
-      // Reload proposals
+      // Reload lại proposal và custom design request
       getPriceProposals(currentDesignRequest.id).then(
         (r) => r.success && setPriceProposals(r.result)
       );
+      // Có thể reload lại custom design request nếu cần
     } else {
       setNotification({
         open: true,
@@ -1752,9 +1745,12 @@ const OrderHistory = () => {
 
                               {orderImpressions.map((impression, index) => (
                                 <Box
-                                   key={impression.id}
+                                  key={impression.id}
                                   sx={{
-                                   mb: index < orderImpressions.length - 1 ? 2 : 0,
+                                    mb:
+                                      index < orderImpressions.length - 1
+                                        ? 2
+                                        : 0,
                                     p: 2,
                                     backgroundColor: "white",
                                     borderRadius: 1,
@@ -1794,7 +1790,7 @@ const OrderHistory = () => {
                                   </Typography>
 
                                   {/* Feedback Image */}
-                                 {impression.feedbackImageUrl && (
+                                  {impression.feedbackImageUrl && (
                                     <Box sx={{ mb: 1 }}>
                                       <Box
                                         component="img"
@@ -1832,25 +1828,25 @@ const OrderHistory = () => {
                                       color="text.secondary"
                                     >
                                       Gửi lúc:{" "}
-                                     {new Date(impression.sendAt).toLocaleString(
-                                "vi-VN"
-                              )}
+                                      {new Date(
+                                        impression.sendAt
+                                      ).toLocaleString("vi-VN")}
                                     </Typography>
                                     <Chip
                                       label={
-                                IMPRESSION_STATUS_MAP[impression.status]
-                                  ?.label || impression.status
-                              }
-                                       color={
-                                IMPRESSION_STATUS_MAP[impression.status]
-                                  ?.color || "default"
-                              }
+                                        IMPRESSION_STATUS_MAP[impression.status]
+                                          ?.label || impression.status
+                                      }
+                                      color={
+                                        IMPRESSION_STATUS_MAP[impression.status]
+                                          ?.color || "default"
+                                      }
                                       size="small"
                                     />
                                   </Box>
 
                                   {/* Admin Response */}
-                                   {impression.response && (
+                                  {impression.response && (
                                     <Box
                                       sx={{
                                         mt: 2,
@@ -1875,7 +1871,7 @@ const OrderHistory = () => {
                                       >
                                         {impression.response}
                                       </Typography>
-                                     {impression.responseAt && (
+                                      {impression.responseAt && (
                                         <Typography
                                           variant="caption"
                                           color="success.dark"
@@ -1883,7 +1879,7 @@ const OrderHistory = () => {
                                         >
                                           Phản hồi lúc:{" "}
                                           {new Date(
-                                           impression.responseAt
+                                            impression.responseAt
                                           ).toLocaleString("vi-VN")}
                                         </Typography>
                                       )}
@@ -1897,7 +1893,9 @@ const OrderHistory = () => {
                                 variant="outlined"
                                 color="primary"
                                 startIcon={<FeedbackIcon />}
-                               onClick={() => handleOpenImpressionDialog(order.id)}
+                                onClick={() =>
+                                  handleOpenImpressionDialog(order.id)
+                                }
                                 sx={{
                                   mt: 2,
                                   borderRadius: 2,
@@ -1946,7 +1944,9 @@ const OrderHistory = () => {
                                 variant="contained"
                                 color="primary"
                                 startIcon={<FeedbackIcon />}
-                               onClick={() => handleOpenImpressionDialog(order.id)}
+                                onClick={() =>
+                                  handleOpenImpressionDialog(order.id)
+                                }
                                 sx={{
                                   borderRadius: 2,
                                   fontWeight: 600,
@@ -2306,9 +2306,9 @@ const OrderHistory = () => {
             </Typography>
             <Rating
               name="feedback-rating"
-             value={impressionForm.rating}
+              value={impressionForm.rating}
               onChange={(event, newValue) => {
-                 setImpressionForm((prev) => ({
+                setImpressionForm((prev) => ({
                   ...prev,
                   rating: newValue || 1,
                 }));
@@ -2319,7 +2319,7 @@ const OrderHistory = () => {
               emptyIcon={<StarIcon fontSize="inherit" />}
             />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-             {impressionForm.rating === 1 && "😞 Rất không hài lòng"}
+              {impressionForm.rating === 1 && "😞 Rất không hài lòng"}
               {impressionForm.rating === 2 && "😐 Không hài lòng"}
               {impressionForm.rating === 3 && "😊 Bình thường"}
               {impressionForm.rating === 4 && "😃 Hài lòng"}
@@ -2338,7 +2338,7 @@ const OrderHistory = () => {
               rows={4}
               value={impressionForm.comment}
               onChange={(e) =>
-setImpressionForm((prev) => ({
+                setImpressionForm((prev) => ({
                   ...prev,
                   comment: e.target.value,
                 }))
@@ -2496,15 +2496,15 @@ setImpressionForm((prev) => ({
               textTransform: "none",
               minWidth: 100,
             }}
-           isabled={submittingImpression || uploadingImage}
+            isabled={submittingImpression || uploadingImage}
           >
             Hủy
           </Button>
           <Button
-             onClick={handleSubmitImpression}
+            onClick={handleSubmitImpression}
             variant="contained"
             color="primary"
-           disabled={
+            disabled={
               submittingImpression ||
               uploadingImage ||
               !impressionForm.comment.trim()
@@ -2516,7 +2516,7 @@ setImpressionForm((prev) => ({
               fontWeight: 600,
             }}
           >
-             {submittingImpression ? (
+            {submittingImpression ? (
               <>
                 <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                 Đang gửi...
@@ -2604,11 +2604,13 @@ setImpressionForm((prev) => ({
               </Typography>
               <Typography>
                 <b>Designer phụ trách:</b>{" "}
-                {designerMap[currentDesignRequest?.assignDesigner]?.fullName ||
-                  currentDesignRequest?.assignDesigner ||
+                {designerMap[currentDesignRequest?.assignDesigner?.id]
+                  ?.fullName ||
+                  currentDesignRequest?.assignDesigner?.fullName ||
+                  currentDesignRequest?.assignDesigner?.email ||
                   "Chưa có"}
               </Typography>
-              <Typography>
+              {/* <Typography>
                 <b>Ảnh thiết kế cuối:</b>{" "}
                 {currentDesignRequest.finalDesignImage ? (
                   <img
@@ -2619,7 +2621,7 @@ setImpressionForm((prev) => ({
                 ) : (
                   "Chưa có"
                 )}
-              </Typography>
+              </Typography> */}
               <Typography mt={2}>
                 <b>Thông tin lựa chọn sản phẩm:</b>
               </Typography>
@@ -2818,6 +2820,70 @@ setImpressionForm((prev) => ({
                   </Button>
                 </DialogActions>
               </Dialog>
+              {/* Hiển thị lịch sử các bản demo */}
+              {demoList.length > 0 && (
+                <Box mt={2}>
+                  <Typography variant="h6" gutterBottom>
+                    Lịch sử các bản demo
+                  </Typography>
+                  {demoList.map((demo, idx) => (
+                    <Box
+                      key={demo.id}
+                      mb={2}
+                      p={2}
+                      border={1}
+                      borderRadius={2}
+                      borderColor="grey.300"
+                    >
+                      <Typography fontWeight={600}>
+                        Lần gửi #{idx + 1} -{" "}
+                        {new Date(demo.createAt).toLocaleString("vi-VN")}
+                      </Typography>
+                      <Typography>
+                        <b>Mô tả:</b> {demo.designerDescription || "(Không có)"}
+                      </Typography>
+                      {demo.demoImage && (
+                        <Box mt={1}>
+                          <img
+                            src={demo.demoImage}
+                            alt={`Demo ${idx + 1}`}
+                            style={{ maxWidth: 300, borderRadius: 8 }}
+                          />
+                        </Box>
+                      )}
+                      <Typography>
+                        <b>Trạng thái:</b> {demo.status}
+                      </Typography>
+                      {/* Nếu là bản demo cuối cùng và status phù hợp thì hiển thị nút thao tác */}
+                      {idx === demoList.length - 1 &&
+                        (currentDesignRequest.status === "DEMO_SUBMITTED" ||
+                          currentDesignRequest.status ===
+                            "REVISION_REQUESTED") && (
+                          <Stack direction="row" spacing={2} mt={2}>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              onClick={handleApproveDemo}
+                              disabled={demoActionLoading}
+                            >
+                              {demoActionLoading
+                                ? "Đang xử lý..."
+                                : "Chấp nhận demo"}
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              onClick={() => setRejectDialogOpen(true)}
+                              disabled={demoActionLoading}
+                            >
+                              Từ chối demo
+                            </Button>
+                          </Stack>
+                        )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
               {/* Hiển thị demo nếu có và status là DEMO_SUBMITTED hoặc WAITING_FULL_PAYMENT */}
               {latestDemo && (
                 <Box mt={2} mb={2}>
@@ -2857,8 +2923,9 @@ setImpressionForm((prev) => ({
                         )}
                       </Box>
                     )}
-                  {/* Nếu status là DEMO_SUBMITTED thì hiển thị nút Chấp nhận/Từ chối demo */}
-                  {currentDesignRequest.status === "DEMO_SUBMITTED" && (
+                  {/* Nếu status là DEMO_SUBMITTED hoặc REVISION_REQUESTED thì hiển thị nút Chấp nhận/Từ chối demo */}
+                  {/* {(currentDesignRequest.status === "DEMO_SUBMITTED" ||
+                    currentDesignRequest.status === "REVISION_REQUESTED") && (
                     <Stack direction="row" spacing={2} mt={2}>
                       <Button
                         variant="contained"
@@ -2877,7 +2944,7 @@ setImpressionForm((prev) => ({
                         Từ chối demo
                       </Button>
                     </Stack>
-                  )}
+                  )} */}
                   {/* Nếu status là WAITING_FULL_PAYMENT thì hiển thị nút Thanh Toán Tiền Còn Lại */}
                   {currentDesignRequest.status === "WAITING_FULL_PAYMENT" && (
                     <Button

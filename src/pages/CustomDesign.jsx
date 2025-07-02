@@ -6,13 +6,10 @@ import {
   selectCustomerChoiceSizes,
   fetchCustomerChoiceDetailsByCustomerChoiceId,
   selectCustomerChoiceDetailsList,
+  fetchCustomerDetailByUserId,
+  fetchCustomerChoice,
 } from "../store/features/customer/customerSlice";
 import { getProductTypesApi } from "../api/productTypeService";
-import { getAllSizesApi } from "../api/sizeService";
-import {
-  getAttributesByProductTypeIdApi,
-  getAttributeValuesByAttributeIdApi,
-} from "../api/attributeService";
 import {
   Card,
   CardContent,
@@ -24,25 +21,21 @@ import {
   Button,
   Snackbar,
   Alert,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
 } from "@mui/material";
 import { FaRulerCombined, FaListAlt, FaRegStickyNote } from "react-icons/fa";
-import { motion } from "framer-motion";
 
-import {
-  fetchAttributesByProductTypeId,
-  selectAllAttributes,
-} from "../store/features/attribute/attributeSlice";
 import { createCustomDesignRequest } from "../store/features/customeDesign/customerDesignSlice";
+import { createOrderFromDesignRequest } from "../store/features/order/orderSlice";
+import { fetchProfile, selectAuthUser } from "../store/features/auth/authSlice";
 
 const CustomDesign = () => {
   const location = useLocation();
   const dispatch = useDispatch();
-  const [businessInfo, setBusinessInfo] = useState({
-    companyName: "",
-    address: "",
-    contactInfo: "",
-    logoUrl: "",
-  });
   const [selectedType, setSelectedType] = useState(null);
   const [selectedTypeId, setSelectedTypeId] = useState("");
   const [productTypes, setProductTypes] = useState([]);
@@ -50,11 +43,7 @@ const CustomDesign = () => {
   const customerChoiceDetailsList = useSelector(
     selectCustomerChoiceDetailsList
   );
-  const [sizeMap, setSizeMap] = useState({});
-  const [attributeValueMap, setAttributeValueMap] = useState({});
   const [note, setNote] = useState("");
-  const attributes = useSelector(selectAllAttributes);
-  const [attributeMap, setAttributeMap] = useState({});
   const customDesignOrderError = useSelector(
     (state) => state.customers?.customDesignOrderError
   );
@@ -67,6 +56,11 @@ const CustomDesign = () => {
     message: "",
     severity: "success",
   });
+  const [hasOrder, setHasOrder] = useState(false);
+
+  // Lấy user từ Redux auth
+  const user = useSelector(selectAuthUser);
+  const accessToken = useSelector((state) => state.auth.accessToken);
 
   // Khi vào trang, nếu có customerChoiceId thì fetch kích thước và thuộc tính
   useEffect(() => {
@@ -74,9 +68,8 @@ const CustomDesign = () => {
     if (id) {
       dispatch(fetchCustomerChoiceSizesByCustomerChoiceId(id));
       dispatch(fetchCustomerChoiceDetailsByCustomerChoiceId(id));
+      dispatch(fetchCustomerChoice(id));
     }
-    if (location.state?.businessInfo)
-      setBusinessInfo(location.state.businessInfo);
     if (location.state?.selectedType) {
       if (typeof location.state.selectedType === "object") {
         setSelectedType(location.state.selectedType);
@@ -104,56 +97,19 @@ const CustomDesign = () => {
     }
   }, [selectedType, selectedTypeId, productTypes]);
 
-  // Fetch mapping size/attribute on mount or khi selectedType thay đổi
   useEffect(() => {
-    getAllSizesApi().then((res) => {
-      if (res.success) {
-        const map = {};
-        res.data.forEach((sz) => {
-          map[sz.id] = sz.name;
-        });
-        setSizeMap(map);
-      }
-    });
-    if (selectedType?.id) {
-      getAttributesByProductTypeIdApi(selectedType.id).then((res) => {
-        if (res.success) {
-          const attrValMap = {};
-          Promise.all(
-            res.data.map((attr) =>
-              getAttributeValuesByAttributeIdApi(attr.id).then((valRes) => {
-                if (valRes.success) {
-                  valRes.data.forEach((val) => {
-                    attrValMap[val.id] = val.name || val.value;
-                  });
-                }
-              })
-            )
-          ).then(() => {
-            setAttributeValueMap(attrValMap);
-          });
-        }
-      });
+    // Nếu chưa có user trong Redux nhưng có accessToken, fetch profile trước
+    if (!user && accessToken) {
+      dispatch(fetchProfile());
     }
-  }, [selectedType]);
+  }, [dispatch, user, accessToken]);
 
-  // Gọi fetchAttributesByProductTypeId khi có selectedTypeId
   useEffect(() => {
-    if (selectedTypeId) {
-      dispatch(fetchAttributesByProductTypeId(selectedTypeId));
+    // Lấy userId từ Redux user (UUID)
+    if (user?.id) {
+      dispatch(fetchCustomerDetailByUserId(user.id));
     }
-  }, [selectedTypeId, dispatch]);
-
-  // Thêm lại biến attributeMap và logic setAttributeMap trong useEffect như trước.
-  useEffect(() => {
-    if (attributes && attributes.length > 0) {
-      const map = {};
-      attributes.forEach((attr) => {
-        map[attr.id] = attr.name;
-      });
-      setAttributeMap(map);
-    }
-  }, [attributes]);
+  }, [dispatch, user?.id]);
 
   const handleConfirm = async () => {
     if (!customerDetail?.id || !currentOrder?.id) {
@@ -165,21 +121,30 @@ const CustomDesign = () => {
       return;
     }
     try {
-      await dispatch(
+      const result = await dispatch(
         createCustomDesignRequest({
           customerDetailId: customerDetail.id,
           customerChoiceId: currentOrder.id,
           data: {
             requirements: note || "",
-            hasOrder: false,
+            hasOrder: hasOrder,
           },
         })
       ).unwrap();
-      setSnackbar({
-        open: true,
-        message: "Tạo yêu cầu thiết kế thủ công thành công!",
-        severity: "success",
-      });
+      if (hasOrder && result?.id) {
+        await dispatch(createOrderFromDesignRequest(result.id)).unwrap();
+        setSnackbar({
+          open: true,
+          message: "Tạo yêu cầu thiết kế và đơn hàng thành công!",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Tạo yêu cầu thiết kế thủ công thành công!",
+          severity: "success",
+        });
+      }
       setTimeout(() => {
         window.location.href = "/";
       }, 3000);
@@ -194,12 +159,7 @@ const CustomDesign = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen bg-white py-8 px-2 md:px-0 w-full"
-    >
+    <div className="min-h-screen bg-white py-8 px-2 md:px-0 w-full">
       <Box maxWidth="1200px" mx="auto" px={2}>
         <Typography
           variant="h4"
@@ -231,22 +191,34 @@ const CustomDesign = () => {
           >
             <dt className="font-medium text-gray-700">Tên doanh nghiệp:</dt>
             <dd className="col-span-2 text-black">
-              {businessInfo?.companyName}
+              {customerDetail?.companyName || (
+                <span className="text-red-500">
+                  Chưa có thông tin doanh nghiệp
+                </span>
+              )}
             </dd>
             <dt className="font-medium text-gray-700">Địa chỉ:</dt>
             <dd className="col-span-2 text-black">
-              {businessInfo?.address || "-"}
+              {customerDetail?.address || (
+                <span className="text-red-500">
+                  Chưa có thông tin doanh nghiệp
+                </span>
+              )}
             </dd>
             <dt className="font-medium text-gray-700">Liên hệ:</dt>
             <dd className="col-span-2 text-black">
-              {businessInfo?.contactInfo}
+              {customerDetail?.contactInfo || (
+                <span className="text-red-500">
+                  Chưa có thông tin doanh nghiệp
+                </span>
+              )}
             </dd>
-            {businessInfo?.logoUrl && (
+            {customerDetail?.logoUrl && (
               <>
                 <dt className="font-medium text-gray-700">Logo:</dt>
                 <dd className="col-span-2">
                   <img
-                    src={businessInfo.logoUrl}
+                    src={customerDetail.logoUrl}
                     alt="Logo"
                     style={{ maxHeight: 60, borderRadius: 10 }}
                   />
@@ -280,7 +252,7 @@ const CustomDesign = () => {
                 customerChoiceSizes.map((sz) => (
                   <div key={sz.id} className="mb-1">
                     <span className="text-gray-700 font-semibold">
-                      {sizeMap[sz.sizeId] || sz.sizeId}:
+                      {sz.sizes?.name || sz.sizeId}:
                     </span>{" "}
                     <span className="text-custom-primary font-bold">
                       {sz.sizeValue} m
@@ -315,12 +287,13 @@ const CustomDesign = () => {
               customerChoiceDetailsList.map((attr) => (
                 <React.Fragment key={attr.id}>
                   <dt className="font-medium text-gray-700">
-                    {attributeMap?.[attr.attributeId] || attr.attributeId}
+                    {attr.attributeValues?.description ||
+                      attr.attributeValues?.name ||
+                      attr.attributeValuesId}
                   </dt>
                   <dd className="col-span-2">
                     <span className="text-custom-primary font-semibold">
-                      {attributeValueMap[attr.attributeValuesId] ||
-                        attr.attributeValuesId}
+                      {attr.attributeValues?.name || attr.attributeValuesId}
                     </span>{" "}
                     <span className="text-green-700 font-bold">
                       (Giá: {attr.subTotal?.toLocaleString("vi-VN") || 0} VND)
@@ -368,11 +341,38 @@ const CustomDesign = () => {
           />
         </Box>
         {/* Nút xác nhận */}
-        <Box mt={6} mb={2} display="flex" justifyContent="flex-start">
-          <motion.div
-            whileHover={{ scale: 1.04 }}
-            style={{ width: "100%", maxWidth: 320 }}
+        <Box mb={4}>
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            color="var(--color-secondary)"
+            mb={2}
+            align="left"
           >
+            Bạn có muốn thi công không?
+          </Typography>
+          <FormControl component="fieldset">
+            <RadioGroup
+              row
+              value={hasOrder ? "yes" : "no"}
+              onChange={(e) => setHasOrder(e.target.value === "yes")}
+              name="hasOrderRadio"
+            >
+              <FormControlLabel
+                value="yes"
+                control={<Radio />}
+                label="Có thi công"
+              />
+              <FormControlLabel
+                value="no"
+                control={<Radio />}
+                label="Không thi công"
+              />
+            </RadioGroup>
+          </FormControl>
+        </Box>
+        <Box mt={6} mb={2} display="flex" justifyContent="flex-start">
+          <div style={{ width: "100%", maxWidth: 320 }}>
             <Button
               variant="contained"
               size="large"
@@ -398,7 +398,7 @@ const CustomDesign = () => {
             >
               Xác nhận
             </Button>
-          </motion.div>
+          </div>
         </Box>
       </Box>
       <Snackbar
@@ -416,7 +416,7 @@ const CustomDesign = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </motion.div>
+    </div>
   );
 };
 

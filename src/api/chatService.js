@@ -4,8 +4,9 @@ const API_URL = "https://songtaoads.online";
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+
+    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+
   },
   withCredentials: true,
 });
@@ -110,9 +111,13 @@ export const fineTuneModelApi = async (model, trainingFile) => {
 // hủy training model
 export const cancelFineTuneJobApi = async (fineTuningJobId) => {
   try {
+<<<<<<< HEAD
     const response = await chatService.post(
       `/api/chat-bot/fine-tuning-jobs/${fineTuningJobId}/cancel`
     );
+=======
+    const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/cancel`);
+>>>>>>> cad82e2ccfb8b74a8c20fe4c9290e41a2d62ab0c
     const { success, result, message } = response.data;
     if (success) {
       return { success, result };
@@ -184,4 +189,95 @@ export const getFineTuneFileDetailApi = async (fileId) => {
       error: error.response?.data?.message || "Không thể lấy chi tiết file",
     };
   }
+<<<<<<< HEAD
 };
+=======
+}; 
+
+// Chọn model để chat từ list job
+export const selectModelForChatApi = async (fineTuningJobId) => {
+  try {
+    const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/select-model`);
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, result };
+    }
+    return { success: false, error: message || 'Lỗi khi chọn model' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể chọn model'
+    };
+  }
+};
+
+// Upload file excel để convert thành file jsonl
+export const uploadFileExcelApi = async (file, fileName) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await chatService.post(
+      `/api/chat-bot/upload-file-excel?fileName=${encodeURIComponent(fileName)}`,
+      formData
+    );
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, result };
+    }
+    return { success: false, error: message || 'Lỗi khi upload file excel' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể upload file excel'
+    };
+  }
+};
+
+// Lấy chi tiết job đã fine-tune
+export const getFineTuneJobDetailApi = async (fineTuneJobId) => {
+  try {
+    const response = await chatService.get(`/api/chat-bot/${fineTuneJobId}/fine-tune-jobs`);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy chi tiết job' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết job' };
+  }
+}; 
+
+// Test chat với model dành cho staff
+export const testChatApi = async (data) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/test-chat', data);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi test chat' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể test chat' };
+  }
+};
+
+// Lấy danh sách tất cả các model OpenAI
+export const getOpenAiModelsApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/models');
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model' };
+  }
+};
+
+// Lấy danh sách tất cả các model đã fine-tune (có phân trang)
+export const getFineTunedModelsApi = async (page = 1, size = 10) => {
+  try {
+    const response = await chatService.get(`/api/chat-bot/models-fine-tune?page=${page}&size=${size}`);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model fine-tune' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model fine-tune' };
+  }
+}; 
+>>>>>>> cad82e2ccfb8b74a8c20fe4c9290e41a2d62ab0c

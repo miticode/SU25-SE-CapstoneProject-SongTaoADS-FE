@@ -16,19 +16,28 @@ const initialState = {
   productTypeSizes: [],
   sizesError: null,
   sizesStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  pagination: {
+    currentPage: 1,
+    totalPages: 0,
+    pageSize: 10,
+    totalElements: 0,
+  },
 };
 
 // Async thunks
 export const fetchProductTypes = createAsyncThunk(
   "productType/fetchProductTypes",
-  async (_, { rejectWithValue }) => {
-    const response = await getProductTypesApi();
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+    const response = await getProductTypesApi(page, size);
 
     if (!response.success) {
       return rejectWithValue(response.error || "Failed to fetch product types");
     }
 
-    return response.data;
+    return {
+      data: response.data,
+      pagination: response.pagination,
+    };
   }
 );
 
@@ -60,11 +69,13 @@ export const fetchProductTypeSizesByProductTypeId = createAsyncThunk(
 );
 
 export const addSizeToProductType = createAsyncThunk(
-  'productType/addSizeToProductType',
+  "productType/addSizeToProductType",
   async ({ productTypeId, sizeId }, { rejectWithValue }) => {
     const response = await addSizeToProductTypeApi(productTypeId, sizeId);
     if (!response.success) {
-      return rejectWithValue(response.error || 'Failed to add size to product type');
+      return rejectWithValue(
+        response.error || "Failed to add size to product type"
+      );
     }
     // Trả về productTypeId để có thể reload danh sách size
     return { productTypeId };
@@ -72,11 +83,13 @@ export const addSizeToProductType = createAsyncThunk(
 );
 
 export const deleteProductTypeSize = createAsyncThunk(
-  'productType/deleteProductTypeSize',
+  "productType/deleteProductTypeSize",
   async ({ productTypeId, productTypeSizeId }, { rejectWithValue }) => {
     const response = await deleteProductTypeSizeApi(productTypeSizeId);
     if (!response.success) {
-      return rejectWithValue(response.error || 'Failed to delete product type size');
+      return rejectWithValue(
+        response.error || "Failed to delete product type size"
+      );
     }
     // Trả về productTypeId để có thể reload danh sách size
     return { productTypeId };
@@ -101,6 +114,9 @@ const productTypeSlice = createSlice({
     clearProductTypeSizes: (state) => {
       state.productTypeSizes = [];
     },
+    setPagination: (state, action) => {
+      state.pagination = { ...state.pagination, ...action.payload };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -110,7 +126,8 @@ const productTypeSlice = createSlice({
       })
       .addCase(fetchProductTypes.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.productTypes = action.payload;
+        state.productTypes = action.payload.data;
+        state.pagination = action.payload.pagination;
         state.error = null;
       })
       .addCase(fetchProductTypes.rejected, (state, action) => {
@@ -152,11 +169,12 @@ const productTypeSlice = createSlice({
   },
 });
 
-export const { 
-  resetProductTypeStatus, 
+export const {
+  resetProductTypeStatus,
   clearCurrentProductType,
   resetProductTypeSizesStatus,
-  clearProductTypeSizes
+  clearProductTypeSizes,
+  setPagination,
 } = productTypeSlice.actions;
 
 // Selectors
@@ -171,5 +189,7 @@ export const selectProductTypeSizesStatus = (state) =>
   state.productType.sizesStatus;
 export const selectProductTypeSizesError = (state) =>
   state.productType.sizesError;
+export const selectProductTypePagination = (state) =>
+  state.productType.pagination;
 
 export default productTypeSlice.reducer;
