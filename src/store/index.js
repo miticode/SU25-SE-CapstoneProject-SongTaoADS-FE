@@ -20,6 +20,7 @@ import paymentReducer from "./features/payment/paymentSlice";
 import demoReducer from "./features/demo/demoSlice";
 import impressionReducer from "./features/impression/impressionSlice";
 import backgroundReducer from "./features/background/backgroundSlice";
+import ticketReducer from "./features/ticket/ticketSlice";
 
 export const store = configureStore({
   reducer: {
@@ -42,8 +43,9 @@ export const store = configureStore({
     payment: paymentReducer,
     demo: demoReducer,
     impression: impressionReducer,
-     background: backgroundReducer,
-    // Thêm các reducer khác tại đây
+    background: backgroundReducer,
+    ticket: ticketReducer,
+   
   },
 });
 

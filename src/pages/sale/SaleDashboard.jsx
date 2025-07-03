@@ -57,6 +57,8 @@ import {
   Cancel as CancelIcon,
   Message as MessageIcon,
   Palette as PaletteIcon,
+  People as PeopleIcon,
+  SupportAgent as SupportAgentIcon,
 } from "@mui/icons-material";
 import CustomerRequests from "./CustomerRequests";
 import DesignerChat from "./DesignerChat";
@@ -146,7 +148,7 @@ const SaleDashboard = () => {
     },
     { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
     { id: "feedback", label: "Feedback", icon: <MoneyIcon /> },
-    { id: "ticket", label: "Hỗ trợ", icon: <MessageIcon /> },
+    { id: "ticket", label: "Hỗ trợ", icon: <SupportAgentIcon /> },
   ];
 
   // Khi filter trạng thái
