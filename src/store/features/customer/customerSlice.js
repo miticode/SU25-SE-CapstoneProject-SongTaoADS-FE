@@ -629,55 +629,52 @@ const customerSlice = createSlice({
         state.customerChoiceDetailsStatus = "loading";
       })
       .addCase(fetchCustomerChoiceDetails.fulfilled, (state, action) => {
-       state.customerChoiceDetailsStatus = "succeeded";
-  console.log("Processing customer choice details:", action.payload);
-  
-  // Xử lý cấu trúc API response mới
-  let details = [];
-  
-  if (action.payload?.result) {
-    details = action.payload.result;
-  } else if (Array.isArray(action.payload)) {
-    details = action.payload;
-  } else {
-    console.warn("Unexpected API response structure:", action.payload);
-    state.customerChoiceDetails = {};
-    return;
-  }
-  
-  console.log("Processing details array:", details);
-  
-  // THAY ĐỔI: Map theo attributeValueId để có thể tìm ngược về attributeId
-  const detailsMap = {};
-  
-  if (Array.isArray(details)) {
-    details.forEach((detail, index) => {
-      console.log(`Processing detail ${index}:`, detail);
-      
-      const attributeValueId = detail.attributeValues?.id;
-      
-      if (attributeValueId) {
-        // Lưu chi tiết với attributeValueId làm key
-        detailsMap[attributeValueId] = {
-          id: detail.id,
-          subTotal: detail.subTotal,
-          attributeValueId: detail.attributeValues?.id,
-          attributeValueName: detail.attributeValues?.name,
-          isMultiplier: detail.isMultiplier,
-          createdAt: detail.createdAt,
-          updatedAt: detail.updatedAt,
-          customerChoices: detail.customerChoices
-        };
-        
-        console.log(`✅ Mapped detail with attributeValueId ${attributeValueId}:`, detailsMap[attributeValueId]);
-      } else {
-        console.warn("❌ Detail missing attributeValues.id:", detail);
-      }
-    });
-  }
-  
-  state.customerChoiceDetails = detailsMap;
-  console.log("✅ Final mapped customerChoiceDetails:", detailsMap);
+        state.customerChoiceDetailsStatus = "succeeded";
+        console.log("Processing customer choice details:", action.payload);
+
+        // Xử lý cấu trúc API response mới
+        let details = [];
+
+        if (action.payload?.result) {
+          details = action.payload.result;
+        } else if (Array.isArray(action.payload)) {
+          details = action.payload;
+        } else {
+          console.warn("Unexpected API response structure:", action.payload);
+          state.customerChoiceDetails = {};
+          return;
+        }
+
+        console.log("Processing details array:", details);
+
+        // THAY ĐỔI: Map theo attributeValueId để có thể tìm ngược về attributeId
+        const detailsMap = {};
+
+        if (Array.isArray(details)) {
+          details.forEach((detail, index) => {
+            console.log(`Processing detail ${index}:`, detail);
+
+            const attributeValueId = detail.attributeValues?.id;
+
+            if (attributeValueId) {
+              // Lưu chi tiết với attributeValueId làm key
+              detailsMap[attributeValueId] = {
+                id: detail.id,
+                subTotal: detail.subTotal,
+                attributeValueId: detail.attributeValues?.id,
+                attributeValueName: detail.attributeValues?.name,
+                isMultiplier: detail.isMultiplier,
+                createdAt: detail.createdAt,
+                updatedAt: detail.updatedAt,
+                customerChoices: detail.customerChoices,
+              };
+            } else {
+              console.warn(" Detail missing attributeValues.id:", detail);
+            }
+          });
+        }
+
+        state.customerChoiceDetails = detailsMap;
       })
       .addCase(fetchCustomerChoiceDetails.rejected, (state, action) => {
         state.customerChoiceDetailsStatus = "failed";
