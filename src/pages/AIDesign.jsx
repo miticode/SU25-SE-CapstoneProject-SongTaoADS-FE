@@ -99,6 +99,7 @@ import {
   selectGeneratedImage,
   selectImageGenerationError,
   selectImageGenerationStatus,
+  setCurrentAIDesign,
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 import jsPDF from "jspdf";
@@ -112,8 +113,26 @@ import {
   clearSelectedBackground,
   clearBackgroundSuggestions,
   resetBackgroundStatus,
+  selectEditedDesign,
+  selectEditedDesignStatus,
+  selectEditedDesignError,
+  createEditedDesignWithBackgroundThunk,
 } from "../store/features/background/backgroundSlice";
 import { getPresignedUrl } from "../api/s3Service";
+import {
+  clearSelectedIcon,
+  fetchIcons,
+  refreshIconPresignedUrls,
+  selectAllIcons,
+  selectHasNextPage,
+  selectHasPreviousPage,
+  selectIconError,
+  selectIconPagination,
+  selectIconStatus,
+  selectSelectedIcon,
+  setSelectedIcon,
+  updateIconUrl,
+} from "../store/features/icon/iconSlice";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -1430,6 +1449,21 @@ const AIDesign = () => {
   const [selectedBackgroundId, setSelectedBackgroundId] = useState(null);
   const [backgroundPresignedUrls, setBackgroundPresignedUrls] = useState({});
   const [loadingBackgroundUrls, setLoadingBackgroundUrls] = useState({});
+  const [imageLoadError, setImageLoadError] = useState(null);
+  const [selectedBackgroundForCanvas, setSelectedBackgroundForCanvas] =
+    useState(null);
+  const editedDesign = useSelector(selectEditedDesign);
+  const editedDesignStatus = useSelector(selectEditedDesignStatus);
+  const editedDesignError = useSelector(selectEditedDesignError);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [iconPage, setIconPage] = useState(1);
+  const icons = useSelector(selectAllIcons);
+  const iconStatus = useSelector(selectIconStatus);
+  const iconError = useSelector(selectIconError);
+  const selectedIcon = useSelector(selectSelectedIcon);
+  const iconPagination = useSelector(selectIconPagination);
+  const hasNextIconPage = useSelector(selectHasNextPage);
+  const hasPreviousIconPage = useSelector(selectHasPreviousPage);
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -1551,6 +1585,469 @@ const AIDesign = () => {
     "UTM DuepuntozeroBold",
     "UTM EdwardianB",
   ];
+  const handleIconLoadError = async (icon, retryCount = 0) => {
+    if (retryCount >= 2) {
+      console.log(`Max retries reached for icon ${icon.id}`);
+      return null;
+    }
+
+    console.log(`Retrying icon ${icon.id}, attempt ${retryCount + 1}`);
+
+    try {
+      // Refresh presigned URL
+      const result = await getPresignedUrl(icon.imageUrl, 120);
+      if (result.success) {
+        console.log(`✅ New presigned URL created for icon ${icon.id}`);
+
+        // ✅ USE NEW ACTION TO UPDATE ICON IN STORE
+        dispatch(
+          updateIconUrl({
+            iconId: icon.id,
+            presignedUrl: result.url,
+          })
+        );
+
+        return result.url;
+      } else {
+        console.error(
+          `❌ Failed to create presigned URL for icon ${icon.id}:`,
+          result.message
+        );
+      }
+    } catch (error) {
+      console.error(`❌ Error refreshing URL for icon ${icon.id}:`, error);
+    }
+
+    return null;
+  };
+
+  const loadIcons = (page = 1) => {
+    setIconPage(page);
+    dispatch(fetchIcons({ page, size: 20 }));
+  };
+  const addIconToCanvas = (icon) => {
+    if (!fabricCanvas || !icon) {
+      console.log("Canvas or icon not available:", {
+        fabricCanvas: !!fabricCanvas,
+        icon,
+      });
+      return;
+    }
+
+    console.log("Adding icon to canvas:", icon);
+
+    // ✅ Sử dụng presignedUrl thay vì fullImageUrl
+    const iconImageUrl = icon.presignedUrl || icon.fullImageUrl;
+
+    if (!iconImageUrl) {
+      console.error("No valid image URL found for icon:", icon);
+      setSnackbar({
+        open: true,
+        message: `Không thể tải icon "${icon.name}" - thiếu URL ảnh`,
+        severity: "error",
+      });
+      return;
+    }
+
+    console.log("Using icon image URL:", iconImageUrl);
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    // ✅ Thêm flags để tránh multiple event handlers
+    let hasLoaded = false;
+    let hasErrored = false;
+
+    img.onload = function () {
+      if (hasLoaded || hasErrored) {
+        console.log("Icon onload called but already handled, skipping...");
+        return;
+      }
+
+      hasLoaded = true;
+      console.log("Icon loaded successfully");
+      console.log("Icon dimensions:", img.width, "x", img.height);
+
+      try {
+        const fabricImg = new fabric.Image(img, {
+          left: 100,
+          top: 100,
+          name: `icon-${icon.id}`,
+        });
+
+        // Giới hạn kích thước icon
+        const maxWidth = 100;
+        const maxHeight = 100;
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+
+        fabricImg.set({
+          scaleX: scale,
+          scaleY: scale,
+        });
+
+        fabricCanvas.add(fabricImg);
+        fabricCanvas.setActiveObject(fabricImg);
+        fabricCanvas.renderAll();
+
+        console.log("Icon added to canvas successfully");
+
+        // Clear selected icon và đóng picker
+        dispatch(clearSelectedIcon());
+        setShowIconPicker(false);
+
+        setSnackbar({
+          open: true,
+          message: `Icon "${icon.name}" đã được thêm vào thiết kế`,
+          severity: "success",
+        });
+      } catch (error) {
+        console.error("Error creating fabric image:", error);
+        setSnackbar({
+          open: true,
+          message: "Lỗi khi thêm icon vào thiết kế",
+          severity: "error",
+        });
+      }
+    };
+
+    img.onerror = function (error) {
+      if (hasErrored || hasLoaded) {
+        console.log("Icon onerror called but already handled, skipping...");
+        return;
+      }
+
+      hasErrored = true;
+      console.error("Failed to load icon image:", iconImageUrl, error);
+
+      // ✅ Cleanup để tránh memory leaks
+      img.onload = null;
+      img.onerror = null;
+      img.src = "";
+
+      // Tạo placeholder cho icon
+      const placeholder = new fabric.Rect({
+        left: 100,
+        top: 100,
+        width: 80,
+        height: 80,
+        fill: "#f0f0f0",
+        stroke: "#ddd",
+        strokeWidth: 2,
+        rx: 10,
+        ry: 10,
+        name: `icon-placeholder-${icon.id}`,
+      });
+
+      const placeholderText = new fabric.Text("ICON", {
+        left: 140,
+        top: 140,
+        fontSize: 12,
+        fill: "#666",
+        fontWeight: "bold",
+        textAlign: "center",
+        originX: "center",
+        originY: "center",
+        name: `icon-placeholder-text-${icon.id}`,
+      });
+
+      fabricCanvas.add(placeholder);
+      fabricCanvas.add(placeholderText);
+      fabricCanvas.setActiveObject(placeholder);
+      fabricCanvas.renderAll();
+
+      setSnackbar({
+        open: true,
+        message: `Không thể tải icon "${icon.name}", đã tạo placeholder`,
+        severity: "warning",
+      });
+
+      console.log("Icon placeholder added successfully");
+    };
+
+    img.src = iconImageUrl;
+  };
+  const IconPicker = () => {
+    const handleIconSelect = (icon) => {
+      dispatch(setSelectedIcon(icon));
+    };
+
+    const handleAddIcon = () => {
+      if (selectedIcon) {
+        addIconToCanvas(selectedIcon);
+      }
+    };
+
+    const handleNextPage = () => {
+      if (hasNextIconPage) {
+        loadIcons(iconPage + 1);
+      }
+    };
+
+    const handlePreviousPage = () => {
+      if (hasPreviousIconPage) {
+        loadIcons(iconPage - 1);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center p-6 border-b">
+            <h3 className="text-xl font-semibold">Chọn Icon</h3>
+            <button
+              onClick={() => {
+                setShowIconPicker(false);
+                dispatch(clearSelectedIcon());
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+            {iconStatus === "loading" ? (
+              <div className="flex justify-center items-center py-12">
+                <CircularProgress size={40} />
+                <span className="ml-4">Đang tải icons...</span>
+              </div>
+            ) : iconStatus === "failed" ? (
+              <div className="text-center py-8 text-red-500">
+                <p>Lỗi: {iconError}</p>
+                <button
+                  onClick={() => loadIcons(1)}
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Icons Grid */}
+                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 mb-6">
+                  {icons.map((icon) => (
+                    <div
+                      key={icon.id}
+                      className={`relative border-2 rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+                        selectedIcon?.id === icon.id
+                          ? "border-custom-secondary bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => handleIconSelect(icon)}
+                    >
+                      <div className="aspect-square bg-gray-50 rounded flex items-center justify-center mb-2">
+                        <img
+                          src={icon.presignedUrl || icon.fullImageUrl}
+                          alt={icon.name}
+                          className="max-w-full max-h-full object-contain"
+                          onLoad={() => {
+                            console.log(
+                              `✅ Icon ${icon.id} loaded successfully in picker`
+                            );
+                          }}
+                          onError={async (e) => {
+                            console.error(
+                              `❌ Error loading icon ${icon.id}:`,
+                              e
+                            );
+
+                            // ✅ PREVENT INFINITE RETRY LOOPS
+                            if (e.target.dataset.retryCount >= 2) {
+                              console.log(
+                                `Max retries reached for icon ${icon.id}, showing placeholder`
+                              );
+                              e.target.style.display = "none";
+                              e.target.nextSibling.style.display = "flex";
+                              return;
+                            }
+
+                            // ✅ INCREMENT RETRY COUNT
+                            const retryCount = parseInt(
+                              e.target.dataset.retryCount || "0"
+                            );
+                            e.target.dataset.retryCount = retryCount + 1;
+
+                            // ✅ TRY FALLBACK URLs IN ORDER
+                            if (
+                              retryCount === 0 &&
+                              icon.presignedUrl &&
+                              e.target.src === icon.presignedUrl
+                            ) {
+                              // First retry: try fullImageUrl
+                              if (
+                                icon.fullImageUrl &&
+                                icon.fullImageUrl !== icon.presignedUrl
+                              ) {
+                                console.log(
+                                  `Retry 1 for icon ${icon.id}: trying fullImageUrl`
+                                );
+                                e.target.src = icon.fullImageUrl;
+                                return;
+                              }
+                            }
+
+                            if (retryCount === 1) {
+                              // Second retry: try to refresh presigned URL
+                              try {
+                                console.log(
+                                  `Retry 2 for icon ${icon.id}: refreshing presigned URL`
+                                );
+                                const newUrl = await handleIconLoadError(
+                                  icon,
+                                  retryCount
+                                );
+                                if (newUrl) {
+                                  e.target.src = newUrl;
+                                  return;
+                                }
+                              } catch (error) {
+                                console.error(
+                                  `Failed to refresh URL for icon ${icon.id}:`,
+                                  error
+                                );
+                              }
+                            }
+
+                            // ✅ FINAL FALLBACK: Show placeholder
+                            console.log(
+                              `Showing placeholder for icon ${icon.id}`
+                            );
+                            e.target.style.display = "none";
+                            e.target.nextSibling.style.display = "flex";
+                          }}
+                        />
+                        <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
+                          <FaPalette className="w-6 h-6 mb-1" />
+                          <span className="text-xs text-center">
+                            Không thể tải
+                          </span>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              console.log(`Manual retry for icon ${icon.id}`);
+
+                              // Reset retry count
+                              const imgElement =
+                                e.currentTarget.previousSibling;
+                              imgElement.dataset.retryCount = "0";
+
+                              // Try to refresh presigned URL
+                              try {
+                                const newUrl = await handleIconLoadError(
+                                  icon,
+                                  0
+                                );
+                                if (newUrl) {
+                                  imgElement.src = newUrl;
+                                  imgElement.style.display = "block";
+                                  e.currentTarget.style.display = "none";
+                                }
+                              } catch (error) {
+                                console.error(
+                                  `Manual retry failed for icon ${icon.id}:`,
+                                  error
+                                );
+                              }
+                            }}
+                            className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
+                          >
+                            Thử lại
+                          </button>
+                        </div>
+                      </div>
+                      <p
+                        className="text-xs text-center text-gray-600 truncate"
+                        title={icon.name}
+                      >
+                        {icon.name}
+                      </p>
+                      {selectedIcon?.id === icon.id && (
+                        <div className="absolute top-1 right-1 bg-custom-secondary text-white rounded-full p-1">
+                          <FaCheck className="w-3 h-3" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {iconPagination.totalPages > 1 && (
+                  <div className="flex justify-center items-center space-x-4 py-4 border-t">
+                    <button
+                      onClick={handlePreviousPage}
+                      disabled={!hasPreviousIconPage}
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Trước
+                    </button>
+
+                    <span className="text-sm text-gray-600">
+                      Trang {iconPagination.currentPage} /{" "}
+                      {iconPagination.totalPages}({iconPagination.totalElements}{" "}
+                      icons)
+                    </span>
+
+                    <button
+                      onClick={handleNextPage}
+                      disabled={!hasNextIconPage}
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between items-center p-6 border-t bg-gray-50">
+            <div className="text-sm text-gray-600">
+              {selectedIcon
+                ? `Đã chọn: ${selectedIcon.name}`
+                : "Chưa chọn icon nào"}
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowIconPicker(false);
+                  dispatch(clearSelectedIcon());
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleAddIcon}
+                disabled={!selectedIcon}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  selectedIcon
+                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                Thêm Icon
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
   const s3Logo = useSelector((state) =>
     businessPresets.logoUrl
       ? selectS3Image(state, businessPresets.logoUrl)
@@ -1863,47 +2360,61 @@ const AIDesign = () => {
   // Điều chỉnh cài đặt canvas để có chất lượng tốt hơn
   useEffect(() => {
     console.log("Current step:", currentStep);
-    console.log("Selected image ID:", selectedImage);
     console.log("Canvas ref:", canvasRef.current);
     console.log("Fabric canvas exists:", !!fabricCanvas);
     console.log("Generated image:", generatedImage);
+    console.log("Selected background for canvas:", selectedBackgroundForCanvas);
 
     if (
       currentStep === 6 &&
       canvasRef.current &&
       !fabricCanvas &&
-      generatedImage
+      (generatedImage || selectedBackgroundForCanvas)
     ) {
-      console.log("INITIALIZING CANVAS with AI-generated image");
+      console.log("INITIALIZING CANVAS");
 
       const canvasContainer = canvasRef.current.parentElement;
       const containerWidth = canvasContainer.clientWidth;
 
-      // Tăng kích thước canvas nhưng giữ nguyên tỷ lệ 2:1
       const canvasWidth = containerWidth;
       const canvasHeight = Math.round(containerWidth / 2);
 
-      // Tạo canvas với độ phân giải cao hơn để giữ chất lượng ảnh tốt
       const canvas = new fabric.Canvas(canvasRef.current, {
         width: canvasWidth,
         height: canvasHeight,
         backgroundColor: "#f8f9fa",
-        preserveObjectStacking: true, // Giữ thứ tự xếp chồng khi chọn đối tượng
+        preserveObjectStacking: true,
       });
 
-      // Sử dụng ảnh được tạo bởi AI nếu có
-      const imageUrl = generatedImage;
+      // Xác định nguồn ảnh để sử dụng
+      let imageUrl = null;
+      let imageSource = null;
 
-      console.log("Using AI-generated image URL:", imageUrl);
+      if (generatedImage) {
+        imageUrl = generatedImage;
+        imageSource = "ai-generated";
+        console.log("Using AI-generated image URL:", imageUrl);
+      } else if (selectedBackgroundForCanvas) {
+        imageUrl =
+          selectedBackgroundForCanvas.presignedUrl ||
+          selectedBackgroundForCanvas.backgroundUrl;
+        imageSource = "background";
+        console.log("Using selected background URL:", imageUrl);
+      }
 
       if (imageUrl) {
-        console.log("LOADING IMAGE: Loading image via HTML Image element");
+        console.log(
+          `LOADING IMAGE: Loading ${imageSource} image via HTML Image element`
+        );
 
         const img = new Image();
         img.crossOrigin = "anonymous";
 
+        // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
+        let hasErrored = false;
+
         img.onload = function () {
-          console.log("IMAGE LOADED SUCCESSFULLY");
+          console.log(`${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`);
           console.log("Image dimensions:", img.width, "x", img.height);
 
           try {
@@ -1912,15 +2423,14 @@ const AIDesign = () => {
               top: 0,
               selectable: false,
               evented: false,
-              name: "backgroundImage",
+              name: `backgroundImage-${imageSource}`,
             });
 
             console.log("Fabric image created:", fabricImg);
 
-            // Scale image to fill canvas hoàn toàn nhưng giữ đúng tỷ lệ
             const scaleX = canvasWidth / fabricImg.width;
             const scaleY = canvasHeight / fabricImg.height;
-            const scale = Math.max(scaleX, scaleY); // Sử dụng max để đảm bảo ảnh che phủ toàn bộ canvas
+            const scale = Math.max(scaleX, scaleY);
 
             fabricImg.set({
               scaleX: scale,
@@ -1933,32 +2443,94 @@ const AIDesign = () => {
             canvas.sendToBack(fabricImg);
             canvas.renderAll();
 
-            console.log("AI-GENERATED IMAGE ADDED TO CANVAS SUCCESSFULLY");
+            console.log(
+              `${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
+            );
+
+            setSnackbar({
+              open: true,
+              message:
+                imageSource === "ai-generated"
+                  ? "Đã tải thiết kế AI thành công!"
+                  : "Đã tải background thành công!",
+              severity: "success",
+            });
           } catch (error) {
             console.error("ERROR creating fabric image:", error);
           }
         };
 
         img.onerror = function (error) {
-          console.error("ERROR loading image:", imageUrl, error);
-          setSnackbar({
-            open: true,
-            message: "Lỗi khi tải hình ảnh. Vui lòng thử lại.",
-            severity: "error",
-          });
+          // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
+          if (hasErrored) {
+            console.log("Already handled error, skipping...");
+            return;
+          }
+
+          hasErrored = true;
+          console.error(`ERROR loading ${imageSource} image:`, imageUrl, error);
+
+          // // ✅ CHỈ HIỂN THỊ LỖI CHO USER MỘT LẦN
+          // setSnackbar({
+          //   open: true,
+          //   message: `Lỗi khi tải ${
+          //     imageSource === "ai-generated" ? "thiết kế" : "background"
+          //   }. Canvas vẫn có thể sử dụng được.`,
+          //   severity: "warning",
+          // });
+
+          // ✅ TẠO PLACEHOLDER THAY VÌ THỬ LẠI
+          try {
+            const placeholderRect = new fabric.Rect({
+              left: 0,
+              top: 0,
+              width: canvasWidth,
+              height: canvasHeight,
+              fill: "#f0f0f0",
+              selectable: false,
+              evented: false,
+              name: `placeholder-${imageSource}`,
+            });
+
+            const placeholderText = new fabric.Text(
+              imageSource === "ai-generated"
+                ? "Thiết kế AI không tải được"
+                : "Background không tải được",
+              {
+                left: canvasWidth / 2,
+                top: canvasHeight / 2,
+                fontSize: 24,
+                fill: "#999",
+                textAlign: "center",
+                originX: "center",
+                originY: "center",
+                selectable: false,
+                evented: false,
+                name: `placeholder-text-${imageSource}`,
+              }
+            );
+
+            canvas.add(placeholderRect);
+            canvas.add(placeholderText);
+            canvas.renderAll();
+
+            console.log(`${imageSource.toUpperCase()} PLACEHOLDER ADDED`);
+          } catch (placeholderError) {
+            console.error("Error creating placeholder:", placeholderError);
+          }
         };
 
         img.src = imageUrl;
       } else {
         console.error("ERROR: No image URL available");
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy hình ảnh để chỉnh sửa. Vui lòng thử lại.",
-          severity: "error",
-        });
+        // setSnackbar({
+        //   open: true,
+        //   message: "Không tìm thấy hình ảnh để chỉnh sửa. Vui lòng thử lại.",
+        //   severity: "error",
+        // });
       }
 
-      // Canvas event handlers remain the same
+      // Canvas event handlers (giữ nguyên)
       canvas.on("selection:created", (e) => {
         if (e.selected[0] && e.selected[0].type === "text") {
           setSelectedText(e.selected[0]);
@@ -2004,74 +2576,112 @@ const AIDesign = () => {
         setFabricCanvas(null);
       }
     };
-  }, [currentStep, generatedImage]);
+  }, [currentStep, generatedImage, selectedBackgroundForCanvas]);
 
   // Thêm useEffect riêng để handle khi selectedImage thay đổi trong step 6
 
   useEffect(() => {
-    if (currentStep === 6 && generatedImage && fabricCanvas) {
-      console.log(
-        "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
-        generatedImage
-      );
+    if (currentStep === 6 && fabricCanvas) {
+      let imageToLoad = null;
+      let imageSource = null;
 
-      // Xóa ảnh cũ
-      const objects = fabricCanvas.getObjects();
-      const oldImage = objects.find((obj) => obj.name === "backgroundImage");
-      if (oldImage) {
-        fabricCanvas.remove(oldImage);
+      if (generatedImage) {
+        imageToLoad = generatedImage;
+        imageSource = "ai-generated";
+        console.log(
+          "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
+          generatedImage
+        );
+      } else if (selectedBackgroundForCanvas) {
+        imageToLoad =
+          selectedBackgroundForCanvas.presignedUrl ||
+          selectedBackgroundForCanvas.backgroundUrl;
+        imageSource = "background";
+        console.log(
+          "BACKGROUND CHANGED: Updating canvas with selected background:",
+          imageToLoad
+        );
       }
 
-      // Load ảnh được tạo bởi AI
-      const img = new Image();
-      img.crossOrigin = "anonymous";
+      if (imageToLoad) {
+        // Xóa ảnh cũ
+        const objects = fabricCanvas.getObjects();
+        const oldImage = objects.find(
+          (obj) =>
+            obj.name === "backgroundImage" ||
+            obj.name === "backgroundImage-ai-generated" ||
+            obj.name === "backgroundImage-background" ||
+            obj.name === "placeholder-ai-generated" ||
+            obj.name === "placeholder-background" ||
+            obj.name === "placeholder-text-ai-generated" ||
+            obj.name === "placeholder-text-background"
+        );
+        if (oldImage) {
+          fabricCanvas.remove(oldImage);
+        }
 
-      img.onload = function () {
-        console.log("AI GENERATED IMAGE LOADED SUCCESSFULLY");
+        // Load ảnh mới
+        const img = new Image();
+        img.crossOrigin = "anonymous";
 
-        const fabricImg = new fabric.Image(img, {
-          left: 0,
-          top: 0,
-          selectable: false,
-          evented: false,
-          name: "backgroundImage",
-        });
+        // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
+        let hasErrored = false;
 
-        const canvasWidth = fabricCanvas.width;
-        const canvasHeight = fabricCanvas.height;
+        img.onload = function () {
+          console.log(`${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`);
 
-        // Scale image to fill canvas completely
-        const scaleX = canvasWidth / fabricImg.width;
-        const scaleY = canvasHeight / fabricImg.height;
-        const scale = Math.max(scaleX, scaleY); // Use max to ensure image fills the canvas
+          const fabricImg = new fabric.Image(img, {
+            left: 0,
+            top: 0,
+            selectable: false,
+            evented: false,
+            name: `backgroundImage-${imageSource}`,
+          });
 
-        fabricImg.set({
-          scaleX: scale,
-          scaleY: scale,
-          left: (canvasWidth - fabricImg.width * scale) / 2,
-          top: (canvasHeight - fabricImg.height * scale) / 2,
-        });
+          const canvasWidth = fabricCanvas.width;
+          const canvasHeight = fabricCanvas.height;
 
-        fabricCanvas.add(fabricImg);
-        fabricCanvas.sendToBack(fabricImg);
-        fabricCanvas.renderAll();
+          const scaleX = canvasWidth / fabricImg.width;
+          const scaleY = canvasHeight / fabricImg.height;
+          const scale = Math.max(scaleX, scaleY);
 
-        console.log("AI GENERATED IMAGE ADDED TO CANVAS");
-      };
+          fabricImg.set({
+            scaleX: scale,
+            scaleY: scale,
+            left: (canvasWidth - fabricImg.width * scale) / 2,
+            top: (canvasHeight - fabricImg.height * scale) / 2,
+          });
 
-      img.onerror = function (error) {
-        console.error("ERROR loading AI generated image:", error);
+          fabricCanvas.add(fabricImg);
+          fabricCanvas.sendToBack(fabricImg);
+          fabricCanvas.renderAll();
 
-        // Fallback to first preview image if loading fails
-        const fallbackImage = new Image();
-        fallbackImage.crossOrigin = "anonymous";
-        fallbackImage.src = previewImages[0]?.url;
-        fallbackImage.onload = img.onload;
-      };
+          console.log(`${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS`);
+        };
 
-      img.src = generatedImage;
+        img.onerror = function (error) {
+          // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
+          if (hasErrored) {
+            console.log("Already handled error in image change, skipping...");
+            return;
+          }
+
+          hasErrored = true;
+          console.error(`ERROR loading ${imageSource} image:`, error);
+
+          // setSnackbar({
+          //   open: true,
+          //   message: `Lỗi khi cập nhật ${
+          //     imageSource === "ai-generated" ? "thiết kế" : "background"
+          //   }`,
+          //   severity: "warning",
+          // });
+        };
+
+        img.src = imageToLoad;
+      }
     }
-  }, [generatedImage, fabricCanvas, currentStep]);
+  }, [generatedImage, selectedBackgroundForCanvas, fabricCanvas, currentStep]);
   const addText = () => {
     if (!fabricCanvas) return;
 
@@ -2111,27 +2721,147 @@ const AIDesign = () => {
 
     fabricCanvas.remove(activeObject);
 
+    // Reset selected text nếu object bị xóa là text
     if (activeObject.type === "text") {
       setSelectedText(null);
     }
 
+    // Log để debug
+    if (activeObject.name && activeObject.name.startsWith("icon-")) {
+      console.log("Deleted icon:", activeObject.name);
+    }
+
     fabricCanvas.renderAll();
   };
+  const exportDesignWithBackground = async () => {
+    if (!fabricCanvas || !selectedBackgroundForCanvas || !customerDetail?.id) {
+      setSnackbar({
+        open: true,
+        message: "Thiếu thông tin cần thiết để xuất thiết kế",
+        severity: "error",
+      });
+      return;
+    }
 
-  const exportDesign = async () => {
+    setIsExporting(true);
+
+    try {
+      // 1. Export canvas to high quality PNG
+      const dataURL = fabricCanvas.toDataURL({
+        format: "png",
+        quality: 1,
+        multiplier: 2, // Higher quality
+      });
+
+      // 2. Convert dataURL to File object
+      const response = await fetch(dataURL);
+      const blob = await response.blob();
+
+      const file = new File([blob], `edited-design-${Date.now()}.png`, {
+        type: "image/png",
+      });
+
+      // 3. Call API to save edited design with background
+      console.log("Saving edited design with background:", {
+        customerDetailId: customerDetail.id,
+        backgroundId: selectedBackgroundForCanvas.id,
+        customerNote: customerNote || "",
+        fileSize: file.size,
+      });
+
+      const result = await dispatch(
+        createEditedDesignWithBackgroundThunk({
+          customerDetailId: customerDetail.id,
+          backgroundId: selectedBackgroundForCanvas.id,
+          customerNote: customerNote || "Thiết kế với background",
+          editedImageFile: file,
+        })
+      ).unwrap();
+
+      console.log("Edited design saved successfully:", result);
+
+      // 4. Create PDF
+      const canvasWidth = fabricCanvas.width;
+      const canvasHeight = fabricCanvas.height;
+
+      const pdf = new jsPDF({
+        orientation: canvasWidth > canvasHeight ? "landscape" : "portrait",
+        unit: "mm",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const ratio = canvasWidth / canvasHeight;
+      let imgWidth = pdfWidth - 10;
+      let imgHeight = imgWidth / ratio;
+
+      if (imgHeight > pdfHeight - 10) {
+        imgHeight = pdfHeight - 10;
+        imgWidth = imgHeight * ratio;
+      }
+
+      const xPos = (pdfWidth - imgWidth) / 2;
+      const yPos = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(dataURL, "PNG", xPos, yPos, imgWidth, imgHeight);
+
+      // 5. Generate file names with timestamp
+      const timestamp = new Date().getTime();
+      const imageName = `background-design-${timestamp}.png`;
+      const pdfName = `background-design-${timestamp}.pdf`;
+
+      // 6. Download files
+      const imgLink = document.createElement("a");
+      imgLink.download = imageName;
+      imgLink.href = dataURL;
+      imgLink.click();
+
+      pdf.save(pdfName);
+
+      // 7. Set current design for order functionality
+      dispatch(setCurrentAIDesign(result));
+
+      setSnackbar({
+        open: true,
+        message: "Thiết kế với background đã được xuất và lưu thành công!",
+        severity: "success",
+      });
+
+      // Highlight order button
+      const orderButton = document.querySelector(".order-button");
+      if (orderButton) {
+        orderButton.classList.add("animate-pulse");
+        setTimeout(() => {
+          orderButton.classList.remove("animate-pulse");
+        }, 3000);
+      }
+    } catch (error) {
+      console.error("Error exporting background design:", error);
+      setSnackbar({
+        open: true,
+        message:
+          error.message ||
+          "Lỗi khi xuất thiết kế với background. Vui lòng thử lại.",
+        severity: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  const exportAIDesign = async () => {
     if (!fabricCanvas) return;
 
     try {
       setIsExporting(true);
 
-      // 1. Lấy ảnh từ canvas với chất lượng cao
+      // Export logic cho AI design (giữ nguyên logic cũ)
       const dataURL = fabricCanvas.toDataURL({
         format: "png",
         quality: 1,
-        multiplier: 2, // Tăng độ phân giải gấp đôi để PDF rõ nét hơn
+        multiplier: 2,
       });
 
-      // 2. Convert dataURL thành File object
       const blobBin = atob(dataURL.split(",")[1]);
       const array = [];
       for (let i = 0; i < blobBin.length; i++) {
@@ -2142,41 +2872,33 @@ const AIDesign = () => {
         type: "image/png",
       });
 
-      // 3. Tạo PDF chỉ chứa hình ảnh, không có văn bản
+      // Create PDF
       const canvasWidth = fabricCanvas.width;
       const canvasHeight = fabricCanvas.height;
 
-      // Tính toán kích thước PDF dựa trên tỷ lệ canvas (ngang)
       const pdf = new jsPDF({
         orientation: canvasWidth > canvasHeight ? "landscape" : "portrait",
         unit: "mm",
       });
 
-      // Lấy kích thước trang PDF
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // Tính toán tỷ lệ để ảnh vừa với trang PDF nhưng giữ đúng tỷ lệ
       const ratio = canvasWidth / canvasHeight;
-
-      // Sử dụng toàn bộ trang PDF cho hình ảnh, với lề tối thiểu 5mm mỗi bên
-      let imgWidth = pdfWidth - 10; // Trừ lề 5mm mỗi bên
+      let imgWidth = pdfWidth - 10;
       let imgHeight = imgWidth / ratio;
 
-      // Nếu ảnh quá cao so với trang, điều chỉnh dựa trên chiều cao
       if (imgHeight > pdfHeight - 10) {
-        imgHeight = pdfHeight - 10; // Trừ lề 5mm trên và dưới
+        imgHeight = pdfHeight - 10;
         imgWidth = imgHeight * ratio;
       }
 
-      // Tính toán vị trí để căn giữa ảnh trên trang
       const xPos = (pdfWidth - imgWidth) / 2;
       const yPos = (pdfHeight - imgHeight) / 2;
 
-      // Thêm ảnh vào trang (căn giữa)
       pdf.addImage(dataURL, "PNG", xPos, yPos, imgWidth, imgHeight);
 
-      // 4. Lấy customerDetailId và designTemplateId
+      // API call for AI design
       if (!customerDetail?.id) {
         setSnackbar({
           open: true,
@@ -2200,7 +2922,6 @@ const AIDesign = () => {
         return;
       }
 
-      // Đảm bảo customerNote không bao giờ là null/undefined
       const note = customerNote || "Thiết kế từ người dùng";
 
       console.log("Preparing to send AI request with:", {
@@ -2210,7 +2931,6 @@ const AIDesign = () => {
         hasEditedImage: !!editedImage,
       });
 
-      // 5. Gửi request tạo AI design
       const resultAction = await dispatch(
         createAIDesign({
           customerDetailId,
@@ -2220,33 +2940,28 @@ const AIDesign = () => {
         })
       );
 
-      // 6. Xử lý kết quả
       if (createAIDesign.fulfilled.match(resultAction)) {
         const response = resultAction.payload;
         console.log("AI design created successfully:", response);
 
-        // Tạo tên file với timestamp để tránh trùng lặp
         const timestamp = new Date().getTime();
-        const imageName = `design-${timestamp}.png`;
-        const pdfName = `design-${timestamp}.pdf`;
+        const imageName = `ai-design-${timestamp}.png`;
+        const pdfName = `ai-design-${timestamp}.pdf`;
 
-        // Tải ảnh về máy người dùng
         const imgLink = document.createElement("a");
         imgLink.download = imageName;
         imgLink.href = dataURL;
         imgLink.click();
 
-        // Tải PDF về máy người dùng
         pdf.save(pdfName);
 
-        // Hiển thị thông báo thành công
         setSnackbar({
           open: true,
-          message: "Thiết kế đã được xuất thành công dưới dạng ảnh PNG và PDF!",
+          message:
+            "Thiết kế AI đã được xuất thành công dưới dạng ảnh PNG và PDF!",
           severity: "success",
         });
 
-        // Highlight nút Order
         const orderButton = document.querySelector(".order-button");
         if (orderButton) {
           orderButton.classList.add("animate-pulse");
@@ -2263,79 +2978,49 @@ const AIDesign = () => {
           severity: "warning",
         });
 
-        // Vẫn cho phép tải ảnh và PDF xuống dù API có lỗi
         const imgLink = document.createElement("a");
-        imgLink.download = "design.png";
+        imgLink.download = "ai-design.png";
         imgLink.href = dataURL;
         imgLink.click();
 
-        pdf.save("design.pdf");
+        pdf.save("ai-design.pdf");
       }
     } catch (error) {
-      console.error("Error exporting design:", error);
-
-      // Thử phương pháp thay thế với html2canvas nếu phương pháp chính thất bại
-      try {
-        const canvasContainer = canvasRef.current.parentElement;
-        const canvas = await html2canvas(canvasContainer, {
-          allowTaint: true,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          scale: 2, // Tăng độ phân giải
-        });
-
-        // Convert to blob and download as image
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const imgLink = document.createElement("a");
-          imgLink.download = "design-screenshot.png";
-          imgLink.href = url;
-          imgLink.click();
-          URL.revokeObjectURL(url);
-        }, "image/png");
-
-        // Cũng tạo PDF từ canvas backup nhưng chỉ có hình, không có chữ
-        try {
-          const backupDataURL = canvas.toDataURL("image/png");
-          const pdf = new jsPDF({
-            orientation: "landscape",
-            unit: "mm",
-          });
-
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-
-          // Tính toán kích thước vừa với trang
-          const imgWidth = pdfWidth - 10;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-          // Căn giữa hình ảnh
-          const xPos = (pdfWidth - imgWidth) / 2;
-          const yPos = (pdfHeight - imgHeight) / 2;
-
-          pdf.addImage(backupDataURL, "PNG", xPos, yPos, imgWidth, imgHeight);
-          pdf.save("design-backup.pdf");
-        } catch (pdfError) {
-          console.error("Failed to create PDF from backup canvas:", pdfError);
-        }
-
-        setSnackbar({
-          open: true,
-          message:
-            "Đã tải xuống thiết kế nhưng không thể lưu vào hệ thống. Vui lòng thử lại sau.",
-          severity: "warning",
-        });
-      } catch (html2canvasError) {
-        console.error("html2canvas failed:", html2canvasError);
-        setSnackbar({
-          open: true,
-          message:
-            "Không thể xuất file. Vui lòng chụp màn hình để lưu thiết kế.",
-          severity: "error",
-        });
-      }
+      console.error("Error exporting AI design:", error);
+      setSnackbar({
+        open: true,
+        message: "Không thể xuất thiết kế AI. Vui lòng thử lại.",
+        severity: "error",
+      });
     } finally {
       setIsExporting(false);
+    }
+  };
+  const exportDesign = async () => {
+    if (!fabricCanvas) {
+      setSnackbar({
+        open: true,
+        message: "Canvas không khả dụng",
+        severity: "error",
+      });
+      return;
+    }
+
+    // Kiểm tra loại thiết kế dựa trên nguồn gốc
+    if (generatedImage) {
+      // Đây là AI generated design - sử dụng logic cũ
+      console.log("Exporting AI generated design");
+      await exportAIDesign();
+    } else if (selectedBackgroundForCanvas) {
+      // Đây là background design - sử dụng logic mới
+      console.log("Exporting background design");
+      await exportDesignWithBackground();
+    } else {
+      setSnackbar({
+        open: true,
+        message: "Không có thiết kế để xuất",
+        severity: "warning",
+      });
     }
   };
   useEffect(() => {
@@ -2998,6 +3683,9 @@ const AIDesign = () => {
       });
     }
   };
+  useEffect(() => {
+    setImageLoadError(null);
+  }, [currentStep]);
   useEffect(() => {
     // Khôi phục currentProductType từ localStorage nếu chưa có
     if (!currentProductType && billboardType) {
@@ -4303,7 +4991,7 @@ const AIDesign = () => {
                 type="button"
                 onClick={() => {
                   if (isAiGenerated) {
-                    // Logic cho Design Template
+                    // Logic cho Design Template (giữ nguyên)
                     if (!selectedSampleProduct) {
                       setSnackbar({
                         open: true,
@@ -4325,7 +5013,7 @@ const AIDesign = () => {
                     // Proceed với AI generation
                     handleContinueToPreview();
                   } else {
-                    // Logic cho Background
+                    // Logic cho Background - THAY ĐỔI Ở ĐÂY
                     if (!selectedBackgroundId) {
                       setSnackbar({
                         open: true,
@@ -4344,32 +5032,28 @@ const AIDesign = () => {
                       });
                       return;
                     }
-                    // Navigate to manual design với background đã chọn
-                    navigate("/custom-design", {
-                      state: {
-                        customerChoiceId: currentOrder?.id,
-                        selectedType: billboardType,
-                        selectedBackground: selectedBackground,
-                        businessInfo: {
-                          companyName:
-                            businessInfo.companyName ||
-                            customerDetail?.companyName ||
-                            "",
-                          address:
-                            businessInfo.address ||
-                            customerDetail?.address ||
-                            "",
-                          contactInfo:
-                            businessInfo.contactInfo ||
-                            customerDetail?.contactInfo ||
-                            "",
-                          logoUrl:
-                            businessInfo.logoPreview ||
-                            customerDetail?.logoUrl ||
-                            "",
-                        },
-                        customerNote: customerNote,
-                      },
+
+                    // Lưu thông tin background đã chọn để sử dụng trong canvas
+                    const selectedBg = backgroundSuggestions.find(
+                      (bg) => bg.id === selectedBackgroundId
+                    );
+                    const backgroundUrl =
+                      backgroundPresignedUrls[selectedBackgroundId] ||
+                      selectedBg?.backgroundUrl;
+
+                    setSelectedBackgroundForCanvas({
+                      ...selectedBg,
+                      presignedUrl: backgroundUrl,
+                    });
+
+                    // Chuyển thẳng đến case 6 thay vì navigate đến custom-design
+                    setCurrentStep(6);
+                    navigate("/ai-design?step=edit");
+
+                    setSnackbar({
+                      open: true,
+                      message: "Đang tải editor với background đã chọn...",
+                      severity: "info",
                     });
                   }
                 }}
@@ -4574,7 +5258,9 @@ const AIDesign = () => {
               className="text-3xl font-bold text-custom-dark mb-8 text-center"
               variants={itemVariants}
             >
-              Chỉnh sửa thiết kế
+              {selectedBackgroundForCanvas
+                ? "Chỉnh sửa thiết kế với Background"
+                : "Chỉnh sửa thiết kế AI"}
             </motion.h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -4731,6 +5417,21 @@ const AIDesign = () => {
                         <FaPlus className="mr-1" />
                         Thêm text
                       </button>
+
+                      {/* NÚT THÊM ICON MỚI */}
+                      <button
+                        onClick={() => {
+                          setShowIconPicker(true);
+                          if (icons.length === 0) {
+                            loadIcons(1);
+                          }
+                        }}
+                        className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center text-sm"
+                      >
+                        <FaPalette className="mr-1" />
+                        Thêm icon
+                      </button>
+
                       <label className="px-3 py-2 bg-custom-primary text-white rounded-lg hover:bg-custom-primary/90 flex items-center text-sm cursor-pointer">
                         <FaPlus className="mr-1" />
                         Thêm ảnh
@@ -4990,7 +5691,14 @@ const AIDesign = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setCurrentStep(5)}
+                onClick={() => {
+                  // Quay lại step phù hợp
+                  if (generatedImage) {
+                    setCurrentStep(5); // Quay lại preview cho AI design
+                  } else {
+                    setCurrentStep(4.5); // Quay lại background selection
+                  }
+                }}
                 className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all"
               >
                 Quay lại
@@ -5013,7 +5721,11 @@ const AIDesign = () => {
                     Đang xử lý...
                   </>
                 ) : (
-                  <>Xuất và Lưu thiết kế</>
+                  <>
+                    {selectedBackgroundForCanvas
+                      ? "Xuất thiết kế Background"
+                      : "Xuất thiết kế AI"}
+                  </>
                 )}
               </motion.button>
 
@@ -5042,7 +5754,9 @@ const AIDesign = () => {
                 ) : !currentAIDesign ? (
                   <>
                     <FaCheck className="mr-2" />
-                    Xuất thiết kế trước khi đặt hàng
+                    {selectedBackgroundForCanvas
+                      ? "Xuất thiết kế Background trước khi đặt hàng"
+                      : "Xuất thiết kế AI trước khi đặt hàng"}
                   </>
                 ) : (
                   <>
@@ -5096,7 +5810,7 @@ const AIDesign = () => {
           </div>
         </div>
       </Backdrop>
-
+      {showIconPicker && <IconPicker />}
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
