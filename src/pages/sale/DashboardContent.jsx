@@ -28,6 +28,7 @@ import {
   LocalShipping as ShippingIcon,
   MonetizationOn as MoneyIcon,
   Search as SearchIcon,
+  People as PeopleIcon,
 } from "@mui/icons-material";
 import { ORDER_STATUS_MAP } from "../../store/features/order/orderSlice";
 
