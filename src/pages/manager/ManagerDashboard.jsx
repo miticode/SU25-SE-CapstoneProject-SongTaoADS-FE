@@ -63,6 +63,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import TicketManager from "./TicketManager";
 
 // Mock data for manager dashboard
 const teamPerformanceData = [
@@ -1368,6 +1369,8 @@ const ManagerDashboard = () => {
         return renderStatisticsContent();
       case "settings":
         return renderSettingsContent();
+      case "support-ticket":
+        return <TicketManager />;
       default:
         return renderDashboardContent();
     }

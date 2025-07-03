@@ -19,7 +19,8 @@ import demoReducer from "./features/demo/demoSlice";
 import impressionReducer from "./features/impression/impressionSlice";
 
 import backgroundReducer from "./features/background/backgroundSlice";
-
+import ticketReducer from "./features/ticket/ticketSlice";
+import iconReducer from "./features/icon/iconSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -43,6 +44,9 @@ export const store = configureStore({
 
     background: backgroundReducer,
     // Thêm các reducer khác tại đây
+
+    ticket: ticketReducer,
+    icon: iconReducer,
   },
 });
 

@@ -1,85 +1,193 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { fetchBackgroundSuggestionsByCustomerChoiceIdApi } from '../../../api/backgroundService';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import {
+  createEditedDesignWithBackground,
+  fetchBackgroundSuggestionsByCustomerChoiceIdApi,
+} from "../../../api/backgroundService";
 
 // Initial state
 const initialState = {
   backgroundSuggestions: [],
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
-  selectedBackground: null
+  selectedBackground: null,
+  // Thêm state cho edited design
+  editedDesign: null,
+  editedDesignStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  editedDesignError: null,
 };
 
 // Async thunk for fetching background suggestions by customer choice ID
 export const fetchBackgroundSuggestionsByCustomerChoiceId = createAsyncThunk(
-  'background/fetchSuggestionsByCustomerChoiceId',
+  "background/fetchSuggestionsByCustomerChoiceId",
   async (customerChoiceId, { rejectWithValue }) => {
     try {
-      console.log('Fetching background suggestions for customer choice:', customerChoiceId);
-      
-      const response = await fetchBackgroundSuggestionsByCustomerChoiceIdApi(customerChoiceId);
-      
+      console.log(
+        "Fetching background suggestions for customer choice:",
+        customerChoiceId
+      );
+
+      const response = await fetchBackgroundSuggestionsByCustomerChoiceIdApi(
+        customerChoiceId
+      );
+
       if (!response.success) {
-        return rejectWithValue(response.error || 'Failed to fetch background suggestions');
+        return rejectWithValue(
+          response.error || "Failed to fetch background suggestions"
+        );
       }
-      
-      console.log('Background suggestions fetched successfully:', response.data);
+
+      console.log(
+        "Background suggestions fetched successfully:",
+        response.data
+      );
       return response.data;
     } catch (error) {
-      console.error('Error in background suggestions thunk:', error);
-      return rejectWithValue(error.message || 'Something went wrong');
+      console.error("Error in background suggestions thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
     }
   }
 );
+export const createEditedDesignWithBackgroundThunk = createAsyncThunk(
+  "background/createEditedDesign",
+  async (
+    { customerDetailId, backgroundId, customerNote, editedImageFile },
+    { rejectWithValue }
+  ) => {
+    try {
+      console.log("Creating edited design with background:", {
+        customerDetailId,
+        backgroundId,
+        customerNote,
+        hasFile: !!editedImageFile,
+      });
 
+      // Tạo FormData
+      const formData = new FormData();
+
+      if (customerNote) {
+        formData.append("customerNote", customerNote);
+      }
+
+      if (editedImageFile) {
+        formData.append("editedImage", editedImageFile);
+      }
+
+      const response = await createEditedDesignWithBackground(
+        customerDetailId,
+        backgroundId,
+        formData
+      );
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to create edited design"
+        );
+      }
+
+      console.log("Edited design created successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error in create edited design thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
 // Background slice
 const backgroundSlice = createSlice({
-  name: 'background',
+  name: "background",
   initialState,
   reducers: {
     // Reset status when needed
     resetBackgroundStatus: (state) => {
-      state.status = 'idle';
+      state.status = "idle";
       state.error = null;
     },
     // Set a selected background for preview or editing
     setSelectedBackground: (state, action) => {
       state.selectedBackground = action.payload;
-      console.log('Selected background set:', action.payload);
+      console.log("Selected background set:", action.payload);
     },
     // Clear selected background
     clearSelectedBackground: (state) => {
       state.selectedBackground = null;
-      console.log('Selected background cleared');
+      console.log("Selected background cleared");
     },
     // Clear all background suggestions
     clearBackgroundSuggestions: (state) => {
       state.backgroundSuggestions = [];
-      state.status = 'idle';
+      state.status = "idle";
       state.error = null;
-      console.log('Background suggestions cleared');
-    }
+      console.log("Background suggestions cleared");
+    },
+    resetEditedDesignStatus: (state) => {
+      state.editedDesignStatus = "idle";
+      state.editedDesignError = null;
+    },
+    clearEditedDesign: (state) => {
+      state.editedDesign = null;
+      state.editedDesignStatus = "idle";
+      state.editedDesignError = null;
+    },
   },
   extraReducers: (builder) => {
     builder
       // Fetch background suggestions cases
-      .addCase(fetchBackgroundSuggestionsByCustomerChoiceId.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-        console.log('Fetching background suggestions...');
+      .addCase(
+        fetchBackgroundSuggestionsByCustomerChoiceId.pending,
+        (state) => {
+          state.status = "loading";
+          state.error = null;
+          console.log("Fetching background suggestions...");
+        }
+      )
+      .addCase(
+        fetchBackgroundSuggestionsByCustomerChoiceId.fulfilled,
+        (state, action) => {
+          state.status = "succeeded";
+          state.backgroundSuggestions = action.payload;
+          state.error = null;
+          console.log(
+            "Background suggestions loaded successfully:",
+            action.payload.length,
+            "items"
+          );
+        }
+      )
+      .addCase(
+        fetchBackgroundSuggestionsByCustomerChoiceId.rejected,
+        (state, action) => {
+          state.status = "failed";
+          state.error = action.payload;
+          state.backgroundSuggestions = [];
+          console.error(
+            "Failed to fetch background suggestions:",
+            action.payload
+          );
+        }
+      )
+      .addCase(createEditedDesignWithBackgroundThunk.pending, (state) => {
+        state.editedDesignStatus = "loading";
+        state.editedDesignError = null;
+        console.log("Creating edited design...");
       })
-      .addCase(fetchBackgroundSuggestionsByCustomerChoiceId.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.backgroundSuggestions = action.payload;
-        state.error = null;
-        console.log('Background suggestions loaded successfully:', action.payload.length, 'items');
-      })
-      .addCase(fetchBackgroundSuggestionsByCustomerChoiceId.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
-        state.backgroundSuggestions = [];
-        console.error('Failed to fetch background suggestions:', action.payload);
-      });
-  }
+      .addCase(
+        createEditedDesignWithBackgroundThunk.fulfilled,
+        (state, action) => {
+          state.editedDesignStatus = "succeeded";
+          state.editedDesign = action.payload;
+          state.editedDesignError = null;
+          console.log("Edited design created successfully:", action.payload);
+        }
+      )
+      .addCase(
+        createEditedDesignWithBackgroundThunk.rejected,
+        (state, action) => {
+          state.editedDesignStatus = "failed";
+          state.editedDesignError = action.payload;
+          console.error("Failed to create edited design:", action.payload);
+        }
+      );
+  },
 });
 
 // Export actions
@@ -87,20 +195,26 @@ export const {
   resetBackgroundStatus,
   setSelectedBackground,
   clearSelectedBackground,
-  clearBackgroundSuggestions
+  clearBackgroundSuggestions,
 } = backgroundSlice.actions;
 
 // Export selectors
-export const selectAllBackgroundSuggestions = (state) => state.background.backgroundSuggestions;
+export const selectAllBackgroundSuggestions = (state) =>
+  state.background.backgroundSuggestions;
 export const selectBackgroundStatus = (state) => state.background.status;
 export const selectBackgroundError = (state) => state.background.error;
-export const selectSelectedBackground = (state) => state.background.selectedBackground;
+export const selectSelectedBackground = (state) =>
+  state.background.selectedBackground;
 
 // Helper selectors
-export const selectAvailableBackgrounds = (state) => 
-  state.background.backgroundSuggestions.filter(bg => bg.isAvailable);
+export const selectAvailableBackgrounds = (state) =>
+  state.background.backgroundSuggestions.filter((bg) => bg.isAvailable);
 
-export const selectBackgroundById = (state, backgroundId) => 
-  state.background.backgroundSuggestions.find(bg => bg.id === backgroundId);
-
+export const selectBackgroundById = (state, backgroundId) =>
+  state.background.backgroundSuggestions.find((bg) => bg.id === backgroundId);
+export const selectEditedDesign = (state) => state.background.editedDesign;
+export const selectEditedDesignStatus = (state) =>
+  state.background.editedDesignStatus;
+export const selectEditedDesignError = (state) =>
+  state.background.editedDesignError;
 export default backgroundSlice.reducer;

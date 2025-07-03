@@ -83,11 +83,11 @@ export const createOrderApi = async (customerChoiceId, orderData) => {
     };
   }
 };
-export const createAiOrderApi = async (aiDesignId, customerChoiceId, orderData) => {
+export const createAiOrderApi = async (editedDesignId, customerChoiceId, orderData) => {
   try {
-    console.log("Gọi API tạo AI order với:", { aiDesignId, customerChoiceId, orderData });
-    
-    const response = await orderService.post(`/api/ai-designs/${aiDesignId}/customer-choices/${customerChoiceId}/orders`, {
+    console.log("Gọi API tạo AI order với:", { editedDesignId, customerChoiceId, orderData });
+
+    const response = await orderService.post(`/api/edited-designs/${editedDesignId}/customer-choices/${customerChoiceId}/orders`, {
       totalAmount: orderData.totalAmount,
       depositAmount: orderData.depositAmount || 0,
       remainingAmount: orderData.remainingAmount || orderData.totalAmount,

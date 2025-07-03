@@ -88,6 +88,10 @@ const aiSlice = createSlice({
       state.imageGenerationError = null;
       state.generatedImage = null;
     },
+   setCurrentAIDesign: (state, action) => {
+      state.currentAIDesign = action.payload;
+      console.log('Current AI Design set:', action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -132,7 +136,7 @@ const aiSlice = createSlice({
   },
 });
 
-export const { resetAIStatus } = aiSlice.actions;
+export const { resetAIStatus,setCurrentAIDesign, resetImageGeneration } = aiSlice.actions;
 
 // Selectors
 export const selectCurrentAIDesign = (state) => state.ai.currentAIDesign;

@@ -42,6 +42,7 @@ import {
   ManageAccounts as ManageAccountsIcon,
   List as ListIcon,
   Assignment as AssignmentIcon,
+  SupportAgent as SupportAgentIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
@@ -57,10 +58,10 @@ const drawerWidth = 240;
 // Define all sidebar menu items for Manager
 const menuItems = [
   { id: "dashboard", text: "Dashboard", icon: <DashboardIcon /> },
-   {
-    id: "order-management", 
-    text: "Quản lý sản xuất", 
-    icon: <PrecisionManufacturingIcon /> 
+  {
+    id: "order-management",
+    text: "Quản lý sản xuất",
+    icon: <PrecisionManufacturingIcon />,
   },
   {
     id: "product",
@@ -97,6 +98,7 @@ const menuItems = [
   },
   { id: "statistics", text: "Statistics", icon: <StatisticsIcon /> },
   { id: "settings", text: "Settings", icon: <ManageAccountsIcon /> },
+  { id: "support-ticket", text: "Hỗ trợ", icon: <SupportAgentIcon /> },
 ];
 
 const ManagerLayout = () => {
@@ -367,33 +369,35 @@ const ManagerLayout = () => {
       </Drawer>
 
       <Box
-  component="main"
-  sx={{
-    flexGrow: 1,
-    p: 3,
-    backgroundColor: "#f9fafc",
-    height: "calc(100vh - 64px)",
-    overflow: "auto",
-  }}
->
-  <Toolbar />
-  {activeTab === "order-management" && <OrderManager />}
-  {activeTab === "product-type" && <ProductTypeManager />}
-  {activeTab === "product-size" && <ProductSizeManager />}
-  {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
-  {activeTab === "size-management" && <SizeManager />}
-  {activeTab === "product-type-attribute" && (
-    <ProductAttributeManagement />
-  )}
-  {activeTab === "attribute-value" && <AttributeValueManager />}
-  {activeTab !== "order-management" &&
-    activeTab !== "product-type" &&
-    activeTab !== "product-size" &&
-    activeTab !== "fine-tune-ai" &&
-    activeTab !== "size-management" &&
-    activeTab !== "product-type-attribute" &&
-    activeTab !== "attribute-value" && <Outlet context={{ activeTab }} />}
-</Box>
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          backgroundColor: "#f9fafc",
+          height: "calc(100vh - 64px)",
+          overflow: "auto",
+        }}
+      >
+        <Toolbar />
+        {activeTab === "order-management" && <OrderManager />}
+        {activeTab === "product-type" && <ProductTypeManager />}
+        {activeTab === "product-size" && <ProductSizeManager />}
+        {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
+        {activeTab === "size-management" && <SizeManager />}
+        {activeTab === "product-type-attribute" && (
+          <ProductAttributeManagement />
+        )}
+        {activeTab === "attribute-value" && <AttributeValueManager />}
+        {activeTab === "support-ticket" && <Outlet context={{ activeTab }} />}
+        {activeTab !== "order-management" &&
+          activeTab !== "product-type" &&
+          activeTab !== "product-size" &&
+          activeTab !== "fine-tune-ai" &&
+          activeTab !== "size-management" &&
+          activeTab !== "product-type-attribute" &&
+          activeTab !== "attribute-value" &&
+          activeTab !== "support-ticket" && <Outlet context={{ activeTab }} />}
+      </Box>
     </Box>
   );
 };
