@@ -1,0 +1,106 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { fetchBackgroundSuggestionsByCustomerChoiceIdApi } from '../../../api/backgroundService';
+
+// Initial state
+const initialState = {
+  backgroundSuggestions: [],
+  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: null,
+  selectedBackground: null
+};
+
+// Async thunk for fetching background suggestions by customer choice ID
+export const fetchBackgroundSuggestionsByCustomerChoiceId = createAsyncThunk(
+  'background/fetchSuggestionsByCustomerChoiceId',
+  async (customerChoiceId, { rejectWithValue }) => {
+    try {
+      console.log('Fetching background suggestions for customer choice:', customerChoiceId);
+      
+      const response = await fetchBackgroundSuggestionsByCustomerChoiceIdApi(customerChoiceId);
+      
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to fetch background suggestions');
+      }
+      
+      console.log('Background suggestions fetched successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error in background suggestions thunk:', error);
+      return rejectWithValue(error.message || 'Something went wrong');
+    }
+  }
+);
+
+// Background slice
+const backgroundSlice = createSlice({
+  name: 'background',
+  initialState,
+  reducers: {
+    // Reset status when needed
+    resetBackgroundStatus: (state) => {
+      state.status = 'idle';
+      state.error = null;
+    },
+    // Set a selected background for preview or editing
+    setSelectedBackground: (state, action) => {
+      state.selectedBackground = action.payload;
+      console.log('Selected background set:', action.payload);
+    },
+    // Clear selected background
+    clearSelectedBackground: (state) => {
+      state.selectedBackground = null;
+      console.log('Selected background cleared');
+    },
+    // Clear all background suggestions
+    clearBackgroundSuggestions: (state) => {
+      state.backgroundSuggestions = [];
+      state.status = 'idle';
+      state.error = null;
+      console.log('Background suggestions cleared');
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch background suggestions cases
+      .addCase(fetchBackgroundSuggestionsByCustomerChoiceId.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+        console.log('Fetching background suggestions...');
+      })
+      .addCase(fetchBackgroundSuggestionsByCustomerChoiceId.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.backgroundSuggestions = action.payload;
+        state.error = null;
+        console.log('Background suggestions loaded successfully:', action.payload.length, 'items');
+      })
+      .addCase(fetchBackgroundSuggestionsByCustomerChoiceId.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+        state.backgroundSuggestions = [];
+        console.error('Failed to fetch background suggestions:', action.payload);
+      });
+  }
+});
+
+// Export actions
+export const {
+  resetBackgroundStatus,
+  setSelectedBackground,
+  clearSelectedBackground,
+  clearBackgroundSuggestions
+} = backgroundSlice.actions;
+
+// Export selectors
+export const selectAllBackgroundSuggestions = (state) => state.background.backgroundSuggestions;
+export const selectBackgroundStatus = (state) => state.background.status;
+export const selectBackgroundError = (state) => state.background.error;
+export const selectSelectedBackground = (state) => state.background.selectedBackground;
+
+// Helper selectors
+export const selectAvailableBackgrounds = (state) => 
+  state.background.backgroundSuggestions.filter(bg => bg.isAvailable);
+
+export const selectBackgroundById = (state, backgroundId) => 
+  state.background.backgroundSuggestions.find(bg => bg.id === backgroundId);
+
+export default backgroundSlice.reducer;
