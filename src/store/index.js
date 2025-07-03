@@ -18,6 +18,8 @@ import paymentReducer from "./features/payment/paymentSlice";
 import demoReducer from "./features/demo/demoSlice";
 import impressionReducer from "./features/impression/impressionSlice";
 
+import backgroundReducer from "./features/background/backgroundSlice";
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -38,6 +40,9 @@ export const store = configureStore({
     payment: paymentReducer,
     demo: demoReducer,
     impression: impressionReducer,
+
+    background: backgroundReducer,
+    // Thêm các reducer khác tại đây
   },
 });
 

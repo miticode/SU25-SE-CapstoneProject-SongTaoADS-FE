@@ -102,6 +102,18 @@ import {
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 import jsPDF from "jspdf";
+import {
+  fetchBackgroundSuggestionsByCustomerChoiceId,
+  selectAllBackgroundSuggestions,
+  selectBackgroundError,
+  selectBackgroundStatus,
+  selectSelectedBackground,
+  setSelectedBackground,
+  clearSelectedBackground,
+  clearBackgroundSuggestions,
+  resetBackgroundStatus,
+} from "../store/features/background/backgroundSlice";
+import { getPresignedUrl } from "../api/s3Service";
 const ModernBillboardForm = ({
   attributes,
   status,
@@ -138,6 +150,7 @@ const ModernBillboardForm = ({
   const [isEditingSizes, setIsEditingSizes] = useState(false);
   const totalAmount = useSelector(selectTotalAmount);
   const [attributePrices, setAttributePrices] = useState({});
+
   const fetchCustomerChoiceStatus = useSelector(
     selectFetchCustomerChoiceStatus
   );
@@ -151,8 +164,6 @@ const ModernBillboardForm = ({
       attributes.length > 0 &&
       Object.keys(attributeValuesState).length > 0
     ) {
-      console.log("=== CREATING ATTRIBUTE PRICES MAPPING ===");
-
       const newAttributePrices = {};
 
       // Duyệt qua tất cả customerChoiceDetails (mapped by attributeValueId)
@@ -175,9 +186,7 @@ const ModernBillboardForm = ({
 
               if (hasThisValue) {
                 foundAttributeId = attribute.id;
-                console.log(
-                  `✅ Found attribute ${foundAttributeId} for value ${attributeValueId} with price ${detail.subTotal}`
-                );
+
                 break;
               }
             }
@@ -189,9 +198,6 @@ const ModernBillboardForm = ({
                 attributeValueName:
                   detail.attributeValueName || detail.attributeValues?.name,
               };
-              console.log(
-                `✅ Mapped price: ${foundAttributeId} -> ${detail.subTotal}`
-              );
             } else {
               console.warn(
                 `❌ Could not find attributeId for value ${attributeValueId}`
@@ -447,18 +453,9 @@ const ModernBillboardForm = ({
 
   useEffect(() => {
     if (attributes && attributes.length > 0) {
-      console.log(
-        "🚀 Loading attribute values for attributes:",
-        attributes.map((a) => `${a.id}:${a.name}`)
-      );
-
       // Fetch attribute values cho tất cả attributes với size lớn hơn
       attributes.forEach((attr) => {
         const currentStatus = attributeValuesStatusState[attr.id];
-        console.log(
-          `📊 Attribute ${attr.id} (${attr.name}) status:`,
-          currentStatus
-        );
 
         if (currentStatus === "idle" || currentStatus === undefined) {
           console.log(
@@ -1070,10 +1067,6 @@ const ModernBillboardForm = ({
 
                     <Grid container spacing={2}>
                       {attrs.map((attr) => {
-                        console.log(
-                          `Rendering attribute ${attr.id}, details:`,
-                          customerChoiceDetails[attr.id] || "Not loaded yet"
-                        );
                         const attributeValues =
                           attributeValuesState[attr.id] || [];
                         const isLoadingValues =
@@ -1429,6 +1422,14 @@ const AIDesign = () => {
   const [currentProductType, setCurrentProductType] = useState(null);
   const hasFetchedDataRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
+  const [currentSubStep, setCurrentSubStep] = useState("template"); // 'template' hoặc 'background'
+  const backgroundSuggestions = useSelector(selectAllBackgroundSuggestions);
+  const backgroundStatus = useSelector(selectBackgroundStatus);
+  const backgroundError = useSelector(selectBackgroundError);
+  const selectedBackground = useSelector(selectSelectedBackground);
+  const [selectedBackgroundId, setSelectedBackgroundId] = useState(null);
+  const [backgroundPresignedUrls, setBackgroundPresignedUrls] = useState({});
+  const [loadingBackgroundUrls, setLoadingBackgroundUrls] = useState({});
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -1555,6 +1556,63 @@ const AIDesign = () => {
       ? selectS3Image(state, businessPresets.logoUrl)
       : null
   );
+  const fetchBackgroundPresignedUrl = async (backgroundId, backgroundUrl) => {
+    if (
+      backgroundPresignedUrls[backgroundId] ||
+      loadingBackgroundUrls[backgroundId]
+    ) {
+      return; // Đã có URL hoặc đang loading
+    }
+
+    try {
+      setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: true }));
+
+      console.log("Fetching presigned URL for background:", backgroundUrl);
+
+      // Lấy key từ backgroundUrl (giả sử backgroundUrl là S3 key)
+      const key = backgroundUrl;
+      const result = await getPresignedUrl(key, 60); // 60 phút để hiển thị
+
+      if (result.success) {
+        setBackgroundPresignedUrls((prev) => ({
+          ...prev,
+          [backgroundId]: result.url,
+        }));
+        console.log(
+          "Presigned URL fetched successfully for background:",
+          backgroundId
+        );
+      } else {
+        console.error("Failed to get presigned URL:", result.message);
+      }
+    } catch (error) {
+      console.error("Error fetching presigned URL for background:", error);
+    } finally {
+      setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: false }));
+    }
+  };
+  useEffect(() => {
+    if (backgroundSuggestions && backgroundSuggestions.length > 0) {
+      backgroundSuggestions.forEach((background) => {
+        if (
+          background.backgroundUrl &&
+          !backgroundPresignedUrls[background.id]
+        ) {
+          fetchBackgroundPresignedUrl(background.id, background.backgroundUrl);
+        }
+      });
+    }
+  }, [backgroundSuggestions, backgroundPresignedUrls]);
+  useEffect(() => {
+    return () => {
+      // Cleanup presigned URLs khi component unmount
+      Object.values(backgroundPresignedUrls).forEach((url) => {
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [backgroundPresignedUrls]);
   useEffect(() => {
     if (currentStep === 6 && user?.id) {
       // Fetch customer detail để lấy business info
@@ -2282,10 +2340,63 @@ const AIDesign = () => {
   };
   useEffect(() => {
     if (currentStep === 4.5 && billboardType) {
-      console.log("Fetching design templates for product type:", billboardType);
-      dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) ||
+        currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      console.log("Step 4.5 - isAiGenerated:", isAiGenerated);
+
+      if (isAiGenerated) {
+        console.log(
+          "Fetching design templates for AI product type:",
+          billboardType
+        );
+        dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+      } else {
+        console.log("Fetching background suggestions for non-AI product type");
+        if (currentOrder?.id) {
+          dispatch(
+            fetchBackgroundSuggestionsByCustomerChoiceId(currentOrder.id)
+          );
+        }
+      }
     }
-  }, [currentStep, billboardType, dispatch]);
+  }, [
+    currentStep,
+    billboardType,
+    dispatch,
+    productTypes,
+    currentProductType,
+    currentOrder?.id,
+  ]);
+  useEffect(() => {
+    if (currentStep === 4.5) {
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) ||
+        currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      if (isAiGenerated) {
+        setCurrentSubStep("template");
+      } else {
+        setCurrentSubStep("background");
+        if (currentOrder?.id && backgroundSuggestions.length === 0) {
+          dispatch(
+            fetchBackgroundSuggestionsByCustomerChoiceId(currentOrder.id)
+          );
+        }
+      }
+    }
+  }, [
+    currentStep,
+    billboardType,
+    productTypes,
+    currentProductType,
+    currentOrder?.id,
+    backgroundSuggestions.length,
+    dispatch,
+  ]);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const step = params.get("step");
@@ -2472,7 +2583,6 @@ const AIDesign = () => {
 
       // Nếu có logoUrl, gọi fetchImageFromS3
       if (customerDetail.logoUrl) {
-        console.log("Fetching logo from S3:", customerDetail.logoUrl);
         dispatch(fetchImageFromS3(customerDetail.logoUrl));
       }
     }
@@ -2680,7 +2790,7 @@ const AIDesign = () => {
     }
   };
 
-  const handleBillboardSubmit = (e) => {
+  const handleBillboardSubmit = async (e) => {
     e.preventDefault();
     console.log("Billboard form submitted");
 
@@ -2693,12 +2803,49 @@ const AIDesign = () => {
       return;
     }
 
-    console.log("Sizes confirmed, proceeding to sample products step");
+    console.log("Sizes confirmed, proceeding to step 4.5");
 
-    // Directly change to case 4.5 without showing loading animation
+    // Lấy thông tin product type hiện tại để kiểm tra isAiGenerated
+    const currentProductTypeInfo =
+      productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+    const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+    console.log("Product type isAiGenerated:", isAiGenerated);
+
+    if (isAiGenerated) {
+      // Nếu là AI Generated -> hiển thị Design Templates
+      setCurrentSubStep("template");
+      console.log("Showing design templates for AI generated product");
+    } else {
+      // Nếu không phải AI Generated -> hiển thị Background Suggestions
+      setCurrentSubStep("background");
+      console.log("Showing background suggestions for non-AI product");
+
+      // Fetch background suggestions
+      if (currentOrder?.id) {
+        console.log(
+          "Fetching background suggestions for customer choice:",
+          currentOrder.id
+        );
+        try {
+          await dispatch(
+            fetchBackgroundSuggestionsByCustomerChoiceId(currentOrder.id)
+          ).unwrap();
+          console.log("Background suggestions fetched successfully");
+        } catch (error) {
+          console.error("Failed to fetch background suggestions:", error);
+          setSnackbar({
+            open: true,
+            message: "Không thể tải đề xuất background. Vui lòng thử lại.",
+            severity: "error",
+          });
+        }
+      }
+    }
+
+    // Move to step 4.5
     setCurrentStep(4.5);
     navigate("/ai-design");
-    console.log("Navigation complete");
   };
   const handleSelectSampleProduct = (productId) => {
     setSelectedSampleProduct(productId);
@@ -2900,6 +3047,7 @@ const AIDesign = () => {
       }
     }
   }, [currentProductType, billboardType, productTypes]);
+
   const handleBillboardTypeSelect = async (productTypeId) => {
     // First check if we have the customer details
     if (!user?.id) {
@@ -3739,7 +3887,15 @@ const AIDesign = () => {
           </motion.div>
         );
       }
-      case 4.5:
+      case 4.5: {
+        // Thêm dấu ngoặc nhọn để tạo block scope
+        const currentProductTypeInfo =
+          productTypes.find((pt) => pt.id === billboardType) ||
+          currentProductType;
+        const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+        // Tự động set currentSubStep dựa trên isAiGenerated
+
         return (
           <motion.div
             className="max-w-4xl mx-auto"
@@ -3747,129 +3903,375 @@ const AIDesign = () => {
             initial="hidden"
             animate="visible"
           >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-6 text-center"
-              variants={itemVariants}
-            >
-              Chọn mẫu thiết kế
-            </motion.h2>
+            {/* Header không có tabs */}
+            <motion.div className="text-center mb-6" variants={itemVariants}>
+              <h2 className="text-3xl font-bold text-custom-dark mb-4">
+                {isAiGenerated
+                  ? "Chọn mẫu thiết kế"
+                  : "Chọn background phù hợp"}
+              </h2>
 
-            <motion.p
-              className="text-gray-600 mb-8 text-center"
-              variants={itemVariants}
-            >
-              Chọn một mẫu thiết kế phù hợp với doanh nghiệp của bạn
-            </motion.p>
+              <p className="text-gray-600">
+                {isAiGenerated
+                  ? "Chọn một mẫu thiết kế AI phù hợp với doanh nghiệp của bạn"
+                  : "Chọn một background phù hợp dựa trên thông số bạn đã chọn"}
+              </p>
+            </motion.div>
 
-            {designTemplateStatus === "loading" ? (
-              <div className="flex justify-center items-center py-12">
-                <CircularProgress size={60} color="primary" />
-                <p className="ml-4 text-gray-600">Đang tải mẫu thiết kế...</p>
-              </div>
-            ) : designTemplateStatus === "failed" ? (
-              <div className="text-center py-8 bg-red-50 rounded-lg">
-                <p className="text-red-500">
-                  {designTemplateError ||
-                    "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
-                </p>
-                <button
-                  onClick={() =>
-                    dispatch(fetchDesignTemplatesByProductTypeId(billboardType))
-                  }
-                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                >
-                  Tải lại
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                {designTemplates && designTemplates.length > 0 ? (
-                  designTemplates.map((template) => (
-                    <motion.div
-                      key={template.id}
-                      variants={cardVariants}
-                      whileHover="hover"
-                      className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
-                        selectedSampleProduct === template.id
-                          ? "ring-4 ring-custom-secondary scale-105"
-                          : "hover:scale-105"
-                      }`}
-                      onClick={() => handleSelectSampleProduct(template.id)}
-                    >
-                      <img
-                        src={template.image}
-                        alt={template.name}
-                        className="w-full h-64 object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                        <div className="bg-white rounded-full p-2">
-                          <FaCheck className="w-6 h-6 text-custom-secondary" />
-                        </div>
-                      </div>
-                      {selectedSampleProduct === template.id && (
-                        <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                          <FaCheckCircle className="w-6 h-6" />
-                        </div>
-                      )}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
-                        <h3 className="font-medium text-lg">{template.name}</h3>
-                        <p className="text-sm text-gray-300 truncate">
-                          {template.description}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-8">
-                    <p className="text-gray-500">
-                      Không có mẫu thiết kế nào cho loại biển hiệu này
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Display design notes area only after selecting a template */}
-            {selectedSampleProduct && (
+            {/* Design Templates Section - Chỉ hiển thị khi isAiGenerated = true */}
+            {isAiGenerated && (
               <motion.div
-                className="mb-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                  <h3 className="text-xl font-semibold mb-4 flex items-center">
-                    <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
-                    Ghi chú thiết kế{" "}
-                    <span className="text-red-500 ml-1">*</span>
-                  </h3>
-                  <textarea
-                    className={`w-full px-4 py-3 border ${
-                      selectedSampleProduct && !customerNote.trim()
-                        ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                        : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
-                    } rounded-lg focus:ring-2 transition-all`}
-                    rows="3"
-                    name="designNotes"
-                    placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
-                    value={customerNote}
-                    onChange={(e) => setCustomerNote(e.target.value)}
-                  ></textarea>
-                  <div className="flex justify-between mt-2">
-                    <p className="text-gray-500 text-sm italic">
-                      Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu
-                      của bạn
-                    </p>
-                    <p className="text-red-500 text-sm">
-                      {selectedSampleProduct && !customerNote.trim()
-                        ? "Vui lòng nhập ghi chú thiết kế"
-                        : ""}
+                {designTemplateStatus === "loading" ? (
+                  <div className="flex justify-center items-center py-12">
+                    <CircularProgress size={60} color="primary" />
+                    <p className="ml-4 text-gray-600">
+                      Đang tải mẫu thiết kế...
                     </p>
                   </div>
-                </div>
+                ) : designTemplateStatus === "failed" ? (
+                  <div className="text-center py-8 bg-red-50 rounded-lg">
+                    <p className="text-red-500">
+                      {designTemplateError ||
+                        "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
+                    </p>
+                    <button
+                      onClick={() =>
+                        dispatch(
+                          fetchDesignTemplatesByProductTypeId(billboardType)
+                        )
+                      }
+                      className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    >
+                      Tải lại
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    {designTemplates && designTemplates.length > 0 ? (
+                      designTemplates.map((template) => (
+                        <motion.div
+                          key={template.id}
+                          variants={cardVariants}
+                          whileHover="hover"
+                          className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                            selectedSampleProduct === template.id
+                              ? "ring-4 ring-custom-secondary scale-105"
+                              : "hover:scale-105"
+                          }`}
+                          onClick={() => handleSelectSampleProduct(template.id)}
+                        >
+                          <img
+                            src={template.image}
+                            alt={template.name}
+                            className="w-full h-64 object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                            <div className="bg-white rounded-full p-2">
+                              <FaCheck className="w-6 h-6 text-custom-secondary" />
+                            </div>
+                          </div>
+                          {selectedSampleProduct === template.id && (
+                            <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                              <FaCheckCircle className="w-6 h-6" />
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
+                            <h3 className="font-medium text-lg">
+                              {template.name}
+                            </h3>
+                            <p className="text-sm text-gray-300 truncate">
+                              {template.description}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="col-span-2 text-center py-8">
+                        <p className="text-gray-500">
+                          Không có mẫu thiết kế nào cho loại biển hiệu này
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer Note cho Design Template */}
+                {selectedSampleProduct && (
+                  <motion.div
+                    className="mb-8"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                      <h3 className="text-xl font-semibold mb-4 flex items-center">
+                        <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
+                        Ghi chú thiết kế{" "}
+                        <span className="text-red-500 ml-1">*</span>
+                      </h3>
+                      <textarea
+                        className={`w-full px-4 py-3 border ${
+                          selectedSampleProduct && !customerNote.trim()
+                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                            : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
+                        } rounded-lg focus:ring-2 transition-all`}
+                        rows="3"
+                        name="designNotes"
+                        placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
+                        value={customerNote}
+                        onChange={(e) => setCustomerNote(e.target.value)}
+                      ></textarea>
+                      <div className="flex justify-between mt-2">
+                        <p className="text-gray-500 text-sm italic">
+                          Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu
+                          cầu của bạn
+                        </p>
+                        <p className="text-red-500 text-sm">
+                          {selectedSampleProduct && !customerNote.trim()
+                            ? "Vui lòng nhập ghi chú thiết kế"
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
 
+            {/* Background Suggestions Section - Chỉ hiển thị khi isAiGenerated = false */}
+            {!isAiGenerated && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {backgroundStatus === "loading" ? (
+                  <div className="flex justify-center items-center py-12">
+                    <CircularProgress size={60} color="primary" />
+                    <p className="ml-4 text-gray-600">
+                      Đang tải đề xuất background...
+                    </p>
+                  </div>
+                ) : backgroundStatus === "failed" ? (
+                  <div className="text-center py-8 bg-red-50 rounded-lg">
+                    <p className="text-red-500">
+                      {backgroundError ||
+                        "Không thể tải đề xuất background. Vui lòng thử lại."}
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (currentOrder?.id) {
+                          dispatch(
+                            fetchBackgroundSuggestionsByCustomerChoiceId(
+                              currentOrder.id
+                            )
+                          );
+                        }
+                      }}
+                      className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    >
+                      Tải lại
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {backgroundSuggestions &&
+                    backgroundSuggestions.length > 0 ? (
+                      backgroundSuggestions.map((background) => {
+                        // Lấy presigned URL cho background này
+                        const presignedUrl =
+                          backgroundPresignedUrls[background.id];
+                        const isLoadingUrl =
+                          loadingBackgroundUrls[background.id];
+
+                        return (
+                          <motion.div
+                            key={background.id}
+                            variants={cardVariants}
+                            whileHover="hover"
+                            className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                              selectedBackgroundId === background.id
+                                ? "ring-4 ring-custom-secondary scale-105"
+                                : "hover:scale-105"
+                            }`}
+                            onClick={() => {
+                              setSelectedBackgroundId(background.id);
+                              dispatch(setSelectedBackground(background));
+                            }}
+                          >
+                            {/* Background Image - Tăng kích thước từ h-48 lên h-64 */}
+                            <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
+                              {isLoadingUrl ? (
+                                <div className="flex flex-col items-center">
+                                  <CircularProgress size={24} />
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Đang tải ảnh...
+                                  </p>
+                                </div>
+                              ) : presignedUrl ? (
+                                <img
+                                  src={presignedUrl}
+                                  alt={background.name}
+                                  className="w-full h-64 object-cover"
+                                  onLoad={() => {
+                                    console.log(
+                                      "Background image loaded successfully:",
+                                      background.id
+                                    );
+                                  }}
+                                  onError={(e) => {
+                                    console.error(
+                                      "Error loading background image:",
+                                      presignedUrl
+                                    );
+                                    // Fallback: thử lại với original URL
+                                    if (
+                                      e.target.src !== background.backgroundUrl
+                                    ) {
+                                      console.log(
+                                        "Trying fallback URL:",
+                                        background.backgroundUrl
+                                      );
+                                      e.target.src = background.backgroundUrl;
+                                    } else {
+                                      // Hiển thị placeholder nếu cả hai đều fail
+                                      e.target.src =
+                                        "https://via.placeholder.com/400x300?text=Background+Not+Available";
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center text-gray-400">
+                                  <FaPalette className="w-8 h-8 mb-2" />
+                                  <p className="text-xs">Không thể tải ảnh</p>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      fetchBackgroundPresignedUrl(
+                                        background.id,
+                                        background.backgroundUrl
+                                      );
+                                    }}
+                                    className="text-xs text-blue-500 hover:text-blue-700 mt-1"
+                                  >
+                                    Thử lại
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                              <div className="bg-white rounded-full p-2">
+                                <FaCheck className="w-6 h-6 text-custom-secondary" />
+                              </div>
+                            </div>
+
+                            {/* Selected indicator */}
+                            {selectedBackgroundId === background.id && (
+                              <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                                <FaCheckCircle className="w-6 h-6" />
+                              </div>
+                            )}
+
+                            {/* Background info - Tăng chiều cao và hiển thị đầy đủ description */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent text-white p-3">
+                              <h3 className="font-medium text-base mb-1 leading-tight">
+                                {background.name}
+                              </h3>
+
+                              {/* Tooltip cho description */}
+                              <div className="group/tooltip relative">
+                                <p className="text-sm text-gray-200 truncate cursor-help">
+                                  {background.description}
+                                </p>
+
+                                {/* Tooltip hiển thị full description */}
+                                <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-black/95 text-white text-xs rounded opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-10">
+                                  {background.description}
+                                </div>
+                              </div>
+
+                              {background.attributeValues && (
+                                <p className="text-xs text-blue-200 mt-1">
+                                  🏷️ {background.attributeValues.name}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Unavailable overlay */}
+                            {!background.isAvailable && (
+                              <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
+                                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                  Không khả dụng
+                                </span>
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      <div className="col-span-3 text-center py-8">
+                        <FaPalette className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">
+                          Không có đề xuất background nào phù hợp
+                        </p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          Thử thay đổi các thông số kỹ thuật để có thêm đề xuất
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer Note cho Background */}
+                {selectedBackgroundId && (
+                  <motion.div
+                    className="mb-8"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                      <h3 className="text-xl font-semibold mb-4 flex items-center">
+                        <span className="inline-block w-1 h-4 bg-purple-500 mr-2 rounded"></span>
+                        Ghi chú thiết kế với background{" "}
+                        <span className="text-red-500 ml-1">*</span>
+                      </h3>
+                      <textarea
+                        className={`w-full px-4 py-3 border ${
+                          selectedBackgroundId && !customerNote.trim()
+                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                            : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
+                        } rounded-lg focus:ring-2 transition-all`}
+                        rows="3"
+                        name="backgroundNotes"
+                        placeholder="Mô tả cách bạn muốn sử dụng background này cho thiết kế..."
+                        value={customerNote}
+                        onChange={(e) => setCustomerNote(e.target.value)}
+                      ></textarea>
+                      <div className="flex justify-between mt-2">
+                        <p className="text-gray-500 text-sm italic">
+                          Mô tả chi tiết sẽ giúp chúng tôi thiết kế phù hợp hơn
+                          với background đã chọn
+                        </p>
+                        <p className="text-red-500 text-sm">
+                          {selectedBackgroundId && !customerNote.trim()
+                            ? "Vui lòng nhập ghi chú thiết kế"
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Navigation Buttons */}
             <motion.div
               className="flex justify-between mt-8"
               variants={itemVariants}
@@ -3899,25 +4301,116 @@ const AIDesign = () => {
 
               <motion.button
                 type="button"
-                onClick={handleContinueToPreview}
+                onClick={() => {
+                  if (isAiGenerated) {
+                    // Logic cho Design Template
+                    if (!selectedSampleProduct) {
+                      setSnackbar({
+                        open: true,
+                        message:
+                          "Vui lòng chọn một mẫu thiết kế trước khi tiếp tục",
+                        severity: "warning",
+                      });
+                      return;
+                    }
+                    if (!customerNote.trim()) {
+                      setSnackbar({
+                        open: true,
+                        message:
+                          "Vui lòng nhập ghi chú thiết kế trước khi tiếp tục",
+                        severity: "warning",
+                      });
+                      return;
+                    }
+                    // Proceed với AI generation
+                    handleContinueToPreview();
+                  } else {
+                    // Logic cho Background
+                    if (!selectedBackgroundId) {
+                      setSnackbar({
+                        open: true,
+                        message:
+                          "Vui lòng chọn một background trước khi tiếp tục",
+                        severity: "warning",
+                      });
+                      return;
+                    }
+                    if (!customerNote.trim()) {
+                      setSnackbar({
+                        open: true,
+                        message:
+                          "Vui lòng nhập ghi chú thiết kế trước khi tiếp tục",
+                        severity: "warning",
+                      });
+                      return;
+                    }
+                    // Navigate to manual design với background đã chọn
+                    navigate("/custom-design", {
+                      state: {
+                        customerChoiceId: currentOrder?.id,
+                        selectedType: billboardType,
+                        selectedBackground: selectedBackground,
+                        businessInfo: {
+                          companyName:
+                            businessInfo.companyName ||
+                            customerDetail?.companyName ||
+                            "",
+                          address:
+                            businessInfo.address ||
+                            customerDetail?.address ||
+                            "",
+                          contactInfo:
+                            businessInfo.contactInfo ||
+                            customerDetail?.contactInfo ||
+                            "",
+                          logoUrl:
+                            businessInfo.logoPreview ||
+                            customerDetail?.logoUrl ||
+                            "",
+                        },
+                        customerNote: customerNote,
+                      },
+                    });
+                  }
+                }}
                 className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  selectedSampleProduct && customerNote.trim()
+                  (isAiGenerated &&
+                    selectedSampleProduct &&
+                    customerNote.trim()) ||
+                  (!isAiGenerated &&
+                    selectedBackgroundId &&
+                    customerNote.trim())
                     ? "bg-custom-primary text-white hover:bg-custom-secondary"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
                 whileHover={
-                  selectedSampleProduct && customerNote.trim()
+                  (isAiGenerated &&
+                    selectedSampleProduct &&
+                    customerNote.trim()) ||
+                  (!isAiGenerated &&
+                    selectedBackgroundId &&
+                    customerNote.trim())
                     ? { scale: 1.02 }
                     : {}
                 }
                 whileTap={
-                  selectedSampleProduct && customerNote.trim()
+                  (isAiGenerated &&
+                    selectedSampleProduct &&
+                    customerNote.trim()) ||
+                  (!isAiGenerated &&
+                    selectedBackgroundId &&
+                    customerNote.trim())
                     ? { scale: 0.98 }
                     : {}
                 }
-                disabled={!selectedSampleProduct || !customerNote.trim()}
+                disabled={
+                  (isAiGenerated &&
+                    (!selectedSampleProduct || !customerNote.trim())) ||
+                  (!isAiGenerated &&
+                    (!selectedBackgroundId || !customerNote.trim()))
+                }
               >
-                Tiếp tục
+                {isAiGenerated ? "Tạo thiết kế AI" : "Thiết kế với Background"}
                 <svg
                   className="w-5 h-5 ml-1"
                   fill="none"
@@ -3935,6 +4428,7 @@ const AIDesign = () => {
             </motion.div>
           </motion.div>
         );
+      } // Đóng dấu ngoặc nhọn cho case 4.5
       case 5:
         return (
           <motion.div
