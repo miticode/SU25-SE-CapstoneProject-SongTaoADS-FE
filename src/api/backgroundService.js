@@ -77,5 +77,36 @@ export const fetchBackgroundSuggestionsByCustomerChoiceIdApi = async (customerCh
     };
   }
 };
-
+export const createEditedDesignWithBackground = async (customerDetailId, backgroundId, formData) => {
+  try {
+    console.log(`Creating edited design for customer: ${customerDetailId}, background: ${backgroundId}`);
+    
+    const response = await backgroundService.post(
+      `/api/customer-details/${customerDetailId}/backgrounds/${backgroundId}/edited-designs`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    
+    console.log('Create edited design API Response:', response.data);
+    
+    const { success, result, message } = response.data;
+    
+    if (success && result) {
+      console.log('Edited design created successfully:', result);
+      return { success: true, data: result };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error creating edited design:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create edited design'
+    };
+  }
+};
 export default backgroundService;
