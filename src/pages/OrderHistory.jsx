@@ -195,6 +195,7 @@ const OrderHistory = () => {
   });
 
   // const [depositLoadingId, setDepositLoadingId] = useState(null);
+  const [depositLoadingId, setDepositLoadingId] = useState(null);
   const s3FinalImageUrl = useSelector((state) =>
     currentDesignRequest?.finalDesignImage
       ? state.s3.images[currentDesignRequest.finalDesignImage]
@@ -793,10 +794,6 @@ const OrderHistory = () => {
     try {
       const result = await dispatch(getOrderContract(orderId));
       if (getOrderContract.fulfilled.match(result)) {
-        setContractData((prev) => ({
-          ...prev,
-          [orderId]: result.payload,
-        }));
         setContractDialog({
           open: true,
           contract: result.payload,
@@ -1260,11 +1257,11 @@ const OrderHistory = () => {
 
   // Hàm xử lý đặt cọc custom design (redirect thẳng)
   const handleCustomDeposit = (customDesignRequestId) => {
-    // setDepositLoadingId(customDesignRequestId);
+    setDepositLoadingId(customDesignRequestId);
     dispatch(payCustomDesignDepositThunk(customDesignRequestId))
       .unwrap()
       .then((res) => {
-        // setDepositLoadingId(null);
+        setDepositLoadingId(null);
         const checkoutUrl = res.result?.checkoutUrl;
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
@@ -1277,7 +1274,7 @@ const OrderHistory = () => {
         }
       })
       .catch((err) => {
-        // setDepositLoadingId(null);
+        setDepositLoadingId(null);
         setNotification({
           open: true,
           message: err || "Không thể tạo link thanh toán",
@@ -3106,10 +3103,8 @@ const OrderHistory = () => {
                     bgcolor="#e1f5fe"
                   >
                     <Typography variant="body2">
-                      <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Bạn có thể xem đơn hàng thi công ở tab "Lịch sử đơn hàng"
+                      <b>Đã chọn thi công:</b> Đơn hàng đã được tạo, vui lòng
+                      kiểm tra ở tab "Lịch sử đơn hàng"
                     </Typography>
                   </Box>
                 ) : currentDesignRequest.isNeedSupport !== null ? (
@@ -3122,13 +3117,10 @@ const OrderHistory = () => {
                     bgcolor="#e8f5e9"
                   >
                     <Typography variant="body2">
-                      <b>Bạn đã chọn:</b>{" "}
+                      <b>Đã chọn:</b>{" "}
                       {currentDesignRequest.isNeedSupport
                         ? "Có thi công"
                         : "Không thi công"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Liên hệ với chúng tôi nếu bạn muốn thay đổi lựa chọn
                     </Typography>
                   </Box>
                 ) : null}
