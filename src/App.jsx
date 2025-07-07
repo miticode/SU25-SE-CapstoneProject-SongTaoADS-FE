@@ -34,8 +34,6 @@ import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
 
-
-
 import MyTicket from "./pages/MyTicket";
 
 // Custom event để theo dõi đăng nhập thành công
