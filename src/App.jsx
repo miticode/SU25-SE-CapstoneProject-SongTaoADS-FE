@@ -34,6 +34,10 @@ import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
 
+
+
+import MyTicket from "./pages/MyTicket";
+
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -318,6 +322,7 @@ const App = () => {
               <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/payment/cancel" element={<PaymentCancel />} />
               <Route path="custom-design" element={<CustomDesign />} />
+              <Route path="my-ticket" element={<MyTicket />} />
 
               {/* Protected routes - cần đăng nhập để truy cập */}
               <Route

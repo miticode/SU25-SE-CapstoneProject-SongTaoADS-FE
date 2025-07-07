@@ -43,6 +43,7 @@ import {
   List as ListIcon,
   Assignment as AssignmentIcon,
   SupportAgent as SupportAgentIcon,
+  Image as ImageIcon,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import ProductTypeManager from "../pages/manager/ProductTypeManager";
@@ -52,6 +53,7 @@ import SizeManager from "../pages/manager/SizeManager";
 import ProductAttributeManagement from "../pages/manager/ProductAttributeManager";
 import AttributeValueManager from "../pages/manager/AttributeValueManager";
 import OrderManager from "../pages/manager/OrderManager";
+import DesignTemplateManager from "../pages/manager/DesignTemplateManager";
 
 const drawerWidth = 240;
 
@@ -85,6 +87,11 @@ const menuItems = [
         icon: <AssignmentIcon />,
       },
     ],
+  },
+  {
+    id: "design-template",
+    text: "Quản lý Mẫu Thiết kế",
+    icon: <ImageIcon />,
   },
   {
     id: "size-management",
@@ -372,7 +379,7 @@ const ManagerLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 4,
           backgroundColor: "#f9fafc",
           height: "calc(100vh - 64px)",
           overflow: "auto",
@@ -388,6 +395,7 @@ const ManagerLayout = () => {
           <ProductAttributeManagement />
         )}
         {activeTab === "attribute-value" && <AttributeValueManager />}
+        {activeTab === "design-template" && <DesignTemplateManager />}
         {activeTab === "support-ticket" && <Outlet context={{ activeTab }} />}
         {activeTab !== "order-management" &&
           activeTab !== "product-type" &&
@@ -396,6 +404,7 @@ const ManagerLayout = () => {
           activeTab !== "size-management" &&
           activeTab !== "product-type-attribute" &&
           activeTab !== "attribute-value" &&
+          activeTab !== "design-template" &&
           activeTab !== "support-ticket" && <Outlet context={{ activeTab }} />}
       </Box>
     </Box>

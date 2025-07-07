@@ -52,14 +52,9 @@ import {
 } from "../api/priceService";
 
 import {
-  clearPaymentState,
   payCustomDesignDepositThunk,
   payCustomDesignRemainingThunk,
-  payOrderDepositThunk,
   payOrderRemainingThunk,
-  selectOrderDepositResult,
-  selectOrderRemainingResult,
-  selectPaymentError,
   selectPaymentLoading,
 } from "../store/features/payment/paymentSlice";
 import {
@@ -74,7 +69,6 @@ import {
   CONTRACT_STATUS_MAP,
   discussContract,
   getOrderContract,
-  selectContractError,
   selectContractLoading,
   uploadSignedContract,
 } from "../store/features/contract/contractSlice";
@@ -84,16 +78,18 @@ import {
   createImpression,
   uploadImpressionImage,
   fetchImpressionsByOrderId,
-  selectImpressionLoading,
-  selectImpressionError,
   selectUploadingImage,
   selectUploadImageError,
-  selectFetchingImpressions,
-  selectImpressionsByOrderId,
   clearError as clearImpressionError,
   IMPRESSION_STATUS_MAP,
   selectImpressionsByOrder,
 } from "../store/features/impression/impressionSlice";
+import {
+  createTicket,
+  selectCreateStatus,
+  selectCreateError,
+  resetCreateStatus,
+} from "../store/features/ticket/ticketSlice";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -126,7 +122,7 @@ const OrderHistory = () => {
   const [constructionLoading, setConstructionLoading] = useState(false);
   // Redux state for custom design requests
   const contractLoading = useSelector(selectContractLoading);
-  const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
+  // const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
   const [discussLoading, setDiscussLoading] = useState(false);
   const [impressionDialog, setImpressionDialog] = useState({
     open: false,
@@ -139,12 +135,11 @@ const OrderHistory = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [submittingImpression, setSubmittingImpression] = useState(false);
-  const [createdImpressionId, setCreatedImpressionId] = useState(null);
-  const impressionLoading = useSelector(selectImpressionLoading);
-  const impressionError = useSelector(selectImpressionError);
+  // const [createdImpressionId, setCreatedImpressionId] = useState(null);
+  // const impressionLoading = useSelector(selectImpressionLoading);
   const uploadingImage = useSelector(selectUploadingImage);
   const uploadImageError = useSelector(selectUploadImageError);
-  const fetchingImpressions = useSelector(selectFetchingImpressions);
+  // const fetchingImpressions = useSelector(selectFetchingImpressions);
   const [contractDialog, setContractDialog] = useState({
     open: false,
     contract: null,
@@ -169,11 +164,11 @@ const OrderHistory = () => {
   const [loadingProposals, setLoadingProposals] = useState(false);
   const [contractViewLoading, setContractViewLoading] = useState(false);
   const [uploadingSignedContract, setUploadingSignedContract] = useState(false);
-  const [depositingOrderId, setDepositingOrderId] = useState(null);
+  // const [depositingOrderId, setDepositingOrderId] = useState(null);
   const paymentLoading = useSelector(selectPaymentLoading);
-  const paymentError = useSelector(selectPaymentError);
-  const orderDepositResult = useSelector(selectOrderDepositResult);
-  const orderRemainingResult = useSelector(selectOrderRemainingResult);
+  // const paymentError = useSelector(selectPaymentError);
+  // const orderDepositResult = useSelector(selectOrderDepositResult);
+  // const orderRemainingResult = useSelector(selectOrderRemainingResult);
   const [remainingPaymentLoading, setRemainingPaymentLoading] = useState({});
   const allImpressionsByOrder = useSelector(selectImpressionsByOrder);
 
@@ -199,6 +194,7 @@ const OrderHistory = () => {
     severity: "success",
   });
 
+  // const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [depositLoadingId, setDepositLoadingId] = useState(null);
   const s3FinalImageUrl = useSelector((state) =>
     currentDesignRequest?.finalDesignImage
@@ -259,30 +255,30 @@ const OrderHistory = () => {
       setRemainingPaymentLoading((prev) => ({ ...prev, [order.id]: false }));
     }
   };
-  useEffect(() => {
-    if (orderRemainingResult?.success) {
-      setNotification({
-        open: true,
-        message: "Tạo thanh toán thành công! Đang chuyển hướng...",
-        severity: "success",
-      });
-
-      // Clear state sau khi xử lý
-      dispatch(clearPaymentState());
-    }
-  }, [orderRemainingResult, dispatch]);
-  useEffect(() => {
-    if (paymentError) {
-      setNotification({
-        open: true,
-        message: paymentError,
-        severity: "error",
-      });
-
-      // Clear error sau khi hiển thị
-      dispatch(clearPaymentState());
-    }
-  }, [paymentError, dispatch]);
+  // useEffect(() => {
+  //   if (orderRemainingResult?.success) {
+  //     setNotification({
+  //       open: true,
+  //       message: "Tạo thanh toán thành công! Đang chuyển hướng...",
+  //       severity: "success",
+  //     });
+  //
+  //     // Clear state sau khi xử lý
+  //     dispatch(clearPaymentState());
+  //   }
+  // }, [orderRemainingResult, dispatch]);
+  // useEffect(() => {
+  //   if (paymentError) {
+  //     setNotification({
+  //       open: true,
+  //       message: paymentError,
+  //       severity: "error",
+  //     });
+  //
+  //     // Clear error sau khi hiển thị
+  //     dispatch(clearPaymentState());
+  //   }
+  // }, [paymentError, dispatch]);
   const getProductionProgress = (status) => {
     const steps = [
       { key: "PRODUCING", label: "Đang thi công", progress: 25 },
@@ -798,10 +794,6 @@ const OrderHistory = () => {
     try {
       const result = await dispatch(getOrderContract(orderId));
       if (getOrderContract.fulfilled.match(result)) {
-        setContractData((prev) => ({
-          ...prev,
-          [orderId]: result.payload,
-        }));
         setContractDialog({
           open: true,
           contract: result.payload,
@@ -1015,16 +1007,6 @@ const OrderHistory = () => {
     }
   }, [openDetail, currentDesignRequest, dispatch]);
   useEffect(() => {
-    if (impressionError) {
-      setNotification({
-        open: true,
-        message: impressionError,
-        severity: "error",
-      });
-      dispatch(clearImpressionError());
-    }
-  }, [impressionError, dispatch]);
-  useEffect(() => {
     if (uploadImageError) {
       setNotification({
         open: true,
@@ -1105,7 +1087,7 @@ const OrderHistory = () => {
     });
     setSelectedImage(null);
     setImagePreview(null);
-    setCreatedImpressionId(null);
+    // setCreatedImpressionId(null);
   };
   const handleCloseImpressionDialog = () => {
     setImpressionDialog({
@@ -1118,7 +1100,7 @@ const OrderHistory = () => {
     });
     setSelectedImage(null);
     setImagePreview(null);
-    setCreatedImpressionId(null);
+    // setCreatedImpressionId(null);
   };
   const handleSubmitImpression = async () => {
     if (!impressionForm.comment.trim()) {
@@ -1144,7 +1126,7 @@ const OrderHistory = () => {
         })
       ).unwrap();
 
-      setCreatedImpressionId(result.id);
+      // setCreatedImpressionId(result.id);
 
       // Bước 2: Upload ảnh nếu có
       if (selectedImage && result.id) {
@@ -1377,6 +1359,49 @@ const OrderHistory = () => {
         });
       });
   };
+
+  const [openTicketDialog, setOpenTicketDialog] = useState(false);
+  const [ticketOrderId, setTicketOrderId] = useState(null);
+  const [ticketTitle, setTicketTitle] = useState("");
+  const [ticketDescription, setTicketDescription] = useState("");
+  const createStatus = useSelector(selectCreateStatus);
+  const createError = useSelector(selectCreateError);
+
+  const handleOpenTicketDialog = (orderId) => {
+    setTicketOrderId(orderId);
+    setTicketTitle("");
+    setTicketDescription("");
+    setOpenTicketDialog(true);
+    dispatch(resetCreateStatus());
+  };
+  const handleCloseTicketDialog = () => {
+    setOpenTicketDialog(false);
+    setTicketOrderId(null);
+    setTicketTitle("");
+    setTicketDescription("");
+    dispatch(resetCreateStatus());
+  };
+  const handleSubmitTicket = () => {
+    if (!ticketOrderId || !ticketTitle || !ticketDescription) return;
+    dispatch(
+      createTicket({
+        orderId: ticketOrderId,
+        ticketData: {
+          title: ticketTitle,
+          description: ticketDescription,
+          severity: "SALE",
+        },
+      })
+    );
+  };
+
+  useEffect(() => {
+    if (createStatus === "succeeded") {
+      setTimeout(() => {
+        handleCloseTicketDialog();
+      }, 1200);
+    }
+  }, [createStatus]);
 
   if (!isAuthenticated) {
     return (
@@ -1713,6 +1738,24 @@ const OrderHistory = () => {
                             </Button>
                           )}
                         </Stack>
+                        {/* Nút tạo ticket */}
+                        <Box
+                          sx={{
+                            minWidth: 180,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-end",
+                            gap: 1,
+                          }}
+                        >
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            onClick={() => handleOpenTicketDialog(order.id)}
+                          >
+                            Yêu cầu hỗ trợ
+                          </Button>
+                        </Box>
                       </Stack>
                       {order.status === "COMPLETED" && (
                         <>
@@ -2138,7 +2181,7 @@ const OrderHistory = () => {
                     </Button>
 
                     {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái COMPLETED và chưa có lựa chọn */}
-                    {req.status === "COMPLETED" &&
+                    {/* {req.status === "COMPLETED" &&
                       req.isNeedSupport === null &&
                       !orders.some(
                         (order) => order.customDesignRequests?.id === req.id
@@ -2191,7 +2234,7 @@ const OrderHistory = () => {
                             </Button>
                           </Stack>
                         </Box>
-                      )}
+                      )} */}
 
                     {/* Hiển thị lựa chọn thi công đã chọn trong card */}
                     {req.status === "COMPLETED" && (
@@ -2990,7 +3033,7 @@ const OrderHistory = () => {
           ) : (
             <Typography>Không có dữ liệu.</Typography>
           )}
-          {currentDesignRequest &&
+          {/* {currentDesignRequest &&
             currentDesignRequest.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
             currentDesignRequest.isNeedSupport === null &&
             !orders.some(
@@ -3041,7 +3084,7 @@ const OrderHistory = () => {
                   </Button>
                 </Stack>
               </Box>
-            )}
+            )} */}
           {/* Hiển thị lựa chọn thi công đã chọn */}
           {currentDesignRequest &&
             currentDesignRequest.status === "COMPLETED" && ( // Thay "FULLY_PAID" thành "COMPLETED"
@@ -3060,10 +3103,8 @@ const OrderHistory = () => {
                     bgcolor="#e1f5fe"
                   >
                     <Typography variant="body2">
-                      <b>Đã chọn thi công:</b> Đơn hàng đã được tạo
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Bạn có thể xem đơn hàng thi công ở tab "Lịch sử đơn hàng"
+                      <b>Đã chọn thi công:</b> Đơn hàng đã được tạo, vui lòng
+                      kiểm tra ở tab "Lịch sử đơn hàng"
                     </Typography>
                   </Box>
                 ) : currentDesignRequest.isNeedSupport !== null ? (
@@ -3076,13 +3117,10 @@ const OrderHistory = () => {
                     bgcolor="#e8f5e9"
                   >
                     <Typography variant="body2">
-                      <b>Bạn đã chọn:</b>{" "}
+                      <b>Đã chọn:</b>{" "}
                       {currentDesignRequest.isNeedSupport
                         ? "Có thi công"
                         : "Không thi công"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Liên hệ với chúng tôi nếu bạn muốn thay đổi lựa chọn
                     </Typography>
                   </Box>
                 ) : null}
@@ -3719,6 +3757,61 @@ const OrderHistory = () => {
           {notification.message}
         </Alert>
       </Snackbar>
+      {/* Dialog tạo ticket */}
+      <Dialog
+        open={openTicketDialog}
+        onClose={handleCloseTicketDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Yêu cầu hỗ trợ cho đơn hàng</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Tiêu đề"
+            value={ticketTitle}
+            onChange={(e) => setTicketTitle(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+          />
+          <TextField
+            label="Mô tả"
+            value={ticketDescription}
+            onChange={(e) => setTicketDescription(e.target.value)}
+            fullWidth
+            margin="normal"
+            multiline
+            minRows={3}
+            required
+          />
+          {createError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {createError}
+            </Alert>
+          )}
+          {createStatus === "succeeded" && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Gửi yêu cầu hỗ trợ thành công!
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTicketDialog}>Hủy</Button>
+          <Button
+            onClick={handleSubmitTicket}
+            disabled={
+              !ticketTitle || !ticketDescription || createStatus === "loading"
+            }
+            variant="contained"
+          >
+            {createStatus === "loading" ? (
+              <CircularProgress size={20} />
+            ) : (
+              "Gửi"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
