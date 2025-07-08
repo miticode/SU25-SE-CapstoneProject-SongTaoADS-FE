@@ -21,7 +21,8 @@ import demoReducer from "./features/demo/demoSlice";
 import impressionReducer from "./features/impression/impressionSlice";
 import backgroundReducer from "./features/background/backgroundSlice";
 import ticketReducer from "./features/ticket/ticketSlice";
-import iconReducer from './features/icon/iconSlice';
+import iconReducer from "./features/icon/iconSlice";
+import costypeReducer from "./features/costype/costypeSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -45,7 +46,8 @@ export const store = configureStore({
     impression: impressionReducer,
     background: backgroundReducer,
     ticket: ticketReducer,
-   icon: iconReducer,
+    icon: iconReducer,
+    costype: costypeReducer,
   },
 });
 
