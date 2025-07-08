@@ -54,6 +54,7 @@ import ProductAttributeManagement from "../pages/manager/ProductAttributeManager
 import AttributeValueManager from "../pages/manager/AttributeValueManager";
 import OrderManager from "../pages/manager/OrderManager";
 import DesignTemplateManager from "../pages/manager/DesignTemplateManager";
+import BackgroundManager from "../pages/manager/BackgroundManager";
 
 const drawerWidth = 240;
 
@@ -90,7 +91,12 @@ const menuItems = [
   },
   {
     id: "design-template",
-    text: "Quản lý Mẫu Thiết kế",
+    text: "Quản lý Thiết Kế Mẫu",
+    icon: <ImageIcon />,
+  },
+  {
+    id: "background-management",
+    text: "Quản lý Nền Mẫu",
     icon: <ImageIcon />,
   },
   {
@@ -396,6 +402,7 @@ const ManagerLayout = () => {
         )}
         {activeTab === "attribute-value" && <AttributeValueManager />}
         {activeTab === "design-template" && <DesignTemplateManager />}
+        {activeTab === "background-management" && <BackgroundManager />}
         {activeTab === "support-ticket" && <Outlet context={{ activeTab }} />}
         {activeTab !== "order-management" &&
           activeTab !== "product-type" &&
@@ -405,6 +412,7 @@ const ManagerLayout = () => {
           activeTab !== "product-type-attribute" &&
           activeTab !== "attribute-value" &&
           activeTab !== "design-template" &&
+          activeTab !== "background-management" &&
           activeTab !== "support-ticket" && <Outlet context={{ activeTab }} />}
       </Box>
     </Box>
