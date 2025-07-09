@@ -2,6 +2,12 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createEditedDesignWithBackground,
   fetchBackgroundSuggestionsByCustomerChoiceIdApi,
+  fetchBackgroundsByAttributeValueIdApi,
+  createBackgroundByAttributeValueIdApi,
+  updateBackgroundInfoApi,
+  updateBackgroundImageApi,
+  fetchAllBackgroundsApi,
+  deleteBackgroundByIdApi
 } from "../../../api/backgroundService";
 
 // Initial state
@@ -90,6 +96,60 @@ export const createEditedDesignWithBackgroundThunk = createAsyncThunk(
       console.error("Error in create edited design thunk:", error);
       return rejectWithValue(error.message || "Something went wrong");
     }
+  }
+);
+// Thunk lấy tất cả background
+export const fetchAllBackgrounds = createAsyncThunk(
+  "background/fetchAllBackgrounds",
+  async (_, { rejectWithValue }) => {
+    const response = await fetchAllBackgroundsApi();
+    if (!response.success) return rejectWithValue(response.error);
+    return response.data;
+  }
+);
+// Thunk lấy background theo giá trị thuộc tính
+export const fetchBackgroundsByAttributeValueId = createAsyncThunk(
+  "background/fetchBackgroundsByAttributeValueId",
+  async (attributeValueId, { rejectWithValue }) => {
+    const response = await fetchBackgroundsByAttributeValueIdApi(attributeValueId);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.data;
+  }
+);
+// Thunk tạo background mới
+export const createBackgroundByAttributeValueId = createAsyncThunk(
+  "background/createBackgroundByAttributeValueId",
+  async ({ attributeValueId, name, description, backgroundImage }, { rejectWithValue }) => {
+    const response = await createBackgroundByAttributeValueIdApi(attributeValueId, { name, description, backgroundImage });
+    if (!response.success) return rejectWithValue(response.error);
+    return response.data;
+  }
+);
+// Thunk cập nhật thông tin background
+export const updateBackgroundInfo = createAsyncThunk(
+  "background/updateBackgroundInfo",
+  async ({ backgroundId, name, description, isAvailable }, { rejectWithValue }) => {
+    const response = await updateBackgroundInfoApi(backgroundId, { name, description, isAvailable });
+    if (!response.success) return rejectWithValue(response.error);
+    return response.data;
+  }
+);
+// Thunk cập nhật hình ảnh background
+export const updateBackgroundImage = createAsyncThunk(
+  "background/updateBackgroundImage",
+  async ({ backgroundId, file }, { rejectWithValue }) => {
+    const response = await updateBackgroundImageApi(backgroundId, file);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.data;
+  }
+);
+// Thunk xóa background
+export const deleteBackgroundById = createAsyncThunk(
+  "background/deleteBackgroundById",
+  async (backgroundId, { rejectWithValue }) => {
+    const response = await deleteBackgroundByIdApi(backgroundId);
+    if (!response.success) return rejectWithValue(response.error);
+    return { id: backgroundId };
   }
 );
 // Background slice
@@ -186,7 +246,88 @@ const backgroundSlice = createSlice({
           state.editedDesignError = action.payload;
           console.error("Failed to create edited design:", action.payload);
         }
-      );
+      )
+      // Lấy background theo giá trị thuộc tính
+      .addCase(fetchBackgroundsByAttributeValueId.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchBackgroundsByAttributeValueId.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.backgroundSuggestions = action.payload;
+        state.error = null;
+        // Có thể lưu pagination nếu cần: state.pagination = action.payload.pagination;
+      })
+      .addCase(fetchBackgroundsByAttributeValueId.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Tạo background
+      .addCase(createBackgroundByAttributeValueId.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(createBackgroundByAttributeValueId.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.backgroundSuggestions.push(action.payload);
+        state.error = null;
+      })
+      .addCase(createBackgroundByAttributeValueId.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Cập nhật thông tin background
+      .addCase(updateBackgroundInfo.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(updateBackgroundInfo.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const idx = state.backgroundSuggestions.findIndex(bg => bg.id === action.payload.id);
+        if (idx !== -1) state.backgroundSuggestions[idx] = action.payload;
+        state.error = null;
+      })
+      .addCase(updateBackgroundInfo.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Cập nhật hình ảnh background
+      .addCase(updateBackgroundImage.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(updateBackgroundImage.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const idx = state.backgroundSuggestions.findIndex(bg => bg.id === action.payload.id);
+        if (idx !== -1) state.backgroundSuggestions[idx] = action.payload;
+        state.error = null;
+      })
+      .addCase(updateBackgroundImage.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy tất cả background
+      .addCase(fetchAllBackgrounds.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchAllBackgrounds.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.backgroundSuggestions = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchAllBackgrounds.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      // Xóa background
+      .addCase(deleteBackgroundById.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(deleteBackgroundById.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.backgroundSuggestions = state.backgroundSuggestions.filter(bg => bg.id !== action.payload.id);
+        state.error = null;
+      })
+      .addCase(deleteBackgroundById.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      });
   },
 });
 

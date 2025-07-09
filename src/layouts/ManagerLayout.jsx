@@ -54,7 +54,8 @@ import ProductAttributeManagement from "../pages/manager/ProductAttributeManager
 import AttributeValueManager from "../pages/manager/AttributeValueManager";
 import OrderManager from "../pages/manager/OrderManager";
 import DesignTemplateManager from "../pages/manager/DesignTemplateManager";
-
+import BackgroundManager from "../pages/manager/BackgroundManager";
+import CostTypeManager from "../pages/manager/CostTypeManager";
 const drawerWidth = 240;
 
 // Define all sidebar menu items for Manager
@@ -90,13 +91,23 @@ const menuItems = [
   },
   {
     id: "design-template",
-    text: "Quản lý Mẫu Thiết kế",
+    text: "Quản lý Thiết Kế Mẫu",
+    icon: <ImageIcon />,
+  },
+  {
+    id: "background-management",
+    text: "Quản lý Nền Mẫu",
     icon: <ImageIcon />,
   },
   {
     id: "size-management",
     text: "Quản lý kích thước",
     icon: <StraightenIcon />,
+  },
+  {
+    id: "cost-type-management",
+    text: "Quản lý loại chi phí",
+    icon: <ManageAccountsIcon />,
   },
   {
     id: "fine-tune-ai",
@@ -396,6 +407,8 @@ const ManagerLayout = () => {
         )}
         {activeTab === "attribute-value" && <AttributeValueManager />}
         {activeTab === "design-template" && <DesignTemplateManager />}
+        {activeTab === "background-management" && <BackgroundManager />}
+        {activeTab === "cost-type-management" && <CostTypeManager />}
         {activeTab === "support-ticket" && <Outlet context={{ activeTab }} />}
         {activeTab !== "order-management" &&
           activeTab !== "product-type" &&
@@ -405,6 +418,8 @@ const ManagerLayout = () => {
           activeTab !== "product-type-attribute" &&
           activeTab !== "attribute-value" &&
           activeTab !== "design-template" &&
+          activeTab !== "background-management" &&
+          activeTab !== "cost-type-management" &&
           activeTab !== "support-ticket" && <Outlet context={{ activeTab }} />}
       </Box>
     </Box>
