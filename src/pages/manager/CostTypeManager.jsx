@@ -68,7 +68,8 @@ import {
   selectProductTypeCostTypesStatus, // Thêm import này
   selectProductTypeCostTypesError, // Thêm import này
   clearError,
-  clearProductTypeCostTypes, // Thêm import này
+  clearProductTypeCostTypes,
+  updateCostType, // Thêm import này
 } from "../../store/features/costype/costypeSlice";
 import {
   fetchProductTypes,
@@ -134,7 +135,8 @@ const CostTypeManager = () => {
     isCore: false,
     isAvailable: true,
   });
-
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingCostType, setEditingCostType] = useState(null);
   // Formula builder state
   const [showAttributes, setShowAttributes] = useState(false);
   const [showSizes, setShowSizes] = useState(false);
@@ -181,6 +183,24 @@ const CostTypeManager = () => {
       dispatch(clearProductTypeCostTypes());
     }
   }, [dispatch, openDialog]);
+  const handleEditCostType = (costType) => {
+    setIsEditMode(true);
+    setEditingCostType(costType);
+    setSelectedProductType(costType.productTypes);
+    setNewCostType({
+      name: costType.name,
+      description: costType.description,
+      formula: costType.formula,
+      priority: costType.priority,
+      isCore: costType.isCore,
+      isAvailable: costType.isAvailable,
+    });
+    setDialogStep(1); // Bỏ qua bước chọn product type
+    setOpenDialog(true);
+    setValidationErrors({});
+    setShowAttributes(false);
+    setShowSizes(false);
+  };
   const validateForm = () => {
     const errors = {};
 
@@ -272,6 +292,8 @@ const CostTypeManager = () => {
 
   // Handle dialog open
   const handleOpenDialog = () => {
+    setIsEditMode(false);
+    setEditingCostType(null);
     setOpenDialog(true);
     setDialogStep(0);
     setSelectedProductType(null);
@@ -286,6 +308,7 @@ const CostTypeManager = () => {
     });
     setShowAttributes(false);
     setShowSizes(false);
+    setValidationErrors({});
   };
 
   // Handle dialog close
@@ -293,6 +316,8 @@ const CostTypeManager = () => {
     setOpenDialog(false);
     setDialogStep(0);
     setSelectedProductType(null);
+    setIsEditMode(false);
+    setEditingCostType(null);
     setShowAttributes(false);
     setShowSizes(false);
     setValidationErrors({});
@@ -387,22 +412,39 @@ const CostTypeManager = () => {
         isAvailable: newCostType.isAvailable,
       };
 
-      console.log("Đang tạo cost type với dữ liệu:", {
-        productTypeId: selectedProductType.id,
-        costTypeData,
-      });
+      let result;
 
-      const result = await dispatch(
-        createCostType({
+      if (isEditMode && editingCostType) {
+        // Update existing cost type
+        console.log("Đang cập nhật cost type với dữ liệu:", {
+          costTypeId: editingCostType.id,
+          costTypeData,
+        });
+
+        result = await dispatch(
+          updateCostType({
+            costTypeId: editingCostType.id,
+            costTypeData: costTypeData,
+          })
+        ).unwrap();
+
+        console.log("Cập nhật loại chi phí thành công!", result);
+      } else {
+        // Create new cost type
+        console.log("Đang tạo cost type với dữ liệu:", {
           productTypeId: selectedProductType.id,
-          costTypeData: costTypeData,
-        })
-      ).unwrap();
+          costTypeData,
+        });
 
-      console.log("Tạo loại chi phí thành công!", result);
+        result = await dispatch(
+          createCostType({
+            productTypeId: selectedProductType.id,
+            costTypeData: costTypeData,
+          })
+        ).unwrap();
 
-      // Hiển thị thông báo thành công
-      // Bạn có thể thêm toast notification ở đây
+        console.log("Tạo loại chi phí thành công!", result);
+      }
 
       // Đóng dialog
       handleCloseDialog();
@@ -415,13 +457,15 @@ const CostTypeManager = () => {
         })
       );
     } catch (error) {
-      console.error("Lỗi khi tạo loại chi phí:", error);
+      console.error("Lỗi khi xử lý loại chi phí:", error);
 
       // Hiển thị lỗi từ server
       setValidationErrors({
         submit:
           error.message ||
-          "Có lỗi xảy ra khi tạo loại chi phí. Vui lòng thử lại.",
+          `Có lỗi xảy ra khi ${
+            isEditMode ? "cập nhật" : "tạo"
+          } loại chi phí. Vui lòng thử lại.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -1893,6 +1937,7 @@ const CostTypeManager = () => {
                           startIcon={<EditIcon />}
                           color="primary"
                           variant="outlined"
+                          onClick={() => handleEditCostType(costType)} // Thêm onClick handler
                           sx={{
                             fontSize: { xs: "0.7rem", sm: "0.75rem" },
                             px: { xs: 1, sm: 2 },
@@ -1907,25 +1952,7 @@ const CostTypeManager = () => {
                             Sửa
                           </Box>
                         </Button>
-                        <Button
-                          size="small"
-                          startIcon={<DeleteIcon />}
-                          color="error"
-                          variant="outlined"
-                          sx={{
-                            fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                            px: { xs: 1, sm: 2 },
-                            textTransform: "none",
-                            borderRadius: 1.5,
-                          }}
-                        >
-                          <Box
-                            component="span"
-                            sx={{ display: { xs: "none", sm: "inline" } }}
-                          >
-                            Xóa
-                          </Box>
-                        </Button>
+                       
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -1976,7 +2003,7 @@ const CostTypeManager = () => {
         onClose={handleCloseDialog}
         maxWidth="lg"
         fullWidth
-        fullScreen={false} // Có thể thêm fullScreen cho mobile
+        fullScreen={false}
         sx={{
           "& .MuiDialog-paper": {
             borderRadius: { xs: 0, sm: 3 },
@@ -2004,7 +2031,11 @@ const CostTypeManager = () => {
               fontSize: { xs: "1.1rem", sm: "1.25rem" },
             }}
           >
-            {dialogStep === 0 ? "Chọn loại sản phẩm" : "Tạo loại chi phí mới"}
+            {isEditMode
+              ? "✏️ Chỉnh sửa loại chi phí"
+              : dialogStep === 0
+              ? "Chọn loại sản phẩm"
+              : "Tạo loại chi phí mới"}
           </Typography>
           <Button
             onClick={handleCloseDialog}
@@ -2027,27 +2058,29 @@ const CostTypeManager = () => {
             pb: 0,
           }}
         >
-          {/* Enhanced Stepper */}
-          <Stepper
-            activeStep={dialogStep}
-            sx={{
-              mb: { xs: 3, sm: 4 },
-              "& .MuiStepLabel-label": {
-                fontSize: { xs: "0.875rem", sm: "1rem" },
-              },
-            }}
-          >
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
+          {/* Enhanced Stepper - Ẩn khi edit mode */}
+          {!isEditMode && (
+            <Stepper
+              activeStep={dialogStep}
+              sx={{
+                mb: { xs: 3, sm: 4 },
+                "& .MuiStepLabel-label": {
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                },
+              }}
+            >
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          )}
 
           {/* Conditional rendering based on step */}
-          {dialogStep === 0
-            ? renderProductTypeSelection()
-            : renderCostTypeForm()}
+          {isEditMode || dialogStep === 1
+            ? renderCostTypeForm()
+            : renderProductTypeSelection()}
         </DialogContent>
 
         <DialogActions
@@ -2073,7 +2106,7 @@ const CostTypeManager = () => {
             Hủy
           </Button>
 
-          {dialogStep === 1 && (
+          {!isEditMode && dialogStep === 1 && (
             <Button
               onClick={handlePreviousStep}
               startIcon={<ArrowBackIcon />}
@@ -2090,7 +2123,7 @@ const CostTypeManager = () => {
             </Button>
           )}
 
-          {dialogStep === 0 ? (
+          {!isEditMode && dialogStep === 0 ? (
             <Button
               onClick={handleNextStep}
               variant="contained"
@@ -2128,8 +2161,10 @@ const CostTypeManager = () => {
               {isSubmitting ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} />
-                  Đang tạo...
+                  {isEditMode ? "Đang cập nhật..." : "Đang tạo..."}
                 </>
+              ) : isEditMode ? (
+                "Cập nhật loại chi phí"
               ) : (
                 "Tạo loại chi phí"
               )}
