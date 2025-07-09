@@ -108,4 +108,25 @@ export const createCostTypeApi = async (productTypeId, costTypeData) => {
     };
   }
 };
+export const updateCostTypeApi = async (costTypeId, costTypeData) => {
+  try {
+    const response = await costypeService.put(
+      `/api/cost-types/${costTypeId}`,
+      costTypeData
+    );
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to update cost type",
+    };
+  }
+};
 export default costypeService;

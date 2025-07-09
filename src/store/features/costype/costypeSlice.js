@@ -3,6 +3,7 @@ import {
   createCostTypeApi,
   getCostTypesApi,
   getCostTypesByProductTypeIdApi,
+  updateCostTypeApi,
 } from "../../../api/costypeService";
 
 export const fetchCostTypes = createAsyncThunk(
@@ -34,6 +35,16 @@ export const fetchCostTypesByProductTypeId = createAsyncThunk(
   "costype/fetchCostTypesByProductTypeId",
   async (productTypeId, { rejectWithValue }) => {
     const response = await getCostTypesByProductTypeIdApi(productTypeId);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
+export const updateCostType = createAsyncThunk(
+  "costype/updateCostType",
+  async ({ costTypeId, costTypeData }, { rejectWithValue }) => {
+    const response = await updateCostTypeApi(costTypeId, costTypeData);
     if (response.success) {
       return response.data;
     }
@@ -123,6 +134,37 @@ const costypeSlice = createSlice({
       .addCase(fetchCostTypesByProductTypeId.rejected, (state, action) => {
         state.productTypeCostTypesStatus = "failed";
         state.productTypeCostTypesError = action.payload;
+      })
+       .addCase(updateCostType.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateCostType.fulfilled, (state, action) => {
+        state.loading = false;
+        // Cập nhật cost type trong danh sách
+        const index = state.costTypes.findIndex(
+          (item) => item.id === action.payload.id
+        );
+        if (index !== -1) {
+          state.costTypes[index] = action.payload;
+        }
+        
+        // Cập nhật trong productTypeCostTypes nếu có
+        const productTypeIndex = state.productTypeCostTypes.findIndex(
+          (item) => item.id === action.payload.id
+        );
+        if (productTypeIndex !== -1) {
+          state.productTypeCostTypes[productTypeIndex] = action.payload;
+        }
+        
+        // Cập nhật currentCostType nếu đang chỉnh sửa
+        if (state.currentCostType?.id === action.payload.id) {
+          state.currentCostType = action.payload;
+        }
+      })
+      .addCase(updateCostType.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
