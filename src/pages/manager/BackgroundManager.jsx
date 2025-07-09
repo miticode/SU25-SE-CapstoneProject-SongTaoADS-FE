@@ -52,6 +52,10 @@ import {
 import { getAttributeValuesByAttributeId } from "../../store/features/attribute/attributeValueSlice";
 import { fetchAttributesByProductTypeId } from "../../store/features/attribute/attributeSlice";
 import { fetchProductTypes } from "../../store/features/productType/productTypeSlice";
+import {
+  fetchImageFromS3,
+  selectS3Image,
+} from "../../store/features/s3/s3Slice";
 
 // Trang quản lý Nền (Background) cho Manager
 const BackgroundManager = () => {
@@ -90,6 +94,78 @@ const BackgroundManager = () => {
   // Thêm state để biết có đang ở chế độ tất cả không
   const [showAll, setShowAll] = useState(false);
   const [allBackgrounds, setAllBackgrounds] = useState([]);
+
+  // Component để hiển thị hình ảnh background với S3
+  const BackgroundImage = ({ background, size = "large" }) => {
+    const s3Image = useSelector((state) =>
+      selectS3Image(state, background?.backgroundUrl)
+    );
+
+    useEffect(() => {
+      if (background?.backgroundUrl && !s3Image) {
+        dispatch(fetchImageFromS3(background.backgroundUrl));
+      }
+    }, [background?.backgroundUrl, s3Image, dispatch]);
+
+    const isSmall = size === "small";
+
+    if (!background?.backgroundUrl) {
+      return (
+        <Box
+          sx={{
+            width: isSmall ? 120 : "100%",
+            height: isSmall ? 120 : "auto",
+            maxHeight: isSmall ? 120 : 220,
+            aspectRatio: isSmall ? "1/1" : "4/3",
+            borderRadius: 2,
+            background: "#f5f5f5",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ImageIcon color="disabled" sx={{ fontSize: isSmall ? 40 : 60 }} />
+        </Box>
+      );
+    }
+
+    if (!s3Image) {
+      return (
+        <Box
+          sx={{
+            width: isSmall ? 120 : "100%",
+            height: isSmall ? 120 : "auto",
+            maxHeight: isSmall ? 120 : 220,
+            aspectRatio: isSmall ? "1/1" : "4/3",
+            borderRadius: 2,
+            background: "#f5f5f5",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <CircularProgress size={isSmall ? 30 : 40} />
+        </Box>
+      );
+    }
+
+    return (
+      <Box
+        component="img"
+        src={s3Image}
+        alt={background.name}
+        sx={{
+          width: isSmall ? 120 : "100%",
+          height: isSmall ? 120 : "auto",
+          maxHeight: isSmall ? 120 : 220,
+          aspectRatio: isSmall ? "1/1" : "4/3",
+          objectFit: "cover",
+          borderRadius: 2,
+          background: "#f5f5f5",
+        }}
+      />
+    );
+  };
 
   // Lấy danh sách product type khi mount
   useEffect(() => {
@@ -438,19 +514,7 @@ const BackgroundManager = () => {
                     boxShadow: 2,
                   }}
                 >
-                  <CardMedia
-                    component="img"
-                    image={bg.backgroundUrl || "/public/default-logo.png"}
-                    alt={bg.name}
-                    sx={{
-                      width: "100%",
-                      maxHeight: 220,
-                      aspectRatio: "4/3",
-                      objectFit: "cover",
-                      borderRadius: 2,
-                      background: "#f5f5f5",
-                    }}
-                  />
+                  <BackgroundImage background={bg} />
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Typography
                       variant="h6"
@@ -548,15 +612,7 @@ const BackgroundManager = () => {
                 {selectedBackground.description}
               </Typography>
               <Box mb={2}>
-                {selectedBackground.backgroundUrl ? (
-                  <Avatar
-                    src={selectedBackground.backgroundUrl}
-                    variant="rounded"
-                    sx={{ width: 120, height: 120 }}
-                  />
-                ) : (
-                  <ImageIcon color="disabled" sx={{ fontSize: 120 }} />
-                )}
+                <BackgroundImage background={selectedBackground} size="small" />
               </Box>
               <Typography>
                 Giá trị thuộc tính:{" "}
