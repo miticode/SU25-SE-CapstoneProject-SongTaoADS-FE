@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 
-// Sử dụng proxy trong development để tránh CORS
-const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
+// Sử dụng URL backend trực tiếp
+const API_URL = "https://songtaoads.online";
 
 // Create axios instance with interceptors
 const attributeValueService = axios.create({
