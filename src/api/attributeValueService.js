@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// API URL
-const API_URL = 'https://songtaoads.online';
+
+// Sử dụng proxy trong development để tránh CORS
+const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
 
 // Create axios instance with interceptors
 const attributeValueService = axios.create({
@@ -45,20 +46,11 @@ attributeValueService.interceptors.response.use(
 // Function to create a new attribute value
 export const createAttributeValueApi = async (attributeId, attributeValueData) => {
   try {
-    const token = getToken();
-
-    const response = await attributeValueService.post(`/api/attributes/${attributeId}/attribute-values`, attributeValueData, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
+    const response = await attributeValueService.post(`/api/attributes/${attributeId}/attribute-values`, attributeValueData);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {
@@ -70,20 +62,13 @@ export const createAttributeValueApi = async (attributeId, attributeValueData) =
 
 export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, size = 50) => {
   try {
-    const token = getToken();
-
     const response = await attributeValueService.get(
       `/api/attributes/${attributeId}/attribute-values`, 
       {
-        params: { page, size },
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        params: { page, size }
       }
     );
-
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
-
     if (success && Array.isArray(result)) {
       // Xử lý dữ liệu để phù hợp với frontend
       const processedData = result.map(item => ({
@@ -99,7 +84,6 @@ export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, 
         // Xử lý attributesId - lấy id của attribute
         attributeId: item.attributesId?.id || attributeId
       }));
-
       return { 
         success: true, 
         data: processedData,
@@ -111,7 +95,6 @@ export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, 
         }
       };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {
@@ -122,20 +105,11 @@ export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, 
 };
 export const updateAttributeValueApi = async (attributeValueId, attributeValueData) => {
   try {
-    const token = getToken();
-
-    const response = await attributeValueService.put(`/api/attribute-values/${attributeValueId}`, attributeValueData, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
+    const response = await attributeValueService.put(`/api/attribute-values/${attributeValueId}`, attributeValueData);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {
@@ -146,20 +120,11 @@ export const updateAttributeValueApi = async (attributeValueId, attributeValueDa
 };
 export const deleteAttributeValueApi = async (attributeValueId) => {
   try {
-    const token = getToken();
-
-    const response = await attributeValueService.delete(`/api/attribute-values/${attributeValueId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
+    const response = await attributeValueService.delete(`/api/attribute-values/${attributeValueId}`);
     const { success, message } = response.data;
-
     if (success) {
       return { success: true, message };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {

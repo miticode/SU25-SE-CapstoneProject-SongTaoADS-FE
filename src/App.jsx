@@ -6,7 +6,7 @@ import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
-import { syncAuthState, setRefreshing } from "./store/features/auth/authSlice";
+import { syncAuthState, setRefreshing, initializeAuth } from "./store/features/auth/authSlice";
 import { checkAuthStatus, refreshTokenApi } from "./api/authService";
 
 import MainLayout from "./layouts/MainLayout";
@@ -124,112 +124,18 @@ const App = () => {
 
   // Kiểm tra trạng thái đăng nhập khi tải trang
   useEffect(() => {
-    const initializeAuth = async () => {
+    const initAuth = async () => {
       try {
         setAuthLoading(true);
-        // Get access token from localStorage
-        const accessToken = localStorage.getItem("accessToken");
-
-        if (accessToken) {
-          // We have a token, validate it
-          try {
-            const authStatus = await checkAuthStatus();
-            dispatch(
-              syncAuthState({
-                isAuthenticated: authStatus.isAuthenticated,
-                user: authStatus.user,
-                accessToken: authStatus.accessToken || accessToken,
-              })
-            );
-          } catch (validationError) {
-            console.error("Token validation failed:", validationError);
-
-            // Try to refresh if validation fails
-            try {
-              const refreshResult = await refreshTokenApi();
-              if (refreshResult.success) {
-                dispatch(
-                  syncAuthState({
-                    isAuthenticated: true,
-                    user: refreshResult.user,
-                    accessToken: refreshResult.accessToken,
-                  })
-                );
-                console.log(
-                  "Token refreshed successfully during initialization"
-                );
-              } else {
-                throw new Error("Refresh failed during initialization");
-              }
-            } catch (refreshError) {
-              console.error("Auth refresh error:", refreshError);
-              dispatch(
-                syncAuthState({
-                  isAuthenticated: false,
-                  user: null,
-                  accessToken: null,
-                })
-              );
-            }
-          }
-        } else {
-          // No token, try silent refresh once
-          try {
-            const refreshPromise = refreshTokenApi();
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("Auth refresh timeout")), 5000)
-            );
-
-            // Race between refresh and timeout
-            const refreshResult = await Promise.race([
-              refreshPromise,
-              timeoutPromise,
-            ]);
-
-            if (refreshResult.success) {
-              dispatch(
-                syncAuthState({
-                  isAuthenticated: true,
-                  user: refreshResult.user || null,
-                  accessToken: refreshResult.accessToken,
-                })
-              );
-            } else {
-              dispatch(
-                syncAuthState({
-                  isAuthenticated: false,
-                  user: null,
-                  accessToken: null,
-                })
-              );
-            }
-          } catch (silentRefreshError) {
-            console.error("Silent auth refresh failed:", silentRefreshError);
-            dispatch(
-              syncAuthState({
-                isAuthenticated: false,
-                user: null,
-                accessToken: null,
-              })
-            );
-          }
-        }
-      } catch (err) {
-        console.error("Auth initialization error:", err);
-        dispatch(
-          syncAuthState({
-            isAuthenticated: false,
-            user: null,
-            accessToken: null,
-          })
-        );
+        await dispatch(initializeAuth()).unwrap();
+      } catch (error) {
+        console.error("Auth initialization failed:", error);
       } finally {
-        // Always stop loading, even if errors occur
         setAuthLoading(false);
       }
     };
 
-    initializeAuth();
+    initAuth();
   }, [dispatch]);
   useEffect(() => {
     if (isAuthenticated) {

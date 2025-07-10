@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Cập nhật URL API thực tế của bạn
-const API_URL = 'https://songtaoads.online';
+
+// Sử dụng proxy trong development để tránh CORS
+const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
 
 // Tạo instance axios với interceptors
 const attributeService = axios.create({
@@ -11,6 +12,17 @@ const attributeService = axios.create({
   },
   withCredentials: true // Cho phép gửi và nhận cookies từ API
 });
+
+attributeService.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Interceptor để xử lý lỗi
 attributeService.interceptors.response.use(

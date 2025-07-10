@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { login, resetAuthStatus } from "../store/features/auth/authSlice";
+import {
+  loginAndFetchProfile,
+  resetAuthStatus,
+} from "../store/features/auth/authSlice";
 import PageTransition from "../components/PageTransition";
 import { notifyLoginSuccess } from "../App"; // Import hàm thông báo
 
@@ -44,7 +47,7 @@ const Login = () => {
 
     // Xử lý thông báo lỗi session
     if (sessionError === "session_expired") {
-    console.log("Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.");
+      console.log("Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.");
     }
   }, [dispatch, isAuthenticated, navigate, sessionError]);
 
@@ -53,8 +56,8 @@ const Login = () => {
 
     try {
       // Dispatch login action và đợi kết quả
-        localStorage.removeItem("accessToken");
-      await dispatch(login({ email, password, rememberMe })).unwrap();
+      localStorage.removeItem("accessToken");
+      await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
 
       // Thông báo đăng nhập thành công (sẽ trigger alert ở App.jsx)
       notifyLoginSuccess();

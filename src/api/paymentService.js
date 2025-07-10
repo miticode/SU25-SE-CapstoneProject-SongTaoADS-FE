@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "https://songtaoads.online"; // Đổi nếu backend khác
+// Sử dụng proxy trong development để tránh CORS
+const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
 
 // Tạo instance axios với interceptors
 const paymentService = axios.create({
