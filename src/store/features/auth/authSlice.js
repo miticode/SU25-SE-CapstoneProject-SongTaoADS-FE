@@ -99,28 +99,35 @@ export const loginAndFetchProfile = createAsyncThunk(
   "auth/loginAndFetchProfile",
   async (credentials, { rejectWithValue }) => {
     try {
-      // Đăng nhập trước
+      // Bước 1: Đăng nhập
       const loginResponse = await loginApi(credentials);
+
       if (!loginResponse.success) {
-        return rejectWithValue(loginResponse.error || "Login failed");
+        return rejectWithValue(loginResponse.error || "Đăng nhập thất bại");
       }
 
-      // Sau khi đăng nhập thành công, fetch profile
-      const profileResponse = await getProfileApi();
-      if (profileResponse.success) {
-        return {
-          user: profileResponse.data,
-          accessToken: loginResponse.data.accessToken,
-        };
-      } else {
-        // Nếu không fetch được profile, vẫn trả về thông tin login
-        return {
-          user: loginResponse.data,
-          accessToken: loginResponse.data.accessToken,
-        };
+      // Lưu token ngay lập tức
+      if (loginResponse.data.accessToken) {
+        localStorage.setItem("accessToken", loginResponse.data.accessToken);
       }
+
+      // Bước 2: Lấy thông tin profile
+      const profileResponse = await getProfileApi();
+
+      if (!profileResponse.success) {
+        return rejectWithValue("Không thể lấy thông tin người dùng");
+      }
+
+      console.log('Profile in loginAndFetchProfile:', profileResponse.data); // Debug log
+
+      // Trả về dữ liệu hoàn chỉnh
+      return {
+        user: profileResponse.data, // Đảm bảo user data đúng cấu trúc
+        accessToken: loginResponse.data.accessToken,
+      };
     } catch (error) {
-      return rejectWithValue(error.message || "Login failed");
+      console.error("Login and fetch profile error:", error);
+      return rejectWithValue(error.message || "Có lỗi xảy ra khi đăng nhập");
     }
   }
 );
@@ -128,30 +135,40 @@ export const loginAndFetchProfile = createAsyncThunk(
 // Thunk để khởi tạo auth state và fetch profile
 export const initializeAuth = createAsyncThunk(
   "auth/initializeAuth",
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      
-      if (!accessToken) {
-        return { isAuthenticated: false, user: null, accessToken: null };
+      const token = localStorage.getItem("accessToken");
+
+      if (!token) {
+        return rejectWithValue("No token found");
       }
 
-      // Kiểm tra token và fetch profile
-      const profileResponse = await getProfileApi();
-      if (profileResponse.success) {
+      // Kiểm tra xem đã có user data chưa
+      const currentState = getState();
+      if (currentState.auth.isAuthenticated && currentState.auth.user) {
         return {
-          isAuthenticated: true,
-          user: profileResponse.data,
-          accessToken: accessToken,
+          user: currentState.auth.user,
+          accessToken: token,
         };
-      } else {
-        // Token không hợp lệ
-        localStorage.removeItem("accessToken");
-        return { isAuthenticated: false, user: null, accessToken: null };
       }
-    } catch {
+
+      // Lấy thông tin profile
+      const profileResponse = await getProfileApi();
+
+      if (!profileResponse.success) {
+        localStorage.removeItem("accessToken");
+        return rejectWithValue("Invalid token");
+      }
+
+      // SỬA: Đổi từ result thành data
+      return {
+        user: profileResponse.data, // SỬA: Đổi từ profileResponse.result thành profileResponse.data
+        accessToken: token,
+      };
+    } catch (error) {
+      console.error("Initialize auth error:", error);
       localStorage.removeItem("accessToken");
-      return rejectWithValue("Không thể khởi tạo trạng thái đăng nhập");
+      return rejectWithValue(error.message || "Auth initialization failed");
     }
   }
 );
@@ -172,102 +189,79 @@ const authSlice = createSlice({
     syncAuthState: (state, action) => {
       const { isAuthenticated, user, accessToken } = action.payload;
       state.isAuthenticated = isAuthenticated;
-
-      if (user) state.user = user;
-
-      if (accessToken) {
-        state.accessToken = accessToken;
-        state.tokenTimestamp = Date.now(); // Track when we got this token
-        localStorage.setItem("accessToken", accessToken);
+      state.user = user;
+      state.accessToken = accessToken;
+      state.tokenTimestamp = Date.now();
+      if (isAuthenticated) {
+        state.status = "succeeded";
       }
-
-      state.status = "idle";
-      state.error = null;
-      state.isRefreshing = false;
     },
     setRefreshing: (state, action) => {
       state.isRefreshing = action.payload;
     },
+    // Thêm action để reset lỗi init
+    clearAuthError: (state) => {
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Login cases
+      // Login
       .addCase(login.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.user = action.payload;
         state.isAuthenticated = true;
         state.accessToken = action.payload.accessToken;
+        state.tokenTimestamp = Date.now();
         state.error = null;
-        // Cập nhật trạng thái trong authService
-        updateAuthState(true, action.payload);
       })
       .addCase(login.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload;
         state.isAuthenticated = false;
+        state.user = null;
         state.accessToken = null;
+        state.tokenTimestamp = null;
+        state.error = action.payload;
       })
 
-      // Login and fetch profile cases
-      .addCase(loginAndFetchProfile.pending, (state) => {
-        state.status = "loading";
-      })
-      .addCase(loginAndFetchProfile.fulfilled, (state, action) => {
-        state.status = "succeeded";
-        state.user = action.payload.user;
-        state.isAuthenticated = true;
-        state.accessToken = action.payload.accessToken;
-        state.error = null;
-        // Cập nhật trạng thái trong authService
-        updateAuthState(true, action.payload.user);
-      })
-      .addCase(loginAndFetchProfile.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-        state.isAuthenticated = false;
-        state.accessToken = null;
-      })
-
-      // Initialize auth cases
-      .addCase(initializeAuth.pending, (state) => {
-        state.status = "loading";
-      })
-      .addCase(initializeAuth.fulfilled, (state, action) => {
-        state.status = "succeeded";
-        state.isAuthenticated = action.payload.isAuthenticated;
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        state.error = null;
-        if (action.payload.user) {
-          updateAuthState(action.payload.isAuthenticated, action.payload.user);
-        }
-      })
-      .addCase(initializeAuth.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-        state.isAuthenticated = false;
-        state.accessToken = null;
-      })
-
-      // Register cases
+      // Register
       .addCase(register.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
       .addCase(register.fulfilled, (state) => {
         state.status = "succeeded";
         state.error = null;
-        state.registrationSuccess = true;
       })
       .addCase(register.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
-        state.registrationSuccess = false;
       })
 
-      // Verification cases
+      // Logout
+      .addCase(logout.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.status = "idle";
+        state.isAuthenticated = false;
+        state.user = null;
+        state.accessToken = null;
+        state.tokenTimestamp = null;
+        state.error = null;
+      })
+      .addCase(logout.rejected, (state) => {
+        state.status = "idle";
+        state.isAuthenticated = false;
+        state.user = null;
+        state.accessToken = null;
+        state.tokenTimestamp = null;
+      })
+
+      // Send verification email
       .addCase(sendVerificationEmail.pending, (state) => {
         state.verificationStatus = "loading";
         state.verificationError = null;
@@ -281,24 +275,7 @@ const authSlice = createSlice({
         state.verificationError = action.payload;
       })
 
-      // Logout cases
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.isAuthenticated = false;
-        state.accessToken = null;
-        state.status = "idle";
-        state.error = null;
-      })
-      .addCase(logout.rejected, (state) => {
-        // Still cleanup even if API fails
-        state.user = null;
-        state.isAuthenticated = false;
-        state.accessToken = null;
-        state.status = "idle";
-        state.error = null;
-      })
-
-      // Fetch profile cases
+      // Fetch profile
       .addCase(fetchProfile.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -311,17 +288,68 @@ const authSlice = createSlice({
       .addCase(fetchProfile.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+      })
+
+      // Login and fetch profile
+      .addCase(loginAndFetchProfile.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(loginAndFetchProfile.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.tokenTimestamp = Date.now();
+        state.error = null;
+      })
+      .addCase(loginAndFetchProfile.rejected, (state, action) => {
+        state.status = "failed";
+        state.isAuthenticated = false;
+        state.user = null;
+        state.accessToken = null;
+        state.tokenTimestamp = null;
+        state.error = action.payload;
+        localStorage.removeItem("accessToken");
+      })
+
+      // Initialize auth
+      .addCase(initializeAuth.pending, (state) => {
+        // Không set loading nếu đã có user data
+        if (!state.user) {
+          state.status = "loading";
+        }
+        state.error = null;
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.tokenTimestamp = Date.now();
+        state.error = null;
+      })
+      .addCase(initializeAuth.rejected, (state, action) => {
+        state.status = "failed";
+        state.isAuthenticated = false;
+        state.user = null;
+        state.accessToken = null;
+        state.tokenTimestamp = null;
+        state.error = action.payload;
       });
   },
 });
 
-export const { resetAuthStatus, resetVerificationStatus, syncAuthState, setRefreshing } = authSlice.actions;
+export const {
+  resetAuthStatus,
+  resetVerificationStatus,
+  syncAuthState,
+  setRefreshing,
+  clearAuthError,
+} = authSlice.actions;
 
 export default authSlice.reducer;
-
 // Selectors
 export const selectAuthUser = (state) => state.auth.user;
 export const selectAuthStatus = (state) => state.auth.status;
 export const selectAuthError = (state) => state.auth.error;
-
-
