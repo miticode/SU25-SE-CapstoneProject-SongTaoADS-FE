@@ -19,6 +19,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
+import { getDefaultRedirectPath, getUserRole } from "../utils/roleUtils";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -55,19 +56,25 @@ const Login = () => {
     e.preventDefault();
 
     try {
-      // Dispatch login action và đợi kết quả
       localStorage.removeItem("accessToken");
-      await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
+      const result = await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
 
-      // Thông báo đăng nhập thành công (sẽ trigger alert ở App.jsx)
+      console.log('Login result:', result); // Debug log
+
+      // Thông báo đăng nhập thành công
       notifyLoginSuccess();
 
-      // Chuyển hướng về trang chủ
-      setTimeout(() => {
-        navigate("/");
-      }, 500); // Delay nhỏ để người dùng thấy được thông báo
+      // Điều hướng dựa trên role của user
+      const userRole = getUserRole(result.user);
+      const redirectPath = getDefaultRedirectPath(userRole);
+      
+      console.log('User role:', userRole); // Debug log
+      console.log('Redirect path:', redirectPath); // Debug log
+      
+      // Chuyển hướng ngay lập tức không có delay
+      navigate(redirectPath, { replace: true });
+      
     } catch (err) {
-      // Lỗi đã được xử lý trong slice
       console.error("Login failed:", err);
     }
   };
@@ -129,8 +136,7 @@ const Login = () => {
         </Box>
       )}
 
-      {/* Form đăng nhập - ẩn đi nếu đã đăng nhập thành công */}
-
+      {/* Form đăng nhập */}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label
@@ -148,6 +154,7 @@ const Login = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="your.email@example.com"
             disabled={status === "loading"}
+            autoComplete="email"
           />
         </div>
 
@@ -175,6 +182,7 @@ const Login = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
             placeholder="••••••••"
             disabled={status === "loading"}
+            autoComplete="current-password"
           />
         </div>
 
