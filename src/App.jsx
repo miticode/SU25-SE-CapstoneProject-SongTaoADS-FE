@@ -1,15 +1,18 @@
 import { Route, Routes, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
-
-import { syncAuthState, setRefreshing, initializeAuth } from "./store/features/auth/authSlice";
-
+import {
+  syncAuthState,
+  setRefreshing,
+  initializeAuth,
+} from "./store/features/auth/authSlice";
 import { checkAuthStatus, refreshTokenApi } from "./api/authService";
+
 import MainLayout from "./layouts/MainLayout";
 import SaleLayout from "./layouts/SaleLayout";
 import DesignerLayout from "./layouts/DesignerLayout";
@@ -39,6 +42,10 @@ import ManagerLayout from "./layouts/ManagerLayout";
 
 import MyTicket from "./pages/MyTicket";
 
+import AccessDeny from "./pages/AccessDeny";
+import RoleBasedRoute from "./components/RoleBasedRoute";
+import { ROLES } from "./utils/roleUtils";
+
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -51,16 +58,11 @@ const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isRefreshing } = useSelector((state) => state.auth);
   const hasToken = !!localStorage.getItem("accessToken");
   const dispatch = useDispatch();
-  // Show loading during refresh attempts
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    // If Redux state says not authenticated but we have a token,
-    // it might be that the token just hasn't been validated yet
     if (!isAuthenticated && hasToken && !isRefreshing) {
       setVerifying(true);
-
-      // Try to validate the token
       dispatch(setRefreshing(true));
 
       checkAuthStatus()
@@ -74,7 +76,6 @@ const ProtectedRoute = ({ children }) => {
               })
             );
           } else {
-            // Token invalid, redirect to login
             localStorage.removeItem("accessToken");
           }
         })
@@ -111,12 +112,22 @@ const App = () => {
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { isAuthenticated, user, status } = useSelector((state) => state.auth);
+  const authInitialized = useRef(false); // Thêm ref để track đã init hay chưa
 
   // Xử lý sự kiện đăng nhập thành công
   useEffect(() => {
     const handleLoginSuccess = () => {
       setShowLoginSuccess(true);
+
+      // Debug: kiểm tra user data sau khi đăng nhập
+      console.log("Login success event triggered");
+      setTimeout(() => {
+        const currentUser = JSON.parse(
+          localStorage.getItem("persist:auth") || "{}"
+        );
+        console.log("Current user after login:", currentUser);
+      }, 1000);
     };
 
     window.addEventListener("loginSuccess", handleLoginSuccess);
@@ -129,22 +140,44 @@ const App = () => {
   // Kiểm tra trạng thái đăng nhập khi tải trang
   useEffect(() => {
     const initAuth = async () => {
+      // Chỉ init một lần
+      if (authInitialized.current) {
+        return;
+      }
+
       try {
         setAuthLoading(true);
-        await dispatch(initializeAuth()).unwrap();
+        authInitialized.current = true; // Đánh dấu đã init
+
+        const hasToken = localStorage.getItem("accessToken");
+
+        if (hasToken) {
+          // Nếu có token, kiểm tra và sync auth state
+          await dispatch(initializeAuth()).unwrap();
+        } else {
+          // Nếu không có token, set auth loading = false
+          setAuthLoading(false);
+        }
       } catch (error) {
         console.error("Auth initialization failed:", error);
+        // Xóa token nếu có lỗi
+        localStorage.removeItem("accessToken");
       } finally {
         setAuthLoading(false);
       }
     };
 
+    // Chỉ init auth khi component mount lần đầu
     initAuth();
-  }, [dispatch]);
+  }, []); // Chỉ chạy một lần khi component mount
+
+  // Token refresh effect - tách riêng
   useEffect(() => {
-    if (isAuthenticated) {
-      // Refresh token sau mỗi 25 phút (5 phút trước khi hết hạn)
-      const refreshInterval = setInterval(() => {
+    let refreshInterval;
+
+    if (isAuthenticated && user) {
+      // Refresh token sau mỗi 25 phút
+      refreshInterval = setInterval(() => {
         console.log("Performing scheduled token refresh");
         refreshTokenApi()
           .then((result) => {
@@ -164,11 +197,16 @@ const App = () => {
           .catch((error) => {
             console.error("Error during scheduled token refresh:", error);
           });
-      }, 25 * 60 * 1000); // 25 phút
-
-      return () => clearInterval(refreshInterval);
+      }, 25 * 60 * 1000);
     }
+
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
   }, [dispatch, isAuthenticated, user]);
+
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
     if (reason === "clickaway") {
@@ -230,16 +268,10 @@ const App = () => {
               <Route path="/payment/cancel" element={<PaymentCancel />} />
               <Route path="custom-design" element={<CustomDesign />} />
               <Route path="my-ticket" element={<MyTicket />} />
+              <Route path="access-denied" element={<AccessDeny />} />
 
-              {/* Protected routes - cần đăng nhập để truy cập */}
-              <Route
-                path="dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Protected routes - chỉ cho CUSTOMER */}
+
               <Route
                 path="profile"
                 element={
@@ -249,51 +281,50 @@ const App = () => {
                 }
               />
             </Route>
+
+            {/* Admin routes - chỉ cho ADMIN */}
             <Route
-              path="admin"
+              path="/admin"
               element={
-                <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={[ROLES.ADMIN]}>
                   <AdminLayout />
-                </ProtectedRoute>
+                </RoleBasedRoute>
               }
             >
               <Route index element={<AdminDashboard />} />
-              {/* Add more admin routes as needed */}
-              {/* <Route path="users" element={<AdminUsers />} /> */}
-              {/* <Route path="orders" element={<AdminOrders />} /> */}
             </Route>
 
+            {/* Manager routes - chỉ cho STAFF (MANAGER) */}
             <Route
-              path="manager"
+              path="/manager"
               element={
-                <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={[ROLES.STAFF]}>
                   <ManagerLayout />
-                </ProtectedRoute>
+                </RoleBasedRoute>
               }
             >
               <Route index element={<ManagerDashboard />} />
-              {/* Add more manager routes as needed */}
             </Route>
 
-            {/* Sale routes with SaleLayout */}
+            {/* Sale routes - chỉ cho SALE */}
             <Route
-              path="sale"
+              path="/sale"
               element={
-                <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={[ROLES.SALE]}>
                   <SaleLayout />
-                </ProtectedRoute>
+                </RoleBasedRoute>
               }
             >
               <Route index element={<SaleDashboard />} />
             </Route>
 
-            {/* Designer routes with DesignerLayout */}
+            {/* Designer routes - chỉ cho DESIGNER */}
             <Route
-              path="designer"
+              path="/designer"
               element={
-                <ProtectedRoute>
+                <RoleBasedRoute allowedRoles={[ROLES.DESIGNER]}>
                   <DesignerLayout />
-                </ProtectedRoute>
+                </RoleBasedRoute>
               }
             >
               <Route index element={<DesignerDashboard />} />
@@ -305,6 +336,9 @@ const App = () => {
             </Route>
           </Routes>
         </AnimatePresence>
+
+        {/* AI Chatbot */}
+        <AIChatbot />
       </>
     </LocalizationProvider>
   );

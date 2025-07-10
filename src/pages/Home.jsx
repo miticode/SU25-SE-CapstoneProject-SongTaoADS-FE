@@ -1,13 +1,55 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { FaChartLine, FaRegLightbulb } from "react-icons/fa";
 import { SiProbot } from "react-icons/si";
 import Carousel from "../components/Carousel";
 import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { useSelector } from "react-redux";
+import { getProfileApi } from "../api/authService";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from "@mui/material";
 
 const Home = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const { user: authUser, isAuthenticated } = useSelector(
+    (state) => state.auth
+  );
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await getProfileApi();
+
+        if (res.success && res.data) {
+          setUser(res.data);
+        } else {
+          console.error("Profile API response missing data:", res);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      }
+    };
+
+    if (isAuthenticated) {
+      if (authUser) {
+        setUser(authUser);
+      } else if (!user) {
+        fetchProfile();
+      }
+    } else {
+      setUser(null);
+    }
+  }, [authUser, isAuthenticated]);
+
   const carouselItems = [
     {
       image: "https://placehold.co/1200x600/2B2F4A/FFF?text=AI+Marketing+Tool",
@@ -28,9 +70,64 @@ const Home = () => {
         "Theo dõi hiệu suất chiến dịch với bảng điều khiển phân tích toàn diện",
     },
   ];
-
+  const handleDesignClick = () => {
+    if (isAuthenticated) {
+      navigate("/ai-design");
+    } else {
+      setShowLoginDialog(true);
+    }
+  };
+  const handleLoginRedirect = () => {
+    setShowLoginDialog(false);
+    navigate("/auth/login");
+  };
+  const handleCancel = () => {
+    setShowLoginDialog(false);
+  };
+  const LoginDialog = ({ isOpen, onClose, onLogin }) => {
+    return (
+      <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle className="text-center">
+          <div className="flex flex-col items-center">
+            <div className="mb-2">
+              <SiProbot className="h-8 w-8 text-blue-600" />
+            </div>
+            Yêu cầu đăng nhập
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" className="text-center text-gray-600">
+            Bạn cần đăng nhập để sử dụng tính năng thiết kế . Hãy đăng nhập để
+            tiếp tục trải nghiệm!
+          </Typography>
+        </DialogContent>
+        <DialogActions className="justify-center pb-4">
+          <Button
+            onClick={onLogin}
+            variant="contained"
+            color="primary"
+            className="mr-2"
+          >
+            Đăng nhập ngay
+          </Button>
+          <Button onClick={onClose} variant="outlined" color="secondary">
+            Hủy
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
   return (
     <div className="flex flex-col min-h-screen">
+      <AnimatePresence>
+        {showLoginDialog && (
+          <LoginDialog
+            isOpen={showLoginDialog}
+            onClose={handleCancel}
+            onLogin={handleLoginRedirect}
+          />
+        )}
+      </AnimatePresence>
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -57,7 +154,7 @@ const Home = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate("/ai-design")}
+                  onClick={handleDesignClick} // Thay đổi từ navigate("/ai-design") thành handleDesignClick
                   className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer z-40 relative"
                 >
                   Thiết kế ngay
