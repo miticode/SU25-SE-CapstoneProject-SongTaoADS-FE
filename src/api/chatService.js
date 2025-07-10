@@ -1,6 +1,6 @@
 import axios from 'axios';
 // Sử dụng proxy trong development để tránh CORS
-const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
+const API_URL = "https://songtaoads.online";
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
