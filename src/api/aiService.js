@@ -23,7 +23,8 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
     }
     
     const token = getToken();
-    const API_URL = 'https://songtaoads.online';
+    // Sử dụng proxy trong development để tránh CORS
+    const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
     
     // Log formData để kiểm tra
     for (let pair of formData.entries()) {
@@ -55,7 +56,8 @@ export const generateImageFromTextApi = async (designTemplateId, prompt) => {
     formData.append('prompt', prompt);
     
     const token = getToken();
-    const API_URL = 'https://songtaoads.online';
+    // Sử dụng proxy trong development để tránh CORS
+    const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
     
     // Log để debug
     console.log('Sending text-to-image request:');

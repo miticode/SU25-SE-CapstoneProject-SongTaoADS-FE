@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// API base URL
-const API_URL = 'https://songtaoads.online';
+
+// Sử dụng proxy trong development để tránh CORS
+const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
 
 // Get token function
 const getToken = () => {

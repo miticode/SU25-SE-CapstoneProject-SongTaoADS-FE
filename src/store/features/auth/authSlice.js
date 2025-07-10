@@ -94,6 +94,68 @@ export const fetchProfile = createAsyncThunk(
   }
 );
 
+// Thunk để login và tự động fetch profile
+export const loginAndFetchProfile = createAsyncThunk(
+  "auth/loginAndFetchProfile",
+  async (credentials, { rejectWithValue }) => {
+    try {
+      // Đăng nhập trước
+      const loginResponse = await loginApi(credentials);
+      if (!loginResponse.success) {
+        return rejectWithValue(loginResponse.error || "Login failed");
+      }
+
+      // Sau khi đăng nhập thành công, fetch profile
+      const profileResponse = await getProfileApi();
+      if (profileResponse.success) {
+        return {
+          user: profileResponse.data,
+          accessToken: loginResponse.data.accessToken,
+        };
+      } else {
+        // Nếu không fetch được profile, vẫn trả về thông tin login
+        return {
+          user: loginResponse.data,
+          accessToken: loginResponse.data.accessToken,
+        };
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || "Login failed");
+    }
+  }
+);
+
+// Thunk để khởi tạo auth state và fetch profile
+export const initializeAuth = createAsyncThunk(
+  "auth/initializeAuth",
+  async (_, { rejectWithValue }) => {
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      
+      if (!accessToken) {
+        return { isAuthenticated: false, user: null, accessToken: null };
+      }
+
+      // Kiểm tra token và fetch profile
+      const profileResponse = await getProfileApi();
+      if (profileResponse.success) {
+        return {
+          isAuthenticated: true,
+          user: profileResponse.data,
+          accessToken: accessToken,
+        };
+      } else {
+        // Token không hợp lệ
+        localStorage.removeItem("accessToken");
+        return { isAuthenticated: false, user: null, accessToken: null };
+      }
+    } catch {
+      localStorage.removeItem("accessToken");
+      return rejectWithValue("Không thể khởi tạo trạng thái đăng nhập");
+    }
+  }
+);
+
 // Đơn giản hóa slice - chỉ còn các hàm cần thiết
 const authSlice = createSlice({
   name: "auth",
@@ -143,6 +205,47 @@ const authSlice = createSlice({
         updateAuthState(true, action.payload);
       })
       .addCase(login.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        state.isAuthenticated = false;
+        state.accessToken = null;
+      })
+
+      // Login and fetch profile cases
+      .addCase(loginAndFetchProfile.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(loginAndFetchProfile.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload.user;
+        state.isAuthenticated = true;
+        state.accessToken = action.payload.accessToken;
+        state.error = null;
+        // Cập nhật trạng thái trong authService
+        updateAuthState(true, action.payload.user);
+      })
+      .addCase(loginAndFetchProfile.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        state.isAuthenticated = false;
+        state.accessToken = null;
+      })
+
+      // Initialize auth cases
+      .addCase(initializeAuth.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.isAuthenticated = action.payload.isAuthenticated;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.error = null;
+        if (action.payload.user) {
+          updateAuthState(action.payload.isAuthenticated, action.payload.user);
+        }
+      })
+      .addCase(initializeAuth.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
         state.isAuthenticated = false;
