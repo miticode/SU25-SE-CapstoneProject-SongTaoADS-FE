@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "https://songtaoads.online";
+// Sử dụng proxy trong development để tránh CORS
+const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
 
 const sizeService = axios.create({
   baseURL: API_URL,
@@ -10,6 +11,17 @@ const sizeService = axios.create({
 
 sizeService.interceptors.response.use(
   (response) => response,
+  (error) => Promise.reject(error)
+);
+
+sizeService.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 // lấy tất cả kích thước

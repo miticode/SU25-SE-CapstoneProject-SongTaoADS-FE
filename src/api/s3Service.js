@@ -9,7 +9,8 @@ const getToken = () => {
 export const getImageFromS3 = async (key) => {
   try {
     const token = getToken();
-    const API_URL = 'https://songtaoads.online';
+    // Sử dụng proxy trong development để tránh CORS
+    const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
     
     // Log để debug
     console.log('Fetching image from S3:');
@@ -40,7 +41,8 @@ export const getImageFromS3 = async (key) => {
 export const getPresignedUrl = async (key, durationInMinutes = 30) => {
   try {
     const token = getToken();
-    const API_URL = 'https://songtaoads.online';
+    // Sử dụng proxy trong development để tránh CORS
+    const API_URL = import.meta.env.DEV ? "" : "https://songtaoads.online";
     
     console.log('Getting presigned URL for key:', key);
     
