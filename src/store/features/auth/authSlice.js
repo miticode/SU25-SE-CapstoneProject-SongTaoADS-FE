@@ -6,6 +6,7 @@ import {
   updateAuthState,
   resendVerificationApi,
   getProfileApi,
+  forgotPasswordApi, // Thêm import hàm mới
 } from "../../../api/authService";
 
 // Initial state
@@ -19,6 +20,9 @@ const initialState = {
   isRefreshing: false,
   verificationStatus: "idle", // Thêm trạng thái xác thực
   verificationError: null, // Thêm lỗi xác thực
+  forgotPasswordStatus: "idle",
+  forgotPasswordError: null,
+  forgotPasswordMessage: null,
 };
 
 // Async thunks
@@ -173,6 +177,18 @@ export const initializeAuth = createAsyncThunk(
   }
 );
 
+// Thunk gửi email đặt lại mật khẩu
+export const forgotPassword = createAsyncThunk(
+  "/api/password-reset/resend",
+  async (email, { rejectWithValue }) => {
+    const response = await forgotPasswordApi(email);
+    if (!response.success) {
+      return rejectWithValue(response.error || "Gửi email đặt lại mật khẩu thất bại");
+    }
+    return response;
+  }
+);
+
 // Đơn giản hóa slice - chỉ còn các hàm cần thiết
 const authSlice = createSlice({
   name: "auth",
@@ -185,6 +201,11 @@ const authSlice = createSlice({
     resetVerificationStatus: (state) => {
       state.verificationStatus = "idle";
       state.verificationError = null;
+    },
+    resetForgotPasswordStatus: (state) => {
+      state.forgotPasswordStatus = "idle";
+      state.forgotPasswordError = null;
+      state.forgotPasswordMessage = null;
     },
     syncAuthState: (state, action) => {
       const { isAuthenticated, user, accessToken } = action.payload;
@@ -275,9 +296,35 @@ const authSlice = createSlice({
         state.verificationError = action.payload;
       })
 
+
+      // Forgot password cases
+      .addCase(forgotPassword.pending, (state) => {
+        state.forgotPasswordStatus = "loading";
+        state.forgotPasswordError = null;
+        state.forgotPasswordMessage = null;
+      })
+      .addCase(forgotPassword.fulfilled, (state, action) => {
+        state.forgotPasswordStatus = "succeeded";
+        state.forgotPasswordMessage = action.payload.message;
+        state.forgotPasswordError = null;
+      })
+      .addCase(forgotPassword.rejected, (state, action) => {
+        state.forgotPasswordStatus = "failed";
+        state.forgotPasswordError = action.payload;
+        state.forgotPasswordMessage = null;
+      })
+
+      // Logout cases
+      .addCase(logout.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.accessToken = null;
+        state.status = "idle";
+
       // Fetch profile
       .addCase(fetchProfile.pending, (state) => {
         state.status = "loading";
+
         state.error = null;
       })
       .addCase(fetchProfile.fulfilled, (state, action) => {
@@ -340,6 +387,9 @@ const authSlice = createSlice({
   },
 });
 
+
+export const { resetAuthStatus, resetVerificationStatus, syncAuthState, setRefreshing, resetForgotPasswordStatus } = authSlice.actions;
+
 export const {
   resetAuthStatus,
   resetVerificationStatus,
@@ -348,8 +398,18 @@ export const {
   clearAuthError,
 } = authSlice.actions;
 
+
 export default authSlice.reducer;
 // Selectors
 export const selectAuthUser = (state) => state.auth.user;
 export const selectAuthStatus = (state) => state.auth.status;
 export const selectAuthError = (state) => state.auth.error;
+
+
+// Selector cho forgot password
+export const selectForgotPasswordStatus = (state) => state.auth.forgotPasswordStatus;
+export const selectForgotPasswordError = (state) => state.auth.forgotPasswordError;
+export const selectForgotPasswordMessage = (state) => state.auth.forgotPasswordMessage;
+
+
+

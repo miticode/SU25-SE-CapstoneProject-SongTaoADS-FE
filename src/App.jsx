@@ -40,9 +40,13 @@ import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
 import MyTicket from "./pages/MyTicket";
+
+import ForgotPassword from "./pages/ForgotPassword";
+
 import AccessDeny from "./pages/AccessDeny";
 import RoleBasedRoute from "./components/RoleBasedRoute";
 import { ROLES } from "./utils/roleUtils";
+
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -328,6 +332,7 @@ const App = () => {
             <Route path="/auth" element={<AuthLayout />}>
               <Route path="login" element={<Login />} />
               <Route path="signup" element={<Signup />} />
+              <Route path="forgot-password" element={<ForgotPassword />} />
             </Route>
           </Routes>
         </AnimatePresence>

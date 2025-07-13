@@ -449,7 +449,6 @@ export const updateUserPasswordApi = async (
 export const resendVerificationApi = async (userData) => {
   try {
     const response = await authService.post("/api/verifications/resend", {
-      fullName: userData.fullName,
       email: userData.email
     });
 
@@ -459,6 +458,20 @@ export const resendVerificationApi = async (userData) => {
     return {
       success: false,
       error: error.response?.data?.message || "Gửi email xác thực thất bại",
+    };
+  }
+};
+
+// Hàm gửi email đặt lại mật khẩu
+export const forgotPasswordApi = async (email) => {
+  try {
+    const response = await authService.post("/api/password-reset/resend", { email });
+    const { success, message, result } = response.data;
+    return { success, message, result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Gửi email đặt lại mật khẩu thất bại",
     };
   }
 };
