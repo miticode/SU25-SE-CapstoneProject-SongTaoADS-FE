@@ -1625,560 +1625,572 @@ const AIDesign = () => {
     setIconPage(page);
     dispatch(fetchIcons({ page, size: 20 }));
   };
- const addIconToCanvas = async (icon) => {
-  if (!fabricCanvas || !icon) {
-    console.log("Canvas or icon not available:", {
-      fabricCanvas: !!fabricCanvas,
-      icon,
-    });
-    return;
-  }
-
-  console.log("Adding icon to canvas:", icon);
-
-  // ✅ SỬ DỤNG getImageFromS3 thay vì presigned URL
-  try {
-    let iconImageUrl = null;
-    
-    if (icon.imageUrl) {
-      console.log("Fetching icon via getImageFromS3:", icon.imageUrl);
-      
-      const s3Result = await getImageFromS3(icon.imageUrl);
-      
-      if (s3Result.success) {
-        iconImageUrl = s3Result.imageUrl;
-        console.log("Icon fetched successfully via S3 API");
-      } else {
-        console.error("Failed to fetch icon via S3 API:", s3Result.message);
-        throw new Error(s3Result.message);
-      }
-    } else if (icon.presignedUrl) {
-      // Fallback nếu có presignedUrl
-      iconImageUrl = icon.presignedUrl;
-      console.log("Using fallback presigned URL for icon:", iconImageUrl);
-    } else if (icon.fullImageUrl) {
-      // Fallback cuối cùng
-      iconImageUrl = icon.fullImageUrl;
-      console.log("Using fallback full image URL for icon:", iconImageUrl);
-    }
-
-    if (!iconImageUrl) {
-      console.error("No valid image URL found for icon:", icon);
-      setSnackbar({
-        open: true,
-        message: `Không thể tải icon "${icon.name}" - thiếu URL ảnh`,
-        severity: "error",
+  const addIconToCanvas = async (icon) => {
+    if (!fabricCanvas || !icon) {
+      console.log("Canvas or icon not available:", {
+        fabricCanvas: !!fabricCanvas,
+        icon,
       });
       return;
     }
 
-    const img = new Image();
-    // ✅ BỎ crossOrigin cho blob URLs từ getImageFromS3
-    // img.crossOrigin = "anonymous"; // KHÔNG CẦN CHO BLOB URL
+    console.log("Adding icon to canvas:", icon);
 
-    // ✅ Thêm flags để tránh multiple event handlers
-    let hasLoaded = false;
-    let hasErrored = false;
+    // ✅ SỬ DỤNG getImageFromS3 thay vì presigned URL
+    try {
+      let iconImageUrl = null;
 
-    img.onload = function () {
-      if (hasLoaded || hasErrored) {
-        console.log("Icon onload called but already handled, skipping...");
-        return;
+      if (icon.imageUrl) {
+        console.log("Fetching icon via getImageFromS3:", icon.imageUrl);
+
+        const s3Result = await getImageFromS3(icon.imageUrl);
+
+        if (s3Result.success) {
+          iconImageUrl = s3Result.imageUrl;
+          console.log("Icon fetched successfully via S3 API");
+        } else {
+          console.error("Failed to fetch icon via S3 API:", s3Result.message);
+          throw new Error(s3Result.message);
+        }
+      } else if (icon.presignedUrl) {
+        // Fallback nếu có presignedUrl
+        iconImageUrl = icon.presignedUrl;
+        console.log("Using fallback presigned URL for icon:", iconImageUrl);
+      } else if (icon.fullImageUrl) {
+        // Fallback cuối cùng
+        iconImageUrl = icon.fullImageUrl;
+        console.log("Using fallback full image URL for icon:", iconImageUrl);
       }
 
-      hasLoaded = true;
-      console.log("Icon loaded successfully via S3 API");
-      console.log("Icon dimensions:", img.width, "x", img.height);
-
-      try {
-        const fabricImg = new fabric.Image(img, {
-          left: 100,
-          top: 100,
-          name: `icon-${icon.id}`,
-        });
-
-        // Giới hạn kích thước icon
-        const maxWidth = 100;
-        const maxHeight = 100;
-        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
-
-        fabricImg.set({
-          scaleX: scale,
-          scaleY: scale,
-        });
-
-        fabricCanvas.add(fabricImg);
-        fabricCanvas.setActiveObject(fabricImg);
-        fabricCanvas.renderAll();
-
-        console.log("Icon added to canvas successfully");
-
-        // Clear selected icon và đóng picker
-        dispatch(clearSelectedIcon());
-        setShowIconPicker(false);
-
+      if (!iconImageUrl) {
+        console.error("No valid image URL found for icon:", icon);
         setSnackbar({
           open: true,
-          message: `Icon "${icon.name}" đã được thêm vào thiết kế`,
-          severity: "success",
-        });
-      } catch (error) {
-        console.error("Error creating fabric image:", error);
-        setSnackbar({
-          open: true,
-          message: "Lỗi khi thêm icon vào thiết kế",
+          message: `Không thể tải icon "${icon.name}" - thiếu URL ảnh`,
           severity: "error",
         });
-      }
-    };
-
-    img.onerror = function (error) {
-      if (hasErrored || hasLoaded) {
-        console.log("Icon onerror called but already handled, skipping...");
         return;
       }
 
-      hasErrored = true;
-      console.error("Failed to load icon image via S3 API:", iconImageUrl, error);
+      const img = new Image();
+      // ✅ BỎ crossOrigin cho blob URLs từ getImageFromS3
+      // img.crossOrigin = "anonymous"; // KHÔNG CẦN CHO BLOB URL
 
-      // ✅ Cleanup để tránh memory leaks
-      img.onload = null;
-      img.onerror = null;
-      img.src = "";
+      // ✅ Thêm flags để tránh multiple event handlers
+      let hasLoaded = false;
+      let hasErrored = false;
 
-      // Tạo placeholder cho icon
-      const placeholder = new fabric.Rect({
-        left: 100,
-        top: 100,
-        width: 80,
-        height: 80,
-        fill: "#f0f0f0",
-        stroke: "#ddd",
-        strokeWidth: 2,
-        rx: 10,
-        ry: 10,
-        name: `icon-placeholder-${icon.id}`,
-      });
-
-      const placeholderText = new fabric.Text("ICON", {
-        left: 140,
-        top: 140,
-        fontSize: 12,
-        fill: "#666",
-        fontWeight: "bold",
-        textAlign: "center",
-        originX: "center",
-        originY: "center",
-        name: `icon-placeholder-text-${icon.id}`,
-      });
-
-      fabricCanvas.add(placeholder);
-      fabricCanvas.add(placeholderText);
-      fabricCanvas.setActiveObject(placeholder);
-      fabricCanvas.renderAll();
-
-      setSnackbar({
-        open: true,
-        message: `Không thể tải icon "${icon.name}", đã tạo placeholder`,
-        severity: "warning",
-      });
-
-      console.log("Icon placeholder added successfully");
-    };
-
-    img.src = iconImageUrl;
-
-  } catch (error) {
-    console.error("Error loading icon:", error);
-    
-    // Tạo placeholder khi có lỗi
-    try {
-      const placeholder = new fabric.Rect({
-        left: 100,
-        top: 100,
-        width: 80,
-        height: 80,
-        fill: "#f0f0f0",
-        stroke: "#ddd",
-        strokeWidth: 2,
-        rx: 10,
-        ry: 10,
-        name: `icon-placeholder-${icon.id}`,
-      });
-
-      const placeholderText = new fabric.Text("ERROR", {
-        left: 140,
-        top: 140,
-        fontSize: 12,
-        fill: "#666",
-        fontWeight: "bold",
-        textAlign: "center",
-        originX: "center",
-        originY: "center",
-        name: `icon-placeholder-text-${icon.id}`,
-      });
-
-      fabricCanvas.add(placeholder);
-      fabricCanvas.add(placeholderText);
-      fabricCanvas.setActiveObject(placeholder);
-      fabricCanvas.renderAll();
-
-      setSnackbar({
-        open: true,
-        message: `Lỗi khi tải icon "${icon.name}": ${error.message}`,
-        severity: "error",
-      });
-
-      console.log("Icon error placeholder added successfully");
-    } catch (placeholderError) {
-      console.error("Error creating icon placeholder:", placeholderError);
-    }
-  }
-};
- const IconPicker = () => {
-  const [iconImageUrls, setIconImageUrls] = useState({}); // Cache blob URLs
-  const [loadingIconUrls, setLoadingIconUrls] = useState({}); // Loading states
-
-  // Hàm fetch icon image từ S3
-  const fetchIconImage = async (icon) => {
-    if (iconImageUrls[icon.id] || loadingIconUrls[icon.id]) {
-      return; // Đã có URL hoặc đang loading
-    }
-
-    try {
-      setLoadingIconUrls(prev => ({ ...prev, [icon.id]: true }));
-
-      console.log("Fetching icon preview via getImageFromS3:", icon.imageUrl);
-      
-      const s3Result = await getImageFromS3(icon.imageUrl);
-      
-      if (s3Result.success) {
-        setIconImageUrls(prev => ({
-          ...prev,
-          [icon.id]: s3Result.imageUrl
-        }));
-        console.log("Icon preview fetched successfully:", icon.id);
-      } else {
-        console.error("Failed to fetch icon preview via S3 API:", s3Result.message);
-        
-        // Fallback: thử presigned URL nếu có
-        if (icon.presignedUrl) {
-          console.log("Trying fallback presigned URL for icon:", icon.id);
-          setIconImageUrls(prev => ({
-            ...prev,
-            [icon.id]: icon.presignedUrl
-          }));
-        } else if (icon.fullImageUrl) {
-          console.log("Trying fallback full image URL for icon:", icon.id);
-          setIconImageUrls(prev => ({
-            ...prev,
-            [icon.id]: icon.fullImageUrl
-          }));
+      img.onload = function () {
+        if (hasLoaded || hasErrored) {
+          console.log("Icon onload called but already handled, skipping...");
+          return;
         }
-      }
+
+        hasLoaded = true;
+        console.log("Icon loaded successfully via S3 API");
+        console.log("Icon dimensions:", img.width, "x", img.height);
+
+        try {
+          const fabricImg = new fabric.Image(img, {
+            left: 100,
+            top: 100,
+            name: `icon-${icon.id}`,
+          });
+
+          // Giới hạn kích thước icon
+          const maxWidth = 100;
+          const maxHeight = 100;
+          const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+
+          fabricImg.set({
+            scaleX: scale,
+            scaleY: scale,
+          });
+
+          fabricCanvas.add(fabricImg);
+          fabricCanvas.setActiveObject(fabricImg);
+          fabricCanvas.renderAll();
+
+          console.log("Icon added to canvas successfully");
+
+          // Clear selected icon và đóng picker
+          dispatch(clearSelectedIcon());
+          setShowIconPicker(false);
+
+          setSnackbar({
+            open: true,
+            message: `Icon "${icon.name}" đã được thêm vào thiết kế`,
+            severity: "success",
+          });
+        } catch (error) {
+          console.error("Error creating fabric image:", error);
+          setSnackbar({
+            open: true,
+            message: "Lỗi khi thêm icon vào thiết kế",
+            severity: "error",
+          });
+        }
+      };
+
+      img.onerror = function (error) {
+        if (hasErrored || hasLoaded) {
+          console.log("Icon onerror called but already handled, skipping...");
+          return;
+        }
+
+        hasErrored = true;
+        console.error(
+          "Failed to load icon image via S3 API:",
+          iconImageUrl,
+          error
+        );
+
+        // ✅ Cleanup để tránh memory leaks
+        img.onload = null;
+        img.onerror = null;
+        img.src = "";
+
+        // Tạo placeholder cho icon
+        const placeholder = new fabric.Rect({
+          left: 100,
+          top: 100,
+          width: 80,
+          height: 80,
+          fill: "#f0f0f0",
+          stroke: "#ddd",
+          strokeWidth: 2,
+          rx: 10,
+          ry: 10,
+          name: `icon-placeholder-${icon.id}`,
+        });
+
+        const placeholderText = new fabric.Text("ICON", {
+          left: 140,
+          top: 140,
+          fontSize: 12,
+          fill: "#666",
+          fontWeight: "bold",
+          textAlign: "center",
+          originX: "center",
+          originY: "center",
+          name: `icon-placeholder-text-${icon.id}`,
+        });
+
+        fabricCanvas.add(placeholder);
+        fabricCanvas.add(placeholderText);
+        fabricCanvas.setActiveObject(placeholder);
+        fabricCanvas.renderAll();
+
+        setSnackbar({
+          open: true,
+          message: `Không thể tải icon "${icon.name}", đã tạo placeholder`,
+          severity: "warning",
+        });
+
+        console.log("Icon placeholder added successfully");
+      };
+
+      img.src = iconImageUrl;
     } catch (error) {
-      console.error("Error fetching icon image:", error);
-    } finally {
-      setLoadingIconUrls(prev => ({ ...prev, [icon.id]: false }));
+      console.error("Error loading icon:", error);
+
+      // Tạo placeholder khi có lỗi
+      try {
+        const placeholder = new fabric.Rect({
+          left: 100,
+          top: 100,
+          width: 80,
+          height: 80,
+          fill: "#f0f0f0",
+          stroke: "#ddd",
+          strokeWidth: 2,
+          rx: 10,
+          ry: 10,
+          name: `icon-placeholder-${icon.id}`,
+        });
+
+        const placeholderText = new fabric.Text("ERROR", {
+          left: 140,
+          top: 140,
+          fontSize: 12,
+          fill: "#666",
+          fontWeight: "bold",
+          textAlign: "center",
+          originX: "center",
+          originY: "center",
+          name: `icon-placeholder-text-${icon.id}`,
+        });
+
+        fabricCanvas.add(placeholder);
+        fabricCanvas.add(placeholderText);
+        fabricCanvas.setActiveObject(placeholder);
+        fabricCanvas.renderAll();
+
+        setSnackbar({
+          open: true,
+          message: `Lỗi khi tải icon "${icon.name}": ${error.message}`,
+          severity: "error",
+        });
+
+        console.log("Icon error placeholder added successfully");
+      } catch (placeholderError) {
+        console.error("Error creating icon placeholder:", placeholderError);
+      }
     }
   };
+  const IconPicker = () => {
+    const [iconImageUrls, setIconImageUrls] = useState({}); // Cache blob URLs
+    const [loadingIconUrls, setLoadingIconUrls] = useState({}); // Loading states
 
-  // Fetch icon images khi icons load
-  useEffect(() => {
-    if (icons && icons.length > 0) {
-      icons.forEach(icon => {
-        if (icon.imageUrl && !iconImageUrls[icon.id]) {
-          fetchIconImage(icon);
-        }
-      });
-    }
-  }, [icons]);
+    // Hàm fetch icon image từ S3
+    const fetchIconImage = async (icon) => {
+      if (iconImageUrls[icon.id] || loadingIconUrls[icon.id]) {
+        return; // Đã có URL hoặc đang loading
+      }
 
-  // Cleanup blob URLs khi component unmount
-  useEffect(() => {
-    return () => {
-      Object.values(iconImageUrls).forEach(url => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
+      try {
+        setLoadingIconUrls((prev) => ({ ...prev, [icon.id]: true }));
+
+        console.log("Fetching icon preview via getImageFromS3:", icon.imageUrl);
+
+        const s3Result = await getImageFromS3(icon.imageUrl);
+
+        if (s3Result.success) {
+          setIconImageUrls((prev) => ({
+            ...prev,
+            [icon.id]: s3Result.imageUrl,
+          }));
+          console.log("Icon preview fetched successfully:", icon.id);
+        } else {
+          console.error(
+            "Failed to fetch icon preview via S3 API:",
+            s3Result.message
+          );
+
+          // Fallback: thử presigned URL nếu có
+          if (icon.presignedUrl) {
+            console.log("Trying fallback presigned URL for icon:", icon.id);
+            setIconImageUrls((prev) => ({
+              ...prev,
+              [icon.id]: icon.presignedUrl,
+            }));
+          } else if (icon.fullImageUrl) {
+            console.log("Trying fallback full image URL for icon:", icon.id);
+            setIconImageUrls((prev) => ({
+              ...prev,
+              [icon.id]: icon.fullImageUrl,
+            }));
+          }
         }
-      });
+      } catch (error) {
+        console.error("Error fetching icon image:", error);
+      } finally {
+        setLoadingIconUrls((prev) => ({ ...prev, [icon.id]: false }));
+      }
     };
-  }, [iconImageUrls]);
 
-  const handleIconSelect = (icon) => {
-    dispatch(setSelectedIcon(icon));
-  };
+    // Fetch icon images khi icons load
+    useEffect(() => {
+      if (icons && icons.length > 0) {
+        icons.forEach((icon) => {
+          if (icon.imageUrl && !iconImageUrls[icon.id]) {
+            fetchIconImage(icon);
+          }
+        });
+      }
+    }, [icons]);
 
-  const handleAddIcon = () => {
-    if (selectedIcon) {
-      addIconToCanvas(selectedIcon);
-    }
-  };
+    // Cleanup blob URLs khi component unmount
+    useEffect(() => {
+      return () => {
+        Object.values(iconImageUrls).forEach((url) => {
+          if (url.startsWith("blob:")) {
+            URL.revokeObjectURL(url);
+          }
+        });
+      };
+    }, [iconImageUrls]);
 
-  const handleNextPage = () => {
-    if (hasNextIconPage) {
-      loadIcons(iconPage + 1);
-    }
-  };
+    const handleIconSelect = (icon) => {
+      dispatch(setSelectedIcon(icon));
+    };
 
-  const handlePreviousPage = () => {
-    if (hasPreviousIconPage) {
-      loadIcons(iconPage - 1);
-    }
-  };
+    const handleAddIcon = () => {
+      if (selectedIcon) {
+        addIconToCanvas(selectedIcon);
+      }
+    };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b">
-          <h3 className="text-xl font-semibold">Chọn Icon</h3>
-          <button
-            onClick={() => {
-              setShowIconPicker(false);
-              dispatch(clearSelectedIcon());
-            }}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+    const handleNextPage = () => {
+      if (hasNextIconPage) {
+        loadIcons(iconPage + 1);
+      }
+    };
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-          {iconStatus === "loading" ? (
-            <div className="flex justify-center items-center py-12">
-              <CircularProgress size={40} />
-              <span className="ml-4">Đang tải icons...</span>
-            </div>
-          ) : iconStatus === "failed" ? (
-            <div className="text-center py-8 text-red-500">
-              <p>Lỗi: {iconError}</p>
-              <button
-                onClick={() => loadIcons(1)}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Thử lại
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Icons Grid */}
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 mb-6">
-                {icons.map((icon) => {
-                  // ✅ SỬ DỤNG getImageFromS3 cho preview
-                  const iconPreviewUrl = iconImageUrls[icon.id];
-                  const isLoadingPreview = loadingIconUrls[icon.id];
+    const handlePreviousPage = () => {
+      if (hasPreviousIconPage) {
+        loadIcons(iconPage - 1);
+      }
+    };
 
-                  return (
-                    <div
-                      key={icon.id}
-                      className={`relative border-2 rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
-                        selectedIcon?.id === icon.id
-                          ? "border-custom-secondary bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => handleIconSelect(icon)}
-                    >
-                      <div className="aspect-square bg-gray-50 rounded flex items-center justify-center mb-2">
-                        {isLoadingPreview ? (
-                          <div className="flex flex-col items-center">
-                            <CircularProgress size={20} />
-                            <span className="text-xs text-gray-500 mt-1">
-                              Đang tải...
-                            </span>
-                          </div>
-                        ) : iconPreviewUrl ? (
-                          <img
-                            src={iconPreviewUrl}
-                            alt={icon.name}
-                            className="max-w-full max-h-full object-contain"
-                            onLoad={() => {
-                              console.log(
-                                `✅ Icon ${icon.id} preview loaded successfully via S3 API`
-                              );
-                            }}
-                            onError={(e) => {
-                              console.error(
-                                `❌ Error loading icon ${icon.id} preview via S3 API:`,
-                                e
-                              );
-                              // Hiển thị placeholder
-                              e.target.style.display = "none";
-                              e.target.nextSibling.style.display = "flex";
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400 flex-col">
-                            <FaPalette className="w-6 h-6 mb-1" />
-                            <span className="text-xs text-center">
-                              Không thể tải
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Placeholder khi lỗi */}
-                        <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
-                          <FaPalette className="w-6 h-6 mb-1" />
-                          <span className="text-xs text-center">
-                            Không thể tải
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              console.log(`Manual retry for icon ${icon.id}`);
-                              fetchIconImage(icon);
-                            }}
-                            className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
-                          >
-                            Thử lại
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <p
-                        className="text-xs text-center text-gray-600 truncate"
-                        title={icon.name}
-                      >
-                        {icon.name}
-                      </p>
-                      
-                      {selectedIcon?.id === icon.id && (
-                        <div className="absolute top-1 right-1 bg-custom-secondary text-white rounded-full p-1">
-                          <FaCheck className="w-3 h-3" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pagination */}
-              {iconPagination.totalPages > 1 && (
-                <div className="flex justify-center items-center space-x-4 py-4 border-t">
-                  <button
-                    onClick={handlePreviousPage}
-                    disabled={!hasPreviousIconPage}
-                    className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Trước
-                  </button>
-
-                  <span className="text-sm text-gray-600">
-                    Trang {iconPagination.currentPage} /{" "}
-                    {iconPagination.totalPages}({iconPagination.totalElements}{" "}
-                    icons)
-                  </span>
-
-                  <button
-                    onClick={handleNextPage}
-                    disabled={!hasNextIconPage}
-                    className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Sau
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-between items-center p-6 border-t bg-gray-50">
-          <div className="text-sm text-gray-600">
-            {selectedIcon
-              ? `Đã chọn: ${selectedIcon.name}`
-              : "Chưa chọn icon nào"}
-          </div>
-          <div className="flex space-x-3">
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center p-6 border-b">
+            <h3 className="text-xl font-semibold">Chọn Icon</h3>
             <button
               onClick={() => {
                 setShowIconPicker(false);
                 dispatch(clearSelectedIcon());
               }}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="text-gray-500 hover:text-gray-700"
             >
-              Hủy
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
-            <button
-              onClick={handleAddIcon}
-              disabled={!selectedIcon}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                selectedIcon
-                  ? "bg-custom-primary text-white hover:bg-custom-secondary"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              Thêm Icon
-            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+            {iconStatus === "loading" ? (
+              <div className="flex justify-center items-center py-12">
+                <CircularProgress size={40} />
+                <span className="ml-4">Đang tải icons...</span>
+              </div>
+            ) : iconStatus === "failed" ? (
+              <div className="text-center py-8 text-red-500">
+                <p>Lỗi: {iconError}</p>
+                <button
+                  onClick={() => loadIcons(1)}
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Icons Grid */}
+                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 mb-6">
+                  {icons.map((icon) => {
+                    // ✅ SỬ DỤNG getImageFromS3 cho preview
+                    const iconPreviewUrl = iconImageUrls[icon.id];
+                    const isLoadingPreview = loadingIconUrls[icon.id];
+
+                    return (
+                      <div
+                        key={icon.id}
+                        className={`relative border-2 rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+                          selectedIcon?.id === icon.id
+                            ? "border-custom-secondary bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={() => handleIconSelect(icon)}
+                      >
+                        <div className="aspect-square bg-gray-50 rounded flex items-center justify-center mb-2">
+                          {isLoadingPreview ? (
+                            <div className="flex flex-col items-center">
+                              <CircularProgress size={20} />
+                              <span className="text-xs text-gray-500 mt-1">
+                                Đang tải...
+                              </span>
+                            </div>
+                          ) : iconPreviewUrl ? (
+                            <img
+                              src={iconPreviewUrl}
+                              alt={icon.name}
+                              className="max-w-full max-h-full object-contain"
+                              onLoad={() => {
+                                console.log(
+                                  `✅ Icon ${icon.id} preview loaded successfully via S3 API`
+                                );
+                              }}
+                              onError={(e) => {
+                                console.error(
+                                  `❌ Error loading icon ${icon.id} preview via S3 API:`,
+                                  e
+                                );
+                                // Hiển thị placeholder
+                                e.target.style.display = "none";
+                                e.target.nextSibling.style.display = "flex";
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 flex-col">
+                              <FaPalette className="w-6 h-6 mb-1" />
+                              <span className="text-xs text-center">
+                                Không thể tải
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Placeholder khi lỗi */}
+                          <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
+                            <FaPalette className="w-6 h-6 mb-1" />
+                            <span className="text-xs text-center">
+                              Không thể tải
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log(`Manual retry for icon ${icon.id}`);
+                                fetchIconImage(icon);
+                              }}
+                              className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
+                            >
+                              Thử lại
+                            </button>
+                          </div>
+                        </div>
+
+                        <p
+                          className="text-xs text-center text-gray-600 truncate"
+                          title={icon.name}
+                        >
+                          {icon.name}
+                        </p>
+
+                        {selectedIcon?.id === icon.id && (
+                          <div className="absolute top-1 right-1 bg-custom-secondary text-white rounded-full p-1">
+                            <FaCheck className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination */}
+                {iconPagination.totalPages > 1 && (
+                  <div className="flex justify-center items-center space-x-4 py-4 border-t">
+                    <button
+                      onClick={handlePreviousPage}
+                      disabled={!hasPreviousIconPage}
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Trước
+                    </button>
+
+                    <span className="text-sm text-gray-600">
+                      Trang {iconPagination.currentPage} /{" "}
+                      {iconPagination.totalPages}({iconPagination.totalElements}{" "}
+                      icons)
+                    </span>
+
+                    <button
+                      onClick={handleNextPage}
+                      disabled={!hasNextIconPage}
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between items-center p-6 border-t bg-gray-50">
+            <div className="text-sm text-gray-600">
+              {selectedIcon
+                ? `Đã chọn: ${selectedIcon.name}`
+                : "Chưa chọn icon nào"}
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowIconPicker(false);
+                  dispatch(clearSelectedIcon());
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleAddIcon}
+                disabled={!selectedIcon}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  selectedIcon
+                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                Thêm Icon
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
   const s3Logo = useSelector((state) =>
     businessPresets.logoUrl
       ? selectS3Image(state, businessPresets.logoUrl)
       : null
   );
   const fetchBackgroundPresignedUrl = async (backgroundId, backgroundUrl) => {
-  if (
-    backgroundPresignedUrls[backgroundId] ||
-    loadingBackgroundUrls[backgroundId]
-  ) {
-    return; // Đã có URL hoặc đang loading
-  }
+    if (
+      backgroundPresignedUrls[backgroundId] ||
+      loadingBackgroundUrls[backgroundId]
+    ) {
+      return; // Đã có URL hoặc đang loading
+    }
 
-  try {
-    setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: true }));
+    try {
+      setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: true }));
 
-    console.log("Fetching background via getImageFromS3:", backgroundUrl);
+      console.log("Fetching background via getImageFromS3:", backgroundUrl);
 
-    // ✅ SỬ DỤNG getImageFromS3 thay vì presigned URL
-    const s3Result = await getImageFromS3(backgroundUrl);
+      // ✅ SỬ DỤNG getImageFromS3 thay vì presigned URL
+      const s3Result = await getImageFromS3(backgroundUrl);
 
-    if (s3Result.success) {
-      setBackgroundPresignedUrls((prev) => ({
-        ...prev,
-        [backgroundId]: s3Result.imageUrl, // Sử dụng blob URL từ getImageFromS3
-      }));
-      console.log("Background fetched successfully for picker:", backgroundId);
-    } else {
-      console.error("Failed to fetch background for picker:", s3Result.message);
-      
-      // Fallback: thử presigned URL nếu getImageFromS3 thất bại
-      console.log("Trying fallback presigned URL...");
-      const presignedResult = await getPresignedUrl(backgroundUrl, 60);
-      
-      if (presignedResult.success) {
+      if (s3Result.success) {
         setBackgroundPresignedUrls((prev) => ({
           ...prev,
-          [backgroundId]: presignedResult.url,
+          [backgroundId]: s3Result.imageUrl, // Sử dụng blob URL từ getImageFromS3
         }));
-        console.log("Fallback presigned URL successful for:", backgroundId);
+        console.log(
+          "Background fetched successfully for picker:",
+          backgroundId
+        );
       } else {
-        console.error("Both S3 and presigned URL failed for:", backgroundId);
+        console.error(
+          "Failed to fetch background for picker:",
+          s3Result.message
+        );
+
+        // Fallback: thử presigned URL nếu getImageFromS3 thất bại
+        console.log("Trying fallback presigned URL...");
+        const presignedResult = await getPresignedUrl(backgroundUrl, 60);
+
+        if (presignedResult.success) {
+          setBackgroundPresignedUrls((prev) => ({
+            ...prev,
+            [backgroundId]: presignedResult.url,
+          }));
+          console.log("Fallback presigned URL successful for:", backgroundId);
+        } else {
+          console.error("Both S3 and presigned URL failed for:", backgroundId);
+        }
       }
+    } catch (error) {
+      console.error("Error fetching background image:", error);
+    } finally {
+      setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: false }));
     }
-  } catch (error) {
-    console.error("Error fetching background image:", error);
-  } finally {
-    setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: false }));
-  }
-};
+  };
   useEffect(() => {
     if (backgroundSuggestions && backgroundSuggestions.length > 0) {
       backgroundSuggestions.forEach((background) => {
@@ -2449,143 +2461,203 @@ const AIDesign = () => {
     }
   };
   // Điều chỉnh cài đặt canvas để có chất lượng tốt hơn
- useEffect(() => {
-  if (
-    currentStep === 6 &&
-    canvasRef.current &&
-    !fabricCanvas &&
-    (generatedImage || selectedBackgroundForCanvas)
-  ) {
-    console.log("INITIALIZING CANVAS");
+  useEffect(() => {
+    if (
+      currentStep === 6 &&
+      canvasRef.current &&
+      !fabricCanvas &&
+      (generatedImage || selectedBackgroundForCanvas)
+    ) {
+      console.log("INITIALIZING CANVAS");
 
-    const canvasContainer = canvasRef.current.parentElement;
-    const containerWidth = canvasContainer.clientWidth;
+      const canvasContainer = canvasRef.current.parentElement;
+      const containerWidth = canvasContainer.clientWidth;
 
-    const canvasWidth = containerWidth;
-    const canvasHeight = Math.round(containerWidth / 2);
+      const canvasWidth = containerWidth;
+      const canvasHeight = Math.round(containerWidth / 2);
 
-    const canvas = new fabric.Canvas(canvasRef.current, {
-      width: canvasWidth,
-      height: canvasHeight,
-      backgroundColor: "#f8f9fa",
-      preserveObjectStacking: true,
-    });
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        width: canvasWidth,
+        height: canvasHeight,
+        backgroundColor: "#f8f9fa",
+        preserveObjectStacking: true,
+      });
 
-    // Xác định nguồn ảnh để sử dụng
-    let imageUrl = null;
-    let imageSource = null;
+      // Xác định nguồn ảnh để sử dụng
+      let imageUrl = null;
+      let imageSource = null;
 
-    if (generatedImage) {
-      imageUrl = generatedImage;
-      imageSource = "ai-generated";
-      console.log("Using AI-generated image URL:", imageUrl);
-    } else if (selectedBackgroundForCanvas) {
-      imageSource = "background";
-      console.log("Using selected background:", selectedBackgroundForCanvas);
-    }
+      if (generatedImage) {
+        imageUrl = generatedImage;
+        imageSource = "ai-generated";
+        console.log("Using AI-generated image URL:", imageUrl);
+      } else if (selectedBackgroundForCanvas) {
+        imageSource = "background";
+        console.log("Using selected background:", selectedBackgroundForCanvas);
+      }
 
-    // ✅ SỬA CHÍNH TẠI ĐÂY - Xử lý khác nhau cho AI image và background
-    if (imageUrl || selectedBackgroundForCanvas) {
-      console.log(
-        `LOADING IMAGE: Loading ${imageSource} image`
-      );
+      // ✅ SỬA CHÍNH TẠI ĐÂY - Xử lý khác nhau cho AI image và background
+      if (imageUrl || selectedBackgroundForCanvas) {
+        console.log(`LOADING IMAGE: Loading ${imageSource} image`);
 
-      // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
-      let hasErrored = false;
+        // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
+        let hasErrored = false;
 
-      const loadImageToCanvas = async () => {
-        try {
-          let finalImageUrl = null;
+        const loadImageToCanvas = async () => {
+          try {
+            let finalImageUrl = null;
 
-          if (imageSource === "ai-generated") {
-            // AI Generated Image - sử dụng trực tiếp URL
-            finalImageUrl = imageUrl;
-          } else if (imageSource === "background") {
-            // Background Image - sử dụng getImageFromS3
-            console.log("Fetching background via getImageFromS3:", selectedBackgroundForCanvas.backgroundUrl);
-            
-            const s3Result = await getImageFromS3(selectedBackgroundForCanvas.backgroundUrl);
-            
-            if (s3Result.success) {
-              finalImageUrl = s3Result.imageUrl;
-              console.log("Background fetched successfully via S3 API");
-            } else {
-              console.error("Failed to fetch background via S3 API:", s3Result.message);
-              throw new Error(s3Result.message);
-            }
-          }
-
-          if (!finalImageUrl) {
-            throw new Error("No valid image URL available");
-          }
-
-          // Tạo HTML Image element
-          const img = new Image();
-          
-          // ✅ CHỈ SET crossOrigin cho AI-generated images
-          if (imageSource === "ai-generated") {
-            img.crossOrigin = "anonymous";
-          }
-          // Không cần crossOrigin cho S3 blob URLs
-
-          img.onload = function () {
-            console.log(`${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`);
-            console.log("Image dimensions:", img.width, "x", img.height);
-
-            try {
-              const fabricImg = new fabric.Image(img, {
-                left: 0,
-                top: 0,
-                selectable: false,
-                evented: false,
-                name: `backgroundImage-${imageSource}`,
-              });
-
-              console.log("Fabric image created:", fabricImg);
-
-              const scaleX = canvasWidth / fabricImg.width;
-              const scaleY = canvasHeight / fabricImg.height;
-              const scale = Math.max(scaleX, scaleY);
-
-              fabricImg.set({
-                scaleX: scale,
-                scaleY: scale,
-                left: (canvasWidth - fabricImg.width * scale) / 2,
-                top: (canvasHeight - fabricImg.height * scale) / 2,
-              });
-
-              canvas.add(fabricImg);
-              canvas.sendToBack(fabricImg);
-              canvas.renderAll();
-
+            if (imageSource === "ai-generated") {
+              // AI Generated Image - sử dụng trực tiếp URL
+              finalImageUrl = imageUrl;
+            } else if (imageSource === "background") {
+              // Background Image - sử dụng getImageFromS3
               console.log(
-                `${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
+                "Fetching background via getImageFromS3:",
+                selectedBackgroundForCanvas.backgroundUrl
               );
 
-              setSnackbar({
-                open: true,
-                message:
+              const s3Result = await getImageFromS3(
+                selectedBackgroundForCanvas.backgroundUrl
+              );
+
+              if (s3Result.success) {
+                finalImageUrl = s3Result.imageUrl;
+                console.log("Background fetched successfully via S3 API");
+              } else {
+                console.error(
+                  "Failed to fetch background via S3 API:",
+                  s3Result.message
+                );
+                throw new Error(s3Result.message);
+              }
+            }
+
+            if (!finalImageUrl) {
+              throw new Error("No valid image URL available");
+            }
+
+            // Tạo HTML Image element
+            const img = new Image();
+
+            // ✅ CHỈ SET crossOrigin cho AI-generated images
+            if (imageSource === "ai-generated") {
+              img.crossOrigin = "anonymous";
+            }
+            // Không cần crossOrigin cho S3 blob URLs
+
+            img.onload = function () {
+              console.log(
+                `${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`
+              );
+              console.log("Image dimensions:", img.width, "x", img.height);
+
+              try {
+                const fabricImg = new fabric.Image(img, {
+                  left: 0,
+                  top: 0,
+                  selectable: false,
+                  evented: false,
+                  name: `backgroundImage-${imageSource}`,
+                });
+
+                console.log("Fabric image created:", fabricImg);
+
+                const scaleX = canvasWidth / fabricImg.width;
+                const scaleY = canvasHeight / fabricImg.height;
+                const scale = Math.max(scaleX, scaleY);
+
+                fabricImg.set({
+                  scaleX: scale,
+                  scaleY: scale,
+                  left: (canvasWidth - fabricImg.width * scale) / 2,
+                  top: (canvasHeight - fabricImg.height * scale) / 2,
+                });
+
+                canvas.add(fabricImg);
+                canvas.sendToBack(fabricImg);
+                canvas.renderAll();
+
+                console.log(
+                  `${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
+                );
+
+                setSnackbar({
+                  open: true,
+                  message:
+                    imageSource === "ai-generated"
+                      ? "Đã tải thiết kế AI thành công!"
+                      : "Đã tải background thành công!",
+                  severity: "success",
+                });
+              } catch (error) {
+                console.error("ERROR creating fabric image:", error);
+              }
+            };
+
+            img.onerror = function (error) {
+              // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
+              if (hasErrored) {
+                console.log("Already handled error, skipping...");
+                return;
+              }
+
+              hasErrored = true;
+              console.error(
+                `ERROR loading ${imageSource} image:`,
+                finalImageUrl,
+                error
+              );
+
+              // ✅ TẠO PLACEHOLDER THAY VÌ THỬ LẠI
+              try {
+                const placeholderRect = new fabric.Rect({
+                  left: 0,
+                  top: 0,
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  fill: "#f0f0f0",
+                  selectable: false,
+                  evented: false,
+                  name: `placeholder-${imageSource}`,
+                });
+
+                const placeholderText = new fabric.Text(
                   imageSource === "ai-generated"
-                    ? "Đã tải thiết kế AI thành công!"
-                    : "Đã tải background thành công!",
-                severity: "success",
-              });
-            } catch (error) {
-              console.error("ERROR creating fabric image:", error);
-            }
-          };
+                    ? "Thiết kế AI không tải được"
+                    : "Background không tải được",
+                  {
+                    left: canvasWidth / 2,
+                    top: canvasHeight / 2,
+                    fontSize: 24,
+                    fill: "#999",
+                    textAlign: "center",
+                    originX: "center",
+                    originY: "center",
+                    selectable: false,
+                    evented: false,
+                    name: `placeholder-text-${imageSource}`,
+                  }
+                );
 
-          img.onerror = function (error) {
-            // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
-            if (hasErrored) {
-              console.log("Already handled error, skipping...");
-              return;
-            }
+                canvas.add(placeholderRect);
+                canvas.add(placeholderText);
+                canvas.renderAll();
 
+                console.log(`${imageSource.toUpperCase()} PLACEHOLDER ADDED`);
+              } catch (placeholderError) {
+                console.error("Error creating placeholder:", placeholderError);
+              }
+            };
+
+            img.src = finalImageUrl;
+          } catch (error) {
+            console.error(`Error loading ${imageSource} image:`, error);
+
+            if (hasErrored) return;
             hasErrored = true;
-            console.error(`ERROR loading ${imageSource} image:`, finalImageUrl, error);
 
-            // ✅ TẠO PLACEHOLDER THAY VÌ THỬ LẠI
+            // Tạo placeholder khi có lỗi
             try {
               const placeholderRect = new fabric.Rect({
                 left: 0,
@@ -2601,7 +2673,7 @@ const AIDesign = () => {
               const placeholderText = new fabric.Text(
                 imageSource === "ai-generated"
                   ? "Thiết kế AI không tải được"
-                  : "Background không tải được",
+                  : "Lỗi tải background từ S3",
                 {
                   left: canvasWidth / 2,
                   top: canvasHeight / 2,
@@ -2620,262 +2692,231 @@ const AIDesign = () => {
               canvas.add(placeholderText);
               canvas.renderAll();
 
-              console.log(`${imageSource.toUpperCase()} PLACEHOLDER ADDED`);
+              console.log(
+                `${imageSource.toUpperCase()} ERROR PLACEHOLDER ADDED`
+              );
             } catch (placeholderError) {
-              console.error("Error creating placeholder:", placeholderError);
+              console.error(
+                "Error creating error placeholder:",
+                placeholderError
+              );
             }
-          };
-
-          img.src = finalImageUrl;
-
-        } catch (error) {
-          console.error(`Error loading ${imageSource} image:`, error);
-          
-          if (hasErrored) return;
-          hasErrored = true;
-
-          // Tạo placeholder khi có lỗi
-          try {
-            const placeholderRect = new fabric.Rect({
-              left: 0,
-              top: 0,
-              width: canvasWidth,
-              height: canvasHeight,
-              fill: "#f0f0f0",
-              selectable: false,
-              evented: false,
-              name: `placeholder-${imageSource}`,
-            });
-
-            const placeholderText = new fabric.Text(
-              imageSource === "ai-generated"
-                ? "Thiết kế AI không tải được"
-                : "Lỗi tải background từ S3",
-              {
-                left: canvasWidth / 2,
-                top: canvasHeight / 2,
-                fontSize: 24,
-                fill: "#999",
-                textAlign: "center",
-                originX: "center",
-                originY: "center",
-                selectable: false,
-                evented: false,
-                name: `placeholder-text-${imageSource}`,
-              }
-            );
-
-            canvas.add(placeholderRect);
-            canvas.add(placeholderText);
-            canvas.renderAll();
-
-            console.log(`${imageSource.toUpperCase()} ERROR PLACEHOLDER ADDED`);
-          } catch (placeholderError) {
-            console.error("Error creating error placeholder:", placeholderError);
           }
+        };
+
+        // Gọi hàm load image
+        loadImageToCanvas();
+      } else {
+        console.error("ERROR: No image URL available");
+      }
+
+      // Canvas event handlers (giữ nguyên)
+      canvas.on("selection:created", (e) => {
+        if (e.selected[0] && e.selected[0].type === "text") {
+          setSelectedText(e.selected[0]);
+          setTextSettings({
+            fontFamily: e.selected[0].fontFamily,
+            fontSize: e.selected[0].fontSize,
+            fill: e.selected[0].fill,
+            fontWeight: e.selected[0].fontWeight,
+            fontStyle: e.selected[0].fontStyle,
+            underline: e.selected[0].underline,
+            text: e.selected[0].text,
+          });
         }
-      };
+      });
 
-      // Gọi hàm load image
-      loadImageToCanvas();
-    } else {
-      console.error("ERROR: No image URL available");
+      canvas.on("selection:cleared", () => {
+        setSelectedText(null);
+      });
+
+      canvas.on("selection:updated", (e) => {
+        if (e.selected[0] && e.selected[0].type === "text") {
+          setSelectedText(e.selected[0]);
+          setTextSettings({
+            fontFamily: e.selected[0].fontFamily,
+            fontSize: e.selected[0].fontSize,
+            fill: e.selected[0].fill,
+            fontWeight: e.selected[0].fontWeight,
+            fontStyle: e.selected[0].fontStyle,
+            underline: e.selected[0].underline,
+            text: e.selected[0].text,
+          });
+        }
+      });
+
+      setFabricCanvas(canvas);
+      console.log("CANVAS SET TO STATE");
     }
 
-    // Canvas event handlers (giữ nguyên)
-    canvas.on("selection:created", (e) => {
-      if (e.selected[0] && e.selected[0].type === "text") {
-        setSelectedText(e.selected[0]);
-        setTextSettings({
-          fontFamily: e.selected[0].fontFamily,
-          fontSize: e.selected[0].fontSize,
-          fill: e.selected[0].fill,
-          fontWeight: e.selected[0].fontWeight,
-          fontStyle: e.selected[0].fontStyle,
-          underline: e.selected[0].underline,
-          text: e.selected[0].text,
-        });
+    return () => {
+      if (fabricCanvas && currentStep !== 6) {
+        console.log("CLEANUP: Disposing canvas");
+        fabricCanvas.dispose();
+        setFabricCanvas(null);
       }
-    });
-
-    canvas.on("selection:cleared", () => {
-      setSelectedText(null);
-    });
-
-    canvas.on("selection:updated", (e) => {
-      if (e.selected[0] && e.selected[0].type === "text") {
-        setSelectedText(e.selected[0]);
-        setTextSettings({
-          fontFamily: e.selected[0].fontFamily,
-          fontSize: e.selected[0].fontSize,
-          fill: e.selected[0].fill,
-          fontWeight: e.selected[0].fontWeight,
-          fontStyle: e.selected[0].fontStyle,
-          underline: e.selected[0].underline,
-          text: e.selected[0].text,
-        });
-      }
-    });
-
-    setFabricCanvas(canvas);
-    console.log("CANVAS SET TO STATE");
-  }
-
-  return () => {
-    if (fabricCanvas && currentStep !== 6) {
-      console.log("CLEANUP: Disposing canvas");
-      fabricCanvas.dispose();
-      setFabricCanvas(null);
-    }
-  };
-}, [currentStep, generatedImage, selectedBackgroundForCanvas]);
+    };
+  }, [currentStep, generatedImage, selectedBackgroundForCanvas]);
 
   // Thêm useEffect riêng để handle khi selectedImage thay đổi trong step 6
 
- useEffect(() => {
-  if (currentStep === 6 && fabricCanvas) {
-    let imageToLoad = null;
-    let imageSource = null;
+  useEffect(() => {
+    if (currentStep === 6 && fabricCanvas) {
+      let imageToLoad = null;
+      let imageSource = null;
 
-    if (generatedImage) {
-      imageToLoad = generatedImage;
-      imageSource = "ai-generated";
-      console.log(
-        "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
-        generatedImage
-      );
-    } else if (selectedBackgroundForCanvas) {
-      imageSource = "background";
-      console.log(
-        "BACKGROUND CHANGED: Updating canvas with selected background:",
-        selectedBackgroundForCanvas
-      );
-    }
+      if (generatedImage) {
+        imageToLoad = generatedImage;
+        imageSource = "ai-generated";
+        console.log(
+          "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
+          generatedImage
+        );
+      } else if (selectedBackgroundForCanvas) {
+        imageSource = "background";
+        console.log(
+          "BACKGROUND CHANGED: Updating canvas with selected background:",
+          selectedBackgroundForCanvas
+        );
+      }
 
-    if (imageToLoad || selectedBackgroundForCanvas) {
-      // Xóa ảnh cũ
-      const objects = fabricCanvas.getObjects();
-      const oldImages = objects.filter(
-        (obj) =>
-          obj.name === "backgroundImage" ||
-          obj.name === "backgroundImage-ai-generated" ||
-          obj.name === "backgroundImage-background" ||
-          obj.name === "placeholder-ai-generated" ||
-          obj.name === "placeholder-background" ||
-          obj.name === "placeholder-text-ai-generated" ||
-          obj.name === "placeholder-text-background"
-      );
-      
-      oldImages.forEach(img => fabricCanvas.remove(img));
+      if (imageToLoad || selectedBackgroundForCanvas) {
+        // Xóa ảnh cũ
+        const objects = fabricCanvas.getObjects();
+        const oldImages = objects.filter(
+          (obj) =>
+            obj.name === "backgroundImage" ||
+            obj.name === "backgroundImage-ai-generated" ||
+            obj.name === "backgroundImage-background" ||
+            obj.name === "placeholder-ai-generated" ||
+            obj.name === "placeholder-background" ||
+            obj.name === "placeholder-text-ai-generated" ||
+            obj.name === "placeholder-text-background"
+        );
 
-      // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
-      let hasErrored = false;
+        oldImages.forEach((img) => fabricCanvas.remove(img));
 
-      const updateCanvasImage = async () => {
-        try {
-          let finalImageUrl = null;
+        // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
+        let hasErrored = false;
 
-          if (imageSource === "ai-generated") {
-            finalImageUrl = imageToLoad;
-          } else if (imageSource === "background") {
-            console.log("Updating background via getImageFromS3:", selectedBackgroundForCanvas.backgroundUrl);
-            
-            const s3Result = await getImageFromS3(selectedBackgroundForCanvas.backgroundUrl);
-            
-            if (s3Result.success) {
-              finalImageUrl = s3Result.imageUrl;
-              console.log("Background updated successfully via S3 API");
-            } else {
-              console.error("Failed to update background via S3 API:", s3Result.message);
-              throw new Error(s3Result.message);
-            }
-          }
+        const updateCanvasImage = async () => {
+          try {
+            let finalImageUrl = null;
 
-          if (!finalImageUrl) {
-            throw new Error("No valid image URL available for update");
-          }
+            if (imageSource === "ai-generated") {
+              finalImageUrl = imageToLoad;
+            } else if (imageSource === "background") {
+              console.log(
+                "Updating background via getImageFromS3:",
+                selectedBackgroundForCanvas.backgroundUrl
+              );
 
-          // Load ảnh mới
-          const img = new Image();
-          
-          // ✅ CHỈ SET crossOrigin cho AI-generated images
-          if (imageSource === "ai-generated") {
-            img.crossOrigin = "anonymous";
-          }
+              const s3Result = await getImageFromS3(
+                selectedBackgroundForCanvas.backgroundUrl
+              );
 
-          img.onload = function () {
-            console.log(`${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`);
-
-            const fabricImg = new fabric.Image(img, {
-              left: 0,
-              top: 0,
-              selectable: false,
-              evented: false,
-              name: `backgroundImage-${imageSource}`,
-            });
-
-            const canvasWidth = fabricCanvas.width;
-            const canvasHeight = fabricCanvas.height;
-
-            const scaleX = canvasWidth / fabricImg.width;
-            const scaleY = canvasHeight / fabricImg.height;
-            const scale = Math.max(scaleX, scaleY);
-
-            fabricImg.set({
-              scaleX: scale,
-              scaleY: scale,
-              left: (canvasWidth - fabricImg.width * scale) / 2,
-              top: (canvasHeight - fabricImg.height * scale) / 2,
-            });
-
-            fabricCanvas.add(fabricImg);
-            fabricCanvas.sendToBack(fabricImg);
-            fabricCanvas.renderAll();
-
-            console.log(`${imageSource.toUpperCase()} IMAGE UPDATED IN CANVAS`);
-          };
-
-          img.onerror = function (error) {
-            // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
-            if (hasErrored) {
-              console.log("Already handled error in image update, skipping...");
-              return;
+              if (s3Result.success) {
+                finalImageUrl = s3Result.imageUrl;
+                console.log("Background updated successfully via S3 API");
+              } else {
+                console.error(
+                  "Failed to update background via S3 API:",
+                  s3Result.message
+                );
+                throw new Error(s3Result.message);
+              }
             }
 
+            if (!finalImageUrl) {
+              throw new Error("No valid image URL available for update");
+            }
+
+            // Load ảnh mới
+            const img = new Image();
+
+            // ✅ CHỈ SET crossOrigin cho AI-generated images
+            if (imageSource === "ai-generated") {
+              img.crossOrigin = "anonymous";
+            }
+
+            img.onload = function () {
+              console.log(
+                `${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`
+              );
+
+              const fabricImg = new fabric.Image(img, {
+                left: 0,
+                top: 0,
+                selectable: false,
+                evented: false,
+                name: `backgroundImage-${imageSource}`,
+              });
+
+              const canvasWidth = fabricCanvas.width;
+              const canvasHeight = fabricCanvas.height;
+
+              const scaleX = canvasWidth / fabricImg.width;
+              const scaleY = canvasHeight / fabricImg.height;
+              const scale = Math.max(scaleX, scaleY);
+
+              fabricImg.set({
+                scaleX: scale,
+                scaleY: scale,
+                left: (canvasWidth - fabricImg.width * scale) / 2,
+                top: (canvasHeight - fabricImg.height * scale) / 2,
+              });
+
+              fabricCanvas.add(fabricImg);
+              fabricCanvas.sendToBack(fabricImg);
+              fabricCanvas.renderAll();
+
+              console.log(
+                `${imageSource.toUpperCase()} IMAGE UPDATED IN CANVAS`
+              );
+            };
+
+            img.onerror = function (error) {
+              // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
+              if (hasErrored) {
+                console.log(
+                  "Already handled error in image update, skipping..."
+                );
+                return;
+              }
+
+              hasErrored = true;
+              console.error(`ERROR updating ${imageSource} image:`, error);
+
+              setSnackbar({
+                open: true,
+                message: `Lỗi khi cập nhật ${
+                  imageSource === "ai-generated" ? "thiết kế" : "background"
+                }`,
+                severity: "warning",
+              });
+            };
+
+            img.src = finalImageUrl;
+          } catch (error) {
+            console.error(`Error updating ${imageSource} image:`, error);
+
+            if (hasErrored) return;
             hasErrored = true;
-            console.error(`ERROR updating ${imageSource} image:`, error);
 
             setSnackbar({
               open: true,
               message: `Lỗi khi cập nhật ${
                 imageSource === "ai-generated" ? "thiết kế" : "background"
-              }`,
+              }: ${error.message}`,
               severity: "warning",
             });
-          };
+          }
+        };
 
-          img.src = finalImageUrl;
-
-        } catch (error) {
-          console.error(`Error updating ${imageSource} image:`, error);
-          
-          if (hasErrored) return;
-          hasErrored = true;
-
-          setSnackbar({
-            open: true,
-            message: `Lỗi khi cập nhật ${
-              imageSource === "ai-generated" ? "thiết kế" : "background"
-            }: ${error.message}`,
-            severity: "warning",
-          });
-        }
-      };
-
-      updateCanvasImage();
+        updateCanvasImage();
+      }
     }
-  }
-}, [generatedImage, selectedBackgroundForCanvas, fabricCanvas, currentStep]);
+  }, [generatedImage, selectedBackgroundForCanvas, fabricCanvas, currentStep]);
   const addText = () => {
     if (!fabricCanvas) return;
 
@@ -5886,11 +5927,16 @@ const AIDesign = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  // Quay lại step phù hợp
+                  // Reset canvas trước khi quay lại
+                  if (fabricCanvas) {
+                    fabricCanvas.dispose();
+                    setFabricCanvas(null);
+                  }
+
                   if (generatedImage) {
-                    setCurrentStep(5); // Quay lại preview cho AI design
+                    setCurrentStep(5);
                   } else {
-                    setCurrentStep(4.5); // Quay lại background selection
+                    setCurrentStep(4.5);
                   }
                 }}
                 className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all"
