@@ -6,7 +6,11 @@ import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
-import { syncAuthState, setRefreshing, initializeAuth } from "./store/features/auth/authSlice";
+import {
+  syncAuthState,
+  setRefreshing,
+  initializeAuth,
+} from "./store/features/auth/authSlice";
 import { checkAuthStatus, refreshTokenApi } from "./api/authService";
 
 import MainLayout from "./layouts/MainLayout";
@@ -36,6 +40,7 @@ import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
 import MyTicket from "./pages/MyTicket";
+import ForgotPassword from "./pages/ForgotPassword";
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
 
@@ -298,6 +303,7 @@ const App = () => {
             <Route path="/auth" element={<AuthLayout />}>
               <Route path="login" element={<Login />} />
               <Route path="signup" element={<Signup />} />
+              <Route path="forgot-password" element={<ForgotPassword />} />
             </Route>
           </Routes>
         </AnimatePresence>

@@ -57,7 +57,9 @@ const Login = () => {
     try {
       // Dispatch login action và đợi kết quả
       localStorage.removeItem("accessToken");
-      await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
+      await dispatch(
+        loginAndFetchProfile({ email, password, rememberMe })
+      ).unwrap();
 
       // Thông báo đăng nhập thành công (sẽ trigger alert ở App.jsx)
       notifyLoginSuccess();
