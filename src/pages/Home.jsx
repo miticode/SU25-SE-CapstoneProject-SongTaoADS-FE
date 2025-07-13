@@ -132,7 +132,7 @@ const Home = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative bg-gradient-to-br from-[#2B2F4A] via-[#3B4164] to-[#2B2F4A] py-24 px-6 overflow-hidden"
+        className="relative bg-gradient-to-br from-[#10111b] via-[#212538] to-[#10111b] py-24 px-6 overflow-hidden"
       >
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -155,7 +155,7 @@ const Home = () => {
                 </span>
               </div>
 
-              <h1 className="text-5xl lg:text-7xl font-black leading-tight mb-6">
+              <h1 className="text-5xl lg:text-5xl font-black leading-tight mb-6">
                 Tạo quảng cáo{" "}
                 <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
                   đột phá
@@ -240,12 +240,12 @@ const Home = () => {
             >
               <div className="relative group">
                 {/* Glow effect */}
-                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
 
                 <img
                   src="/images/SongTao.png"
                   alt="AI Advertising"
-                  className="relative rounded-3xl shadow-2xl max-w-full h-auto border-4 border-white/20 backdrop-blur-sm hover:scale-105 transition-transform duration-500 -mt-8"
+                  className="relative rounded-full shadow-2xl max-w-full h-auto border-4 border-white/20 backdrop-blur-sm hover:scale-105 transition-transform duration-500 -mt-10"
                 />
 
                 {/* Floating elements */}
@@ -450,7 +450,7 @@ const Home = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
-                whileHover={{ y: -10, scale: 1.02 }}
+                // whileHover={{ y: -10, scale: 1.02 }}
                 className={`group relative p-8 bg-gradient-to-br ${item.bgLight} rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-white/50 backdrop-blur-sm overflow-hidden`}
               >
                 {/* Hover effect background */}
