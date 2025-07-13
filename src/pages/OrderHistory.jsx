@@ -1419,23 +1419,181 @@ const OrderHistory = () => {
   }
 
   return (
-    <Box maxWidth="md" mx="auto" py={4} px={2}>
-      <Tabs value={tab} onChange={handleTabChange} sx={{ mb: 2 }}>
-        <Tab label="Lịch sử đơn hàng" />
-        <Tab label="Đơn thiết kế thủ công" />
-      </Tabs>
+    <Box 
+      sx={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        minHeight: "100vh", 
+        py: 6,
+        position: 'relative',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+          pointerEvents: 'none'
+        }
+      }}
+    >
+      <Box maxWidth="lg" mx="auto" py={4} px={2} sx={{ position: 'relative', zIndex: 1 }}>
+        {/* Header Section */}
+        <Box 
+          sx={{ 
+            textAlign: 'center', 
+            mb: 4,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: 4,
+            p: 4,
+            boxShadow: '0 25px 45px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <Typography
+            variant="h4"
+            fontWeight={700}
+            sx={{ 
+              mb: 2,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              position: 'relative',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                bottom: -10,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 80,
+                height: 3,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: 2
+              }
+            }}
+          >
+            Lịch sử đơn hàng
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
+            Quản lý và theo dõi tất cả đơn hàng của bạn
+          </Typography>
+        </Box>
+
+        {/* Tabs Section */}
+        <Box 
+          sx={{ 
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: 3,
+            p: 1,
+            mb: 3,
+            boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <Tabs 
+            value={tab} 
+            onChange={handleTabChange} 
+            sx={{ 
+              '& .MuiTabs-indicator': {
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                height: 3,
+                borderRadius: 2
+              },
+              '& .MuiTab-root': {
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '1rem',
+                color: 'rgba(0, 0, 0, 0.6)',
+                transition: 'all 0.3s ease',
+                borderRadius: 2,
+                margin: '0 4px',
+                '&:hover': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                  transform: 'translateY(-1px)'
+                },
+                '&.Mui-selected': {
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                  color: '#667eea',
+                  fontWeight: 700
+                }
+              }
+            }}
+          >
+            <Tab 
+              label="Lịch sử đơn hàng" 
+              icon={<HistoryIcon />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Đơn thiết kế thủ công" 
+              icon={<BrushIcon />}
+              iconPosition="start"
+            />
+          </Tabs>
+        </Box>
       {tab === 0 ? (
         <>
           {orderLoading ? (
-            <Box display="flex" justifyContent="center" py={6}>
-              <CircularProgress />
+            <Box 
+              display="flex" 
+              justifyContent="center" 
+              py={6}
+              sx={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 3,
+                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress size={60} sx={{ color: '#667eea', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  Đang tải dữ liệu...
+                </Typography>
+              </Box>
             </Box>
           ) : orderError ? (
-            <Typography color="error">{orderError}</Typography>
+            <Box 
+              sx={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 3,
+                p: 4,
+                textAlign: 'center',
+                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Typography color="error" variant="h6">
+                ⚠️ {orderError}
+              </Typography>
+            </Box>
           ) : orders.length === 0 ? (
-            <Typography>Không có đơn hàng nào.</Typography>
+            <Box 
+              sx={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 3,
+                p: 6,
+                textAlign: 'center',
+                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <HistoryIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                Chưa có đơn hàng nào
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Bạn chưa có đơn hàng nào. Hãy bắt đầu mua sắm ngay!
+              </Typography>
+            </Box>
           ) : (
-            <Stack spacing={2}>
+            <Stack spacing={3}>
               {orders.map((order) => {
                 // ✅ Sử dụng helper function thay vì useSelector
                 const orderImpressions = getOrderImpressions(order.id);
@@ -1444,19 +1602,37 @@ const OrderHistory = () => {
                   <Card
                     key={order.id}
                     sx={{
-                      borderRadius: 2,
-                      boxShadow: 2,
-                      borderLeft: order.aiDesigns
-                        ? "4px solid #6A1B9A"
-                        : order.customDesignRequests
-                        ? "4px solid #0277BD"
-                        : "4px solid #558B2F",
+                      borderRadius: 3,
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+                      transition: 'all 0.3s ease',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 25px 45px rgba(0, 0, 0, 0.12)',
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: 4,
+                        height: '100%',
+                        background: order.aiDesigns
+                          ? 'linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)'
+                          : order.customDesignRequests
+                          ? 'linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)'
+                          : 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
+                      }
                     }}
                   >
-                    <CardContent>
+                    <CardContent sx={{ p: 3 }}>
                       <Stack
                         direction={{ xs: "column", sm: "row" }}
-                        spacing={2}
+                        spacing={3}
                         alignItems={{ sm: "center" }}
                         justifyContent="space-between"
                       >
@@ -1465,54 +1641,97 @@ const OrderHistory = () => {
                             direction="row"
                             spacing={1}
                             alignItems="center"
-                            mb={1}
+                            mb={2}
+                            flexWrap="wrap"
                           >
                             {order.aiDesigns ? (
                               <Chip
                                 icon={<SmartToyIcon />}
                                 label="AI Design"
                                 size="small"
-                                color="secondary"
-                                sx={{ fontWeight: 500 }}
+                                sx={{
+                                  background: 'linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)',
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  '& .MuiChip-icon': { color: 'white' }
+                                }}
                               />
                             ) : order.customDesignRequests ? (
                               <Chip
                                 icon={<BrushIcon />}
                                 label="Custom Design"
                                 size="small"
-                                color="primary"
-                                sx={{ fontWeight: 500 }}
+                                sx={{
+                                  background: 'linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)',
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  '& .MuiChip-icon': { color: 'white' }
+                                }}
                               />
                             ) : (
                               <Chip
                                 icon={<ShoppingBagIcon />}
                                 label="Đơn hàng thường"
                                 size="small"
-                                color="success"
-                                sx={{ fontWeight: 500 }}
+                                sx={{
+                                  background: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  '& .MuiChip-icon': { color: 'white' }
+                                }}
                               />
                             )}
+                            
+                            <Chip
+                              label={statusMap[order.status]?.label || order.status}
+                              size="small"
+                              sx={{
+                                background: order.status === 'COMPLETED' 
+                                  ? 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)'
+                                  : order.status === 'CANCELLED'
+                                  ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                                  : order.status === 'IN_PROGRESS'
+                                  ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                                  : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                color: 'white',
+                                fontWeight: 600,
+                                '& .MuiChip-icon': { color: 'white' }
+                              }}
+                            />
                           </Stack>
 
-                          <Typography
-                            fontWeight={600}
-                            sx={{
-                              wordBreak: "break-all",
-                              overflowWrap: "break-word",
-                            }}
-                          >
-                            Mã đơn: {order.id}
-                          </Typography>
+                          <Box sx={{ mb: 2 }}>
+                            <Typography
+                              variant="h6"
+                              fontWeight={700}
+                              sx={{
+                                wordBreak: "break-all",
+                                overflowWrap: "break-word",
+                                color: '#667eea',
+                                mb: 1
+                              }}
+                            >
+                              Mã đơn: #{order.id}
+                            </Typography>
 
-                          {order.customDesignRequests && (
-                            <Typography color="text.secondary" fontSize={14}>
-                              <b>Yêu cầu thiết kế:</b>{" "}
-                              {order.customDesignRequests.requirements?.substring(
-                                0,
+                            {order.customDesignRequests && (
+                              <Typography 
+                                color="text.secondary" 
+                                fontSize={14}
+                                sx={{
+                                  background: 'rgba(102, 126, 234, 0.04)',
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  border: '1px solid rgba(102, 126, 234, 0.1)'
+                                }}
+                              >
+                                <b>Yêu cầu thiết kế:</b>{" "}
+                                {order.customDesignRequests.requirements?.substring(
+                                  0,
+                                  50
+                                )}
+                                {order.customDesignRequests.requirements?.length >
                                 50
-                              )}
-                              {order.customDesignRequests.requirements?.length >
-                              50
                                 ? "..."
                                 : ""}
                             </Typography>
@@ -1755,6 +1974,7 @@ const OrderHistory = () => {
                           >
                             Yêu cầu hỗ trợ
                           </Button>
+                        </Box>
                         </Box>
                       </Stack>
                       {order.status === "COMPLETED" && (
@@ -2084,101 +2304,281 @@ const OrderHistory = () => {
           )}
         </>
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={3}>
           {customStatus === "loading" ? (
-            <Box display="flex" justifyContent="center" py={6}>
-              <CircularProgress />
+            <Box 
+              display="flex" 
+              justifyContent="center" 
+              py={6}
+              sx={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 3,
+                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress size={60} sx={{ color: '#667eea', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  Đang tải thiết kế...
+                </Typography>
+              </Box>
             </Box>
           ) : customError ? (
-            <Typography color="error">{customError}</Typography>
+            <Box 
+              sx={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 3,
+                p: 4,
+                textAlign: 'center',
+                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Typography color="error" variant="h6">
+                ⚠️ {customError}
+              </Typography>
+            </Box>
           ) : designRequests.length === 0 ? (
-            <Typography>Không có đơn thiết kế nào.</Typography>
+            <Box 
+              sx={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 3,
+                p: 6,
+                textAlign: 'center',
+                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <BrushIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                Chưa có đơn thiết kế nào
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Bạn chưa có yêu cầu thiết kế thủ công nào. Hãy tạo yêu cầu mới!
+              </Typography>
+            </Box>
           ) : (
             designRequests.map((req) => (
-              <Card key={req.id} sx={{ borderRadius: 2, boxShadow: 2 }}>
-                <CardContent>
-                  <Stack direction="column" spacing={1}>
+              <Card 
+                key={req.id} 
+                sx={{ 
+                  borderRadius: 3,
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 15px 35px rgba(0, 0, 0, 0.08)',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 25px 45px rgba(0, 0, 0, 0.12)',
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: 4,
+                    height: '100%',
+                    background: 'linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)',
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Stack direction="column" spacing={2}>
                     <Box
                       sx={{
                         cursor: "pointer",
+                        p: 2,
+                        borderRadius: 2,
+                        background: 'rgba(33, 150, 243, 0.04)',
+                        border: '1px solid rgba(33, 150, 243, 0.1)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          background: 'rgba(33, 150, 243, 0.08)',
+                          transform: 'translateY(-1px)'
+                        }
                       }}
                       onClick={() => {
                         dispatch(setCurrentDesignRequest(req));
                         setOpenDetail(true);
                       }}
                     >
-                      <Typography fontWeight={600}>
-                        Yêu cầu: {req.requirements}
+                      <Typography 
+                        variant="h6"
+                        fontWeight={700}
+                        sx={{ 
+                          color: '#2196f3',
+                          mb: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}
+                      >
+                        <BrushIcon />
+                        Yêu cầu thiết kế #{req.id}
                       </Typography>
-                      <Typography>
-                        Tổng tiền: {req.totalPrice?.toLocaleString("vi-VN")}₫
-                      </Typography>
-                      <Typography>
-                        Đặt cọc: {req.depositAmount?.toLocaleString("vi-VN")}₫
-                      </Typography>
-                      <Typography>
-                        Trạng thái: {statusMap[req.status]?.label || req.status}
-                      </Typography>
-                      <Typography>
-                        Ngày tạo:{" "}
-                        {new Date(req.createAt).toLocaleDateString("vi-VN")}
-                      </Typography>
+                      
+                      <Box sx={{ mb: 2 }}>
+                        <Typography 
+                          variant="body1" 
+                          fontWeight={600} 
+                          sx={{ mb: 1, color: 'text.primary' }}
+                        >
+                          📝 Mô tả: {req.requirements}
+                        </Typography>
+                        
+                        <Stack direction="row" spacing={2} flexWrap="wrap">
+                          <Typography variant="body2" color="text.secondary">
+                            💰 Tổng tiền: <strong>{req.totalPrice?.toLocaleString("vi-VN")}₫</strong>
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            🏦 Đặt cọc: <strong>{req.depositAmount?.toLocaleString("vi-VN")}₫</strong>
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            📅 Ngày tạo: <strong>{new Date(req.createAt).toLocaleDateString("vi-VN")}</strong>
+                          </Typography>
+                        </Stack>
+                      </Box>
+                      
+                      <Chip
+                        label={statusMap[req.status]?.label || req.status}
+                        size="medium"
+                        sx={{
+                          background: req.status === 'COMPLETED' 
+                            ? 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)'
+                            : req.status === 'CANCELLED'
+                            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                            : req.status === 'DEPOSITED'
+                            ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                            : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          color: 'white',
+                          fontWeight: 600,
+                          '& .MuiChip-icon': { color: 'white' }
+                        }}
+                      />
                     </Box>
 
-                    {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
+                    {/* Status-specific actions */}
                     {req.status === "WAITING_FULL_PAYMENT" && (
-                      <Chip
-                        label="THANH TOÁN TIỀN CÒN LẠI"
-                        color="warning"
-                        variant="outlined"
-                        sx={{ mt: 1 }}
-                      />
-                    )}
-
-                    {/* Hiển thị badge cho trạng thái DEPOSITED */}
-                    {req.status === "DEPOSITED" && (
-                      <Stack direction="row" spacing={1} mt={1}>
-                        <Chip
-                          label="Đợi bản demo từ designer"
-                          color="success"
-                          variant="outlined"
-                        />
-                      </Stack>
-                    )}
-
-                    {/* Nút đặt cọc nếu status là APPROVED_PRICING */}
-                    {req.status === "APPROVED_PRICING" && (
-                      <Button
-                        variant="contained"
-                        color="warning"
-                        size="small"
-                        sx={{ mt: 2 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCustomDeposit(req.id);
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)'
                         }}
-                        disabled={depositLoadingId === req.id}
                       >
-                        {depositLoadingId === req.id ? (
-                          <CircularProgress size={20} color="inherit" />
-                        ) : (
-                          "Đặt cọc"
-                        )}
-                      </Button>
+                        <Chip
+                          label="⚡ THANH TOÁN TIỀN CÒN LẠI"
+                          sx={{
+                            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            p: 1
+                          }}
+                        />
+                      </Box>
                     )}
 
-                    {/* Nút xem chi tiết */}
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      sx={{ mt: 2 }}
-                      onClick={() => {
-                        dispatch(setCurrentDesignRequest(req));
-                        setOpenDetail(true);
-                      }}
-                    >
-                      Xem chi tiết
-                    </Button>
+                    {req.status === "DEPOSITED" && (
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(21, 128, 61, 0.1) 100%)',
+                          border: '1px solid rgba(34, 197, 94, 0.3)'
+                        }}
+                      >
+                        <Chip
+                          icon={<BrushIcon />}
+                          label="🎨 Đợi bản demo từ designer"
+                          sx={{
+                            background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
+                            color: 'white',
+                            fontWeight: 600,
+                            '& .MuiChip-icon': { color: 'white' }
+                          }}
+                        />
+                      </Box>
+                    )}
+
+                    {req.status === "APPROVED_PRICING" && (
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <Typography variant="body2" color="warning.dark" sx={{ mb: 1, fontWeight: 600 }}>
+                          💳 Giá đã được phê duyệt, tiến hành đặt cọc
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          size="large"
+                          sx={{
+                            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                            fontWeight: 700,
+                            py: 1.5,
+                            px: 4,
+                            boxShadow: '0 8px 25px rgba(245, 158, 11, 0.3)',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 12px 35px rgba(245, 158, 11, 0.4)'
+                            }
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCustomDeposit(req.id);
+                          }}
+                          disabled={depositLoadingId === req.id}
+                        >
+                          {depositLoadingId === req.id ? (
+                            <>
+                              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                              Đang xử lý...
+                            </>
+                          ) : (
+                            "💰 Đặt cọc ngay"
+                          )}
+                        </Button>
+                      </Box>
+                    )}
+
+                    {/* Action buttons */}
+                    <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                      <Button
+                        variant="outlined"
+                        startIcon={<DescriptionIcon />}
+                        sx={{
+                          borderColor: '#2196f3',
+                          color: '#2196f3',
+                          fontWeight: 600,
+                          borderRadius: 2,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 203, 243, 0.1) 100%)',
+                            borderColor: '#21cbf3',
+                            transform: 'translateY(-1px)'
+                          }
+                        }}
+                        onClick={() => {
+                          dispatch(setCurrentDesignRequest(req));
+                          setOpenDetail(true);
+                        }}
+                      >
+                        Xem chi tiết
+                      </Button>
+                    </Stack>
 
                     {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái COMPLETED và chưa có lựa chọn */}
                     {/* {req.status === "COMPLETED" &&
@@ -2290,7 +2690,12 @@ const OrderHistory = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 3,
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 25px 45px rgba(0, 0, 0, 0.15)',
+            overflow: 'hidden'
           },
         }}
       >
@@ -2311,7 +2716,8 @@ const OrderHistory = () => {
               alignItems: "center",
               justifyContent: "center",
               gap: 1,
-              fontWeight: 600,
+              fontWeight: 700,
+              fontSize: '1.5rem'
             }}
           >
             <StarIcon /> Đánh giá đơn hàng
@@ -2332,19 +2738,45 @@ const OrderHistory = () => {
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ pt: 3, pb: 2 }}>
-          <Box sx={{ textAlign: "center", mb: 3 }}>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        <DialogContent sx={{ pt: 4, pb: 2, px: 4 }}>
+          <Box sx={{ textAlign: "center", mb: 4 }}>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                mb: 2,
+                color: '#667eea',
+                fontWeight: 600
+              }}
+            >
               Đơn hàng #{impressionDialog.orderId}
             </Typography>
-            <Typography variant="h6" color="primary.main" sx={{ mb: 1 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                mb: 1,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontWeight: 700
+              }}
+            >
               Bạn cảm thấy thế nào về dịch vụ của chúng tôi?
             </Typography>
           </Box>
 
           {/* Rating Section */}
-          <Box sx={{ textAlign: "center", mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+          <Box 
+            sx={{ 
+              textAlign: "center", 
+              mb: 4,
+              p: 3,
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+              border: '1px solid rgba(102, 126, 234, 0.1)'
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
               Đánh giá chung
             </Typography>
             <Rating
@@ -2360,8 +2792,24 @@ const OrderHistory = () => {
               precision={1}
               icon={<StarIcon fontSize="inherit" />}
               emptyIcon={<StarIcon fontSize="inherit" />}
+              sx={{
+                '& .MuiRating-iconFilled': {
+                  color: '#fbbf24'
+                },
+                '& .MuiRating-iconEmpty': {
+                  color: 'rgba(0, 0, 0, 0.1)'
+                }
+              }}
             />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mt: 2,
+                fontWeight: 600,
+                color: impressionForm.rating >= 4 ? '#22c55e' : 
+                       impressionForm.rating === 3 ? '#f59e0b' : '#ef4444'
+              }}
+            >
               {impressionForm.rating === 1 && "😞 Rất không hài lòng"}
               {impressionForm.rating === 2 && "😐 Không hài lòng"}
               {impressionForm.rating === 3 && "😊 Bình thường"}
@@ -2372,8 +2820,8 @@ const OrderHistory = () => {
 
           {/* Comment Section */}
           <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-              Nhận xét chi tiết <span style={{ color: "#f44336" }}>*</span>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+              Nhận xét chi tiết <span style={{ color: "#ef4444" }}>*</span>
             </Typography>
             <TextField
               fullWidth
@@ -2390,14 +2838,27 @@ const OrderHistory = () => {
               variant="outlined"
               sx={{
                 "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
+                  borderRadius: 3,
+                  background: 'rgba(102, 126, 234, 0.04)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'rgba(102, 126, 234, 0.08)',
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(102, 126, 234, 0.08)',
+                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
+                  }
                 },
               }}
             />
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ mt: 1, display: "block" }}
+              sx={{ 
+                mt: 1, 
+                display: "block",
+                fontStyle: 'italic'
+              }}
             >
               💡 Góp ý của bạn sẽ giúp chúng tôi cải thiện chất lượng dịch vụ
             </Typography>
@@ -2530,33 +2991,45 @@ const OrderHistory = () => {
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+        <DialogActions sx={{ px: 4, pb: 4, pt: 2 }}>
           <Button
             onClick={handleCloseImpressionDialog}
             variant="outlined"
             sx={{
-              borderRadius: 2,
+              borderRadius: 3,
               textTransform: "none",
-              minWidth: 100,
+              minWidth: 120,
+              fontWeight: 600,
+              borderColor: '#667eea',
+              color: '#667eea',
+              '&:hover': {
+                background: 'rgba(102, 126, 234, 0.08)',
+                borderColor: '#764ba2'
+              }
             }}
-            isabled={submittingImpression || uploadingImage}
+            disabled={submittingImpression || uploadingImage}
           >
             Hủy
           </Button>
           <Button
             onClick={handleSubmitImpression}
             variant="contained"
-            color="primary"
             disabled={
               submittingImpression ||
               uploadingImage ||
               !impressionForm.comment.trim()
             }
             sx={{
-              borderRadius: 2,
+              borderRadius: 3,
               textTransform: "none",
-              minWidth: 120,
-              fontWeight: 600,
+              minWidth: 140,
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                transform: 'translateY(-1px)',
+                boxShadow: '0 12px 35px rgba(102, 126, 234, 0.4)'
+              }
             }}
           >
             {submittingImpression ? (
@@ -2570,7 +3043,7 @@ const OrderHistory = () => {
                 Đang upload ảnh...
               </>
             ) : (
-              "Gửi đánh giá"
+              "🚀 Gửi đánh giá"
             )}
           </Button>
         </DialogActions>
@@ -3188,102 +3661,215 @@ const OrderHistory = () => {
         onClose={handleCloseContractDialog}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 25px 45px rgba(0, 0, 0, 0.15)',
+            overflow: 'hidden'
+          }
+        }}
       >
-        <DialogTitle>
-          Thông tin hợp đồng - Đơn hàng #{contractDialog.orderId}
+        <DialogTitle sx={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          position: 'relative',
+          py: 3,
+          textAlign: 'center'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            <Box
+              component="span"
+              sx={{
+                fontSize: '1.5rem',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+              }}
+            >
+              📄
+            </Box>
+            <Typography variant="h5" fontWeight={700}>
+              Thông tin hợp đồng
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+            Đơn hàng #{contractDialog.orderId}
+          </Typography>
           <IconButton
             aria-label="close"
             onClick={handleCloseContractDialog}
-            sx={{ position: "absolute", right: 8, top: 8 }}
+            sx={{ 
+              position: "absolute", 
+              right: 8, 
+              top: 8,
+              color: 'white',
+              '&:hover': {
+                background: 'rgba(255, 255, 255, 0.1)'
+              }
+            }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ 
+          p: 3,
+          background: 'rgba(248, 250, 252, 0.8)'
+        }}>
           {contractDialog.contract ? (
             <Box>
-              <Typography variant="h6" gutterBottom>
-                Chi tiết hợp đồng
-              </Typography>
-
-              <Typography sx={{ mb: 1 }}>
-                <b>ID hợp đồng:</b> {contractDialog.contract.id}
-              </Typography>
-
-              <Typography sx={{ mb: 1 }}>
-                <b>Số hợp đồng:</b>{" "}
-                {contractDialog.contract.contractNumber || "N/A"}
-              </Typography>
-
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={1}
-                sx={{ mb: 1 }}
-              >
-                <Typography>
-                  <b>Trạng thái:</b>
+              {/* Header với thông tin cơ bản */}
+              <Box sx={{
+                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                borderRadius: 3,
+                p: 3,
+                mb: 3,
+                border: '1px solid rgba(102, 126, 234, 0.1)'
+              }}>
+                <Typography 
+                  variant="h6" 
+                  gutterBottom 
+                  sx={{ 
+                    color: '#667eea',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  🔍 Chi tiết hợp đồng
                 </Typography>
-                <Chip
-                  label={
-                    CONTRACT_STATUS_MAP[contractDialog.contract.status]
-                      ?.label || contractDialog.contract.status
-                  }
-                  color={
-                    CONTRACT_STATUS_MAP[contractDialog.contract.status]
-                      ?.color || "default"
-                  }
-                  size="small"
-                />
-              </Stack>
 
-              <Typography sx={{ mb: 1 }}>
-                <b>Ngày gửi:</b>{" "}
-                {contractDialog.contract.sentDate
-                  ? new Date(contractDialog.contract.sentDate).toLocaleString(
-                      "vi-VN"
-                    )
-                  : "N/A"}
-              </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
+                  <Box sx={{
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: 2,
+                    p: 2,
+                    border: '1px solid rgba(255, 255, 255, 0.3)'
+                  }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      ID Hợp đồng
+                    </Typography>
+                    <Typography variant="h6" fontWeight={600} color="primary">
+                      #{contractDialog.contract.id}
+                    </Typography>
+                  </Box>
 
-              {contractDialog.contract.signedDate && (
-                <Typography sx={{ mb: 1 }}>
-                  <b>Ngày ký:</b>{" "}
-                  {new Date(contractDialog.contract.signedDate).toLocaleString(
-                    "vi-VN"
+                  <Box sx={{
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: 2,
+                    p: 2,
+                    border: '1px solid rgba(255, 255, 255, 0.3)'
+                  }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Số hợp đồng
+                    </Typography>
+                    <Typography variant="h6" fontWeight={600}>
+                      {contractDialog.contract.contractNumber || "Chưa có"}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                  <Typography variant="body1" fontWeight={600}>
+                    Trạng thái:
+                  </Typography>
+                  <Chip
+                    label={
+                      CONTRACT_STATUS_MAP[contractDialog.contract.status]
+                        ?.label || contractDialog.contract.status
+                    }
+                    sx={{
+                      background: CONTRACT_STATUS_MAP[contractDialog.contract.status]?.color === 'success'
+                        ? 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)'
+                        : CONTRACT_STATUS_MAP[contractDialog.contract.status]?.color === 'warning'
+                        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                        : CONTRACT_STATUS_MAP[contractDialog.contract.status]?.color === 'error'
+                        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                        : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      📅 Ngày gửi
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {contractDialog.contract.sentDate
+                        ? new Date(contractDialog.contract.sentDate).toLocaleString("vi-VN")
+                        : "Chưa gửi"}
+                    </Typography>
+                  </Box>
+
+                  {contractDialog.contract.signedDate && (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        ✍️ Ngày ký
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {new Date(contractDialog.contract.signedDate).toLocaleString("vi-VN")}
+                      </Typography>
+                    </Box>
                   )}
-                </Typography>
-              )}
 
-              {contractDialog.contract.depositPercentChanged && (
-                <Typography sx={{ mb: 1 }}>
-                  <b>Tỷ lệ đặt cọc thay đổi:</b>{" "}
-                  {contractDialog.contract.depositPercentChanged}%
-                </Typography>
-              )}
+                  {contractDialog.contract.depositPercentChanged && (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        💰 Tỷ lệ đặt cọc
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500} color="warning.main">
+                        {contractDialog.contract.depositPercentChanged}%
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
 
               {/* Hợp đồng gốc */}
               {contractDialog.contract.contractUrl && (
-                <Box
-                  sx={{
-                    mt: 2,
-                    p: 2,
-                    border: 1,
-                    borderColor: "primary.main",
-                    borderRadius: 1,
-                  }}
-                >
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  mb: 3,
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 4,
+                    background: 'linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)'
+                  }} />
+                  
                   <Typography
-                    variant="subtitle1"
-                    fontWeight="bold"
+                    variant="h6"
+                    fontWeight={700}
                     gutterBottom
+                    sx={{
+                      color: '#1d4ed8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      mb: 2
+                    }}
                   >
                     📄 Hợp đồng gốc
                   </Typography>
-                  <Stack direction="row" spacing={2} flexWrap="wrap">
+                  
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                     <Button
                       variant="contained"
-                      color="primary"
                       onClick={() =>
                         handleViewContract(contractDialog.contract.contractUrl)
                       }
@@ -3291,8 +3877,22 @@ const OrderHistory = () => {
                       startIcon={
                         contractViewLoading ? (
                           <CircularProgress size={16} />
-                        ) : null
+                        ) : (
+                          <Box component="span" sx={{ fontSize: '1.1rem' }}>👁️</Box>
+                        )
                       }
+                      sx={{
+                        borderRadius: 2,
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                        fontWeight: 600,
+                        py: 1.5,
+                        px: 3,
+                        boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)'
+                        }
+                      }}
                     >
                       Xem hợp đồng
                     </Button>
@@ -3302,7 +3902,6 @@ const OrderHistory = () => {
                       <>
                         <Button
                           variant="outlined"
-                          color="warning"
                           onClick={() =>
                             handleDiscussContract(contractDialog.contract.id)
                           }
@@ -3310,8 +3909,23 @@ const OrderHistory = () => {
                           startIcon={
                             discussLoading ? (
                               <CircularProgress size={16} />
-                            ) : null
+                            ) : (
+                              <Box component="span" sx={{ fontSize: '1.1rem' }}>💬</Box>
+                            )
                           }
+                          sx={{
+                            borderRadius: 2,
+                            borderColor: '#f59e0b',
+                            color: '#f59e0b',
+                            fontWeight: 600,
+                            py: 1.5,
+                            px: 3,
+                            '&:hover': {
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              borderColor: '#d97706',
+                              transform: 'translateY(-1px)'
+                            }
+                          }}
                         >
                           Yêu cầu thảo luận
                         </Button>
@@ -3337,14 +3951,27 @@ const OrderHistory = () => {
                         >
                           <Button
                             variant="contained"
-                            color="success"
                             component="span"
                             disabled={uploadingSignedContract}
                             startIcon={
                               uploadingSignedContract ? (
                                 <CircularProgress size={16} />
-                              ) : null
+                              ) : (
+                                <Box component="span" sx={{ fontSize: '1.1rem' }}>✅</Box>
+                              )
                             }
+                            sx={{
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                              fontWeight: 600,
+                              py: 1.5,
+                              px: 3,
+                              boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)'
+                              }
+                            }}
                           >
                             {uploadingSignedContract
                               ? "Đang upload..."
@@ -3354,7 +3981,7 @@ const OrderHistory = () => {
                       </>
                     )}
 
-                    {/* Nút cho trạng thái CONTRACT_RESIGNED - Di chuyển vào đây */}
+                    {/* Nút cho trạng thái CONTRACT_RESIGNED */}
                     {contractDialog.contract.status === "NEED_RESIGNED" && (
                       <>
                         <input
@@ -3378,14 +4005,27 @@ const OrderHistory = () => {
                         >
                           <Button
                             variant="contained"
-                            color="warning"
                             component="span"
                             disabled={uploadingSignedContract}
                             startIcon={
                               uploadingSignedContract ? (
                                 <CircularProgress size={16} />
-                              ) : null
+                              ) : (
+                                <Box component="span" sx={{ fontSize: '1.1rem' }}>🔄</Box>
+                              )
                             }
+                            sx={{
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                              fontWeight: 600,
+                              py: 1.5,
+                              px: 3,
+                              boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: '0 6px 20px rgba(245, 158, 11, 0.4)'
+                              }
+                            }}
                           >
                             {uploadingSignedContract
                               ? "Đang upload..."
@@ -3394,44 +4034,69 @@ const OrderHistory = () => {
                         </label>
                       </>
                     )}
-                  </Stack>
+                  </Box>
                 </Box>
               )}
               {contractDialog.contract.status === "NEED_RESIGNED" && (
-                <Box
-                  sx={{
-                    mt: 2,
-                    p: 3,
-                    border: 2,
-                    borderColor: "warning.main",
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  mb: 3,
+                  border: '2px dashed #f59e0b',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 4,
+                    background: 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'
+                  }} />
+                  
+                  <Box sx={{
+                    background: 'rgba(245, 158, 11, 0.1)',
                     borderRadius: 2,
-
-                    borderStyle: "dashed",
-                  }}
-                >
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight="bold"
-                    gutterBottom
-                    color="warning.dark"
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    🔄 Yêu cầu gửi lại hợp đồng
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="warning.dark"
-                    sx={{ mb: 2 }}
-                  >
-                    Chúng tôi đã yêu cầu bạn gửi lại hợp đồng đã ký. Vui lòng
-                    kiểm tra hợp đồng gốc, ký lại và upload file hợp đồng đã ký
-                    mới.
-                  </Typography>
+                    p: 2,
+                    mb: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2
+                  }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: '2rem',
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                      }}
+                    >
+                      🔄
+                    </Box>
+                    <Box>
+                      <Typography
+                        variant="h6"
+                        fontWeight={700}
+                        color="#d97706"
+                        sx={{ mb: 0.5 }}
+                      >
+                        Yêu cầu gửi lại hợp đồng
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="#92400e"
+                        sx={{ lineHeight: 1.6 }}
+                      >
+                        Chúng tôi đã yêu cầu bạn gửi lại hợp đồng đã ký. Vui lòng
+                        kiểm tra hợp đồng gốc, ký lại và upload file hợp đồng đã ký mới.
+                      </Typography>
+                    </Box>
+                  </Box>
 
                   <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                     <Button
                       variant="outlined"
-                      color="primary"
                       onClick={() =>
                         handleViewContract(contractDialog.contract.contractUrl)
                       }
@@ -3439,8 +4104,23 @@ const OrderHistory = () => {
                       startIcon={
                         contractViewLoading ? (
                           <CircularProgress size={16} />
-                        ) : null
+                        ) : (
+                          <Box component="span" sx={{ fontSize: '1.1rem' }}>👁️</Box>
+                        )
                       }
+                      sx={{
+                        borderRadius: 2,
+                        borderColor: '#3b82f6',
+                        color: '#3b82f6',
+                        fontWeight: 600,
+                        py: 1.5,
+                        px: 3,
+                        '&:hover': {
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          borderColor: '#1d4ed8',
+                          transform: 'translateY(-1px)'
+                        }
+                      }}
                     >
                       Xem hợp đồng gốc
                     </Button>
@@ -3466,19 +4146,32 @@ const OrderHistory = () => {
                     >
                       <Button
                         variant="contained"
-                        color="warning"
                         component="span"
                         disabled={uploadingSignedContract}
                         startIcon={
                           uploadingSignedContract ? (
                             <CircularProgress size={16} />
-                          ) : null
+                          ) : (
+                            <Box component="span" sx={{ fontSize: '1.1rem' }}>📤</Box>
+                          )
                         }
                         size="large"
+                        sx={{
+                          borderRadius: 2,
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          fontWeight: 600,
+                          py: 1.5,
+                          px: 3,
+                          boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 6px 20px rgba(245, 158, 11, 0.4)'
+                          }
+                        }}
                       >
                         {uploadingSignedContract
                           ? "Đang upload hợp đồng..."
-                          : "📤 Upload hợp đồng đã ký mới"}
+                          : "Upload hợp đồng đã ký mới"}
                       </Button>
                     </label>
                   </Box>
@@ -3486,108 +4179,284 @@ const OrderHistory = () => {
               )}
               {/* Hợp đồng đã ký */}
               {contractDialog.contract.signedContractUrl && (
-                <Box
-                  sx={{
-                    mt: 2,
-                    p: 2,
-                    border: 1,
-                    borderColor: "success.main",
-                    borderRadius: 1,
-                  }}
-                >
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(22, 163, 74, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  mb: 3,
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 4,
+                    background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)'
+                  }} />
+                  
                   <Typography
-                    variant="subtitle1"
-                    fontWeight="bold"
+                    variant="h6"
+                    fontWeight={700}
                     gutterBottom
+                    sx={{
+                      color: '#16a34a',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      mb: 2
+                    }}
                   >
                     ✅ Hợp đồng đã ký
                   </Typography>
-                  <Stack direction="row" spacing={2} flexWrap="wrap">
-                    <Button
-                      variant="contained"
-                      color="success"
-                      onClick={() =>
-                        handleViewContract(
-                          contractDialog.contract.signedContractUrl
-                        )
+                  
+                  <Button
+                    variant="contained"
+                    onClick={() =>
+                      handleViewContract(
+                        contractDialog.contract.signedContractUrl
+                      )
+                    }
+                    disabled={contractViewLoading}
+                    startIcon={
+                      contractViewLoading ? (
+                        <CircularProgress size={16} />
+                      ) : (
+                        <Box component="span" sx={{ fontSize: '1.1rem' }}>👁️</Box>
+                      )
+                    }
+                    sx={{
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      fontWeight: 600,
+                      py: 1.5,
+                      px: 3,
+                      boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)'
                       }
-                      disabled={contractViewLoading}
-                      startIcon={
-                        contractViewLoading ? (
-                          <CircularProgress size={16} />
-                        ) : null
-                      }
-                    >
-                      Xem hợp đồng đã ký
-                    </Button>
-                  </Stack>
+                    }}
+                  >
+                    Xem hợp đồng đã ký
+                  </Button>
                 </Box>
               )}
 
               {/* Status messages */}
               {contractDialog.contract.status === "SENT" && (
-                <Box sx={{ mt: 2, p: 2, borderRadius: 1 }}>
-                  <Typography variant="body2" color="warning.dark">
-                    📄 Hợp đồng đã được gửi, vui lòng kiểm tra và ký hợp đồng.
-                    <br />
-                    💬 Nếu có thắc mắc, bạn có thể yêu cầu thảo luận với chúng
-                    tôi.
-                    <br />
-                    ✍️ Sau khi ký, hãy upload hợp đồng đã ký bằng nút "Xác nhận
-                    hợp đồng".
-                  </Typography>
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  position: 'relative'
+                }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2
+                  }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: '1.5rem',
+                        mt: 0.5,
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                      }}
+                    >
+                      📋
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" fontWeight={600} color="#d97706" sx={{ mb: 1 }}>
+                        Hướng dẫn xử lý hợp đồng
+                      </Typography>
+                      <Box component="ul" sx={{ pl: 2, m: 0, color: '#92400e' }}>
+                        <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                          📄 Hợp đồng đã được gửi, vui lòng kiểm tra và ký hợp đồng
+                        </Typography>
+                        <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                          💬 Nếu có thắc mắc, bạn có thể yêu cầu thảo luận với chúng tôi
+                        </Typography>
+                        <Typography component="li" variant="body2">
+                          ✍️ Sau khi ký, hãy upload hợp đồng đã ký bằng nút "Xác nhận hợp đồng"
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Box>
               )}
+              
               {contractDialog.contract.status === "DISCUSSING" && (
-                <Box
-                  sx={{ mt: 2, p: 2, bgcolor: "info.light", borderRadius: 1 }}
-                >
-                  <Typography variant="body2" color="info.dark">
-                    💬 Yêu cầu thảo luận đã được gửi. Chúng tôi sẽ liên hệ với
-                    bạn sớm nhất.
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: '1.5rem',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                    }}
+                  >
+                    💬
+                  </Box>
+                  <Typography variant="body1" color="#1d4ed8" fontWeight={500}>
+                    Yêu cầu thảo luận đã được gửi. Chúng tôi sẽ liên hệ với bạn sớm nhất.
                   </Typography>
                 </Box>
               )}
+              
               {contractDialog.contract.status === "NEED_RESIGNED" && (
-                <Box sx={{ mt: 2, p: 2, borderRadius: 1 }}>
-                  <Typography variant="body2" color="warning.dark">
-                    🔄 <strong>Yêu cầu gửi lại hợp đồng:</strong> Chúng tôi cần
-                    bạn ký lại hợp đồng.
-                    <br />
-                    📋 Vui lòng xem lại hợp đồng gốc, ký lại và upload file mới.
-                    <br />⏰ Sau khi upload thành công, chúng tôi sẽ xem xét và
-                    xác nhận hợp đồng.
-                  </Typography>
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  position: 'relative'
+                }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2
+                  }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: '1.5rem',
+                        mt: 0.5,
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                      }}
+                    >
+                      🔄
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" fontWeight={600} color="#d97706" sx={{ mb: 1 }}>
+                        Yêu cầu gửi lại hợp đồng
+                      </Typography>
+                      <Box component="ul" sx={{ pl: 2, m: 0, color: '#92400e' }}>
+                        <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                          🔄 Chúng tôi cần bạn ký lại hợp đồng
+                        </Typography>
+                        <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
+                          📋 Vui lòng xem lại hợp đồng gốc, ký lại và upload file mới
+                        </Typography>
+                        <Typography component="li" variant="body2">
+                          ⏰ Sau khi upload thành công, chúng tôi sẽ xem xét và xác nhận hợp đồng
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Box>
               )}
+              
               {contractDialog.contract.status === "SIGNED" && (
-                <Box sx={{ mt: 2, p: 2, borderRadius: 1 }}>
-                  <Typography variant="body2" color="success.dark">
-                    ✅ Hợp đồng đã được ký thành công!
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(22, 163, 74, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: '1.5rem',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                    }}
+                  >
+                    ✅
+                  </Box>
+                  <Typography variant="body1" color="#16a34a" fontWeight={600}>
+                    Hợp đồng đã được ký thành công!
                   </Typography>
                 </Box>
               )}
 
               {contractDialog.contract.status === "REJECTED" && (
-                <Box
-                  sx={{ mt: 2, p: 2, bgcolor: "error.light", borderRadius: 1 }}
-                >
-                  <Typography variant="body2" color="error.dark">
-                    ❌ Hợp đồng đã bị từ chối. Vui lòng liên hệ để được hỗ trợ.
+                <Box sx={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                  borderRadius: 3,
+                  p: 3,
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: '1.5rem',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                    }}
+                  >
+                    ❌
+                  </Box>
+                  <Typography variant="body1" color="#dc2626" fontWeight={500}>
+                    Hợp đồng đã bị từ chối. Vui lòng liên hệ để được hỗ trợ.
                   </Typography>
                 </Box>
               )}
             </Box>
           ) : (
-            <Box sx={{ textAlign: "center", py: 4 }}>
-              <Typography color="text.secondary">
+            <Box sx={{ 
+              textAlign: "center", 
+              py: 6,
+              background: 'linear-gradient(135deg, rgba(148, 163, 184, 0.05) 0%, rgba(100, 116, 139, 0.05) 100%)',
+              borderRadius: 3,
+              border: '1px solid rgba(148, 163, 184, 0.2)'
+            }}>
+              <Box
+                component="span"
+                sx={{
+                  fontSize: '3rem',
+                  display: 'block',
+                  mb: 2,
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                }}
+              >
+                📋
+              </Box>
+              <Typography variant="h6" color="text.secondary" fontWeight={500}>
                 Chưa có hợp đồng cho đơn hàng này
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Hợp đồng sẽ được tạo sau khi đơn hàng được xác nhận
               </Typography>
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseContractDialog}>Đóng</Button>
+        <DialogActions sx={{ 
+          p: 3, 
+          background: 'rgba(248, 250, 252, 0.8)',
+          borderTop: '1px solid rgba(226, 232, 240, 0.5)'
+        }}>
+          <Button 
+            onClick={handleCloseContractDialog}
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              py: 1.5,
+              fontWeight: 600,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              '&:hover': {
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+              }
+            }}
+          >
+            Đóng
+          </Button>
         </DialogActions>
       </Dialog>
       <Dialog
@@ -3747,25 +4616,78 @@ const OrderHistory = () => {
         open={notification.open}
         autoHideDuration={6000}
         onClose={() => setNotification((n) => ({ ...n, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           onClose={() => setNotification((n) => ({ ...n, open: false }))}
           severity={notification.severity}
-          sx={{ width: "100%" }}
+          sx={{ 
+            width: "100%",
+            borderRadius: 3,
+            fontWeight: 600,
+            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+            '&.MuiAlert-standardSuccess': {
+              background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+              color: 'white',
+              '& .MuiAlert-icon': {
+                color: 'white'
+              }
+            },
+            '&.MuiAlert-standardError': {
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              color: 'white',
+              '& .MuiAlert-icon': {
+                color: 'white'
+              }
+            },
+            '&.MuiAlert-standardWarning': {
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white',
+              '& .MuiAlert-icon': {
+                color: 'white'
+              }
+            },
+            '&.MuiAlert-standardInfo': {
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              color: 'white',
+              '& .MuiAlert-icon': {
+                color: 'white'
+              }
+            }
+          }}
         >
           {notification.message}
         </Alert>
       </Snackbar>
+      
       {/* Dialog tạo ticket */}
       <Dialog
         open={openTicketDialog}
         onClose={handleCloseTicketDialog}
         maxWidth="sm"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 25px 45px rgba(0, 0, 0, 0.15)',
+          }
+        }}
       >
-        <DialogTitle>Yêu cầu hỗ trợ cho đơn hàng</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          fontWeight: 700,
+          fontSize: '1.5rem',
+          textAlign: 'center'
+        }}>
+          🎫 Yêu cầu hỗ trợ cho đơn hàng
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <TextField
             label="Tiêu đề"
             value={ticketTitle}
@@ -3773,6 +4695,20 @@ const OrderHistory = () => {
             fullWidth
             margin="normal"
             required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                background: 'rgba(102, 126, 234, 0.04)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                },
+                '&.Mui-focused': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
+                }
+              }
+            }}
           />
           <TextField
             label="Mô tả"
@@ -3781,37 +4717,95 @@ const OrderHistory = () => {
             fullWidth
             margin="normal"
             multiline
-            minRows={3}
+            minRows={4}
             required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                background: 'rgba(102, 126, 234, 0.04)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                },
+                '&.Mui-focused': {
+                  background: 'rgba(102, 126, 234, 0.08)',
+                  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
+                }
+              }
+            }}
           />
           {createError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                color: 'white',
+                '& .MuiAlert-icon': { color: 'white' }
+              }}
+            >
               {createError}
             </Alert>
           )}
           {createStatus === "succeeded" && (
-            <Alert severity="success" sx={{ mt: 2 }}>
+            <Alert 
+              severity="success" 
+              sx={{ 
+                mt: 2,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                color: 'white',
+                '& .MuiAlert-icon': { color: 'white' }
+              }}
+            >
               Gửi yêu cầu hỗ trợ thành công!
             </Alert>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseTicketDialog}>Hủy</Button>
+        <DialogActions sx={{ p: 3 }}>
+          <Button 
+            onClick={handleCloseTicketDialog}
+            sx={{
+              borderRadius: 2,
+              color: '#667eea',
+              fontWeight: 600,
+              '&:hover': {
+                background: 'rgba(102, 126, 234, 0.08)'
+              }
+            }}
+          >
+            Hủy
+          </Button>
           <Button
             onClick={handleSubmitTicket}
             disabled={
               !ticketTitle || !ticketDescription || createStatus === "loading"
             }
             variant="contained"
+            sx={{
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              fontWeight: 600,
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+              '&:hover': {
+                transform: 'translateY(-1px)',
+                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
+              }
+            }}
           >
             {createStatus === "loading" ? (
-              <CircularProgress size={20} />
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Đang gửi...
+              </>
             ) : (
-              "Gửi"
+              "🚀 Gửi"
             )}
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 };

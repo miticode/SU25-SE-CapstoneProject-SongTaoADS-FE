@@ -132,50 +132,135 @@ const Home = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative bg-custom-primary py-20 px-6"
+        className="relative bg-gradient-to-br from-[#2B2F4A] via-[#3B4164] to-[#2B2F4A] py-24 px-6 overflow-hidden"
       >
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-10 left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-10 right-10 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="flex flex-col lg:flex-row items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="md:w-1/2 text-white mb-10 md:mb-0"
+              className="lg:w-1/2 text-white mb-12 lg:mb-0"
             >
-              <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                Tạo quảng cáo đột phá với{" "}
-                <span className="text-custom-secondary">trí tuệ nhân tạo</span>
+              <div className="mb-6">
+                <span className="inline-block px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-full text-sm uppercase tracking-wide">
+                  🚀 AI Technology
+                </span>
+              </div>
+
+              <h1 className="text-5xl lg:text-7xl font-black leading-tight mb-6">
+                Tạo quảng cáo{" "}
+                <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
+                  đột phá
+                </span>
+                <br />
+                với{" "}
+                <span className="relative">
+                  <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                    trí tuệ nhân tạo
+                  </span>
+                  <svg
+                    className="absolute -bottom-2 left-0 w-full h-3"
+                    viewBox="0 0 100 12"
+                    fill="none"
+                  >
+                    <path
+                      d="M2 10C20 6 40 8 60 6C80 4 90 8 98 6"
+                      stroke="url(#gradient)"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="gradient"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#60A5FA" />
+                        <stop offset="100%" stopColor="#A855F7" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </span>
               </h1>
-              <p className="mt-6 text-lg opacity-90">
-                Song Tạo ADS giúp doanh nghiệp tạo ra các quảng cáo hấp dẫn và
-                hiệu quả thông qua công nghệ AI tiên tiến nhất.
+
+              <p className="mt-8 text-xl leading-relaxed text-gray-200 max-w-xl">
+                🎯 Song Tạo ADS giúp doanh nghiệp tạo ra các quảng cáo hấp dẫn
+                và hiệu quả thông qua công nghệ AI tiên tiến nhất. Tiết kiệm
+                thời gian, tăng ROI và chinh phục khách hàng.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+
+              <div className="mt-12 flex flex-wrap gap-4 ">
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleDesignClick} // Thay đổi từ navigate("/ai-design") thành handleDesignClick
-                  className="px-6 py-3 bg-custom-secondary text-white font-medium rounded-md hover:bg-custom-primary transition-colors shadow-lg cursor-pointer z-40 relative"
+                  onClick={handleDesignClick}
+                  className="cursor-pointer group relative px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-black rounded-2xl hover:shadow-2xl transition-all duration-300 overflow-hidden"
                 >
-                  Thiết kế ngay
+                  <span className="relative z-10 flex items-center">
+                    🎨 Thiết kế ngay
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </motion.button>
               </div>
+
+              {/* Stats */}
+              <div className="mt-16 grid grid-cols-3 gap-8">
+                <div className="text-center">
+                  <div className="text-3xl font-black text-yellow-400">
+                    10K+
+                  </div>
+                  <div className="text-sm text-gray-300">Khách hàng</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-black text-blue-400">50K+</div>
+                  <div className="text-sm text-gray-300">Quảng cáo tạo</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-black text-green-400">99%</div>
+                  <div className="text-sm text-gray-300">Hài lòng</div>
+                </div>
+              </div>
             </motion.div>
+
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="md:w-1/2 flex justify-center"
+              className="lg:w-1/2 flex justify-center relative"
             >
-              <img
-                src="/src/assets/images/SongTao.png"
-                alt="AI Advertising"
-                className="rounded-lg shadow-2xl max-w-full h-auto"
-              />
+              <div className="relative group">
+                {/* Glow effect */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+
+                <img
+                  src="/images/SongTao.png"
+                  alt="AI Advertising"
+                  className="relative rounded-3xl shadow-2xl max-w-full h-auto border-4 border-white/20 backdrop-blur-sm hover:scale-105 transition-transform duration-500 -mt-8"
+                />
+
+                {/* Floating elements */}
+                <div className="absolute -top-4 -right-4 w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-black font-bold animate-bounce">
+                  AI
+                </div>
+                <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold animate-pulse">
+                  🚀
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
 
+        {/* Wave decoration */}
         <div className="absolute bottom-0 left-0 w-full overflow-hidden">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -192,26 +277,93 @@ const Home = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className="py-16 px-6 bg-white"
+        className="py-20 px-6 bg-gradient-to-b from-white to-gray-50 relative overflow-hidden"
       >
-        <div className="max-w-7xl mx-auto">
+        {/* Background decoration */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-20 w-32 h-32 bg-blue-500 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-20 w-40 h-40 bg-purple-500 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-8"
+            className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
-              Sản phẩm nổi bật
+            <div className="inline-block px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full mb-6">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 font-bold">
+                ✨ Sản phẩm nổi bật
+              </span>
+            </div>
+            <h2 className="text-4xl lg:text-6xl font-black text-gray-800 mb-6">
+              Công cụ AI{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                đỉnh cao
+              </span>
             </h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-              Khám phá các công cụ và giải pháp quảng cáo AI tiên tiến của chúng
-              tôi
+            <p className="mt-6 text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              🎯 Khám phá các công cụ và giải pháp quảng cáo AI tiên tiến của
+              chúng tôi - Nơi công nghệ gặp gỡ sáng tạo
             </p>
           </motion.div>
 
-          <Carousel items={carouselItems} autoSlideInterval={5000} />
+          <div className="relative">
+            {/* Enhanced carousel with better styling */}
+            <div className="mb-8">
+              <Carousel items={carouselItems} autoSlideInterval={5000} />
+            </div>
+
+            {/* Feature highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+              <motion.div
+                whileHover={{ y: -5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
+                  <span className="text-white font-bold">AI</span>
+                </div>
+                <h3 className="font-bold text-lg text-gray-800 mb-2">
+                  Công nghệ tiên tiến
+                </h3>
+                <p className="text-gray-600">
+                  Sử dụng AI mới nhất để tạo nội dung chất lượng cao
+                </p>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+                  <span className="text-white font-bold">⚡</span>
+                </div>
+                <h3 className="font-bold text-lg text-gray-800 mb-2">
+                  Tốc độ siêu nhanh
+                </h3>
+                <p className="text-gray-600">
+                  Tạo quảng cáo chuyên nghiệp chỉ trong vài phút
+                </p>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-200/50 hover:shadow-xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
+                  <span className="text-white font-bold">📊</span>
+                </div>
+                <h3 className="font-bold text-lg text-gray-800 mb-2">
+                  Phân tích thông minh
+                </h3>
+                <p className="text-gray-600">
+                  Theo dõi hiệu suất với dashboard chi tiết
+                </p>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </motion.section>
 
@@ -220,70 +372,155 @@ const Home = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className="py-16 px-6 bg-gray-50"
+        className="py-20 px-6 bg-gradient-to-br from-gray-50 via-white to-blue-50 relative overflow-hidden"
       >
-        <div className="max-w-7xl mx-auto">
+        {/* Enhanced background decoration */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-64 h-64 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-10 right-10 w-80 h-80 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-green-500 to-blue-500 rounded-full blur-3xl animate-pulse delay-500"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
-              Giải pháp quảng cáo thông minh
+            <div className="inline-block px-6 py-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full mb-8">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 font-bold text-lg">
+                🚀 Giải pháp thông minh
+              </span>
+            </div>
+            <h2 className="text-4xl lg:text-6xl font-black text-gray-800 mb-8">
+              Quảng cáo{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-blue-600 to-green-600 animate-pulse">
+                siêu thông minh
+              </span>
             </h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-              Trải nghiệm sức mạnh của AI trong việc tạo ra các chiến dịch quảng
-              cáo độc đáo và hiệu quả
+            <p className="mt-6 text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              ⚡ Trải nghiệm sức mạnh của AI trong việc tạo ra các chiến dịch
+              quảng cáo độc đáo và hiệu quả vượt trội
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: <SiProbot className="text-[#2B2F4A] text-2xl" />,
-                bgColor: "bg-blue-100",
-                title: "AI Tạo Nội Dung",
+                icon: <SiProbot className="text-[#2B2F4A] text-3xl" />,
+                bgGradient: "from-blue-500 to-purple-600",
+                bgLight: "from-blue-50 to-purple-50",
+                title: "🤖 AI Tạo Nội Dung",
                 description:
-                  "Tự động tạo nội dung quảng cáo sáng tạo và thu hút khách hàng mục tiêu của bạn.",
+                  "Tự động tạo nội dung quảng cáo sáng tạo và thu hút khách hàng mục tiêu của bạn với độ chính xác cao.",
+                features: ["Tự động hóa 100%", "Đa ngôn ngữ", "Tối ưu SEO"],
               },
               {
-                icon: <FaChartLine className="text-green-600 text-2xl" />,
-                bgColor: "bg-green-100",
-                title: "Phân Tích Hiệu Suất",
+                icon: <FaChartLine className="text-green-600 text-3xl" />,
+                bgGradient: "from-green-500 to-emerald-600",
+                bgLight: "from-green-50 to-emerald-50",
+                title: "📊 Phân Tích Hiệu Suất",
                 description:
-                  "Theo dõi và phân tích hiệu suất quảng cáo bằng các báo cáo chi tiết và trực quan.",
+                  "Theo dõi và phân tích hiệu suất quảng cáo bằng các báo cáo chi tiết và trực quan thời gian thực.",
+                features: [
+                  "Real-time Analytics",
+                  "ROI Tracking",
+                  "A/B Testing",
+                ],
               },
               {
-                icon: <FaRegLightbulb className="text-purple-600 text-2xl" />,
-                bgColor: "bg-purple-100",
-                title: "Tối Ưu Hóa Tự Động",
+                icon: <FaRegLightbulb className="text-purple-600 text-3xl" />,
+                bgGradient: "from-purple-500 to-pink-600",
+                bgLight: "from-purple-50 to-pink-50",
+                title: "💡 Tối Ưu Hóa Tự Động",
                 description:
-                  "Hệ thống AI tự động đề xuất và áp dụng các cải tiến để tối ưu hiệu quả chiến dịch.",
+                  "Hệ thống AI tự động đề xuất và áp dụng các cải tiến để tối ưu hiệu quả chiến dịch tốt nhất.",
+                features: [
+                  "Auto Optimization",
+                  "Smart Bidding",
+                  "Predictive AI",
+                ],
               },
             ].map((item, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -8 }}
-                className="p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+                whileHover={{ y: -10, scale: 1.02 }}
+                className={`group relative p-8 bg-gradient-to-br ${item.bgLight} rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-white/50 backdrop-blur-sm overflow-hidden`}
               >
+                {/* Hover effect background */}
                 <div
-                  className={`w-12 h-12 ${item.bgColor} rounded-full flex items-center justify-center mb-4`}
+                  className={`absolute inset-0 bg-gradient-to-br ${item.bgGradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-3xl`}
+                ></div>
+
+                {/* Floating icon background */}
+                <div
+                  className={`relative w-16 h-16 bg-gradient-to-br ${item.bgGradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500`}
                 >
-                  {item.icon}
+                  <div className="text-white text-2xl">{item.icon}</div>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+
+                <h3 className="text-2xl font-black text-gray-800 mb-4 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-500">
                   {item.title}
                 </h3>
-                <p className="text-gray-600">{item.description}</p>
+
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  {item.description}
+                </p>
+
+                {/* Feature list */}
+                <div className="space-y-2 mb-6">
+                  {item.features.map((feature, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center text-sm text-gray-500"
+                    >
+                      <div
+                        className={`w-2 h-2 bg-gradient-to-r ${item.bgGradient} rounded-full mr-3`}
+                      ></div>
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action button */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`w-full py-3 bg-gradient-to-r ${item.bgGradient} text-white font-bold rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0 shadow-lg hover:shadow-xl`}
+                >
+                  Tìm hiểu thêm →
+                </motion.button>
+
+                {/* Decorative elements */}
+                <div className="absolute top-4 right-4 w-20 h-20 bg-white/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
               </motion.div>
             ))}
           </div>
+
+          {/* Bottom CTA section */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="text-center mt-16"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleDesignClick}
+              className="px-12 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-black rounded-2xl text-lg shadow-2xl hover:shadow-3xl transition-all duration-300"
+            >
+              🎯 Bắt đầu tạo quảng cáo ngay
+            </motion.button>
+          </motion.div>
         </div>
       </motion.section>
 
