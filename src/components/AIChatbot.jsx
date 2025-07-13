@@ -9,10 +9,43 @@ import {
   Avatar,
   Badge,
   Button,
+  Tabs,
+  Tab,
+  Chip,
+  Divider,
+  Switch,
+  FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+  Menu,
+  MenuItem,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
+import SettingsIcon from "@mui/icons-material/Settings";
+import SmartToyIcon from "@mui/icons-material/SmartToy";
+import PsychologyIcon from "@mui/icons-material/Psychology";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import SpeedIcon from "@mui/icons-material/Speed";
+import HelpIcon from "@mui/icons-material/Help";
+import InfoIcon from "@mui/icons-material/Info";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import BusinessIcon from "@mui/icons-material/Business";
+import PaletteIcon from "@mui/icons-material/Palette";
+import PaymentIcon from "@mui/icons-material/Payment";
+import SupportIcon from "@mui/icons-material/Support";
+import HistoryIcon from "@mui/icons-material/History";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
@@ -28,6 +61,108 @@ const FAQS = [
   "Biển hiệu hiện đại là gì?",
   "Cửa hàng có mấy loại Decal ?",
   "Công thức tính giá biển hiệu truyền thống?",
+];
+
+// Advanced detailed questions by category
+const DETAILED_QUESTIONS = {
+  "Thiết kế & Sản xuất": [
+    "Tôi muốn thiết kế biển hiệu cho cửa hàng ăn, có gợi ý gì không?",
+    "Biển LED có tốn điện không và tuổi thọ bao lâu?",
+    "Có thể thiết kế biển hiệu theo phong cách vintage không?",
+    "Quy trình sản xuất biển hiệu mất bao lâu?",
+    "Có thể xem mẫu thiết kế trước khi sản xuất không?",
+    "Biển hiệu ngoài trời có chống nước không?",
+  ],
+  "Báo giá & Thanh toán": [
+    "Bảng giá biển hiệu có cập nhật mới nhất không?",
+    "Có chương trình khuyến mãi cho khách hàng mới không?",
+    "Thanh toán có thể trả góp không?",
+    "Có giảm giá khi đặt số lượng lớn không?",
+    "Phí vận chuyển và lắp đặt tính như thế nào?",
+    "Có bảo hành miễn phí không?",
+  ],
+  "Dịch vụ & Hỗ trợ": [
+    "Có dịch vụ lắp đặt tại nhà không?",
+    "Có bảo trì định kỳ không?",
+    "Thời gian làm việc và liên hệ khẩn cấp?",
+    "Có hỗ trợ thiết kế miễn phí không?",
+    "Có thể chỉnh sửa thiết kế sau khi đặt hàng không?",
+    "Có dịch vụ bảo hành mở rộng không?",
+  ],
+  "Sản phẩm & Chất lượng": [
+    "Chất liệu nào bền nhất cho biển ngoài trời?",
+    "Có biển hiệu phù hợp với không gian nhỏ không?",
+    "Biển hiệu có thể tùy chỉnh kích thước không?",
+    "Có biển hiệu thân thiện môi trường không?",
+    "Chất liệu nào phù hợp cho biển trong nhà?",
+    "Có biển hiệu chống cháy không?",
+  ],
+  "Quy trình & Thời gian": [
+    "Quy trình đặt hàng như thế nào?",
+    "Thời gian sản xuất biển hiệu mất bao lâu?",
+    "Có thể gấp rút trong 24h không?",
+    "Quy trình thanh toán và giao hàng?",
+    "Có thể theo dõi tiến độ sản xuất không?",
+    "Thời gian bảo hành và sửa chữa?",
+  ],
+};
+
+const QUICK_ACTIONS = [
+  {
+    label: "Tư vấn thiết kế",
+    icon: <PaletteIcon />,
+    color: "#ff6b35",
+    description: "Nhận tư vấn thiết kế phù hợp",
+  },
+  {
+    label: "Báo giá nhanh",
+    icon: <PaymentIcon />,
+    color: "#4ecdc4",
+    description: "Nhận báo giá chi tiết ngay",
+  },
+  {
+    label: "Đặt hàng",
+    icon: <BusinessIcon />,
+    color: "#45b7d1",
+    description: "Hướng dẫn đặt hàng",
+  },
+  {
+    label: "Hỗ trợ kỹ thuật",
+    icon: <SupportIcon />,
+    color: "#96ceb4",
+    description: "Giải đáp thắc mắc kỹ thuật",
+  },
+];
+
+const ADVANCED_FEATURES = [
+  {
+    id: "smart_suggestions",
+    title: "Gợi ý thông minh",
+    description: "AI gợi ý câu hỏi phù hợp với nhu cầu",
+    icon: <PsychologyIcon />,
+    enabled: true,
+  },
+  {
+    id: "detailed_questions",
+    title: "Câu hỏi chi tiết",
+    description: "Hướng dẫn khách hàng từng bước",
+    icon: <HelpIcon />,
+    enabled: true,
+  },
+  {
+    id: "quick_responses",
+    title: "Phản hồi nhanh",
+    description: "Tối ưu tốc độ trả lời",
+    icon: <SpeedIcon />,
+    enabled: true,
+  },
+  {
+    id: "context_aware",
+    title: "Hiểu ngữ cảnh",
+    description: "AI nhớ cuộc trò chuyện trước đó",
+    icon: <AutoAwesomeIcon />,
+    enabled: true,
+  },
 ];
 
 const TypingIndicator = () => (
@@ -94,6 +229,10 @@ const AIChatbot = () => {
   const [input, setInput] = useState("");
   const [isHover, setIsHover] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [advancedFeatures, setAdvancedFeatures] = useState(ADVANCED_FEATURES);
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
@@ -161,6 +300,29 @@ const AIChatbot = () => {
     } catch {
       // error message đã được xử lý trong slice
     }
+  };
+
+  const handleAdvancedToggle = () => {
+    setIsAdvancedMode(!isAdvancedMode);
+  };
+
+  const handleFeatureToggle = (featureId) => {
+    setAdvancedFeatures((prev) =>
+      prev.map((feature) =>
+        feature.id === featureId
+          ? { ...feature, enabled: !feature.enabled }
+          : feature
+      )
+    );
+  };
+
+  const handleQuickAction = (action) => {
+    const message = `Tôi muốn ${action.label.toLowerCase()}`;
+    handleSend(message);
+  };
+
+  const handleDetailedQuestion = (question) => {
+    handleSend(question);
   };
 
   return (
@@ -257,7 +419,7 @@ const AIChatbot = () => {
               bottom: 32,
               right: 32,
               zIndex: 9999,
-              width: 390,
+              width: isAdvancedMode ? 500 : 390,
               height: 600,
               display: "flex",
               flexDirection: "column",
@@ -313,46 +475,237 @@ const AIChatbot = () => {
                     Song Tạo AI Pro 4.1
                   </Typography>
                 </Stack>
-                <IconButton
-                  size="small"
-                  onClick={() => setOpen(false)}
-                  sx={{ color: "#fff", ml: 1 }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-              {/* FAQ Quick Replies */}
-              <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {FAQS.map((faq, idx) => (
-                    <Button
-                      key={idx}
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="Cài đặt nâng cao">
+                    <IconButton
                       size="small"
-                      variant="outlined"
-                      sx={{
-                        borderColor: "#3949ab",
-                        color: "#3949ab",
-                        textTransform: "none",
-                        fontSize: 13,
-                        borderRadius: 999,
-                        mb: 1,
-                        px: 2,
-                        py: 0.5,
-                        boxShadow: "0 1px 4px 0 rgba(26,35,126,0.04)",
-                        "&:hover": {
-                          borderColor: "#1a237e",
-                          color: "#1a237e",
-                          bgcolor: "#e8eaf6",
-                        },
-                      }}
-                      onClick={() => handleSend(faq)}
-                      disabled={status === "loading"}
+                      onClick={() => setShowSettings(true)}
+                      sx={{ color: "#fff" }}
                     >
-                      {faq}
-                    </Button>
-                  ))}
+                      <SettingsIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <IconButton
+                    size="small"
+                    onClick={() => setOpen(false)}
+                    sx={{ color: "#fff", ml: 1 }}
+                  >
+                    <CloseIcon />
+                  </IconButton>
                 </Stack>
               </Box>
+
+              {/* Advanced Mode Toggle */}
+              <Box sx={{ px: 2, pt: 1, pb: 0, bgcolor: "#f4f6fb" }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button
+                    size="small"
+                    variant={isAdvancedMode ? "contained" : "outlined"}
+                    onClick={handleAdvancedToggle}
+                    sx={{
+                      borderColor: "#3949ab",
+                      color: isAdvancedMode ? "#fff" : "#3949ab",
+                      bgcolor: isAdvancedMode ? "#3949ab" : "transparent",
+                      textTransform: "none",
+                      fontSize: 12,
+                      borderRadius: 999,
+                      px: 2,
+                      py: 0.5,
+                      "&:hover": {
+                        bgcolor: isAdvancedMode ? "#1a237e" : "#e8eaf6",
+                      },
+                    }}
+                  >
+                    <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                    Advanced
+                  </Button>
+                  {isAdvancedMode && (
+                    <Chip
+                      label="Pro Mode"
+                      size="small"
+                      color="primary"
+                      sx={{ fontSize: 10 }}
+                    />
+                  )}
+                </Stack>
+              </Box>
+
+              {/* Advanced Features */}
+              {isAdvancedMode && (
+                <Box sx={{ px: 2, pt: 1, pb: 0, bgcolor: "#f4f6fb" }}>
+                  <Tabs
+                    value={activeTab}
+                    onChange={(e, newValue) => setActiveTab(newValue)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                      "& .MuiTab-root": {
+                        minWidth: "auto",
+                        fontSize: 12,
+                        textTransform: "none",
+                      },
+                    }}
+                  >
+                    <Tab label="Chat" />
+                    <Tab label="Hướng dẫn" />
+                    <Tab label="Cài đặt" />
+                  </Tabs>
+                </Box>
+              )}
+
+              {/* Quick Actions Tab */}
+              {isAdvancedMode && activeTab === 1 && (
+                <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#f4f6fb" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 1, color: "#1a237e" }}
+                  >
+                    Hành động nhanh:
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    flexWrap="wrap"
+                    sx={{ mb: 2 }}
+                  >
+                    {QUICK_ACTIONS.map((action, idx) => (
+                      <Chip
+                        key={idx}
+                        label={action.label}
+                        icon={action.icon}
+                        onClick={() => handleQuickAction(action)}
+                        sx={{
+                          bgcolor: action.color,
+                          color: "#fff",
+                          fontSize: 11,
+                          "&:hover": {
+                            bgcolor: action.color,
+                            opacity: 0.8,
+                          },
+                        }}
+                      />
+                    ))}
+                  </Stack>
+
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 1, color: "#1a237e" }}
+                  >
+                    Câu hỏi chi tiết theo chủ đề:
+                  </Typography>
+                  <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    {Object.entries(DETAILED_QUESTIONS).map(
+                      ([category, questions]) => (
+                        <Accordion key={category} sx={{ mb: 1 }}>
+                          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                            <Typography variant="body2" fontWeight={500}>
+                              {category}
+                            </Typography>
+                          </AccordionSummary>
+                          <AccordionDetails>
+                            <Stack spacing={1}>
+                              {questions.map((question, idx) => (
+                                <Button
+                                  key={idx}
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() =>
+                                    handleDetailedQuestion(question)
+                                  }
+                                  disabled={status === "loading"}
+                                  sx={{
+                                    borderColor: "#3949ab",
+                                    color: "#3949ab",
+                                    textTransform: "none",
+                                    fontSize: 11,
+                                    textAlign: "left",
+                                    justifyContent: "flex-start",
+                                    "&:hover": {
+                                      borderColor: "#1a237e",
+                                      color: "#1a237e",
+                                      bgcolor: "#e8eaf6",
+                                    },
+                                  }}
+                                >
+                                  {question}
+                                </Button>
+                              ))}
+                            </Stack>
+                          </AccordionDetails>
+                        </Accordion>
+                      )
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Settings Tab */}
+              {isAdvancedMode && activeTab === 2 && (
+                <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#f4f6fb" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 1, color: "#1a237e" }}
+                  >
+                    Tính năng AI:
+                  </Typography>
+                  <List dense>
+                    {advancedFeatures.map((feature) => (
+                      <ListItem key={feature.id} dense>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          {feature.icon}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={feature.title}
+                          secondary={feature.description}
+                          primaryTypographyProps={{ fontSize: 13 }}
+                          secondaryTypographyProps={{ fontSize: 11 }}
+                        />
+                        <Switch
+                          size="small"
+                          checked={feature.enabled}
+                          onChange={() => handleFeatureToggle(feature.id)}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+
+              {/* FAQ Quick Replies - Only in Chat tab */}
+              {(activeTab === 0 || !isAdvancedMode) && (
+                <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {FAQS.map((faq, idx) => (
+                      <Button
+                        key={idx}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: "#3949ab",
+                          color: "#3949ab",
+                          textTransform: "none",
+                          fontSize: 13,
+                          borderRadius: 999,
+                          mb: 1,
+                          px: 2,
+                          py: 0.5,
+                          boxShadow: "0 1px 4px 0 rgba(26,35,126,0.04)",
+                          "&:hover": {
+                            borderColor: "#1a237e",
+                            color: "#1a237e",
+                            bgcolor: "#e8eaf6",
+                          },
+                        }}
+                        onClick={() => handleSend(faq)}
+                        disabled={status === "loading"}
+                      >
+                        {faq}
+                      </Button>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
               {/* Body */}
               <Box
                 sx={{
@@ -488,6 +841,7 @@ const AIChatbot = () => {
                   <div ref={messagesEndRef} />
                 </Stack>
               </Box>
+
               {/* Input */}
               <Box
                 sx={{
@@ -503,7 +857,11 @@ const AIChatbot = () => {
                 <TextField
                   size="small"
                   fullWidth
-                  placeholder="Bạn cần hỗ trợ gì?..."
+                  placeholder={
+                    isAdvancedMode
+                      ? "Nhập tin nhắn hoặc chọn câu hỏi gợi ý..."
+                      : "Bạn cần hỗ trợ gì?..."
+                  }
                   value={input}
                   inputRef={inputRef}
                   onChange={(e) => setInput(e.target.value)}
@@ -555,6 +913,63 @@ const AIChatbot = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Advanced Settings Dialog */}
+      <Dialog
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <SettingsIcon color="primary" />
+            <Typography variant="h6">Cài đặt nâng cao</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography variant="subtitle1" color="primary">
+              Tính năng AI
+            </Typography>
+            {advancedFeatures.map((feature) => (
+              <FormControlLabel
+                key={feature.id}
+                control={
+                  <Switch
+                    checked={feature.enabled}
+                    onChange={() => handleFeatureToggle(feature.id)}
+                  />
+                }
+                label={
+                  <Stack>
+                    <Typography variant="body2">{feature.title}</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {feature.description}
+                    </Typography>
+                  </Stack>
+                }
+              />
+            ))}
+            <Divider />
+            <Typography variant="subtitle1" color="primary">
+              Giao diện
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isAdvancedMode}
+                  onChange={handleAdvancedToggle}
+                />
+              }
+              label="Chế độ nâng cao"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSettings(false)}>Đóng</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
