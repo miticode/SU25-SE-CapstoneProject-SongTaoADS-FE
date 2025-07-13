@@ -3,7 +3,6 @@ import {
   loginApi,
   registerApi,
   logoutApi,
-  updateAuthState,
   resendVerificationApi,
   getProfileApi,
   forgotPasswordApi, // Thêm import hàm mới
@@ -314,17 +313,9 @@ const authSlice = createSlice({
         state.forgotPasswordMessage = null;
       })
 
-      // Logout cases
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.isAuthenticated = false;
-        state.accessToken = null;
-        state.status = "idle";
-
       // Fetch profile
       .addCase(fetchProfile.pending, (state) => {
         state.status = "loading";
-
         state.error = null;
       })
       .addCase(fetchProfile.fulfilled, (state, action) => {
@@ -388,14 +379,13 @@ const authSlice = createSlice({
 });
 
 
-export const { resetAuthStatus, resetVerificationStatus, syncAuthState, setRefreshing, resetForgotPasswordStatus } = authSlice.actions;
-
-export const {
-  resetAuthStatus,
-  resetVerificationStatus,
-  syncAuthState,
-  setRefreshing,
-  clearAuthError,
+export const { 
+  resetAuthStatus, 
+  resetVerificationStatus, 
+  syncAuthState, 
+  setRefreshing, 
+  resetForgotPasswordStatus,
+  clearAuthError
 } = authSlice.actions;
 
 
