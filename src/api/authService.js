@@ -1,4 +1,5 @@
 import axios from "axios";
+import { data } from "react-router-dom";
 
 // Sử dụng URL backend trực tiếp
 const API_URL = "https://songtaoads.online";
@@ -298,8 +299,11 @@ export const getProfileApi = async () => {
 
     const { success, result, message } = response.data;
 
+    console.log('Profile API response:', response.data); // Debug log
+    console.log('User roles:', result?.roles); // Debug log
+
     if (success) {
-      return { success: true, data: result };
+      return { success: true, data: result }; // Đảm bảo trả về result
     }
     return { success: false, error: message || "Invalid response format" };
   } catch (error) {
@@ -309,7 +313,6 @@ export const getProfileApi = async () => {
     };
   }
 };
-
 // Hàm gọi refresh token
 export const refreshTokenApi = async () => {
   try {

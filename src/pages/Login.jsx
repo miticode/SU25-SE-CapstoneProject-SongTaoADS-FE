@@ -19,6 +19,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
+import { getDefaultRedirectPath, getUserRole } from "../utils/roleUtils";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -55,37 +56,50 @@ const Login = () => {
     e.preventDefault();
 
     try {
-      // Dispatch login action và đợi kết quả
       localStorage.removeItem("accessToken");
-      await dispatch(
-        loginAndFetchProfile({ email, password, rememberMe })
-      ).unwrap();
 
-      // Thông báo đăng nhập thành công (sẽ trigger alert ở App.jsx)
+      const result = await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
+
+
+      console.log('Login result:', result); // Debug log
+
+      // Thông báo đăng nhập thành công
       notifyLoginSuccess();
 
-      // Chuyển hướng về trang chủ
-      setTimeout(() => {
-        navigate("/");
-      }, 500); // Delay nhỏ để người dùng thấy được thông báo
+      // Điều hướng dựa trên role của user
+      const userRole = getUserRole(result.user);
+      const redirectPath = getDefaultRedirectPath(userRole);
+      
+      console.log('User role:', userRole); // Debug log
+      console.log('Redirect path:', redirectPath); // Debug log
+      
+      // Chuyển hướng ngay lập tức không có delay
+      navigate(redirectPath, { replace: true });
+      
     } catch (err) {
-      // Lỗi đã được xử lý trong slice
       console.error("Login failed:", err);
     }
   };
 
   return (
     <PageTransition className="w-full">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Đăng nhập</h2>
-        <p className="text-gray-600">
-          Chào mừng bạn quay trở lại! Hãy đăng nhập để tiếp tục.
+      <div className="mb-10 text-center">
+        <div className="inline-block p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4">
+          <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <h2 className="text-3xl font-black text-gray-800 mb-3">
+           Chào mừng trở lại!
+        </h2>
+        <p className="text-gray-600 text-lg">
+          Đăng nhập để tiếp tục hành trình sáng tạo quảng cáo với AI
         </p>
       </div>
 
       {/* Hiển thị thông báo đăng ký thành công */}
       {registrationSuccess && (
-        <Box sx={{ width: "100%", mb: 3 }}>
+        <Box sx={{ width: "100%", mb: 4 }}>
           <Collapse in={openAlert}>
             <Alert
               severity={verifyRequired ? "warning" : "success"}
@@ -108,11 +122,20 @@ const Login = () => {
                   <IoClose />
                 </IconButton>
               }
-              sx={{ mb: 2, alignItems: "center" }}
+              sx={{ 
+                mb: 2, 
+                alignItems: "center",
+                borderRadius: "12px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                "& .MuiAlert-message": {
+                  fontSize: "14px",
+                  fontWeight: 500
+                }
+              }}
             >
               {verifyRequired
-                ? "Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng nhập."
-                : "Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục."}
+                ? "📧 Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng nhập."
+                : "🎉 Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục."}
             </Alert>
           </Collapse>
         </Box>
@@ -120,101 +143,146 @@ const Login = () => {
 
       {/* Hiển thị thông báo lỗi nếu có */}
       {status === "failed" && (
-        <Box sx={{ width: "100%", mb: 3 }}>
+        <Box sx={{ width: "100%", mb: 4 }}>
           <Alert
             severity="error"
             icon={<FaExclamationCircle className="text-xl" />}
-            sx={{ mb: 2, alignItems: "center" }}
+            sx={{ 
+              mb: 2, 
+              alignItems: "center",
+              borderRadius: "12px",
+              boxShadow: "0 4px 20px rgba(239, 68, 68, 0.2)",
+              "& .MuiAlert-message": {
+                fontSize: "14px",
+                fontWeight: 500
+              }
+            }}
           >
-            {error || "Đăng nhập thất bại. Vui lòng thử lại."}
+            ❌ {error || "Đăng nhập thất bại. Vui lòng thử lại."}
           </Alert>
         </Box>
       )}
 
-      {/* Form đăng nhập - ẩn đi nếu đã đăng nhập thành công */}
-
+      {/* Form đăng nhập */}
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
+        <div className="group">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-semibold text-gray-700 mb-2"
           >
-            Email
+            📧 Email
           </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
-            placeholder="your.email@example.com"
-            disabled={status === "loading"}
-          />
+          <div className="relative">
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+              placeholder="your.email@example.com"
+              disabled={status === "loading"}
+              autoComplete="email"
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+              <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+              </svg>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <div className="flex justify-between items-center mb-1">
+        <div className="group">
+          <div className="flex justify-between items-center mb-2">
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
+              className="block text-sm font-semibold text-gray-700"
             >
-              Mật khẩu
+              🔒 Mật khẩu
             </label>
             <Link
               to="/auth/forgot-password"
-              className="text-sm text-[#2B2F4A] hover:underline"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors duration-300"
             >
               Quên mật khẩu?
             </Link>
           </div>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2B2F4A] focus:border-transparent"
-            placeholder="••••••••"
-            disabled={status === "loading"}
-          />
+          <div className="relative">
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+              placeholder="••••••••••••"
+              disabled={status === "loading"}
+              autoComplete="current-password"
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+              <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
+              </svg>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center">
-          <input
-            id="remember-me"
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            className="h-4 w-4 text-[#2B2F4A] border-gray-300 rounded focus:ring-[#2B2F4A]"
-          />
-          <label
-            htmlFor="remember-me"
-            className="ml-2 block text-sm text-gray-700"
-          >
-            Ghi nhớ đăng nhập
-          </label>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-5 w-5 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-300"
+            />
+            <label
+              htmlFor="remember-me"
+              className="ml-3 block text-sm font-medium text-gray-700"
+            >
+               Ghi nhớ đăng nhập
+            </label>
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={status === "loading"}
-          className={`cursor-pointer w-full bg-custom-primary text-white py-2 px-4 rounded-md hover:opacity-90 transition-opacity font-medium ${
-            status === "loading" ? "opacity-70 cursor-not-allowed" : ""
+          className={`group relative w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 overflow-hidden ${
+            status === "loading" ? "opacity-70 cursor-not-allowed" : "hover:from-blue-700 hover:to-purple-700"
           }`}
         >
-          {status === "loading" ? "Đang xử lý..." : "Đăng nhập"}
+          <span className="relative z-10 flex items-center justify-center">
+            {status === "loading" ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                </svg>
+                Đang xử lý...
+              </>
+            ) : (
+              <>
+                 Đăng nhập
+                <svg className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+                </svg>
+              </>
+            )}
+          </span>
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </button>
       </form>
 
       <div className="mt-8 text-center">
-        <p className="text-gray-600">
+        <p className="text-gray-600 font-medium">
           Chưa có tài khoản?{" "}
           <Link
             to="/auth/signup"
-            className="text-[#2B2F4A] hover:underline font-medium"
+            className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
           >
-            Đăng ký ngay
+             Đăng ký ngay
           </Link>
         </p>
       </div>
@@ -225,7 +293,7 @@ const Login = () => {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">
+            <span className="px-4 bg-white/80 text-gray-500 font-medium backdrop-blur-sm rounded-full">
               Hoặc đăng nhập với
             </span>
           </div>
@@ -234,11 +302,11 @@ const Login = () => {
         <div className="mt-6 flex justify-center">
           <button
             type="button"
-            className="flex items-center justify-center py-2 w-full border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="group flex items-center justify-center py-4 w-full border-2 border-gray-200 rounded-2xl shadow-sm bg-white/80 backdrop-blur-sm text-sm font-semibold text-gray-700 hover:bg-white hover:border-gray-300 hover:scale-[1.02] transition-all duration-300 hover:shadow-lg"
             disabled={status === "loading"}
           >
             <svg
-              className="h-5 w-5 mr-2"
+              className="h-6 w-6 mr-3 group-hover:scale-110 transition-transform duration-300"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
