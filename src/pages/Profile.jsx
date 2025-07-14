@@ -7,6 +7,7 @@ import {
 } from "../api/authService";
 import {
   fetchProfile,
+  updateUserProfile,
   selectAuthUser,
   selectAuthStatus,
   selectAuthError,
@@ -39,6 +40,7 @@ import {
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
+import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 
 const DEFAULT_AVATAR = "https://i.imgur.com/HeIi0wU.png";
 
@@ -58,6 +60,17 @@ const Profile = () => {
     severity: "success",
   });
 
+  // Auto hide snackbar sau 4 giây
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar((s) => ({ ...s, open: false }));
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar]);
+
   // State cho dialog đổi mật khẩu
   const [openPwd, setOpenPwd] = useState(false);
   const [oldPwd, setOldPwd] = useState("");
@@ -69,6 +82,16 @@ const Profile = () => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const s3Avatar = useSelector((state) =>
+    profile?.avatar ? selectS3Image(state, profile.avatar) : null
+  );
+
+  useEffect(() => {
+    if (profile?.avatar && !profile.avatar.startsWith("http") && !s3Avatar) {
+      dispatch(fetchImageFromS3(profile.avatar));
+    }
+  }, [profile?.avatar, s3Avatar, dispatch]);
 
   useEffect(() => {
     if (accessToken) {
@@ -91,6 +114,8 @@ const Profile = () => {
       // Gọi API cập nhật avatar user với file gốc
       const updateRes = await updateUserAvatarApi(profile.id, file);
       if (updateRes.success) {
+        // Dispatch action để cập nhật profile trong Redux store
+        dispatch(fetchProfile());
         setSnackbar({
           open: true,
           message: "Cập nhật avatar thành công!",
@@ -126,6 +151,13 @@ const Profile = () => {
     const res = await updateUserProfileApi(profile.id, editName, editPhone);
     setEditLoading(false);
     if (res.success) {
+      // Dispatch action để cập nhật profile trong Redux store
+      dispatch(
+        updateUserProfile({
+          fullName: editName,
+          phone: editPhone,
+        })
+      );
       setSnackbar({
         open: true,
         message: "Cập nhật thành công!",
@@ -213,25 +245,26 @@ const Profile = () => {
   if (!profile) return null;
 
   return (
-    <Box 
-      sx={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        minHeight: "100vh", 
+    <Box
+      sx={{
+        background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+        minHeight: "100vh",
         py: 6,
-        position: 'relative',
-        '&::before': {
+        position: "relative",
+        "&::before": {
           content: '""',
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)',
-          pointerEvents: 'none'
-        }
+          background:
+            "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)",
+          pointerEvents: "none",
+        },
       }}
     >
-      <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+      <Container maxWidth="md" sx={{ position: "relative", zIndex: 1 }}>
         <Paper
           elevation={0}
           sx={{
@@ -243,45 +276,46 @@ const Profile = () => {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 25px 45px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              transform: 'translateY(-5px)',
-              boxShadow: '0 35px 65px rgba(0, 0, 0, 0.15)',
-            }
+            background: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            boxShadow: "0 25px 45px rgba(0, 0, 0, 0.1)",
+            transition: "all 0.3s ease",
+            "&:hover": {
+              transform: "translateY(-5px)",
+              boxShadow: "0 35px 65px rgba(0, 0, 0, 0.15)",
+            },
           }}
         >
           <Typography
             variant="h4"
             fontWeight={700}
-            sx={{ 
-              mb: 4, 
-              letterSpacing: 1, 
-              textAlign: "center", 
+            sx={{
+              mb: 4,
+              letterSpacing: 1,
+              textAlign: "center",
               width: "100%",
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              position: 'relative',
-              '&::after': {
+              background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              position: "relative",
+              "&::after": {
                 content: '""',
-                position: 'absolute',
+                position: "absolute",
                 bottom: -10,
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: "50%",
+                transform: "translateX(-50%)",
                 width: 80,
                 height: 3,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: 2
-              }
+                background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+                borderRadius: 2,
+              },
             }}
           >
             Thông tin cá nhân
           </Typography>
+
           <Box
             sx={{
               display: "flex",
@@ -289,19 +323,19 @@ const Profile = () => {
               width: "100%",
               alignItems: "flex-start",
               gap: 4,
-              mt: 2
+              mt: 2,
             }}
           >
             <Box sx={{ flex: 1, minWidth: 260 }}>
               <Box sx={{ mb: 3 }}>
                 <Typography
-                  sx={{ 
-                    fontWeight: 600, 
+                  sx={{
+                    fontWeight: 600,
                     fontSize: 14,
-                    color: '#667eea',
+                    color: "#0C1528",
                     mb: 1,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
                   }}
                 >
                   Họ và tên
@@ -311,33 +345,33 @@ const Profile = () => {
                   onChange={(e) => setEditName(e.target.value)}
                   size="small"
                   fullWidth
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      background: 'rgba(102, 126, 234, 0.04)',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        background: 'rgba(102, 126, 234, 0.08)',
-                        transform: 'translateY(-1px)'
+                      background: "rgba(12, 21, 40, 0.04)",
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(12, 21, 40, 0.08)",
+                        transform: "translateY(-1px)",
                       },
-                      '&.Mui-focused': {
-                        background: 'rgba(102, 126, 234, 0.08)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
-                      }
-                    }
+                      "&.Mui-focused": {
+                        background: "rgba(12, 21, 40, 0.08)",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                      },
+                    },
                   }}
                 />
               </Box>
               <Box sx={{ mb: 3 }}>
                 <Typography
-                  sx={{ 
-                    fontWeight: 600, 
+                  sx={{
+                    fontWeight: 600,
                     fontSize: 14,
-                    color: '#667eea',
+                    color: "#0C1528",
                     mb: 1,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
                   }}
                 >
                   E-mail
@@ -347,11 +381,11 @@ const Profile = () => {
                   size="small"
                   fullWidth
                   disabled
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      background: 'rgba(0, 0, 0, 0.02)',
-                    }
+                      background: "rgba(0, 0, 0, 0.02)",
+                    },
                   }}
                 />
               </Box>
@@ -360,13 +394,13 @@ const Profile = () => {
               >
                 <Box sx={{ flex: 1 }}>
                   <Typography
-                    sx={{ 
-                      fontWeight: 600, 
+                    sx={{
+                      fontWeight: 600,
                       fontSize: 14,
-                      color: '#667eea',
+                      color: "#0C1528",
                       mb: 1,
-                      textTransform: 'uppercase',
-                      letterSpacing: 1
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
                     }}
                   >
                     Mật khẩu
@@ -376,27 +410,27 @@ const Profile = () => {
                     size="small"
                     fullWidth
                     disabled
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': {
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
                         borderRadius: 2,
-                        background: 'rgba(0, 0, 0, 0.02)',
-                      }
+                        background: "rgba(0, 0, 0, 0.02)",
+                      },
                     }}
                   />
                 </Box>
                 <IconButton
                   onClick={() => setOpenPwd(true)}
-                  sx={{ 
+                  sx={{
                     mt: 3,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
+                    background: "#0C1528",
+                    color: "white",
                     width: 40,
                     height: 40,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-2px) scale(1.05)',
-                      boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)'
-                    }
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      transform: "translateY(-2px) scale(1.05)",
+                      boxShadow: "0 8px 25px rgba(12, 21, 40, 0.3)",
+                    },
                   }}
                 >
                   <Lock />
@@ -405,13 +439,13 @@ const Profile = () => {
 
               <Box sx={{ mb: 3 }}>
                 <Typography
-                  sx={{ 
-                    fontWeight: 600, 
+                  sx={{
+                    fontWeight: 600,
                     fontSize: 14,
-                    color: '#667eea',
+                    color: "#0C1528",
                     mb: 1,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
                   }}
                 >
                   Số điện thoại
@@ -421,21 +455,21 @@ const Profile = () => {
                   onChange={(e) => setEditPhone(e.target.value)}
                   size="small"
                   fullWidth
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      background: 'rgba(102, 126, 234, 0.04)',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        background: 'rgba(102, 126, 234, 0.08)',
-                        transform: 'translateY(-1px)'
+                      background: "rgba(12, 21, 40, 0.04)",
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(12, 21, 40, 0.08)",
+                        transform: "translateY(-1px)",
                       },
-                      '&.Mui-focused': {
-                        background: 'rgba(102, 126, 234, 0.08)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
-                      }
-                    }
+                      "&.Mui-focused": {
+                        background: "rgba(12, 21, 40, 0.08)",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                      },
+                    },
                   }}
                 />
               </Box>
@@ -453,28 +487,34 @@ const Profile = () => {
             >
               <Box
                 sx={{
-                  position: 'relative',
+                  position: "relative",
                   p: 1,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  mb: 2
+                  borderRadius: "50%",
+                  background: "#0C1528",
+                  mb: 2,
                 }}
               >
                 <Avatar
-                  src={profile.avatar || DEFAULT_AVATAR}
+                  src={
+                    profile.avatar
+                      ? profile.avatar.startsWith("http")
+                        ? profile.avatar
+                        : s3Avatar || DEFAULT_AVATAR
+                      : DEFAULT_AVATAR
+                  }
                   alt={profile.fullName}
                   sx={{
                     width: 140,
                     height: 140,
                     border: "4px solid rgba(255, 255, 255, 0.9)",
-                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.15)',
+                    boxShadow: "0 10px 30px rgba(12, 21, 40, 0.15)",
                     bgcolor: "grey.200",
                     objectFit: "cover",
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                      boxShadow: '0 15px 40px rgba(0, 0, 0, 0.25)'
-                    }
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      transform: "scale(1.05)",
+                      boxShadow: "0 15px 40px rgba(12, 21, 40, 0.25)",
+                    },
                   }}
                 />
               </Box>
@@ -484,16 +524,16 @@ const Profile = () => {
                   position: "absolute",
                   top: 10,
                   right: 10,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: "#0C1528",
                   borderRadius: "50%",
-                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                  boxShadow: "0 6px 20px rgba(12, 21, 40, 0.4)",
                   p: 1.5,
                   cursor: "pointer",
                   border: "3px solid rgba(255, 255, 255, 0.9)",
                   transition: "all 0.3s ease",
-                  "&:hover": { 
-                    transform: 'translateY(-3px) scale(1.1)',
-                    boxShadow: '0 10px 30px rgba(102, 126, 234, 0.5)'
+                  "&:hover": {
+                    transform: "translateY(-3px) scale(1.1)",
+                    boxShadow: "0 10px 30px rgba(12, 21, 40, 0.5)",
                   },
                 }}
                 onClick={() =>
@@ -509,17 +549,22 @@ const Profile = () => {
                   onChange={handleAvatarChange}
                 />
               </Box>
-              
-             
-              
-              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
                 <Typography
-                  sx={{ 
-                    fontWeight: 600, 
+                  sx={{
+                    fontWeight: 600,
                     fontSize: 12,
-                    color: '#667eea',
-                    textTransform: 'uppercase',
-                    letterSpacing: 1
+                    color: "#0C1528",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
                   }}
                 >
                   Trạng thái:
@@ -530,14 +575,15 @@ const Profile = () => {
                     label="Đang hoạt động"
                     size="small"
                     sx={{
-                      background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                      background:
+                        "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
                       color: "white",
                       fontWeight: 600,
-                      boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
-                      border: 'none',
-                      '& .MuiChip-icon': {
-                        color: 'white'
-                      }
+                      boxShadow: "0 4px 15px rgba(34, 197, 94, 0.3)",
+                      border: "none",
+                      "& .MuiChip-icon": {
+                        color: "white",
+                      },
                     }}
                   />
                 ) : (
@@ -545,14 +591,15 @@ const Profile = () => {
                     icon={<Cancel />}
                     label="Bị khóa"
                     size="small"
-                    sx={{ 
-                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                      color: 'white',
+                    sx={{
+                      background:
+                        "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                      color: "white",
                       fontWeight: 600,
-                      boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)',
-                      '& .MuiChip-icon': {
-                        color: 'white'
-                      }
+                      boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)",
+                      "& .MuiChip-icon": {
+                        color: "white",
+                      },
                     }}
                   />
                 )}
@@ -570,42 +617,43 @@ const Profile = () => {
             <Button
               variant="contained"
               sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: "#0C1528",
                 color: "#fff",
                 borderRadius: 3,
                 fontWeight: 600,
                 fontSize: 16,
                 px: 6,
                 py: 1.5,
-                boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+                boxShadow: "0 8px 25px rgba(12, 21, 40, 0.3)",
                 letterSpacing: 1,
                 textTransform: "none",
-                border: 'none',
-                transition: 'all 0.3s ease',
-                position: 'relative',
-                overflow: 'hidden',
-                "&:hover": { 
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 35px rgba(102, 126, 234, 0.4)',
+                border: "none",
+                transition: "all 0.3s ease",
+                position: "relative",
+                overflow: "hidden",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: "0 12px 35px rgba(12, 21, 40, 0.4)",
                   "&::before": {
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 },
                 "&::before": {
                   content: '""',
-                  position: 'absolute',
+                  position: "absolute",
                   top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                  transition: 'left 0.5s ease',
-                  opacity: 0
+                  left: "-100%",
+                  width: "100%",
+                  height: "100%",
+                  background:
+                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+                  transition: "left 0.5s ease",
+                  opacity: 0,
                 },
                 "&:hover::before": {
-                  left: '100%',
-                  opacity: 1
-                }
+                  left: "100%",
+                  opacity: 1,
+                },
               }}
               onClick={handleSaveProfile}
               disabled={editLoading}
@@ -615,30 +663,30 @@ const Profile = () => {
           </Box>
         </Paper>
 
-        <Dialog 
-          open={openPwd} 
+        <Dialog
+          open={openPwd}
           onClose={() => setOpenPwd(false)}
           PaperProps={{
             sx: {
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 25px 45px rgba(0, 0, 0, 0.15)',
-              minWidth: { xs: '90%', sm: 400 }
-            }
+              background: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 25px 45px rgba(0, 0, 0, 0.15)",
+              minWidth: { xs: "90%", sm: 400 },
+            },
           }}
         >
-          <DialogTitle 
+          <DialogTitle
             sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
               fontWeight: 700,
-              fontSize: '1.5rem',
-              textAlign: 'center',
-              pb: 1
+              fontSize: "1.5rem",
+              textAlign: "center",
+              pb: 1,
             }}
           >
             Đổi mật khẩu
@@ -650,20 +698,20 @@ const Profile = () => {
               fullWidth
               value={oldPwd}
               onChange={(e) => setOldPwd(e.target.value)}
-              sx={{ 
+              sx={{
                 mb: 3,
-                '& .MuiOutlinedInput-root': {
+                "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  background: 'rgba(102, 126, 234, 0.04)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(102, 126, 234, 0.08)',
+                  background: "rgba(12, 21, 40, 0.04)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(12, 21, 40, 0.08)",
                   },
-                  '&.Mui-focused': {
-                    background: 'rgba(102, 126, 234, 0.08)',
-                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
-                  }
-                }
+                  "&.Mui-focused": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                    boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                  },
+                },
               }}
               InputProps={{
                 endAdornment: (
@@ -672,10 +720,10 @@ const Profile = () => {
                       onClick={() => setShowOldPassword(!showOldPassword)}
                       edge="end"
                       sx={{
-                        color: '#667eea',
-                        '&:hover': {
-                          background: 'rgba(102, 126, 234, 0.1)'
-                        }
+                        color: "#0C1528",
+                        "&:hover": {
+                          background: "rgba(12, 21, 40, 0.1)",
+                        },
                       }}
                     >
                       {showOldPassword ? <VisibilityOff /> : <Visibility />}
@@ -690,20 +738,20 @@ const Profile = () => {
               fullWidth
               value={newPwd}
               onChange={(e) => setNewPwd(e.target.value)}
-              sx={{ 
+              sx={{
                 mb: 3,
-                '& .MuiOutlinedInput-root': {
+                "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  background: 'rgba(102, 126, 234, 0.04)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(102, 126, 234, 0.08)',
+                  background: "rgba(12, 21, 40, 0.04)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(12, 21, 40, 0.08)",
                   },
-                  '&.Mui-focused': {
-                    background: 'rgba(102, 126, 234, 0.08)',
-                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
-                  }
-                }
+                  "&.Mui-focused": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                    boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                  },
+                },
               }}
               InputProps={{
                 endAdornment: (
@@ -712,10 +760,10 @@ const Profile = () => {
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       edge="end"
                       sx={{
-                        color: '#667eea',
-                        '&:hover': {
-                          background: 'rgba(102, 126, 234, 0.1)'
-                        }
+                        color: "#0C1528",
+                        "&:hover": {
+                          background: "rgba(12, 21, 40, 0.1)",
+                        },
                       }}
                     >
                       {showNewPassword ? <VisibilityOff /> : <Visibility />}
@@ -730,20 +778,20 @@ const Profile = () => {
               fullWidth
               value={confirmPwd}
               onChange={(e) => setConfirmPwd(e.target.value)}
-              sx={{ 
+              sx={{
                 mb: 1,
-                '& .MuiOutlinedInput-root': {
+                "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  background: 'rgba(102, 126, 234, 0.04)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'rgba(102, 126, 234, 0.08)',
+                  background: "rgba(12, 21, 40, 0.04)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(12, 21, 40, 0.08)",
                   },
-                  '&.Mui-focused': {
-                    background: 'rgba(102, 126, 234, 0.08)',
-                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)'
-                  }
-                }
+                  "&.Mui-focused": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                    boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                  },
+                },
               }}
               InputProps={{
                 endAdornment: (
@@ -754,10 +802,10 @@ const Profile = () => {
                       }
                       edge="end"
                       sx={{
-                        color: '#667eea',
-                        '&:hover': {
-                          background: 'rgba(102, 126, 234, 0.1)'
-                        }
+                        color: "#0C1528",
+                        "&:hover": {
+                          background: "rgba(12, 21, 40, 0.1)",
+                        },
                       }}
                     >
                       {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
@@ -768,19 +816,19 @@ const Profile = () => {
             />
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 1 }}>
-            <Button 
-              onClick={() => setOpenPwd(false)} 
+            <Button
+              onClick={() => setOpenPwd(false)}
               sx={{
-                color: '#667eea',
+                color: "#0C1528",
                 fontWeight: 600,
                 borderRadius: 2,
                 px: 3,
                 py: 1,
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  background: 'rgba(102, 126, 234, 0.1)',
-                  transform: 'translateY(-1px)'
-                }
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  background: "rgba(12, 21, 40, 0.1)",
+                  transform: "translateY(-1px)",
+                },
               }}
             >
               Hủy
@@ -790,17 +838,18 @@ const Profile = () => {
               variant="contained"
               disabled={pwdLoading}
               sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: "#0C1528",
                 borderRadius: 2,
                 fontWeight: 600,
                 px: 4,
                 py: 1,
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
-                }
+                boxShadow: "0 4px 15px rgba(12, 21, 40, 0.3)",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  background: "#1a2332",
+                  boxShadow: "0 6px 20px rgba(12, 21, 40, 0.4)",
+                },
               }}
             >
               {pwdLoading ? "Đang lưu..." : "Lưu"}
@@ -808,38 +857,49 @@ const Profile = () => {
           </DialogActions>
         </Dialog>
 
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={4000}
-          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        >
-          <Alert 
-            severity={snackbar.severity} 
-            sx={{ 
-              width: "100%",
-              borderRadius: 2,
-              fontWeight: 600,
-              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
-              '&.MuiAlert-standardSuccess': {
-                background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
-                color: 'white',
-                '& .MuiAlert-icon': {
-                  color: 'white'
-                }
-              },
-              '&.MuiAlert-standardError': {
-                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                color: 'white',
-                '& .MuiAlert-icon': {
-                  color: 'white'
-                }
-              }
+        {/* Alert thông báo trực tiếp */}
+        {snackbar.open && (
+          <Box
+            sx={{
+              position: "fixed",
+              top: "150px", // Hiển thị xa hơn dưới Header
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 99999,
+              width: "auto",
+              maxWidth: "90vw",
+              minWidth: "300px",
             }}
           >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
+            <Alert
+              severity={snackbar.severity}
+              onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+              sx={{
+                borderRadius: 2,
+                fontWeight: 600,
+                boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15)",
+                "&.MuiAlert-standardSuccess": {
+                  background:
+                    "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
+                  color: "white",
+                  "& .MuiAlert-icon": {
+                    color: "white",
+                  },
+                },
+                "&.MuiAlert-standardError": {
+                  background:
+                    "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                  color: "white",
+                  "& .MuiAlert-icon": {
+                    color: "white",
+                  },
+                },
+              }}
+            >
+              {snackbar.message}
+            </Alert>
+          </Box>
+        )}
       </Container>
     </Box>
   );

@@ -60,6 +60,12 @@ import {
   selectAllProductTypes,
   selectProductTypeStatus,
 } from "../../store/features/productType/productTypeSlice";
+import {
+  fetchImageFromS3,
+  uploadImageToS3,
+  removeImage,
+} from "../../store/features/s3/s3Slice";
+import { v4 as uuidv4 } from "uuid";
 
 // Component quản lý Design Template cho Manager
 const DesignTemplateManager = () => {
@@ -71,6 +77,7 @@ const DesignTemplateManager = () => {
   const selectedTemplate = useSelector(selectSelectedTemplate);
   const productTypes = useSelector(selectAllProductTypes);
   const productTypeStatus = useSelector(selectProductTypeStatus);
+  const s3Images = useSelector((state) => state.s3.images);
 
   // State local
   const [selectedProductType, setSelectedProductType] = useState("all");
@@ -105,6 +112,28 @@ const DesignTemplateManager = () => {
       dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
     }
   }, [dispatch, selectedProductType]);
+
+  // Preload S3 images cho danh sách
+  useEffect(() => {
+    designTemplates.forEach((template) => {
+      if (template.image && !s3Images[template.image]) {
+        dispatch(fetchImageFromS3(template.image));
+      }
+    });
+    // KHÔNG đưa s3Images vào dependencies!
+  }, [designTemplates, dispatch]);
+
+  // Preload S3 image cho modal chi tiết
+  useEffect(() => {
+    if (
+      openDetail &&
+      selectedTemplate &&
+      selectedTemplate.image &&
+      !s3Images[selectedTemplate.image]
+    ) {
+      dispatch(fetchImageFromS3(selectedTemplate.image));
+    }
+  }, [openDetail, selectedTemplate, dispatch]);
 
   // Thay filter dropdown bằng button group filter
   const handleProductTypeFilter = (id) => {
@@ -193,8 +222,20 @@ const DesignTemplateManager = () => {
       setFormError("Vui lòng nhập tên mẫu và chọn loại sản phẩm.");
       return;
     }
+    let imageKey = "";
     if (formMode === "create") {
       // Tạo mới
+      if (imageFile) {
+        const keyName = `design-template/${uuidv4()}/${imageFile.name}`;
+        try {
+          imageKey = await dispatch(
+            uploadImageToS3({ file: imageFile, keyName })
+          ).unwrap();
+        } catch (err) {
+          setFormError(err || "Upload ảnh thất bại");
+          return;
+        }
+      }
       const {
         name,
         description,
@@ -214,20 +255,13 @@ const DesignTemplateManager = () => {
             width,
             height,
             isAvailable,
+            image: imageKey,
           },
         })
       );
       if (res.meta.requestStatus === "fulfilled") {
-        if (imageFile) {
-          await dispatch(
-            updateDesignTemplateImage({
-              designTemplateId: res.payload.id,
-              file: imageFile,
-            })
-          );
-        }
         setOpenForm(false);
-        dispatch(fetchAllDesignTemplates());
+        // KHÔNG gọi lại fetchAllDesignTemplates ở đây để tránh mất template mới do phân trang
       } else {
         setFormError(res.payload || "Tạo mẫu thất bại");
       }
@@ -242,7 +276,7 @@ const DesignTemplateManager = () => {
         height,
         isAvailable,
       } = formData;
-      const res = await dispatch(
+      const updateRes = await dispatch(
         updateDesignTemplateInfo({
           designTemplateId: id,
           updateData: {
@@ -255,16 +289,19 @@ const DesignTemplateManager = () => {
           },
         })
       );
-      if (res.meta.requestStatus === "fulfilled") {
+      if (updateRes.meta.requestStatus === "fulfilled") {
         if (imageFile) {
-          await dispatch(
+          const imgRes = await dispatch(
             updateDesignTemplateImage({ designTemplateId: id, file: imageFile })
           );
+          if (imgRes.meta.requestStatus === "fulfilled") {
+            dispatch(removeImage(formData.image)); // Xóa url cũ khỏi cache để UI fetch lại ảnh mới
+          }
         }
         setOpenForm(false);
         dispatch(fetchAllDesignTemplates());
       } else {
-        setFormError(res.payload || "Cập nhật thất bại");
+        setFormError(updateRes.payload || "Cập nhật thất bại");
       }
     }
   };
@@ -356,7 +393,11 @@ const DesignTemplateManager = () => {
                 >
                   <CardMedia
                     component="img"
-                    image={template.image || "/public/default-logo.png"}
+                    image={
+                      template.image
+                        ? s3Images[template.image] || "/public/default-logo.png"
+                        : "/public/default-logo.png"
+                    }
                     alt={template.name}
                     sx={{
                       width: "100%",
@@ -463,7 +504,10 @@ const DesignTemplateManager = () => {
               <Box mb={2}>
                 {selectedTemplate.image ? (
                   <Avatar
-                    src={selectedTemplate.image}
+                    src={
+                      s3Images[selectedTemplate.image] ||
+                      "/public/default-logo.png"
+                    }
                     variant="rounded"
                     sx={{ width: 120, height: 120 }}
                   />

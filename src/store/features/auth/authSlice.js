@@ -223,6 +223,10 @@ const authSlice = createSlice({
     clearAuthError: (state) => {
       state.error = null;
     },
+    // Action để cập nhật user profile trực tiếp
+    updateUserProfile: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -385,7 +389,8 @@ export const {
   syncAuthState, 
   setRefreshing, 
   resetForgotPasswordStatus,
-  clearAuthError
+  clearAuthError,
+  updateUserProfile
 } = authSlice.actions;
 
 
