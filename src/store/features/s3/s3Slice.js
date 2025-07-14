@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getImageFromS3 } from '../../../api/s3Service';
-import { uploadSingleToS3 } from '../../../api/s3Service';
 
 
 // Thunk to get image from S3
@@ -20,22 +19,6 @@ export const fetchImageFromS3 = createAsyncThunk(
       };
     } catch (error) {
       return rejectWithValue(error.message || 'An unexpected error occurred');
-    }
-  }
-);
-
-// Thunk upload ảnh lên S3
-export const uploadImageToS3 = createAsyncThunk(
-  's3/uploadImage',
-  async ({ file, keyName }, { rejectWithValue }) => {
-    try {
-      const response = await uploadSingleToS3(file, keyName);
-      if (!response.success) {
-        return rejectWithValue(response.message || 'Upload thất bại');
-      }
-      return response.key;
-    } catch (error) {
-      return rejectWithValue(error.message || 'Lỗi không xác định');
     }
   }
 );

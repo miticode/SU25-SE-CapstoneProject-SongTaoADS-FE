@@ -98,28 +98,3 @@ export const downloadFile = async (key, filename, durationInMinutes = 30) => {
   }
   return result;
 };
-
-// Upload 1 file lên S3, trả về key
-export const uploadSingleToS3 = async (file, keyName) => {
-  try {
-    const token = getToken();
-    const API_URL = "https://songtaoads.online";
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("keyName", keyName);
-    const response = await axios.post(
-      `${API_URL}/api/s3/upload-single`,
-      formData,
-      {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
-      }
-    );
-    // response.data là key string
-    return { success: true, key: response.data };
-  } catch (error) {
-    return { success: false, message: error.response?.data?.message || "Upload thất bại" };
-  }
-};
