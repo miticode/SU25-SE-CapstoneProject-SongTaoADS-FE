@@ -1468,6 +1468,8 @@ const AIDesign = () => {
   const [loadingDesignTemplateUrls, setLoadingDesignTemplateUrls] = useState(
     {}
   ); // Loading states
+  const [backgroundRetryAttempts, setBackgroundRetryAttempts] = useState({});
+  const [backgroundFetchTimeouts, setBackgroundFetchTimeouts] = useState({});
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -1594,7 +1596,8 @@ const AIDesign = () => {
       designTemplateImageUrls[template.id] ||
       loadingDesignTemplateUrls[template.id]
     ) {
-      return; // Đã có URL hoặc đang loading
+      console.log("⏭️ Template image already loading or loaded:", template.id);
+      return;
     }
 
     try {
@@ -1604,7 +1607,7 @@ const AIDesign = () => {
       }));
 
       console.log(
-        "Fetching design template image via getImageFromS3:",
+        "🔄 Fetching design template image via getImageFromS3:",
         template.image
       );
 
@@ -1615,15 +1618,34 @@ const AIDesign = () => {
           ...prev,
           [template.id]: s3Result.imageUrl,
         }));
-        console.log("Design template image fetched successfully:", template.id);
+        console.log(
+          "✅ Design template image fetched successfully:",
+          template.id
+        );
+        console.log(
+          "📋 Blob URL created:",
+          s3Result.imageUrl.substring(0, 50) + "..."
+        );
       } else {
         console.error(
-          "Failed to fetch design template image via S3 API:",
+          "❌ Failed to fetch design template image via S3 API:",
           s3Result.message
         );
+
+        // ✅ THÊM: Mark as failed để có thể retry
+        setDesignTemplateImageUrls((prev) => ({
+          ...prev,
+          [template.id]: null,
+        }));
       }
     } catch (error) {
-      console.error("Error fetching design template image:", error);
+      console.error("💥 Error fetching design template image:", error);
+
+      // Mark as failed
+      setDesignTemplateImageUrls((prev) => ({
+        ...prev,
+        [template.id]: null,
+      }));
     } finally {
       setLoadingDesignTemplateUrls((prev) => ({
         ...prev,
@@ -1631,6 +1653,40 @@ const AIDesign = () => {
       }));
     }
   };
+
+  useEffect(() => {
+    if (designTemplates && designTemplates.length > 0) {
+      console.log(
+        "🔄 Design templates loaded, fetching images:",
+        designTemplates.length
+      );
+      designTemplates.forEach((template) => {
+        if (template.image && !designTemplateImageUrls[template.id]) {
+          console.log(
+            "📥 Fetching image for template:",
+            template.id,
+            template.image
+          );
+          fetchDesignTemplateImage(template);
+        } else if (!template.image) {
+          console.warn("⚠️ Template missing image URL:", template.id);
+        } else {
+          console.log("✅ Template image already cached:", template.id);
+        }
+      });
+    }
+  }, [designTemplates, designTemplateImageUrls]);
+
+  // ✅ THÊM cleanup useEffect
+  useEffect(() => {
+    return () => {
+      Object.values(designTemplateImageUrls).forEach((url) => {
+        if (url && url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [designTemplateImageUrls]);
   const handleIconLoadError = async (icon, retryCount = 0) => {
     if (retryCount >= 2) {
       console.log(`Max retries reached for icon ${icon.id}`);
@@ -1934,26 +1990,7 @@ const AIDesign = () => {
         setLoadingIconUrls((prev) => ({ ...prev, [icon.id]: false }));
       }
     };
-    useEffect(() => {
-      if (designTemplates && designTemplates.length > 0) {
-        designTemplates.forEach((template) => {
-          if (template.image && !designTemplateImageUrls[template.id]) {
-            fetchDesignTemplateImage(template);
-          }
-        });
-      }
-    }, [designTemplates, designTemplateImageUrls]);
 
-    // ✅ DI CHUYỂN useEffect cleanup RA NGOÀI renderContent()
-    useEffect(() => {
-      return () => {
-        Object.values(designTemplateImageUrls).forEach((url) => {
-          if (url.startsWith("blob:")) {
-            URL.revokeObjectURL(url);
-          }
-        });
-      };
-    }, [designTemplateImageUrls]);
     // Fetch icon images khi icons load
     useEffect(() => {
       if (icons && icons.length > 0) {
@@ -2206,52 +2243,151 @@ const AIDesign = () => {
       : null
   );
   const fetchBackgroundPresignedUrl = async (backgroundId, backgroundUrl) => {
+    // ✅ KIỂM TRA TRÙNG LẶP REQUEST
     if (
       backgroundPresignedUrls[backgroundId] ||
       loadingBackgroundUrls[backgroundId]
     ) {
-      return; // Đã có URL hoặc đang loading
+      console.log(`⏭️ Background ${backgroundId} already loading or loaded`);
+      return;
+    }
+
+    const currentRetries = backgroundRetryAttempts[backgroundId] || 0;
+    if (currentRetries >= 3) {
+      console.warn(`❌ Max retries reached for background ${backgroundId}`);
+      setBackgroundPresignedUrls((prev) => ({
+        ...prev,
+        [backgroundId]: null,
+      }));
+      return;
     }
 
     try {
       setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: true }));
 
-      console.log("Fetching background via getImageFromS3:", backgroundUrl);
+      console.log(
+        `🔄 Fetching background ${backgroundId} via getImageFromS3 (attempt ${
+          currentRetries + 1
+        }):`,
+        backgroundUrl
+      );
 
-      // ✅ SỬ DỤNG getImageFromS3 thay vì presigned URL
-      const s3Result = await getImageFromS3(backgroundUrl);
+      // ✅ THÊM TIMEOUT CHO REQUEST
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-      if (s3Result.success) {
-        setBackgroundPresignedUrls((prev) => ({
-          ...prev,
-          [backgroundId]: s3Result.imageUrl, // Sử dụng blob URL từ getImageFromS3
-        }));
-        console.log(
-          "Background fetched successfully for picker:",
-          backgroundId
-        );
-      } else {
-        console.error(
-          "Failed to fetch background for picker:",
-          s3Result.message
-        );
+      try {
+        const s3Result = await getImageFromS3(backgroundUrl, controller.signal);
+        clearTimeout(timeoutId);
 
-        // Fallback: thử presigned URL nếu getImageFromS3 thất bại
-        console.log("Trying fallback presigned URL...");
-        const presignedResult = await getPresignedUrl(backgroundUrl, 60);
+        if (s3Result.success && s3Result.imageUrl) {
+          // ✅ CẢI THIỆN VALIDATION
+          if (s3Result.imageUrl.startsWith("blob:")) {
+            try {
+              // Thử tạo Image object để test blob URL
+              const testImg = new Image();
+              const validationPromise = new Promise((resolve, reject) => {
+                testImg.onload = () => resolve(true);
+                testImg.onerror = () => reject(new Error("Invalid blob URL"));
+                setTimeout(
+                  () => reject(new Error("Blob validation timeout")),
+                  5000
+                );
+              });
 
-        if (presignedResult.success) {
+              testImg.src = s3Result.imageUrl;
+              await validationPromise;
+
+              console.log(
+                `✅ Blob URL validated successfully for background ${backgroundId}`
+              );
+            } catch (validationError) {
+              console.error(
+                `❌ Blob URL validation failed for background ${backgroundId}:`,
+                validationError
+              );
+              throw new Error("Blob URL validation failed");
+            }
+          }
+
           setBackgroundPresignedUrls((prev) => ({
             ...prev,
-            [backgroundId]: presignedResult.url,
+            [backgroundId]: s3Result.imageUrl,
           }));
-          console.log("Fallback presigned URL successful for:", backgroundId);
+
+          console.log(
+            `✅ Background ${backgroundId} fetched and validated successfully`
+          );
+
+          // Reset retry count on success
+          setBackgroundRetryAttempts((prev) => ({
+            ...prev,
+            [backgroundId]: 0,
+          }));
         } else {
-          console.error("Both S3 and presigned URL failed for:", backgroundId);
+          throw new Error(s3Result.message || "S3 API failed");
         }
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw fetchError;
       }
     } catch (error) {
-      console.error("Error fetching background image:", error);
+      console.error(`💥 Error fetching background ${backgroundId}:`, error);
+
+      // ✅ TĂNG retry count
+      const newRetryCount = currentRetries + 1;
+      setBackgroundRetryAttempts((prev) => ({
+        ...prev,
+        [backgroundId]: newRetryCount,
+      }));
+
+      // ✅ CHỈ THỬ FALLBACK NẾU CHƯA QUÁ 2 LẦN
+      if (newRetryCount <= 2) {
+        console.log(
+          `🔄 Trying fallback presigned URL (attempt ${newRetryCount})...`
+        );
+
+        try {
+          const presignedResult = await getPresignedUrl(backgroundUrl, 60);
+
+          if (presignedResult.success && presignedResult.url) {
+            setBackgroundPresignedUrls((prev) => ({
+              ...prev,
+              [backgroundId]: presignedResult.url,
+            }));
+            console.log(
+              `✅ Fallback presigned URL successful for background ${backgroundId}`
+            );
+
+            // Reset retry count on success
+            setBackgroundRetryAttempts((prev) => ({
+              ...prev,
+              [backgroundId]: 0,
+            }));
+          } else {
+            throw new Error("Presigned URL failed");
+          }
+        } catch (presignedError) {
+          console.error(
+            `❌ Both S3 and presigned URL failed for background ${backgroundId}:`,
+            presignedError
+          );
+
+          // Mark as failed if this is the last attempt
+          if (newRetryCount >= 2) {
+            setBackgroundPresignedUrls((prev) => ({
+              ...prev,
+              [backgroundId]: null,
+            }));
+          }
+        }
+      } else {
+        // Mark as failed after max retries
+        setBackgroundPresignedUrls((prev) => ({
+          ...prev,
+          [backgroundId]: null,
+        }));
+      }
     } finally {
       setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: false }));
     }
@@ -2276,8 +2412,14 @@ const AIDesign = () => {
           URL.revokeObjectURL(url);
         }
       });
+      setBackgroundRetryAttempts({});
     };
   }, [backgroundPresignedUrls]);
+  useEffect(() => {
+    if (currentStep !== 5) {
+      setBackgroundRetryAttempts({});
+    }
+  }, [currentStep]);
   useEffect(() => {
     if (currentStep === 7 && user?.id) {
       // Fetch customer detail để lấy business info
@@ -4385,7 +4527,7 @@ const AIDesign = () => {
                 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight"
                 variants={itemVariants}
               >
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-custom-primary via-custom-secondary to-custom-primary bg-size-200 animate-gradient">
+                <span className="bg-clip-text  bg-gradient-to-r from-custom-primary via-custom-secondary to-custom-primary bg-size-200 animate-gradient">
                   Thiết kế quảng cáo
                 </span>
                 <br />
@@ -5588,11 +5730,13 @@ const AIDesign = () => {
                     {backgroundSuggestions &&
                     backgroundSuggestions.length > 0 ? (
                       backgroundSuggestions.map((background) => {
-                        // Lấy presigned URL cho background này
                         const presignedUrl =
                           backgroundPresignedUrls[background.id];
                         const isLoadingUrl =
                           loadingBackgroundUrls[background.id];
+                        const retryCount =
+                          backgroundRetryAttempts[background.id] || 0;
+                        const hasFailed = presignedUrl === null; // null means permanently failed
 
                         return (
                           <motion.div
@@ -5603,10 +5747,12 @@ const AIDesign = () => {
                               selectedBackgroundId === background.id
                                 ? "ring-4 ring-custom-secondary scale-105"
                                 : "hover:scale-105"
-                            }`}
+                            } ${hasFailed ? "opacity-75" : ""}`}
                             onClick={() => {
-                              setSelectedBackgroundId(background.id);
-                              dispatch(setSelectedBackground(background));
+                              if (!hasFailed) {
+                                setSelectedBackgroundId(background.id);
+                                dispatch(setSelectedBackground(background));
+                              }
                             }}
                           >
                             {/* Background Image - Tăng kích thước từ h-48 lên h-64 */}
@@ -5615,8 +5761,40 @@ const AIDesign = () => {
                                 <div className="flex flex-col items-center">
                                   <CircularProgress size={24} />
                                   <p className="text-xs text-gray-500 mt-2">
-                                    Đang tải ảnh...
+                                    Đang tải ảnh... (Lần {retryCount + 1})
                                   </p>
+                                </div>
+                              ) : hasFailed ? (
+                                // ✅ HIỂN THỊ LỖI PERMANENT
+                                <div className="flex flex-col items-center text-red-400">
+                                  <FaPalette className="w-8 h-8 mb-2" />
+                                  <p className="text-xs text-center">
+                                    Không thể tải ảnh
+                                  </p>
+                                  <p className="text-xs text-center text-gray-400">
+                                    Đã thử {retryCount} lần
+                                  </p>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Reset retry count và thử lại
+                                      setBackgroundRetryAttempts((prev) => ({
+                                        ...prev,
+                                        [background.id]: 0,
+                                      }));
+                                      setBackgroundPresignedUrls((prev) => ({
+                                        ...prev,
+                                        [background.id]: undefined, // Reset để trigger fetch lại
+                                      }));
+                                      fetchBackgroundPresignedUrl(
+                                        background.id,
+                                        background.backgroundUrl
+                                      );
+                                    }}
+                                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
+                                  >
+                                    Thử lại
+                                  </button>
                                 </div>
                               ) : presignedUrl ? (
                                 <img
@@ -5625,49 +5803,92 @@ const AIDesign = () => {
                                   className="w-full h-64 object-cover"
                                   onLoad={() => {
                                     console.log(
-                                      "Background image loaded successfully:",
+                                      "✅ Background image loaded successfully:",
                                       background.id
                                     );
                                   }}
                                   onError={(e) => {
                                     console.error(
-                                      "Error loading background image:",
-                                      presignedUrl
+                                      `❌ Error displaying background ${background.id}:`,
+                                      e
                                     );
-                                    // Fallback: thử lại với original URL
-                                    if (
-                                      e.target.src !== background.backgroundUrl
-                                    ) {
+
+                                    // ✅ THÊM RETRY LOGIC CHO DISPLAY ERROR
+                                    const currentRetries =
+                                      backgroundRetryAttempts[background.id] ||
+                                      0;
+
+                                    if (currentRetries < 2) {
                                       console.log(
-                                        "Trying fallback URL:",
-                                        background.backgroundUrl
+                                        `🔄 Retrying display for background ${
+                                          background.id
+                                        } (attempt ${currentRetries + 1})`
                                       );
-                                      e.target.src = background.backgroundUrl;
+
+                                      // Tăng retry count
+                                      setBackgroundRetryAttempts((prev) => ({
+                                        ...prev,
+                                        [background.id]: currentRetries + 1,
+                                      }));
+
+                                      // Fetch lại URL
+                                      setTimeout(() => {
+                                        fetchBackgroundPresignedUrl(
+                                          background.id,
+                                          background.backgroundUrl
+                                        );
+                                      }, 1000 * (currentRetries + 1)); // Delay tăng dần
                                     } else {
-                                      // Hiển thị placeholder nếu cả hai đều fail
-                                      e.target.src =
-                                        "https://via.placeholder.com/400x300?text=Background+Not+Available";
+                                      // Sau 2 lần thử, hiển thị placeholder
+                                      e.target.style.display = "none";
+                                      const placeholder =
+                                        e.target.parentElement.querySelector(
+                                          ".error-placeholder"
+                                        );
+                                      if (placeholder) {
+                                        placeholder.style.display = "flex";
+                                      }
                                     }
                                   }}
                                 />
                               ) : (
+                                // Waiting state
                                 <div className="flex flex-col items-center text-gray-400">
                                   <FaPalette className="w-8 h-8 mb-2" />
-                                  <p className="text-xs">Không thể tải ảnh</p>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      fetchBackgroundPresignedUrl(
-                                        background.id,
-                                        background.backgroundUrl
-                                      );
-                                    }}
-                                    className="text-xs text-blue-500 hover:text-blue-700 mt-1"
-                                  >
-                                    Thử lại
-                                  </button>
+                                  <p className="text-xs text-center">
+                                    Chờ tải ảnh...
+                                  </p>
                                 </div>
                               )}
+
+                              {/* ✅ ERROR PLACEHOLDER - không tự động retry */}
+                              <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
+                                <FaPalette className="w-8 h-8 mb-2" />
+                                <p className="text-xs text-center">
+                                  Không thể hiển thị ảnh
+                                </p>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Manual retry with reset
+                                    setBackgroundRetryAttempts((prev) => ({
+                                      ...prev,
+                                      [background.id]: 0,
+                                    }));
+                                    setBackgroundPresignedUrls((prev) => ({
+                                      ...prev,
+                                      [background.id]: undefined,
+                                    }));
+                                    fetchBackgroundPresignedUrl(
+                                      background.id,
+                                      background.backgroundUrl
+                                    );
+                                  }}
+                                  className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
+                                >
+                                  Thử lại
+                                </button>
+                              </div>
                             </div>
 
                             {/* Hover overlay */}
@@ -5714,6 +5935,13 @@ const AIDesign = () => {
                               <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
                                 <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                                   Không khả dụng
+                                </span>
+                              </div>
+                            )}
+                            {hasFailed && (
+                              <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
+                                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                  Lỗi tải ảnh
                                 </span>
                               </div>
                             )}
