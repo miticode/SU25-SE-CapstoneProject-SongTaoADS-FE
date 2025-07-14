@@ -1464,6 +1464,10 @@ const AIDesign = () => {
   const iconPagination = useSelector(selectIconPagination);
   const hasNextIconPage = useSelector(selectHasNextPage);
   const hasPreviousIconPage = useSelector(selectHasPreviousPage);
+  const [designTemplateImageUrls, setDesignTemplateImageUrls] = useState({}); // Cache blob URLs
+  const [loadingDesignTemplateUrls, setLoadingDesignTemplateUrls] = useState(
+    {}
+  ); // Loading states
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -1585,6 +1589,48 @@ const AIDesign = () => {
     "UTM DuepuntozeroBold",
     "UTM EdwardianB",
   ];
+  const fetchDesignTemplateImage = async (template) => {
+    if (
+      designTemplateImageUrls[template.id] ||
+      loadingDesignTemplateUrls[template.id]
+    ) {
+      return; // Đã có URL hoặc đang loading
+    }
+
+    try {
+      setLoadingDesignTemplateUrls((prev) => ({
+        ...prev,
+        [template.id]: true,
+      }));
+
+      console.log(
+        "Fetching design template image via getImageFromS3:",
+        template.image
+      );
+
+      const s3Result = await getImageFromS3(template.image);
+
+      if (s3Result.success) {
+        setDesignTemplateImageUrls((prev) => ({
+          ...prev,
+          [template.id]: s3Result.imageUrl,
+        }));
+        console.log("Design template image fetched successfully:", template.id);
+      } else {
+        console.error(
+          "Failed to fetch design template image via S3 API:",
+          s3Result.message
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching design template image:", error);
+    } finally {
+      setLoadingDesignTemplateUrls((prev) => ({
+        ...prev,
+        [template.id]: false,
+      }));
+    }
+  };
   const handleIconLoadError = async (icon, retryCount = 0) => {
     if (retryCount >= 2) {
       console.log(`Max retries reached for icon ${icon.id}`);
@@ -1888,7 +1934,26 @@ const AIDesign = () => {
         setLoadingIconUrls((prev) => ({ ...prev, [icon.id]: false }));
       }
     };
+    useEffect(() => {
+      if (designTemplates && designTemplates.length > 0) {
+        designTemplates.forEach((template) => {
+          if (template.image && !designTemplateImageUrls[template.id]) {
+            fetchDesignTemplateImage(template);
+          }
+        });
+      }
+    }, [designTemplates, designTemplateImageUrls]);
 
+    // ✅ DI CHUYỂN useEffect cleanup RA NGOÀI renderContent()
+    useEffect(() => {
+      return () => {
+        Object.values(designTemplateImageUrls).forEach((url) => {
+          if (url.startsWith("blob:")) {
+            URL.revokeObjectURL(url);
+          }
+        });
+      };
+    }, [designTemplateImageUrls]);
     // Fetch icon images khi icons load
     useEffect(() => {
       if (icons && icons.length > 0) {
@@ -2214,7 +2279,7 @@ const AIDesign = () => {
     };
   }, [backgroundPresignedUrls]);
   useEffect(() => {
-    if (currentStep === 6 && user?.id) {
+    if (currentStep === 7 && user?.id) {
       // Fetch customer detail để lấy business info
       dispatch(fetchCustomerDetailByUserId(user.id))
         .unwrap()
@@ -2463,7 +2528,7 @@ const AIDesign = () => {
   // Điều chỉnh cài đặt canvas để có chất lượng tốt hơn
   useEffect(() => {
     if (
-      currentStep === 6 &&
+      currentStep === 7 &&
       canvasRef.current &&
       !fabricCanvas &&
       (generatedImage || selectedBackgroundForCanvas)
@@ -2750,7 +2815,7 @@ const AIDesign = () => {
     }
 
     return () => {
-      if (fabricCanvas && currentStep !== 6) {
+      if (fabricCanvas && currentStep !== 7) {
         console.log("CLEANUP: Disposing canvas");
         fabricCanvas.dispose();
         setFabricCanvas(null);
@@ -3259,14 +3324,13 @@ const AIDesign = () => {
     }
   };
   useEffect(() => {
-    if (currentStep === 4.5 && billboardType) {
+    if (currentStep === 5 && billboardType) {
       const currentProductTypeInfo =
         productTypes.find((pt) => pt.id === billboardType) ||
         currentProductType;
       const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
 
-      console.log("Step 4.5 - isAiGenerated:", isAiGenerated);
-
+      console.log("Step 5 - isAiGenerated:", isAiGenerated);
       if (isAiGenerated) {
         console.log(
           "Fetching design templates for AI product type:",
@@ -3291,7 +3355,7 @@ const AIDesign = () => {
     currentOrder?.id,
   ]);
   useEffect(() => {
-    if (currentStep === 4.5) {
+    if (currentStep === 5) {
       const currentProductTypeInfo =
         productTypes.find((pt) => pt.id === billboardType) ||
         currentProductType;
@@ -3553,9 +3617,8 @@ const AIDesign = () => {
 
   const handleBusinessSubmit = async (e) => {
     e.preventDefault();
-    console.log("Current user state:", user);
+
     if (!user?.id) {
-      console.error("No user ID found in user state:", user);
       setSnackbar({
         open: true,
         message: "Vui lòng đăng nhập để tiếp tục",
@@ -3563,6 +3626,7 @@ const AIDesign = () => {
       });
       return;
     }
+
     // Validate required fields
     const requiredFields = ["companyName", "address", "contactInfo"];
     const missingFields = requiredFields.filter(
@@ -3578,8 +3642,10 @@ const AIDesign = () => {
       return;
     }
 
-    // If it's a new customer and no logo is uploaded, show a warning
-    if (!customerDetail && !businessInfo.customerDetailLogo) {
+    const hasExistingLogo = processedLogoUrl || customerDetail?.logoUrl;
+    const hasNewLogo = businessInfo.customerDetailLogo;
+
+    if (!customerDetail && !hasNewLogo && !hasExistingLogo) {
       setSnackbar({
         open: true,
         message: "Vui lòng tải lên logo công ty",
@@ -3587,6 +3653,7 @@ const AIDesign = () => {
       });
       return;
     }
+
     const customerData = {
       companyName: businessInfo.companyName,
       address: businessInfo.address,
@@ -3598,20 +3665,27 @@ const AIDesign = () => {
     console.log("Customer data to be sent:", customerData);
 
     try {
-      // First update or create customer details
+      let resultCustomerDetail = null;
+
+      // KIỂM TRA customerDetail từ Redux state trước
       if (customerDetail) {
         console.log("Updating existing customer detail:", customerDetail.id);
-        const result = await dispatch(
+        resultCustomerDetail = await dispatch(
           updateCustomerDetail({
             customerDetailId: customerDetail.id,
             customerData,
           })
         ).unwrap();
-        console.log("Customer detail updated successfully:", result);
-        if (result.warning) {
+
+        console.log(
+          "Customer detail updated successfully:",
+          resultCustomerDetail
+        );
+
+        if (resultCustomerDetail.warning) {
           setSnackbar({
             open: true,
-            message: `Thông tin đã được cập nhật nhưng ${result.warning}`,
+            message: `Thông tin đã được cập nhật nhưng ${resultCustomerDetail.warning}`,
             severity: "warning",
           });
         } else {
@@ -3622,18 +3696,55 @@ const AIDesign = () => {
           });
         }
       } else {
-        // Otherwise create a new one
-        console.log("Creating new customer detail");
-        const result = await dispatch(createCustomer(customerData)).unwrap();
-        console.log("Customer created successfully:", result);
-        setSnackbar({
-          open: true,
-          message: "Tạo thông tin doanh nghiệp thành công",
-          severity: "success",
-        });
+        // Nếu chưa có customerDetail, kiểm tra từ API trước khi tạo mới
+        console.log("Checking for existing customer detail via API...");
+
+        try {
+          const existingCustomerDetail = await dispatch(
+            fetchCustomerDetailByUserId(user.id)
+          ).unwrap();
+
+          if (existingCustomerDetail && existingCustomerDetail.id) {
+            console.log(
+              "Found existing customer detail, updating instead:",
+              existingCustomerDetail.id
+            );
+
+            resultCustomerDetail = await dispatch(
+              updateCustomerDetail({
+                customerDetailId: existingCustomerDetail.id,
+                customerData,
+              })
+            ).unwrap();
+
+            setSnackbar({
+              open: true,
+              message: "Cập nhật thông tin doanh nghiệp thành công",
+              severity: "success",
+            });
+          }
+        } catch (fetchError) {
+          // Nếu không tìm thấy customer detail existing, tạo mới
+          if (fetchError?.message?.includes("not found")) {
+            console.log("No existing customer detail found, creating new one");
+
+            resultCustomerDetail = await dispatch(
+              createCustomer(customerData)
+            ).unwrap();
+            console.log("Customer created successfully:", resultCustomerDetail);
+
+            setSnackbar({
+              open: true,
+              message: "Tạo thông tin doanh nghiệp thành công",
+              severity: "success",
+            });
+          } else {
+            throw fetchError; // Re-throw other errors
+          }
+        }
       }
 
-      // Now check if the user already has any customer choice
+      // Tiếp tục với logic kiểm tra customer choices
       const customerId = user.id;
 
       try {
@@ -3643,45 +3754,33 @@ const AIDesign = () => {
 
         console.log("Customer choices response:", customerChoicesResponse);
 
-        // If we have an existing customer choice with product type
         if (
           customerChoicesResponse &&
           customerChoicesResponse.productTypes?.id
         ) {
-          // We found an existing choice, skip step 3 and go to step 4
           const existingProductTypeId = customerChoicesResponse.productTypes.id;
           console.log("Found existing product type ID:", existingProductTypeId);
 
-          // Update local state
           setBillboardType(existingProductTypeId);
           setCurrentStep(4);
-
-          // Fetch attributes for the selected product type
           dispatch(fetchAttributesByProductTypeId(existingProductTypeId));
-
-          // Navigate to step 4 with the found product type
           navigate(`/ai-design?step=billboard&type=${existingProductTypeId}`);
 
-          // Show a snackbar indicating we're continuing with existing choice
           setSnackbar({
             open: true,
             message: "Tiếp tục với thiết kế hiện tại",
             severity: "info",
           });
         } else {
-          // No existing choice or no product type associated, continue to step 3
           console.log("No existing customer choice found, moving to step 3");
           setCurrentStep(3);
           navigate("/ai-design?step=billboard");
         }
       } catch (error) {
         console.error("Error checking for existing customer choices:", error);
-
-        // If we fail to check, just continue to step 3 as a fallback
         setCurrentStep(3);
         navigate("/ai-design?step=billboard");
 
-        // Maybe show a subtle warning
         setSnackbar({
           open: true,
           message:
@@ -3691,22 +3790,73 @@ const AIDesign = () => {
       }
     } catch (error) {
       console.error("Failed to save customer details. Full error:", error);
-      if (error.response) {
-        console.error("Error response data:", error.response.data);
-        console.error("Error response status:", error.response.status);
-        console.error("Error response headers:", error.response.headers);
-      } else if (error.request) {
-        console.error("Error request:", error.request);
-      } else {
-        console.error("Error message:", error.message);
-      }
 
-      // Show error message to user
-      setSnackbar({
-        open: true,
-        message: "Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.",
-        severity: "error",
-      });
+      // XỬ LÝ CỤ THỂ CÁC LOẠI LỖI
+      if (
+        error?.message?.includes("duplicate key") ||
+        error?.message?.includes("Database Error")
+      ) {
+        console.log(
+          "Duplicate key error detected, trying to fetch existing customer detail..."
+        );
+
+        try {
+          // Thử fetch customer detail hiện có
+          const existingCustomerDetail = await dispatch(
+            fetchCustomerDetailByUserId(user.id)
+          ).unwrap();
+
+          if (existingCustomerDetail) {
+            console.log(
+              "Found existing customer detail after duplicate error:",
+              existingCustomerDetail
+            );
+
+            // Cập nhật thay vì tạo mới
+            await dispatch(
+              updateCustomerDetail({
+                customerDetailId: existingCustomerDetail.id,
+                customerData,
+              })
+            ).unwrap();
+
+            setSnackbar({
+              open: true,
+              message: "Đã cập nhật thông tin doanh nghiệp thành công",
+              severity: "success",
+            });
+
+            // Tiếp tục với flow bình thường
+            setCurrentStep(3);
+            navigate("/ai-design?step=billboard");
+            return;
+          }
+        } catch (fetchError) {
+          console.error(
+            "Failed to fetch existing customer detail:",
+            fetchError
+          );
+        }
+
+        setSnackbar({
+          open: true,
+          message: "Thông tin doanh nghiệp đã tồn tại. Vui lòng kiểm tra lại.",
+          severity: "warning",
+        });
+      } else if (error?.message?.includes("User not found")) {
+        setSnackbar({
+          open: true,
+          message:
+            "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
+          severity: "error",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.",
+          severity: "error",
+        });
+      }
     }
   };
 
@@ -3723,7 +3873,7 @@ const AIDesign = () => {
       return;
     }
 
-    console.log("Sizes confirmed, proceeding to step 4.5");
+    console.log("Sizes confirmed, proceeding to step 5");
 
     // Lấy thông tin product type hiện tại để kiểm tra isAiGenerated
     const currentProductTypeInfo =
@@ -3764,7 +3914,7 @@ const AIDesign = () => {
     }
 
     // Move to step 4.5
-    setCurrentStep(4.5);
+    setCurrentStep(5);
     navigate("/ai-design");
   };
   const handleSelectSampleProduct = (productId) => {
@@ -3802,8 +3952,8 @@ const AIDesign = () => {
       .unwrap()
       .then(() => {
         console.log("Image generation started successfully");
-        // Move to step 5 after successful generation start
-        setCurrentStep(5);
+        // Move to step 7 after successful generation start
+        setCurrentStep(6);
         setIsGenerating(false);
         navigate("/ai-design");
       })
@@ -4162,9 +4312,9 @@ const AIDesign = () => {
     { number: 2, label: "Thông tin doanh nghiệp" },
     { number: 3, label: "Chọn loại biển hiệu" },
     { number: 4, label: "Thông tin biển hiệu" },
-    { number: 4.5, label: "Chọn mẫu thiết kế" },
-    { number: 5, label: "Xem trước" },
-    { number: 6, label: "Xác nhận đơn hàng" },
+    { number: 5, label: "Chọn mẫu thiết kế" },
+    { number: 6, label: "Xem trước" },
+    { number: 7, label: "Xác nhận đơn hàng" },
   ];
 
   const containerVariants = {
@@ -4208,207 +4358,556 @@ const AIDesign = () => {
       case 1:
         return (
           <motion.div
-            className="text-center"
+            className="relative flex items-center justify-center bg-gradient-to-br from-gray-50 to-white overflow-hidden"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
           >
-            <motion.h1
-              className="text-5xl font-bold text-custom-dark mb-8 bg-clip-text text-transparent bg-gradient-to-r from-custom-primary to-custom-secondary"
-              variants={itemVariants}
-            >
-              Thiết kế quảng cáo với AI
-            </motion.h1>
-            <motion.p
-              className="text-xl text-black mb-12 max-w-2xl mx-auto"
-              variants={itemVariants}
-            >
-              Tạo biển hiệu đẹp mắt cho bạn trong vài phút với sự hỗ trợ của
-              công nghệ AI tiên tiến.
-            </motion.p>
-            <motion.button
-              onClick={() => {
-                setCurrentStep(2);
-                navigate("/ai-design?step=business");
-              }}
-              className="px-10 py-4 bg-custom-primary text-white font-medium text-lg rounded-lg hover:bg-custom-secondary transition-all shadow-lg hover:shadow-xl flex items-center mx-auto"
-              variants={itemVariants}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              Bắt đầu ngay
-              <svg
-                className="w-5 h-5 ml-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            {/* Background decorative elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-custom-primary/10 to-custom-secondary/10 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-gradient-to-tr from-custom-secondary/5 to-custom-primary/5 rounded-full blur-3xl"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-100/30 to-purple-100/30 rounded-full blur-3xl"></div>
+            </div>
+
+            <div className="relative z-10 text-center max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              {/* AI Icon */}
+              <motion.div
+                className="inline-flex items-center justify-center w-20 h-20 bg-black rounded-2xl mb-8 shadow-2xl"
+                variants={itemVariants}
+                whileHover={{ scale: 1.1, rotate: 5 }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
-            </motion.button>
+                <FaRobot className="w-10 h-10 text-white" />
+              </motion.div>
+
+              {/* Main Heading */}
+              <motion.h1
+                className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight"
+                variants={itemVariants}
+              >
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-custom-primary via-custom-secondary to-custom-primary bg-size-200 animate-gradient">
+                  Thiết kế quảng cáo
+                </span>
+                <br />
+                <span className="text-gray-800">với sức mạnh AI</span>
+              </motion.h1>
+
+              {/* Subtitle */}
+              <motion.p
+                className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-10 max-w-4xl mx-auto leading-relaxed"
+                variants={itemVariants}
+              >
+                Tạo ra những biển hiệu{" "}
+                <span className="text-custom-primary font-semibold">
+                  đẹp mắt
+                </span>
+                ,{" "}
+                <span className="text-custom-secondary font-semibold">
+                  chuyên nghiệp
+                </span>{" "}
+                chỉ trong{" "}
+                <span className="text-custom-primary font-semibold">
+                  vài phút
+                </span>{" "}
+                với công nghệ AI tiên tiến
+              </motion.p>
+
+              {/* Features Grid */}
+              <motion.div
+                className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto"
+                variants={containerVariants}
+              >
+                <motion.div
+                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
+                  variants={itemVariants}
+                  whileHover={{ y: -5, scale: 1.02 }}
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    Nhanh chóng
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Thiết kế hoàn thành trong vài phút
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
+                  variants={itemVariants}
+                  whileHover={{ y: -5, scale: 1.02 }}
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    Thông minh
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    AI hiểu được ý tưởng của bạn
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
+                  variants={itemVariants}
+                  whileHover={{ y: -5, scale: 1.02 }}
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    Chuyên nghiệp
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Chất lượng thiết kế cao cấp
+                  </p>
+                </motion.div>
+              </motion.div>
+
+              {/* CTA Section */}
+              <motion.div className="space-y-6" variants={itemVariants}>
+                <motion.button
+                  onClick={() => {
+                    setCurrentStep(2);
+                    navigate("/ai-design?step=business");
+                  }}
+                  className="group relative inline-flex items-center justify-center px-12 py-4 text-lg font-semibold text-white bg-black rounded-2xl shadow-2xl hover:shadow-custom-primary/25 transition-all duration-300 overflow-hidden"
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-custom-secondary to-custom-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                  <span className="relative flex items-center">
+                    Bắt đầu thiết kế ngay
+                    <svg
+                      className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform duration-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                      />
+                    </svg>
+                  </span>
+                </motion.button>
+
+                <motion.p
+                  className="text-sm text-gray-500"
+                  variants={itemVariants}
+                >
+                  ✨ Miễn phí tạo và xem trước thiết kế
+                </motion.p>
+              </motion.div>
+            </div>
           </motion.div>
         );
 
       case 2:
         return (
           <motion.div
-            className="max-w-2xl mx-auto"
+            className="max-w-4xl mx-auto"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
           >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-8 text-center"
-              variants={itemVariants}
-            >
-              Thông tin doanh nghiệp
-            </motion.h2>
+            {/* Header Section */}
+            <motion.div className="text-center mb-10" variants={itemVariants}>
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl mb-6 shadow-lg">
+                <svg
+                  className="w-8 h-8 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-4xl font-bold text-gray-800 mb-4">
+                Thông tin doanh nghiệp
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Cung cấp thông tin để AI có thể tạo ra thiết kế phù hợp với
+                thương hiệu của bạn
+              </p>
+            </motion.div>
 
+            {/* Error Display */}
             {customerError && (
               <motion.div
-                className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg"
+                className="mb-8 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg"
                 variants={itemVariants}
               >
-                {customerError}
+                <div className="flex items-center">
+                  <svg
+                    className="w-5 h-5 text-red-400 mr-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="text-red-700 font-medium">{customerError}</p>
+                </div>
               </motion.div>
             )}
 
+            {/* Main Form */}
             <motion.form
               onSubmit={handleBusinessSubmit}
-              className="space-y-6 bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
+              className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden"
               variants={containerVariants}
             >
-              <motion.div variants={itemVariants}>
-                <label
-                  htmlFor="companyName"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Tên công ty
-                </label>
-                <input
-                  type="text"
-                  id="companyName"
-                  name="companyName"
-                  value={businessInfo.companyName}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                  required
-                />
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <label
-                  htmlFor="address"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Địa chỉ
-                </label>
-                <input
-                  type="text"
-                  id="tagLine"
-                  name="address"
-                  value={businessInfo.address}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                  required
-                />
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <label
-                  htmlFor="contactInfo"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Thông tin liên hệ
-                </label>
-                <input
-                  type="text"
-                  id="contactInfo"
-                  name="contactInfo"
-                  value={businessInfo.contactInfo}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                  required
-                />
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <label
-                  htmlFor="customerDetailLogo"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Logo công ty
-                </label>
-                <div className="flex flex-col space-y-2">
-                  <input
-                    type="file"
-                    id="customerDetailLogo"
-                    name="customerDetailLogo"
-                    accept="image/*"
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                    required={!customerDetail}
-                  />
-                  {(businessInfo.logoPreview || processedLogoUrl) && (
-                    <div className="mt-2 relative w-32 h-32 border rounded-lg overflow-hidden">
-                      <img
-                        src={businessInfo.logoPreview || processedLogoUrl}
-                        alt="Logo Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error("Error loading logo:", e);
-                          // Fallback nếu URL không tải được
-                          if (
-                            customerDetail?.logoUrl &&
-                            !businessInfo.logoPreview &&
-                            e.target.src !== "/placeholder-logo.png"
-                          ) {
-                            const directApiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
-                              customerDetail.logoUrl
-                            )}`;
-                            console.log("Trying direct API URL:", directApiUrl);
-                            e.target.src = directApiUrl;
-                          } else {
-                            // Nếu vẫn không tải được, hiển thị ảnh placeholder
-                            e.target.src = "/placeholder-logo.png";
-                          }
-                        }}
+              <div className="p-8 md:p-10 space-y-8">
+                {/* Company Name */}
+                <motion.div variants={itemVariants}>
+                  <label
+                    htmlFor="companyName"
+                    className="flex items-center text-sm font-semibold text-gray-700 mb-3"
+                  >
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    Tên công ty
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="companyName"
+                      name="companyName"
+                      value={businessInfo.companyName}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-gray-800 placeholder-gray-400"
+                      placeholder="VD: Công ty TNHH ABC"
+                      required
+                    />
+                    <svg
+                      className="absolute left-4 top-4 w-5 h-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                       />
-                      {businessInfo.logoPreview && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
-                          Logo mới
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
+                    </svg>
+                  </div>
+                </motion.div>
 
-              <motion.div
-                className="flex justify-end space-x-4 pt-4"
-                variants={itemVariants}
-              >
+                {/* Address */}
+                <motion.div variants={itemVariants}>
+                  <label
+                    htmlFor="address"
+                    className="flex items-center text-sm font-semibold text-gray-700 mb-3"
+                  >
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
+                    Địa chỉ
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="address"
+                      name="address"
+                      value={businessInfo.address}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300 text-gray-800 placeholder-gray-400"
+                      placeholder="VD: 123 Đường ABC, Quận 1, TP.HCM"
+                      required
+                    />
+                    <svg
+                      className="absolute left-4 top-4 w-5 h-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </div>
+                </motion.div>
+
+                {/* Contact Info */}
+                <motion.div variants={itemVariants}>
+                  <label
+                    htmlFor="contactInfo"
+                    className="flex items-center text-sm font-semibold text-gray-700 mb-3"
+                  >
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                    Thông tin liên hệ
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="contactInfo"
+                      name="contactInfo"
+                      value={businessInfo.contactInfo}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400"
+                      placeholder="VD: 0123.456.789 | email@company.com"
+                      required
+                    />
+                    <svg
+                      className="absolute left-4 top-4 w-5 h-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                      />
+                    </svg>
+                  </div>
+                </motion.div>
+
+                {/* Logo Upload Section */}
+                <motion.div variants={itemVariants}>
+                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                    Logo công ty
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+
+                  <div className="space-y-4">
+                    {/* Upload Area or Current Logo Display */}
+                    {!processedLogoUrl && !businessInfo.logoPreview ? (
+                      <div className="relative">
+                        <input
+                          type="file"
+                          id="customerDetailLogo"
+                          name="customerDetailLogo"
+                          accept="image/*"
+                          onChange={handleInputChange}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          required={!customerDetail}
+                        />
+                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-400 hover:bg-orange-50 transition-all duration-300">
+                          <div className="flex flex-col items-center">
+                            <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4">
+                              <svg
+                                className="w-8 h-8 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                              Tải lên logo công ty
+                            </h3>
+                            <p className="text-gray-500 mb-4">
+                              Kéo thả file hoặc click để chọn
+                            </p>
+                            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all">
+                              <svg
+                                className="w-5 h-5 mr-2"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                              </svg>
+                              Chọn file
+                            </div>
+                            <p className="text-xs text-gray-400 mt-3">
+                              Hỗ trợ: JPG, PNG, GIF (Tối đa 5MB)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
+                              <svg
+                                className="w-5 h-5 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-green-800">
+                                Logo đã sẵn sàng
+                              </h4>
+                              <p className="text-sm text-green-600">
+                                {businessInfo.logoPreview
+                                  ? "Logo mới đã được tải lên"
+                                  : "Sử dụng logo hiện có"}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBusinessInfo((prev) => ({
+                                ...prev,
+                                logoPreview: "",
+                                customerDetailLogo: null,
+                              }));
+                              setProcessedLogoUrl("");
+                            }}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium bg-white px-3 py-1 rounded-lg shadow-sm hover:shadow-md transition-all"
+                          >
+                            Thay đổi
+                          </button>
+                        </div>
+
+                        {/* Logo Preview */}
+                        <div className="flex items-center space-x-4">
+                          <div className="w-20 h-20 bg-white rounded-xl shadow-md overflow-hidden border-2 border-gray-100">
+                            <img
+                              src={businessInfo.logoPreview || processedLogoUrl}
+                              alt="Logo Preview"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error("Error loading logo:", e);
+                                if (
+                                  customerDetail?.logoUrl &&
+                                  !businessInfo.logoPreview
+                                ) {
+                                  const directApiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
+                                    customerDetail.logoUrl
+                                  )}`;
+                                  e.target.src = directApiUrl;
+                                } else {
+                                  e.target.src = "/placeholder-logo.png";
+                                }
+                              }}
+                            />
+                          </div>
+                          {businessInfo.logoPreview && (
+                            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
+                              Mới
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="bg-gray-50 px-8 md:px-10 py-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                 <motion.button
                   type="button"
                   onClick={() => {
                     setCurrentStep(1);
                     navigate("/ai-design");
                   }}
-                  className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all"
+                  className="w-full sm:w-auto px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 hover:border-gray-400 transition-all duration-300 flex items-center justify-center"
+                  variants={itemVariants}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   disabled={customerStatus === "loading"}
                 >
-                  Hủy
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                    />
+                  </svg>
+                  Quay lại
                 </motion.button>
+
                 <motion.button
                   type="submit"
-                  className="px-6 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
+                  className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+                  variants={itemVariants}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   disabled={customerStatus === "loading"}
@@ -4418,15 +4917,15 @@ const AIDesign = () => {
                       <CircularProgress
                         size={20}
                         color="inherit"
-                        className="mr-2"
+                        className="mr-3"
                       />
                       Đang xử lý...
                     </>
                   ) : (
                     <>
-                      {customerDetail ? "Cập nhật" : "Tiếp tục"}
+                      {customerDetail ? "Cập nhật thông tin" : "Tiếp tục"}
                       <svg
-                        className="w-5 h-5 ml-1 inline"
+                        className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -4441,8 +4940,16 @@ const AIDesign = () => {
                     </>
                   )}
                 </motion.button>
-              </motion.div>
+              </div>
             </motion.form>
+
+            {/* Help Section */}
+            <motion.div className="mt-8 text-center" variants={itemVariants}>
+              <p className="text-sm text-gray-500">
+                💡 <strong>Mẹo:</strong> Thông tin chính xác sẽ giúp AI tạo ra
+                thiết kế phù hợp với thương hiệu của bạn
+              </p>
+            </motion.div>
           </motion.div>
         );
 
@@ -4810,7 +5317,7 @@ const AIDesign = () => {
           </motion.div>
         );
       }
-      case 4.5: {
+      case 5: {
         // Thêm dấu ngoặc nhọn để tạo block scope
         const currentProductTypeInfo =
           productTypes.find((pt) => pt.id === billboardType) ||
@@ -4875,43 +5382,119 @@ const AIDesign = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     {designTemplates && designTemplates.length > 0 ? (
-                      designTemplates.map((template) => (
-                        <motion.div
-                          key={template.id}
-                          variants={cardVariants}
-                          whileHover="hover"
-                          className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
-                            selectedSampleProduct === template.id
-                              ? "ring-4 ring-custom-secondary scale-105"
-                              : "hover:scale-105"
-                          }`}
-                          onClick={() => handleSelectSampleProduct(template.id)}
-                        >
-                          <img
-                            src={template.image}
-                            alt={template.name}
-                            className="w-full h-64 object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                            <div className="bg-white rounded-full p-2">
-                              <FaCheck className="w-6 h-6 text-custom-secondary" />
+                      designTemplates.map((template) => {
+                        // ✅ SỬ DỤNG STATE ĐÃ ĐƯỢC KHAI BÁO Ở NGOÀI
+                        const templateImageUrl =
+                          designTemplateImageUrls[template.id];
+                        const isLoadingTemplateImage =
+                          loadingDesignTemplateUrls[template.id];
+
+                        return (
+                          <motion.div
+                            key={template.id}
+                            variants={cardVariants}
+                            whileHover="hover"
+                            className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
+                              selectedSampleProduct === template.id
+                                ? "ring-4 ring-custom-secondary scale-105"
+                                : "hover:scale-105"
+                            }`}
+                            onClick={() =>
+                              handleSelectSampleProduct(template.id)
+                            }
+                          >
+                            {/* ✅ TEMPLATE IMAGE - SỬ DỤNG getImageFromS3 */}
+                            <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
+                              {isLoadingTemplateImage ? (
+                                <div className="flex flex-col items-center">
+                                  <CircularProgress size={24} />
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Đang tải ảnh...
+                                  </p>
+                                </div>
+                              ) : templateImageUrl ? (
+                                <img
+                                  src={templateImageUrl}
+                                  alt={template.name}
+                                  className="w-full h-64 object-cover"
+                                  onLoad={() => {
+                                    console.log(
+                                      `✅ Design template ${template.id} image loaded successfully via S3 API`
+                                    );
+                                  }}
+                                  onError={(e) => {
+                                    console.error(
+                                      `❌ Error loading design template ${template.id} image via S3 API:`,
+                                      e
+                                    );
+                                    // Hiển thị placeholder
+                                    e.target.style.display = "none";
+                                    e.target.nextSibling.style.display = "flex";
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center text-gray-400">
+                                  <FaPalette className="w-8 h-8 mb-2" />
+                                  <p className="text-xs">Không thể tải ảnh</p>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log(
+                                        `Manual retry for template ${template.id}`
+                                      );
+                                      fetchDesignTemplateImage(template);
+                                    }}
+                                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
+                                  >
+                                    Thử lại
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Placeholder khi lỗi */}
+                              <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
+                                <FaPalette className="w-8 h-8 mb-2" />
+                                <p className="text-xs text-center">
+                                  Không thể tải mẫu thiết kế
+                                </p>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    fetchDesignTemplateImage(template);
+                                  }}
+                                  className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
+                                >
+                                  Thử lại
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          {selectedSampleProduct === template.id && (
-                            <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                              <FaCheckCircle className="w-6 h-6" />
+
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                              <div className="bg-white rounded-full p-2">
+                                <FaCheck className="w-6 h-6 text-custom-secondary" />
+                              </div>
                             </div>
-                          )}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
-                            <h3 className="font-medium text-lg">
-                              {template.name}
-                            </h3>
-                            <p className="text-sm text-gray-300 truncate">
-                              {template.description}
-                            </p>
-                          </div>
-                        </motion.div>
-                      ))
+
+                            {/* Selected indicator */}
+                            {selectedSampleProduct === template.id && (
+                              <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
+                                <FaCheckCircle className="w-6 h-6" />
+                              </div>
+                            )}
+
+                            {/* Template info */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
+                              <h3 className="font-medium text-lg">
+                                {template.name}
+                              </h3>
+                              <p className="text-sm text-gray-300 truncate">
+                                {template.description}
+                              </p>
+                            </div>
+                          </motion.div>
+                        );
+                      })
                     ) : (
                       <div className="col-span-2 text-center py-8">
                         <p className="text-gray-500">
@@ -5282,7 +5865,7 @@ const AIDesign = () => {
                     });
 
                     // Chuyển thẳng đến case 6 thay vì navigate đến custom-design
-                    setCurrentStep(6);
+                    setCurrentStep(7);
                     navigate("/ai-design?step=edit");
 
                     setSnackbar({
@@ -5347,8 +5930,8 @@ const AIDesign = () => {
             </motion.div>
           </motion.div>
         );
-      } // Đóng dấu ngoặc nhọn cho case 4.5
-      case 5:
+      } // Đóng dấu ngoặc nhọn cho case 5
+      case 6:
         return (
           <motion.div
             className="max-w-4xl mx-auto"
@@ -5433,7 +6016,7 @@ const AIDesign = () => {
 
                   // Use setTimeout to simulate processing time
                   setTimeout(() => {
-                    setCurrentStep(6);
+                    setCurrentStep(7);
                     setIsConfirming(false);
                     navigate("/ai-design?step=confirm");
                   }, 1000);
@@ -5481,7 +6064,7 @@ const AIDesign = () => {
             </Snackbar>
           </motion.div>
         );
-      case 6:
+      case 7:
         return (
           <motion.div
             className="max-w-7xl mx-auto"
@@ -5934,9 +6517,9 @@ const AIDesign = () => {
                   }
 
                   if (generatedImage) {
-                    setCurrentStep(5);
+                    setCurrentStep(6);
                   } else {
-                    setCurrentStep(4.5);
+                    setCurrentStep(5);
                   }
                 }}
                 className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all"
@@ -6014,8 +6597,8 @@ const AIDesign = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-animated py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-gradient-animated px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto py-8">
         <StepIndicator
           steps={steps}
           currentStep={currentStep}
@@ -6043,7 +6626,7 @@ const AIDesign = () => {
               </h3>
             </div>
             <p className="text-gray-300 max-w-md">
-              {currentStep === 4.5
+              {currentStep === 5
                 ? "Hệ thống AI đang tạo các bản thiết kế dựa trên mẫu bạn đã chọn. Vui lòng đợi trong giây lát..."
                 : "Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát..."}
             </p>
