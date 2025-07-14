@@ -90,6 +90,32 @@ const TicketManager = () => {
     });
   };
 
+  // Map trạng thái sang tiếng Việt và màu
+  const getStatusDisplay = (status) => {
+    switch (status) {
+      case "OPEN":
+        return "CHỜ XỬ LÍ";
+      case "IN_PROGRESS":
+        return "ĐANG XỬ LÍ";
+      case "CLOSED":
+        return "ĐÃ XỬ LÍ";
+      default:
+        return status;
+    }
+  };
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "OPEN":
+        return "primary";
+      case "IN_PROGRESS":
+        return "warning";
+      case "CLOSED":
+        return "success";
+      default:
+        return "default";
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h5" fontWeight="bold" mb={2}>
@@ -137,14 +163,9 @@ const TicketManager = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={ticket.status}
-                          color={
-                            ticket.status === "OPEN"
-                              ? "success"
-                              : ticket.status === "IN_PROGRESS"
-                              ? "warning"
-                              : "default"
-                          }
+                          label={getStatusDisplay(ticket.status)}
+                          color={getStatusColor(ticket.status)}
+                          size="small"
                         />
                       </TableCell>
                       <TableCell>{ticket.customer?.fullName}</TableCell>
@@ -212,7 +233,12 @@ const TicketManager = () => {
                 <b>Mức độ:</b> {currentTicket.severity}
               </Typography>
               <Typography>
-                <b>Trạng thái:</b> {currentTicket.status}
+                <b>Trạng thái:</b>{" "}
+                <Chip
+                  label={getStatusDisplay(currentTicket.status)}
+                  color={getStatusColor(currentTicket.status)}
+                  sx={{ mt: 0.5, fontWeight: 600 }}
+                />
               </Typography>
               <Typography>
                 <b>Khách hàng:</b> {currentTicket.customer?.fullName}

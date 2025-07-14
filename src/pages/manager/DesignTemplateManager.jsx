@@ -60,12 +60,7 @@ import {
   selectAllProductTypes,
   selectProductTypeStatus,
 } from "../../store/features/productType/productTypeSlice";
-import {
-  fetchImageFromS3,
-  uploadImageToS3,
-  removeImage,
-} from "../../store/features/s3/s3Slice";
-import { v4 as uuidv4 } from "uuid";
+import { fetchImageFromS3, removeImage } from "../../store/features/s3/s3Slice";
 
 // Component quản lý Design Template cho Manager
 const DesignTemplateManager = () => {
@@ -222,20 +217,8 @@ const DesignTemplateManager = () => {
       setFormError("Vui lòng nhập tên mẫu và chọn loại sản phẩm.");
       return;
     }
-    let imageKey = "";
     if (formMode === "create") {
-      // Tạo mới
-      if (imageFile) {
-        const keyName = `design-template/${uuidv4()}/${imageFile.name}`;
-        try {
-          imageKey = await dispatch(
-            uploadImageToS3({ file: imageFile, keyName })
-          ).unwrap();
-        } catch (err) {
-          setFormError(err || "Upload ảnh thất bại");
-          return;
-        }
-      }
+      // Tạo mới chỉ gửi thông tin, không upload ảnh S3 phía FE
       const {
         name,
         description,
@@ -255,7 +238,7 @@ const DesignTemplateManager = () => {
             width,
             height,
             isAvailable,
-            image: imageKey,
+            // image: imageKey, // Không truyền image FE upload nữa
           },
         })
       );

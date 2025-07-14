@@ -44,17 +44,36 @@ import {
   selectDeliveryError,
 } from "../../store/features/ticket/ticketSlice";
 
-const statusMap = {
-  OPEN: { label: "Mới", color: "warning" },
-  IN_PROGRESS: { label: "Đang xử lý", color: "info" },
-  RESOLVED: { label: "Đã xử lý", color: "success" },
-  CLOSED: { label: "Đã đóng", color: "default" },
+// Map trạng thái sang tiếng Việt và màu
+const getStatusDisplay = (status) => {
+  switch (status) {
+    case "OPEN":
+      return "CHỜ XỬ LÍ";
+    case "IN_PROGRESS":
+      return "ĐANG XỬ LÍ";
+    case "CLOSED":
+      return "ĐÃ XỬ LÍ";
+    default:
+      return status;
+  }
+};
+const getStatusColor = (status) => {
+  switch (status) {
+    case "OPEN":
+      return "primary";
+    case "IN_PROGRESS":
+      return "warning";
+    case "CLOSED":
+      return "success";
+    default:
+      return "default";
+  }
 };
 
 const statusOptions = [
-  { value: "OPEN", label: "Mới" },
-  { value: "IN_PROGRESS", label: "Đang xử lý" },
-  { value: "CLOSED", label: "Đã đóng" },
+  { value: "OPEN", label: "CHỜ XỬ LÍ" },
+  { value: "IN_PROGRESS", label: "ĐANG XỬ LÍ" },
+  { value: "CLOSED", label: "ĐÃ XỬ LÍ" },
 ];
 
 const TicketManager = () => {
@@ -200,8 +219,8 @@ const TicketManager = () => {
                   <TableCell>{tk.title || tk.type}</TableCell>
                   <TableCell>
                     <Chip
-                      label={statusMap[tk.status]?.label || tk.status}
-                      color={statusMap[tk.status]?.color || "default"}
+                      label={getStatusDisplay(tk.status)}
+                      color={getStatusColor(tk.status)}
                       size="small"
                     />
                   </TableCell>
@@ -268,11 +287,9 @@ const TicketManager = () => {
               </Typography>
               <Box mt={1}>
                 <Chip
-                  label={
-                    statusMap[ticketDetail.status]?.label || ticketDetail.status
-                  }
-                  color={statusMap[ticketDetail.status]?.color || "default"}
-                  size="small"
+                  label={getStatusDisplay(ticketDetail.status)}
+                  color={getStatusColor(ticketDetail.status)}
+                  sx={{ mt: 0.5, fontWeight: 600 }}
                 />
               </Box>
               <Typography mt={1}>
