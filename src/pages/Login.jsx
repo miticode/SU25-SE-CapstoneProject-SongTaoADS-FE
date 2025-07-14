@@ -57,7 +57,9 @@ const Login = () => {
 
     try {
       localStorage.removeItem("accessToken");
+
       const result = await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
+
 
       console.log('Login result:', result); // Debug log
 

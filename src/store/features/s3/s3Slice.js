@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getImageFromS3 } from '../../../api/s3Service';
 
+
 // Thunk to get image from S3
 export const fetchImageFromS3 = createAsyncThunk(
   's3/fetchImage',

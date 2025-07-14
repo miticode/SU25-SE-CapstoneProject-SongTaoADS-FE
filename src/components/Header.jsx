@@ -63,7 +63,7 @@ export default function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 relative transition-all duration-500 ${
+      className={`sticky top-0 z-40 relative transition-all duration-500 ${
         isScrolled
           ? "shadow-xl bg-white/95 backdrop-blur-lg border-b border-gray-100"
           : "bg-gradient-to-r from-[#f8f9fa] via-[#ffffff] to-[#f1f5f9]"
@@ -77,7 +77,8 @@ export default function Header() {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse"></div>
         <FaBell className="mr-3 text-yellow-300 animate-bounce" />
         <span className="font-semibold tracking-wide relative z-10">
-           Khám phá sức mạnh của AI trong quảng cáo – Tạo thiết kế chuyên nghiệp ngay hôm nay!
+          Khám phá sức mạnh của AI trong quảng cáo – Tạo thiết kế chuyên nghiệp
+          ngay hôm nay!
         </span>
       </div>
 
@@ -95,7 +96,9 @@ export default function Header() {
             <span className="font-black text-transparent text-2xl bg-clip-text bg-gradient-to-r from-[#2B2F4A] via-[#3B4164] to-[#2B2F4A] hover:from-[#3B4164] hover:to-[#2B2F4A] transition-all duration-300">
               Song Tạo ADS
             </span>
-            <div className="text-xs text-gray-500 font-medium">AI Marketing Platform</div>
+            <div className="text-xs text-gray-500 font-medium">
+              AI Marketing Platform
+            </div>
           </div>
         </div>
 
