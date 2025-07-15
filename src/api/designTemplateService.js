@@ -59,10 +59,32 @@ export const fetchDesignTemplatesByProductTypeIdApi = async (productTypeId) => {
 // Tạo thiết kế mẫu mới cho loại sản phẩm
 export const createDesignTemplateApi = async (productTypeId, templateData) => {
   try {
+    // Tạo FormData để gửi multipart/form-data
+    const formData = new FormData();
+    
+    // Thêm các trường dữ liệu vào FormData
+    if (templateData.name) formData.append('name', templateData.name);
+    if (templateData.description) formData.append('description', templateData.description);
+    if (templateData.negativePrompt) formData.append('negativePrompt', templateData.negativePrompt);
+    if (templateData.width) formData.append('width', templateData.width);
+    if (templateData.height) formData.append('height', templateData.height);
+    if (templateData.isAvailable !== undefined) formData.append('isAvailable', templateData.isAvailable);
+    
+    // Thêm file hình ảnh nếu có
+    if (templateData.designTemplateImage) {
+      formData.append('designTemplateImage', templateData.designTemplateImage);
+    }
+    
     const response = await designTemplateService.post(
       `/api/product-types/${productTypeId}/design-templates`,
-      templateData
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
     );
+    
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };
@@ -162,9 +184,10 @@ export const fetchDesignTemplateByIdApi = async (designTemplateId) => {
 export const deleteDesignTemplateByIdApi = async (designTemplateId) => {
   try {
     const response = await designTemplateService.delete(`/api/design-templates/${designTemplateId}`);
-    const { success, result, message } = response.data;
+    const { success, message } = response.data;
     if (success) {
-      return { success: true, data: result };
+      // API delete chỉ trả về success message, không có result object
+      return { success: true, data: { id: designTemplateId } };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
