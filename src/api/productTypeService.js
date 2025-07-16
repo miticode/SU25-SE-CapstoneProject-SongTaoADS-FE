@@ -107,7 +107,10 @@ export const getProductTypeSizesByProductTypeIdApi = async (productTypeId) => {
         sizes: item.sizes, // Giữ nguyên cấu trúc sizes object
         // Thêm các field để tương thích với code hiện tại
         sizeId: item.sizes?.id,
-        sizeName: item.sizes?.name
+        sizeName: item.sizes?.name,
+        // ✅ QUAN TRỌNG: Thêm minValue và maxValue từ API response
+        minValue: item.minValue,
+        maxValue: item.maxValue
       }));
       
       console.log('Processed product type sizes:', processedData);
