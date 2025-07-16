@@ -148,6 +148,10 @@ const designTemplateSlice = createSlice({
     // Clear selected template
     clearSelectedTemplate: (state) => {
       state.selectedTemplate = null;
+    },
+    // Optimistic delete - xóa template ngay lập tức khỏi state
+    removeDesignTemplateOptimistically: (state, action) => {
+      state.designTemplates = state.designTemplates.filter(t => t.id !== action.payload);
     }
   },
   extraReducers: (builder) => {
@@ -238,9 +242,10 @@ const designTemplateSlice = createSlice({
       .addCase(deleteDesignTemplateById.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(deleteDesignTemplateById.fulfilled, (state, action) => {
+      .addCase(deleteDesignTemplateById.fulfilled, (state) => {
         state.status = 'succeeded';
-        state.designTemplates = state.designTemplates.filter(t => t.id !== action.payload.id);
+        // Không cần xử lý thêm vì đã dùng optimistic update
+        // Template đã được xóa khỏi state trước đó
         state.error = null;
       })
       .addCase(deleteDesignTemplateById.rejected, (state, action) => {
@@ -254,7 +259,8 @@ const designTemplateSlice = createSlice({
 export const {
   resetDesignTemplateStatus,
   setSelectedTemplate,
-  clearSelectedTemplate
+  clearSelectedTemplate,
+  removeDesignTemplateOptimistically
 } = designTemplateSlice.actions;
 
 // Export selectors

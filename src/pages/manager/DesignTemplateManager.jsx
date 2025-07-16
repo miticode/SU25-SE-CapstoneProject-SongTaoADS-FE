@@ -50,6 +50,7 @@ import {
   updateDesignTemplateInfo,
   updateDesignTemplateImage,
   deleteDesignTemplateById,
+  removeDesignTemplateOptimistically,
   selectAllDesignTemplates,
   selectDesignTemplateStatus,
   selectDesignTemplateError,
@@ -84,8 +85,8 @@ const DesignTemplateManager = () => {
     name: "",
     description: "",
     negativePrompt: "",
-    width: 512,
-    height: 512,
+    width: 1073741824,
+    height: 1073741824,
     isAvailable: true,
     productTypeId: "",
     image: null,
@@ -151,8 +152,8 @@ const DesignTemplateManager = () => {
       name: "",
       description: "",
       negativePrompt: "",
-      width: 512,
-      height: 512,
+      width: 1073741824,
+      height: 1073741824,
       isAvailable: true,
       productTypeId: "",
       image: null,
@@ -218,7 +219,7 @@ const DesignTemplateManager = () => {
       return;
     }
     if (formMode === "create") {
-      // Tạo mới chỉ gửi thông tin, không upload ảnh S3 phía FE
+      // Tạo mới với API mới - gửi multipart/form-data
       const {
         name,
         description,
@@ -228,23 +229,31 @@ const DesignTemplateManager = () => {
         isAvailable,
         productTypeId,
       } = formData;
+
+      const templateData = {
+        name,
+        description,
+        negativePrompt,
+        width,
+        height,
+        isAvailable,
+        designTemplateImage: imageFile, // Thêm file hình ảnh vào dữ liệu
+      };
+
       const res = await dispatch(
         createDesignTemplate({
           productTypeId,
-          templateData: {
-            name,
-            description,
-            negativePrompt,
-            width,
-            height,
-            isAvailable,
-            // image: imageKey, // Không truyền image FE upload nữa
-          },
+          templateData,
         })
       );
       if (res.meta.requestStatus === "fulfilled") {
         setOpenForm(false);
-        // KHÔNG gọi lại fetchAllDesignTemplates ở đây để tránh mất template mới do phân trang
+        // Refresh danh sách để hiển thị template mới
+        if (selectedProductType === "all") {
+          dispatch(fetchAllDesignTemplates());
+        } else {
+          dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
+        }
       } else {
         setFormError(res.payload || "Tạo mẫu thất bại");
       }
@@ -282,7 +291,12 @@ const DesignTemplateManager = () => {
           }
         }
         setOpenForm(false);
-        dispatch(fetchAllDesignTemplates());
+        // Refresh danh sách
+        if (selectedProductType === "all") {
+          dispatch(fetchAllDesignTemplates());
+        } else {
+          dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
+        }
       } else {
         setFormError(updateRes.payload || "Cập nhật thất bại");
       }
@@ -292,11 +306,19 @@ const DesignTemplateManager = () => {
   // Xử lý xóa
   const handleDelete = async () => {
     setOpenDelete(false);
-    const res = await dispatch(deleteDesignTemplateById(formData.id));
-    if (res.meta.requestStatus === "fulfilled") {
-      dispatch(fetchAllDesignTemplates());
-    } else {
-      // Có thể show alert/toast lỗi ở ngoài nếu muốn
+    const templateId = formData.id;
+
+    // Optimistic update - xóa ngay lập tức khỏi UI
+    dispatch(removeDesignTemplateOptimistically(templateId));
+
+    const res = await dispatch(deleteDesignTemplateById(templateId));
+    if (res.meta.requestStatus === "rejected") {
+      // Nếu xóa thất bại, refresh lại danh sách để khôi phục
+      if (selectedProductType === "all") {
+        dispatch(fetchAllDesignTemplates());
+      } else {
+        dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
+      }
     }
   };
 
