@@ -1698,7 +1698,7 @@ const AIDesign = () => {
     "UTM DuepuntozeroBold",
     "UTM EdwardianB",
   ];
-  const fetchDesignTemplateImage = async (template) => {
+  const fetchDesignTemplateImage = useCallback(async (template) => {
     if (
       designTemplateImageUrls[template.id] ||
       loadingDesignTemplateUrls[template.id]
@@ -1759,7 +1759,7 @@ const AIDesign = () => {
         [template.id]: false,
       }));
     }
-  };
+  }, [designTemplateImageUrls, loadingDesignTemplateUrls]);
 
   useEffect(() => {
     if (designTemplates && designTemplates.length > 0) {
@@ -1782,18 +1782,26 @@ const AIDesign = () => {
         }
       });
     }
-  }, [designTemplates, designTemplateImageUrls]);
+  }, [designTemplates, designTemplateImageUrls, fetchDesignTemplateImage]);
 
-  // ✅ THÊM cleanup useEffect
+  // Force refetch design template images when returning to step 5
   useEffect(() => {
-    return () => {
-      Object.values(designTemplateImageUrls).forEach((url) => {
-        if (url && url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
+    if (
+      currentStep === 5 &&
+      designTemplates &&
+      designTemplates.length > 0 &&
+      Object.keys(designTemplateImageUrls).length === 0
+    ) {
+      console.log("🔄 Force refetching design template images on return to step 5");
+      designTemplates.forEach((template) => {
+        if (template.image) {
+          console.log("📥 Force fetching image for template:", template.id);
+          fetchDesignTemplateImage(template);
         }
       });
-    };
-  }, [designTemplateImageUrls]);
+    }
+  }, [currentStep, designTemplates, designTemplateImageUrls, fetchDesignTemplateImage]);
+
   const handleIconLoadError = async (icon, retryCount = 0) => {
     if (retryCount >= 2) {
       console.log(`Max retries reached for icon ${icon.id}`);
@@ -2563,35 +2571,50 @@ const AIDesign = () => {
     backgroundPresignedUrls,
     loadingBackgroundUrls,
   ]);
+  // ✅ Use refs to track blob URLs for cleanup
+  const backgroundUrlsRef = useRef({});
+  const designTemplateUrlsRef = useRef({});
+  
+  // Update refs when URLs change
+  useEffect(() => {
+    backgroundUrlsRef.current = backgroundPresignedUrls;
+  }, [backgroundPresignedUrls]);
+  
+  useEffect(() => {
+    designTemplateUrlsRef.current = designTemplateImageUrls;
+  }, [designTemplateImageUrls]);
+
   useEffect(() => {
     return () => {
-      // Cleanup presigned URLs khi component unmount
-      Object.values(backgroundPresignedUrls).forEach((url) => {
+      // ✅ Only cleanup on component unmount - revoke all blob URLs
+      console.log("🧹 Component unmounting, cleaning up all blob URLs");
+      
+      Object.values(backgroundUrlsRef.current).forEach((url) => {
         if (url && url.startsWith("blob:")) {
+          console.log("🧹 Revoking background blob URL:", url);
+          URL.revokeObjectURL(url);
+        }
+      });
+      
+      Object.values(designTemplateUrlsRef.current).forEach((url) => {
+        if (url && url.startsWith("blob:")) {
+          console.log("🧹 Revoking design template blob URL:", url);
           URL.revokeObjectURL(url);
         }
       });
     };
-  }, []);
+  }, []); // Empty dependency array = only run on unmount
   // Use ref to track previous step to avoid infinite loops
   const prevStepRef = useRef(currentStep);
 
   useEffect(() => {
     if (prevStepRef.current === 5 && currentStep !== 5) {
-      // Cleanup blob URLs when leaving step 5 to prevent memory leaks
-      Object.values(backgroundPresignedUrls).forEach((url) => {
-        if (url && url.startsWith("blob:")) {
-          console.log("🧹 Revoking blob URL:", url);
-          URL.revokeObjectURL(url);
-        }
-      });
-
-      // Reset states when leaving step 5
+      // ✅ ONLY reset retry attempts when leaving step 5, but keep URLs cached
       setBackgroundRetryAttempts({});
-      setBackgroundPresignedUrls({});
+      console.log("🔄 Left step 5, clearing retry attempts but keeping blob URLs cached");
     }
     prevStepRef.current = currentStep;
-  }, [currentStep, backgroundPresignedUrls]);
+  }, [currentStep]);
   useEffect(() => {
     if (currentStep === 7 && user?.id) {
       // Fetch customer detail để lấy business info
