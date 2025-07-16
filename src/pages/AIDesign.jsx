@@ -252,33 +252,71 @@ const ModernBillboardForm = ({
     setIsEditingSizes(true);
   };
 
-  // Thêm hàm xử lý thay đổi giá trị kích thước đang chỉnh sửa
+  // Thêm hàm xử lý thay đổi giá trị kích thước đang chỉnh sửa với validation
   const handleSizeEditChange = (sizeId, value) => {
     setEditedSizes((prev) => ({
       ...prev,
       [sizeId]: value,
     }));
+
+    // Real-time validation với đúng thuộc tính từ API
+    const ptSize = productTypeSizes.find(size => size.sizes?.id === sizeId);
+    if (ptSize && value) {
+      const numValue = parseFloat(value);
+      const fieldName = `size_${sizeId}`;
+      const minValue = ptSize.minValue; // Đọc trực tiếp từ ptSize
+      const maxValue = ptSize.maxValue; // Đọc trực tiếp từ ptSize
+      const sizeName = ptSize.sizes?.name || "Kích thước";
+      
+      if (!isNaN(numValue)) {
+        if (numValue < minValue) {
+          setValidationErrors(prev => ({
+            ...prev,
+            [fieldName]: `${sizeName} phải ≥ ${minValue}m`
+          }));
+        } else if (numValue > maxValue) {
+          setValidationErrors(prev => ({
+            ...prev,
+            [fieldName]: `${sizeName} phải ≤ ${maxValue}m`
+          }));
+        } else {
+          setValidationErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+          });
+        }
+      }
+    }
   };
 
-  // Thêm hàm xử lý cập nhật tất cả kích thước
+  // Thêm hàm xử lý cập nhật tất cả kích thước với validation min/max
   const handleUpdateAllSizes = async () => {
     try {
-      // Validate các giá trị đã nhập
+      // Validate các giá trị đã nhập với min/max từ đúng thuộc tính
       let hasErrors = false;
       const newValidationErrors = {};
 
       for (const ptSize of productTypeSizes) {
         const sizeId = ptSize.sizes?.id; // Thêm optional chaining
-        if (
-          !editedSizes[sizeId] ||
-          isNaN(editedSizes[sizeId]) ||
-          parseFloat(editedSizes[sizeId]) <= 0
-        ) {
+        const value = editedSizes[sizeId];
+        const minValue = ptSize.minValue; // Đọc trực tiếp từ ptSize
+        const maxValue = ptSize.maxValue; // Đọc trực tiếp từ ptSize
+        const sizeName = ptSize.sizes?.name || "Kích thước";
+        const fieldName = `size_${sizeId}`;
+
+        if (!value || isNaN(parseFloat(value)) || parseFloat(value) <= 0) {
           hasErrors = true;
-          const fieldName = `size_${sizeId}`;
-          newValidationErrors[
-            fieldName
-          ] = `Kích thước "${ptSize.sizes?.name}" phải lớn hơn 0`;
+          newValidationErrors[fieldName] = `${sizeName} phải lớn hơn 0`;
+        } else {
+          const numValue = parseFloat(value);
+          if (numValue < minValue) {
+            hasErrors = true;
+            newValidationErrors[fieldName] = `${sizeName} phải ≥ ${minValue}m`;
+          } else if (numValue > maxValue) {
+            hasErrors = true;
+            newValidationErrors[fieldName] = `${sizeName} phải ≤ ${maxValue}m`;
+          }
         }
       }
 
@@ -497,7 +535,19 @@ const ModernBillboardForm = ({
   // Separate effect for fetching product type sizes
   useEffect(() => {
     if (productTypeId) {
-      dispatch(fetchProductTypeSizesByProductTypeId(productTypeId));
+      dispatch(fetchProductTypeSizesByProductTypeId(productTypeId))
+        .unwrap()
+        .then((data) => {
+          console.log("🔍 Product Type Sizes API Response:", data);
+          if (data && data.length > 0) {
+            console.log("🔍 First size object structure:", data[0]);
+            console.log("🔍 MinValue:", data[0].minValue);
+            console.log("🔍 MaxValue:", data[0].maxValue);
+          }
+        })
+        .catch((error) => {
+          console.error("❌ Failed to fetch product type sizes:", error);
+        });
     }
   }, [productTypeId, dispatch]);
 
@@ -551,6 +601,33 @@ const ModernBillboardForm = ({
         ...prev,
         [name]: null,
       }));
+    }
+
+    // Thêm real-time validation cho size fields
+    if (name.startsWith('size_') && value) {
+      const sizeId = name.replace('size_', '');
+      const ptSize = productTypeSizes.find(size => size.sizes?.id === sizeId);
+      
+      if (ptSize) {
+        const numValue = parseFloat(value);
+        const minValue = ptSize.minValue;
+        const maxValue = ptSize.maxValue;
+        const sizeName = ptSize.sizes?.name || "Kích thước";
+        
+        if (!isNaN(numValue)) {
+          if (numValue < minValue) {
+            setValidationErrors(prev => ({
+              ...prev,
+              [name]: `${sizeName} phải ≥ ${minValue}m`
+            }));
+          } else if (numValue > maxValue) {
+            setValidationErrors(prev => ({
+              ...prev,
+              [name]: `${sizeName} phải ≤ ${maxValue}m`
+            }));
+          }
+        }
+      }
     }
 
     // Xử lý thay đổi thuộc tính nếu có customerChoiceId
@@ -635,29 +712,45 @@ const ModernBillboardForm = ({
   };
 
   const handleConfirmSizes = async () => {
-    // Validate that size values are entered
+    // Validate that size values are entered với đúng thuộc tính từ API
     const sizeInputs = {};
     let hasErrors = false;
+    const validationErrors = {};
 
-    // Check all size fields
+    // Check all size fields with min/max validation
     for (const ptSize of productTypeSizes) {
       const fieldName = `size_${ptSize.sizes?.id}`; // Thêm optional chaining
       const value = formData[fieldName];
+      const minValue = ptSize.minValue; // Đọc trực tiếp từ ptSize
+      const maxValue = ptSize.maxValue; // Đọc trực tiếp từ ptSize
+      const sizeName = ptSize.sizes?.name || "Kích thước";
 
       if (!value) {
         hasErrors = true;
-        setSizeValidationError("Vui lòng nhập đầy đủ thông tin kích thước");
-        return;
+        validationErrors[fieldName] = "Vui lòng nhập giá trị kích thước";
       } else {
         const numValue = parseFloat(value);
         if (isNaN(numValue)) {
           hasErrors = true;
-          setSizeValidationError("Giá trị kích thước không hợp lệ");
-          return;
+          validationErrors[fieldName] = "Giá trị kích thước không hợp lệ";
+        } else if (numValue < minValue) {
+          hasErrors = true;
+          validationErrors[fieldName] = `${sizeName} phải ≥ ${minValue}m`;
+        } else if (numValue > maxValue) {
+          hasErrors = true;
+          validationErrors[fieldName] = `${sizeName} phải ≤ ${maxValue}m`;
         } else {
           sizeInputs[ptSize.sizes?.id] = numValue; // Thêm optional chaining
         }
       }
+    }
+
+    // Update validation errors state
+    setValidationErrors(validationErrors);
+
+    if (hasErrors) {
+      setSizeValidationError("Vui lòng kiểm tra lại các giá trị kích thước");
+      return;
     }
 
     if (hasErrors) {
@@ -912,9 +1005,16 @@ const ModernBillboardForm = ({
                         }
                         disabled={sizesConfirmed && !isEditingSizes}
                         error={!!validationErrors[fieldName]}
-                        helperText={validationErrors[fieldName]}
+                        helperText={
+                          validationErrors[fieldName] || 
+                          `Khoảng: ${ptSize.minValue || 'N/A'}m - ${ptSize.maxValue || 'N/A'}m`
+                        }
                         InputProps={{
-                          inputProps: { min: 0, step: 0.01 },
+                          inputProps: { 
+                            min: ptSize.minValue, 
+                            max: ptSize.maxValue, 
+                            step: 0.01 
+                          },
                           startAdornment: (
                             <span className="text-gray-400 mr-1 text-xs">
                               #
