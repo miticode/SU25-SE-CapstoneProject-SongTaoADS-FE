@@ -1,9 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import "../styles/fonts.css";
 import StepIndicator from "../components/StepIndicator";
+import WelcomePage from "../components/AIDesign/WelcomePage";
+import BusinessInfoForm from "../components/AIDesign/BusinessInfoForm";
+import ProductTypeSelection from "../components/AIDesign/ProductTypeSelection";
+import BillboardInfoForm from "../components/AIDesign/BillboardInfoForm";
+import TemplateBackgroundSelection from "../components/AIDesign/TemplateBackgroundSelection";
+import DesignPreview from "../components/AIDesign/DesignPreview";
+import DesignEditor from "../components/AIDesign/DesignEditor";
 import {
   TextField,
   MenuItem,
@@ -24,10 +31,10 @@ import {
   FaCheck,
   FaRedo,
   FaCheckCircle,
-  FaRobot,
   FaEdit,
   FaSave,
   FaTimes,
+  FaRobot,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -2242,121 +2249,85 @@ const AIDesign = () => {
       ? selectS3Image(state, businessPresets.logoUrl)
       : null
   );
-  const fetchBackgroundPresignedUrl = async (backgroundId, backgroundUrl) => {
-    // ✅ KIỂM TRA TRÙNG LẶP REQUEST
-    if (
-      backgroundPresignedUrls[backgroundId] ||
-      loadingBackgroundUrls[backgroundId]
-    ) {
-      console.log(`⏭️ Background ${backgroundId} already loading or loaded`);
-      return;
-    }
+  const fetchBackgroundPresignedUrl = useCallback(
+    async (backgroundId, backgroundUrl) => {
+      // ✅ KIỂM TRA TRÙNG LẶP REQUEST
+      if (
+        backgroundPresignedUrls[backgroundId] ||
+        loadingBackgroundUrls[backgroundId]
+      ) {
+        console.log(`⏭️ Background ${backgroundId} already loading or loaded`);
+        return;
+      }
 
-    const currentRetries = backgroundRetryAttempts[backgroundId] || 0;
-    if (currentRetries >= 3) {
-      console.warn(`❌ Max retries reached for background ${backgroundId}`);
-      setBackgroundPresignedUrls((prev) => ({
-        ...prev,
-        [backgroundId]: null,
-      }));
-      return;
-    }
-
-    try {
-      setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: true }));
-
-      console.log(
-        `🔄 Fetching background ${backgroundId} via getImageFromS3 (attempt ${
-          currentRetries + 1
-        }):`,
-        backgroundUrl
-      );
-
-      // ✅ THÊM TIMEOUT CHO REQUEST
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const currentRetries = backgroundRetryAttempts[backgroundId] || 0;
+      if (currentRetries >= 3) {
+        console.warn(`❌ Max retries reached for background ${backgroundId}`);
+        setBackgroundPresignedUrls((prev) => ({
+          ...prev,
+          [backgroundId]: null,
+        }));
+        return;
+      }
 
       try {
-        const s3Result = await getImageFromS3(backgroundUrl, controller.signal);
-        clearTimeout(timeoutId);
+        setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: true }));
 
-        if (s3Result.success && s3Result.imageUrl) {
-          // ✅ CẢI THIỆN VALIDATION
-          if (s3Result.imageUrl.startsWith("blob:")) {
-            try {
-              // Thử tạo Image object để test blob URL
-              const testImg = new Image();
-              const validationPromise = new Promise((resolve, reject) => {
-                testImg.onload = () => resolve(true);
-                testImg.onerror = () => reject(new Error("Invalid blob URL"));
-                setTimeout(
-                  () => reject(new Error("Blob validation timeout")),
-                  5000
-                );
-              });
-
-              testImg.src = s3Result.imageUrl;
-              await validationPromise;
-
-              console.log(
-                `✅ Blob URL validated successfully for background ${backgroundId}`
-              );
-            } catch (validationError) {
-              console.error(
-                `❌ Blob URL validation failed for background ${backgroundId}:`,
-                validationError
-              );
-              throw new Error("Blob URL validation failed");
-            }
-          }
-
-          setBackgroundPresignedUrls((prev) => ({
-            ...prev,
-            [backgroundId]: s3Result.imageUrl,
-          }));
-
-          console.log(
-            `✅ Background ${backgroundId} fetched and validated successfully`
-          );
-
-          // Reset retry count on success
-          setBackgroundRetryAttempts((prev) => ({
-            ...prev,
-            [backgroundId]: 0,
-          }));
-        } else {
-          throw new Error(s3Result.message || "S3 API failed");
-        }
-      } catch (error) {
-        clearTimeout(timeoutId);
-        throw fetchError;
-      }
-    } catch (error) {
-      console.error(`💥 Error fetching background ${backgroundId}:`, error);
-
-      // ✅ TĂNG retry count
-      const newRetryCount = currentRetries + 1;
-      setBackgroundRetryAttempts((prev) => ({
-        ...prev,
-        [backgroundId]: newRetryCount,
-      }));
-
-      // ✅ CHỈ THỬ FALLBACK NẾU CHƯA QUÁ 2 LẦN
-      if (newRetryCount <= 2) {
         console.log(
-          `🔄 Trying fallback presigned URL (attempt ${newRetryCount})...`
+          `🔄 Fetching background ${backgroundId} via getImageFromS3 (attempt ${
+            currentRetries + 1
+          }):`,
+          backgroundUrl
         );
 
-        try {
-          const presignedResult = await getPresignedUrl(backgroundUrl, 60);
+        // ✅ THÊM TIMEOUT CHO REQUEST
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-          if (presignedResult.success && presignedResult.url) {
+        try {
+          const s3Result = await getImageFromS3(
+            backgroundUrl,
+            controller.signal
+          );
+          clearTimeout(timeoutId);
+
+          if (s3Result.success && s3Result.imageUrl) {
+            // ✅ CẢI THIỆN VALIDATION
+            if (s3Result.imageUrl.startsWith("blob:")) {
+              try {
+                // Thử tạo Image object để test blob URL
+                const testImg = new Image();
+                const validationPromise = new Promise((resolve, reject) => {
+                  testImg.onload = () => resolve(true);
+                  testImg.onerror = () => reject(new Error("Invalid blob URL"));
+                  setTimeout(
+                    () => reject(new Error("Blob validation timeout")),
+                    5000
+                  );
+                });
+
+                testImg.src = s3Result.imageUrl;
+                await validationPromise;
+
+                console.log(
+                  `✅ Blob URL validated successfully for background ${backgroundId}`
+                );
+              } catch (validationError) {
+                console.error(
+                  `❌ Blob URL validation failed for background ${backgroundId}:`,
+                  validationError
+                );
+                throw new Error("Blob URL validation failed");
+              }
+            }
+
             setBackgroundPresignedUrls((prev) => ({
               ...prev,
-              [backgroundId]: presignedResult.url,
+              [backgroundId]: s3Result.imageUrl,
             }));
+
             console.log(
-              `✅ Fallback presigned URL successful for background ${backgroundId}`
+              `✅ Background ${backgroundId} fetched and validated successfully`
             );
 
             // Reset retry count on success
@@ -2365,61 +2336,162 @@ const AIDesign = () => {
               [backgroundId]: 0,
             }));
           } else {
-            throw new Error("Presigned URL failed");
+            throw new Error(s3Result.message || "S3 API failed");
           }
-        } catch (presignedError) {
-          console.error(
-            `❌ Both S3 and presigned URL failed for background ${backgroundId}:`,
-            presignedError
+        } catch (error) {
+          clearTimeout(timeoutId);
+          throw error;
+        }
+      } catch (error) {
+        console.error(`💥 Error fetching background ${backgroundId}:`, error);
+
+        // ✅ TĂNG retry count
+        const newRetryCount = currentRetries + 1;
+        setBackgroundRetryAttempts((prev) => ({
+          ...prev,
+          [backgroundId]: newRetryCount,
+        }));
+
+        // ✅ CHỈ THỬ FALLBACK NẾU CHƯA QUÁ 2 LẦN
+        if (newRetryCount <= 2) {
+          console.log(
+            `🔄 Trying fallback presigned URL (attempt ${newRetryCount})...`
           );
 
-          // Mark as failed if this is the last attempt
-          if (newRetryCount >= 2) {
-            setBackgroundPresignedUrls((prev) => ({
-              ...prev,
-              [backgroundId]: null,
-            }));
+          try {
+            const presignedResult = await getPresignedUrl(backgroundUrl, 60);
+
+            if (presignedResult.success && presignedResult.url) {
+              setBackgroundPresignedUrls((prev) => ({
+                ...prev,
+                [backgroundId]: presignedResult.url,
+              }));
+              console.log(
+                `✅ Fallback presigned URL successful for background ${backgroundId}`
+              );
+
+              // Reset retry count on success
+              setBackgroundRetryAttempts((prev) => ({
+                ...prev,
+                [backgroundId]: 0,
+              }));
+            } else {
+              throw new Error("Presigned URL failed");
+            }
+          } catch (presignedError) {
+            console.error(
+              `❌ Both S3 and presigned URL failed for background ${backgroundId}:`,
+              presignedError
+            );
+
+            // Mark as failed if this is the last attempt
+            if (newRetryCount >= 2) {
+              setBackgroundPresignedUrls((prev) => ({
+                ...prev,
+                [backgroundId]: null,
+              }));
+            }
           }
+        } else {
+          // Mark as failed after max retries
+          setBackgroundPresignedUrls((prev) => ({
+            ...prev,
+            [backgroundId]: null,
+          }));
         }
-      } else {
-        // Mark as failed after max retries
-        setBackgroundPresignedUrls((prev) => ({
+      } finally {
+        setLoadingBackgroundUrls((prev) => ({
           ...prev,
-          [backgroundId]: null,
+          [backgroundId]: false,
         }));
       }
-    } finally {
-      setLoadingBackgroundUrls((prev) => ({ ...prev, [backgroundId]: false }));
-    }
-  };
+    },
+    [backgroundPresignedUrls, loadingBackgroundUrls, backgroundRetryAttempts]
+  );
   useEffect(() => {
     if (backgroundSuggestions && backgroundSuggestions.length > 0) {
       backgroundSuggestions.forEach((background) => {
         if (
           background.backgroundUrl &&
-          !backgroundPresignedUrls[background.id]
+          !backgroundPresignedUrls[background.id] &&
+          !loadingBackgroundUrls[background.id]
         ) {
+          console.log(
+            "🔄 Fetching presigned URL for background:",
+            background.id
+          );
           fetchBackgroundPresignedUrl(background.id, background.backgroundUrl);
         }
       });
     }
-  }, [backgroundSuggestions, backgroundPresignedUrls]);
+  }, [backgroundSuggestions, backgroundPresignedUrls, loadingBackgroundUrls]);
+
+  // Force refetch presigned URLs when returning to step 5
+  useEffect(() => {
+    if (
+      currentStep === 5 &&
+      backgroundSuggestions &&
+      backgroundSuggestions.length > 0
+    ) {
+      // Check if we need to refetch any URLs
+      const needsRefetch = backgroundSuggestions.some(
+        (background) =>
+          background.backgroundUrl &&
+          !backgroundPresignedUrls[background.id] &&
+          !loadingBackgroundUrls[background.id]
+      );
+
+      if (needsRefetch) {
+        console.log("🔄 Force refetching background URLs for step 5");
+        backgroundSuggestions.forEach((background) => {
+          if (
+            background.backgroundUrl &&
+            !backgroundPresignedUrls[background.id] &&
+            !loadingBackgroundUrls[background.id]
+          ) {
+            fetchBackgroundPresignedUrl(
+              background.id,
+              background.backgroundUrl
+            );
+          }
+        });
+      }
+    }
+  }, [
+    currentStep,
+    backgroundSuggestions,
+    backgroundPresignedUrls,
+    loadingBackgroundUrls,
+  ]);
   useEffect(() => {
     return () => {
       // Cleanup presigned URLs khi component unmount
       Object.values(backgroundPresignedUrls).forEach((url) => {
-        if (url.startsWith("blob:")) {
+        if (url && url.startsWith("blob:")) {
           URL.revokeObjectURL(url);
         }
       });
-      setBackgroundRetryAttempts({});
     };
-  }, [backgroundPresignedUrls]);
+  }, []);
+  // Use ref to track previous step to avoid infinite loops
+  const prevStepRef = useRef(currentStep);
+
   useEffect(() => {
-    if (currentStep !== 5) {
+    if (prevStepRef.current === 5 && currentStep !== 5) {
+      // Cleanup blob URLs when leaving step 5 to prevent memory leaks
+      Object.values(backgroundPresignedUrls).forEach((url) => {
+        if (url && url.startsWith("blob:")) {
+          console.log("🧹 Revoking blob URL:", url);
+          URL.revokeObjectURL(url);
+        }
+      });
+
+      // Reset states when leaving step 5
       setBackgroundRetryAttempts({});
+      setBackgroundPresignedUrls({});
     }
-  }, [currentStep]);
+    prevStepRef.current = currentStep;
+  }, [currentStep, backgroundPresignedUrls]);
   useEffect(() => {
     if (currentStep === 7 && user?.id) {
       // Fetch customer detail để lấy business info
@@ -2559,7 +2631,7 @@ const AIDesign = () => {
         });
         break;
 
-      case "logoUrl":
+      case "logoUrl": {
         console.log("Processing logo URL:", content);
         const logoSource = s3Logo || content;
         console.log("Using logo source:", logoSource);
@@ -2653,6 +2725,7 @@ const AIDesign = () => {
 
         img.src = logoSource;
         return;
+      }
 
       default:
         console.log("Unknown type:", type);
@@ -4499,2325 +4572,155 @@ const AIDesign = () => {
     switch (currentStep) {
       case 1:
         return (
-          <motion.div
-            className="relative flex items-center justify-center bg-gradient-to-br from-gray-50 to-white overflow-hidden"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-custom-primary/10 to-custom-secondary/10 rounded-full blur-3xl"></div>
-              <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-gradient-to-tr from-custom-secondary/5 to-custom-primary/5 rounded-full blur-3xl"></div>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-100/30 to-purple-100/30 rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative z-10 text-center max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              {/* AI Icon */}
-              <motion.div
-                className="inline-flex items-center justify-center w-20 h-20 bg-black rounded-2xl mb-8 shadow-2xl"
-                variants={itemVariants}
-                whileHover={{ scale: 1.1, rotate: 5 }}
-              >
-                <FaRobot className="w-10 h-10 text-white" />
-              </motion.div>
-
-              {/* Main Heading */}
-              <motion.h1
-                className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight"
-                variants={itemVariants}
-              >
-                <span className="bg-clip-text  bg-gradient-to-r from-custom-primary via-custom-secondary to-custom-primary bg-size-200 animate-gradient">
-                  Thiết kế quảng cáo
-                </span>
-                <br />
-                <span className="text-gray-800">với sức mạnh AI</span>
-              </motion.h1>
-
-              {/* Subtitle */}
-              <motion.p
-                className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-10 max-w-4xl mx-auto leading-relaxed"
-                variants={itemVariants}
-              >
-                Tạo ra những biển hiệu{" "}
-                <span className="text-custom-primary font-semibold">
-                  đẹp mắt
-                </span>
-                ,{" "}
-                <span className="text-custom-secondary font-semibold">
-                  chuyên nghiệp
-                </span>{" "}
-                chỉ trong{" "}
-                <span className="text-custom-primary font-semibold">
-                  vài phút
-                </span>{" "}
-                với công nghệ AI tiên tiến
-              </motion.p>
-
-              {/* Features Grid */}
-              <motion.div
-                className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto"
-                variants={containerVariants}
-              >
-                <motion.div
-                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
-                  variants={itemVariants}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">
-                    Nhanh chóng
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    Thiết kế hoàn thành trong vài phút
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
-                  variants={itemVariants}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">
-                    Thông minh
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    AI hiểu được ý tưởng của bạn
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300"
-                  variants={itemVariants}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                >
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">
-                    Chuyên nghiệp
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    Chất lượng thiết kế cao cấp
-                  </p>
-                </motion.div>
-              </motion.div>
-
-              {/* CTA Section */}
-              <motion.div className="space-y-6" variants={itemVariants}>
-                <motion.button
-                  onClick={() => {
-                    setCurrentStep(2);
-                    navigate("/ai-design?step=business");
-                  }}
-                  className="group relative inline-flex items-center justify-center px-12 py-4 text-lg font-semibold text-white bg-black rounded-2xl shadow-2xl hover:shadow-custom-primary/25 transition-all duration-300 overflow-hidden"
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-custom-secondary to-custom-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                  <span className="relative flex items-center">
-                    Bắt đầu thiết kế ngay
-                    <svg
-                      className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform duration-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
-                  </span>
-                </motion.button>
-
-                <motion.p
-                  className="text-sm text-gray-500"
-                  variants={itemVariants}
-                >
-                  ✨ Miễn phí tạo và xem trước thiết kế
-                </motion.p>
-              </motion.div>
-            </div>
-          </motion.div>
+          <WelcomePage
+            onGetStarted={() => {
+              setCurrentStep(2);
+              navigate("/ai-design?step=business");
+            }}
+          />
         );
 
       case 2:
         return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* Header Section */}
-            <motion.div className="text-center mb-10" variants={itemVariants}>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl mb-6 shadow-lg">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-4xl font-bold text-gray-800 mb-4">
-                Thông tin doanh nghiệp
-              </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Cung cấp thông tin để AI có thể tạo ra thiết kế phù hợp với
-                thương hiệu của bạn
-              </p>
-            </motion.div>
-
-            {/* Error Display */}
-            {customerError && (
-              <motion.div
-                className="mb-8 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg"
-                variants={itemVariants}
-              >
-                <div className="flex items-center">
-                  <svg
-                    className="w-5 h-5 text-red-400 mr-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <p className="text-red-700 font-medium">{customerError}</p>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Main Form */}
-            <motion.form
-              onSubmit={handleBusinessSubmit}
-              className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden"
-              variants={containerVariants}
-            >
-              <div className="p-8 md:p-10 space-y-8">
-                {/* Company Name */}
-                <motion.div variants={itemVariants}>
-                  <label
-                    htmlFor="companyName"
-                    className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-                  >
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                    Tên công ty
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      id="companyName"
-                      name="companyName"
-                      value={businessInfo.companyName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-gray-800 placeholder-gray-400"
-                      placeholder="VD: Công ty TNHH ABC"
-                      required
-                    />
-                    <svg
-                      className="absolute left-4 top-4 w-5 h-5 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
-                  </div>
-                </motion.div>
-
-                {/* Address */}
-                <motion.div variants={itemVariants}>
-                  <label
-                    htmlFor="address"
-                    className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-                  >
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                    Địa chỉ
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      id="address"
-                      name="address"
-                      value={businessInfo.address}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300 text-gray-800 placeholder-gray-400"
-                      placeholder="VD: 123 Đường ABC, Quận 1, TP.HCM"
-                      required
-                    />
-                    <svg
-                      className="absolute left-4 top-4 w-5 h-5 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  </div>
-                </motion.div>
-
-                {/* Contact Info */}
-                <motion.div variants={itemVariants}>
-                  <label
-                    htmlFor="contactInfo"
-                    className="flex items-center text-sm font-semibold text-gray-700 mb-3"
-                  >
-                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
-                    Thông tin liên hệ
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      id="contactInfo"
-                      name="contactInfo"
-                      value={businessInfo.contactInfo}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-4 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400"
-                      placeholder="VD: 0123.456.789 | email@company.com"
-                      required
-                    />
-                    <svg
-                      className="absolute left-4 top-4 w-5 h-5 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                      />
-                    </svg>
-                  </div>
-                </motion.div>
-
-                {/* Logo Upload Section */}
-                <motion.div variants={itemVariants}>
-                  <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
-                    Logo công ty
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-
-                  <div className="space-y-4">
-                    {/* Upload Area or Current Logo Display */}
-                    {!processedLogoUrl && !businessInfo.logoPreview ? (
-                      <div className="relative">
-                        <input
-                          type="file"
-                          id="customerDetailLogo"
-                          name="customerDetailLogo"
-                          accept="image/*"
-                          onChange={handleInputChange}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                          required={!customerDetail}
-                        />
-                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-400 hover:bg-orange-50 transition-all duration-300">
-                          <div className="flex flex-col items-center">
-                            <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4">
-                              <svg
-                                className="w-8 h-8 text-white"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                                />
-                              </svg>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                              Tải lên logo công ty
-                            </h3>
-                            <p className="text-gray-500 mb-4">
-                              Kéo thả file hoặc click để chọn
-                            </p>
-                            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all">
-                              <svg
-                                className="w-5 h-5 mr-2"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                              Chọn file
-                            </div>
-                            <p className="text-xs text-gray-400 mt-3">
-                              Hỗ trợ: JPG, PNG, GIF (Tối đa 5MB)
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
-                              <svg
-                                className="w-5 h-5 text-white"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-green-800">
-                                Logo đã sẵn sàng
-                              </h4>
-                              <p className="text-sm text-green-600">
-                                {businessInfo.logoPreview
-                                  ? "Logo mới đã được tải lên"
-                                  : "Sử dụng logo hiện có"}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setBusinessInfo((prev) => ({
-                                ...prev,
-                                logoPreview: "",
-                                customerDetailLogo: null,
-                              }));
-                              setProcessedLogoUrl("");
-                            }}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium bg-white px-3 py-1 rounded-lg shadow-sm hover:shadow-md transition-all"
-                          >
-                            Thay đổi
-                          </button>
-                        </div>
-
-                        {/* Logo Preview */}
-                        <div className="flex items-center space-x-4">
-                          <div className="w-20 h-20 bg-white rounded-xl shadow-md overflow-hidden border-2 border-gray-100">
-                            <img
-                              src={businessInfo.logoPreview || processedLogoUrl}
-                              alt="Logo Preview"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.error("Error loading logo:", e);
-                                if (
-                                  customerDetail?.logoUrl &&
-                                  !businessInfo.logoPreview
-                                ) {
-                                  const directApiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
-                                    customerDetail.logoUrl
-                                  )}`;
-                                  e.target.src = directApiUrl;
-                                } else {
-                                  e.target.src = "/placeholder-logo.png";
-                                }
-                              }}
-                            />
-                          </div>
-                          {businessInfo.logoPreview && (
-                            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
-                              Mới
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="bg-gray-50 px-8 md:px-10 py-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
-                <motion.button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(1);
-                    navigate("/ai-design");
-                  }}
-                  className="w-full sm:w-auto px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 hover:border-gray-400 transition-all duration-300 flex items-center justify-center"
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={customerStatus === "loading"}
-                >
-                  <svg
-                    className="w-5 h-5 mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                    />
-                  </svg>
-                  Quay lại
-                </motion.button>
-
-                <motion.button
-                  type="submit"
-                  className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={customerStatus === "loading"}
-                >
-                  {customerStatus === "loading" ? (
-                    <>
-                      <CircularProgress
-                        size={20}
-                        color="inherit"
-                        className="mr-3"
-                      />
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    <>
-                      {customerDetail ? "Cập nhật thông tin" : "Tiếp tục"}
-                      <svg
-                        className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M14 5l7 7m0 0l-7 7m7-7H3"
-                        />
-                      </svg>
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </motion.form>
-
-            {/* Help Section */}
-            <motion.div className="mt-8 text-center" variants={itemVariants}>
-              <p className="text-sm text-gray-500">
-                💡 <strong>Mẹo:</strong> Thông tin chính xác sẽ giúp AI tạo ra
-                thiết kế phù hợp với thương hiệu của bạn
-              </p>
-            </motion.div>
-          </motion.div>
+          <BusinessInfoForm
+            businessInfo={businessInfo}
+            customerError={customerError}
+            customerStatus={customerStatus}
+            customerDetail={customerDetail}
+            processedLogoUrl={processedLogoUrl}
+            onInputChange={handleInputChange}
+            onSubmit={handleBusinessSubmit}
+            onBack={() => {
+              setCurrentStep(1);
+              navigate("/ai-design");
+            }}
+            onLogoChange={(event) => {
+              if (event?.target) {
+                // Nếu là event thay đổi file
+                handleInputChange(event);
+              } else {
+                // Nếu là reset logo
+                setBusinessInfo((prev) => ({
+                  ...prev,
+                  logoPreview: "",
+                  customerDetailLogo: null,
+                }));
+                setProcessedLogoUrl("");
+              }
+            }}
+          />
         );
 
       case 3:
         return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-8 text-center"
-              variants={itemVariants}
-            >
-              Chọn loại biển hiệu
-            </motion.h2>
-            {error && (
-              <motion.div
-                className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center"
-                variants={itemVariants}
-              >
-                {error}
-              </motion.div>
-            )}
-            {productTypeStatus === "loading" || customerStatus === "loading" ? (
-              <div className="flex justify-center items-center py-12">
-                <CircularProgress color="primary" />
-              </div>
-            ) : productTypes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {productTypes.map((productType, index) => {
-                  // Tạo mapping để mỗi product type có một ảnh khác nhau
-                  const getProductTypeImage = (id, index) => {
-                    const imageUrls = [
-                      "https://bienhieudep.vn/wp-content/uploads/2022/08/mau-bien-quang-cao-nha-hang-dep-37.jpg",
-                      "https://q8laser.com/wp-content/uploads/2021/01/thi-cong-bien-hieu-quang-cao.jpg",
-                      "https://www.denledday.vn/wp-content/uploads/2016/12/Den-gan-vien-bien-quang-cao.jpg",
-                      "https://appro.com.vn/wp-content/uploads/2020/09/den-pha-led-cho-bang-hieu-3.jpg",
-                      "https://www.denledday.vn/wp-content/uploads/2016/12/Den-gan-vien-bien-quang-cao.jpg",
-                      // Thêm nhiều ảnh nếu muốn
-                    ];
-
-                    // Sử dụng index để đảm bảo mỗi sản phẩm có một ảnh riêng
-                    return imageUrls[index % imageUrls.length];
-                  };
-
-                  // Tạo mô tả mẫu cho từng loại biển hiệu
-                  const getProductTypeDescription = (name) => {
-                    const descriptions = {
-                      "Biển hiệu hiện đại":
-                        "Thiết kế biển hiệu hiện đại, thanh lịch và nổi bật.",
-                      "Biển hiệu truyền thống":
-                        "Thiết kế biển hiệu mang phong cách truyền thống, trang nhã.",
-                    };
-
-                    return (
-                      descriptions[name] ||
-                      "Thiết kế biển hiệu chuyên nghiệp cho doanh nghiệp của bạn."
-                    );
-                  };
-
-                  return (
-                    <motion.div
-                      key={productType.id}
-                      variants={cardVariants}
-                      whileHover="hover"
-                      className="rounded-xl overflow-hidden shadow-md bg-white border border-gray-100"
-                    >
-                      <div className="h-48 bg-gradient-to-r from-custom-primary to-custom-secondary flex items-center justify-center">
-                        <img
-                          src={getProductTypeImage(productType.id, index)}
-                          alt={productType.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-6">
-                        <h3 className="text-xl font-semibold text-custom-dark mb-2">
-                          {productType.name}
-                        </h3>
-                        <p className="text-gray-600 mb-6">
-                          {getProductTypeDescription(productType.name)}
-                        </p>
-                        <motion.button
-                          onClick={() =>
-                            handleBillboardTypeSelect(productType.id)
-                          }
-                          className="w-full py-3 px-4 bg-custom-light text-custom-primary font-medium rounded-lg hover:bg-custom-tertiary hover:text-white transition-all flex items-center justify-center"
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          disabled={customerStatus === "loading"}
-                        >
-                          {customerStatus === "loading" ? (
-                            <>
-                              <CircularProgress
-                                size={20}
-                                color="inherit"
-                                className="mr-2"
-                              />
-                              Đang xử lý...
-                            </>
-                          ) : (
-                            <>
-                              Chọn
-                              <svg
-                                className="w-5 h-5 ml-1"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                                />
-                              </svg>
-                            </>
-                          )}
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p>Không tìm thấy loại biển hiệu nào. Vui lòng thử lại sau.</p>
-              </div>
-            )}
-
-            <div className="mt-8 flex justify-center">
-              <motion.button
-                type="button"
-                onClick={() => {
-                  setCurrentStep(2);
-                  navigate("/ai-design?step=business");
-                }}
-                className="px-6 py-2 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-                variants={itemVariants}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
-                </svg>
-                Quay lại
-              </motion.button>
-            </div>
-          </motion.div>
+          <ProductTypeSelection
+            productTypes={productTypes}
+            productTypeStatus={productTypeStatus}
+            customerStatus={customerStatus}
+            error={error}
+            onProductTypeSelect={handleBillboardTypeSelect}
+            onBack={() => {
+              setCurrentStep(2);
+              navigate("/ai-design?step=business");
+            }}
+          />
         );
 
-      case 4: {
-        // Thêm dấu ngoặc nhọn mở ở đây
-        const isRestoring =
-          currentOrder?.id &&
-          Object.keys(customerChoiceDetails).length === 0 &&
-          customerStatus === "loading";
-
-        if (isRestoring) {
-          return (
-            <motion.div
-              className="max-w-4xl mx-auto"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <motion.h2
-                className="text-3xl font-bold text-custom-dark mb-8 text-center"
-                variants={itemVariants}
-              >
-                Thông tin biển hiệu
-              </motion.h2>
-
-              <div className="flex justify-center items-center py-12">
-                <CircularProgress color="primary" />
-                <p className="ml-4 text-gray-600">
-                  Đang khôi phục thông tin đã chọn...
-                </p>
-              </div>
-            </motion.div>
-          );
-        }
-
-        // Lấy thông tin product type hiện tại để kiểm tra isAiGenerated
-        const currentProductTypeInfo =
-          productTypes.find((pt) => pt.id === billboardType) ||
-          currentProductType;
-        const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
-
-        // Xác định text và icon cho nút dựa trên isAiGenerated
-        const suggestButtonText = isAiGenerated
-          ? "Đề xuất thiết kế bằng AI"
-          : "Đề xuất thiết kế bằng Background";
-        const suggestButtonIcon = isAiGenerated ? (
-          <FaRobot className="w-5 h-5 mr-2" />
-        ) : (
-          <FaPalette className="w-5 h-5 mr-2" />
-        );
-
+      case 4:
         return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-8 text-center"
-              variants={itemVariants}
-            >
-              Thông tin biển hiệu
-            </motion.h2>
-
-            {attributeError && (
-              <motion.div
-                className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center"
-                variants={itemVariants}
-              >
-                {attributeError}
-              </motion.div>
-            )}
-
-            <motion.form
-              onSubmit={handleBillboardSubmit}
-              variants={containerVariants}
-            >
-              <ModernBillboardForm
-                attributes={attributes}
-                status={attributeStatus}
-                productTypeId={billboardType}
-                productTypeName={
-                  productTypes.find((pt) => pt.id === billboardType)?.name
-                }
-                setSnackbar={setSnackbar}
-              />
-
-              <motion.div
-                className="flex justify-between mt-8"
-                variants={itemVariants}
-              >
-                <motion.button
-                  type="button"
-                  onClick={handleBackToTypeSelection}
-                  className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <svg
-                    className="w-5 h-5 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                    />
-                  </svg>
-                  Quay lại
-                </motion.button>
-
-                {/* 2 nút: Thiết kế thủ công (giữa) và Đề xuất thiết kế (phải) */}
-                <div className="flex space-x-4">
-                  <motion.button
-                    type="button"
-                    onClick={() => {
-                      navigate("/custom-design", {
-                        state: {
-                          customerChoiceId: currentOrder?.id,
-                          selectedType: billboardType,
-                          businessInfo: {
-                            companyName:
-                              businessInfo.companyName ||
-                              customerDetail?.companyName ||
-                              "",
-                            address:
-                              businessInfo.address ||
-                              customerDetail?.address ||
-                              "",
-                            contactInfo:
-                              businessInfo.contactInfo ||
-                              customerDetail?.contactInfo ||
-                              "",
-                            logoUrl:
-                              businessInfo.logoPreview ||
-                              customerDetail?.logoUrl ||
-                              "",
-                          },
-                        },
-                      });
-                    }}
-                    className="px-8 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <FaEdit className="w-5 h-5 mr-2" />
-                    Thiết kế thủ công
-                    <svg
-                      className="w-5 h-5 ml-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
-                  </motion.button>
-
-                  <motion.button
-                    type="submit"
-                    className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    disabled={attributeStatus === "loading"}
-                  >
-                    {attributeStatus === "loading" ? (
-                      <>
-                        <CircularProgress
-                          size={20}
-                          color="inherit"
-                          className="mr-2"
-                        />
-                        Đang xử lý...
-                      </>
-                    ) : (
-                      <>
-                        {suggestButtonIcon}
-                        {suggestButtonText}
-                        <svg
-                          className="w-5 h-5 ml-1"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.form>
-          </motion.div>
+          <BillboardInfoForm
+            attributes={attributes}
+            attributeStatus={attributeStatus}
+            attributeError={attributeError}
+            billboardType={billboardType}
+            currentOrder={currentOrder}
+            customerChoiceDetails={customerChoiceDetails}
+            customerStatus={customerStatus}
+            currentProductType={currentProductType}
+            businessInfo={businessInfo}
+            handleBillboardSubmit={handleBillboardSubmit}
+            handleBackToTypeSelection={handleBackToTypeSelection}
+            setSnackbar={setSnackbar}
+            ModernBillboardForm={ModernBillboardForm}
+          />
         );
-      }
-      case 5: {
-        // Thêm dấu ngoặc nhọn để tạo block scope
-        const currentProductTypeInfo =
-          productTypes.find((pt) => pt.id === billboardType) ||
-          currentProductType;
-        const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
-
-        // Tự động set currentSubStep dựa trên isAiGenerated
-
+      case 5:
         return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* Header không có tabs */}
-            <motion.div className="text-center mb-6" variants={itemVariants}>
-              <h2 className="text-3xl font-bold text-custom-dark mb-4">
-                {isAiGenerated
-                  ? "Chọn mẫu thiết kế"
-                  : "Chọn background phù hợp"}
-              </h2>
-
-              <p className="text-gray-600">
-                {isAiGenerated
-                  ? "Chọn một mẫu thiết kế AI phù hợp với doanh nghiệp của bạn"
-                  : "Chọn một background phù hợp dựa trên thông số bạn đã chọn"}
-              </p>
-            </motion.div>
-
-            {/* Design Templates Section - Chỉ hiển thị khi isAiGenerated = true */}
-            {isAiGenerated && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {designTemplateStatus === "loading" ? (
-                  <div className="flex justify-center items-center py-12">
-                    <CircularProgress size={60} color="primary" />
-                    <p className="ml-4 text-gray-600">
-                      Đang tải mẫu thiết kế...
-                    </p>
-                  </div>
-                ) : designTemplateStatus === "failed" ? (
-                  <div className="text-center py-8 bg-red-50 rounded-lg">
-                    <p className="text-red-500">
-                      {designTemplateError ||
-                        "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
-                    </p>
-                    <button
-                      onClick={() =>
-                        dispatch(
-                          fetchDesignTemplatesByProductTypeId(billboardType)
-                        )
-                      }
-                      className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                    >
-                      Tải lại
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    {designTemplates && designTemplates.length > 0 ? (
-                      designTemplates.map((template) => {
-                        // ✅ SỬ DỤNG STATE ĐÃ ĐƯỢC KHAI BÁO Ở NGOÀI
-                        const templateImageUrl =
-                          designTemplateImageUrls[template.id];
-                        const isLoadingTemplateImage =
-                          loadingDesignTemplateUrls[template.id];
-
-                        return (
-                          <motion.div
-                            key={template.id}
-                            variants={cardVariants}
-                            whileHover="hover"
-                            className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
-                              selectedSampleProduct === template.id
-                                ? "ring-4 ring-custom-secondary scale-105"
-                                : "hover:scale-105"
-                            }`}
-                            onClick={() =>
-                              handleSelectSampleProduct(template.id)
-                            }
-                          >
-                            {/* ✅ TEMPLATE IMAGE - SỬ DỤNG getImageFromS3 */}
-                            <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
-                              {isLoadingTemplateImage ? (
-                                <div className="flex flex-col items-center">
-                                  <CircularProgress size={24} />
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    Đang tải ảnh...
-                                  </p>
-                                </div>
-                              ) : templateImageUrl ? (
-                                <img
-                                  src={templateImageUrl}
-                                  alt={template.name}
-                                  className="w-full h-64 object-cover"
-                                  onLoad={() => {
-                                    console.log(
-                                      `✅ Design template ${template.id} image loaded successfully via S3 API`
-                                    );
-                                  }}
-                                  onError={(e) => {
-                                    console.error(
-                                      `❌ Error loading design template ${template.id} image via S3 API:`,
-                                      e
-                                    );
-                                    // Hiển thị placeholder
-                                    e.target.style.display = "none";
-                                    e.target.nextSibling.style.display = "flex";
-                                  }}
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center text-gray-400">
-                                  <FaPalette className="w-8 h-8 mb-2" />
-                                  <p className="text-xs">Không thể tải ảnh</p>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      console.log(
-                                        `Manual retry for template ${template.id}`
-                                      );
-                                      fetchDesignTemplateImage(template);
-                                    }}
-                                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
-                                  >
-                                    Thử lại
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* Placeholder khi lỗi */}
-                              <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
-                                <FaPalette className="w-8 h-8 mb-2" />
-                                <p className="text-xs text-center">
-                                  Không thể tải mẫu thiết kế
-                                </p>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    fetchDesignTemplateImage(template);
-                                  }}
-                                  className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
-                                >
-                                  Thử lại
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Hover overlay */}
-                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                              <div className="bg-white rounded-full p-2">
-                                <FaCheck className="w-6 h-6 text-custom-secondary" />
-                              </div>
-                            </div>
-
-                            {/* Selected indicator */}
-                            {selectedSampleProduct === template.id && (
-                              <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                                <FaCheckCircle className="w-6 h-6" />
-                              </div>
-                            )}
-
-                            {/* Template info */}
-                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
-                              <h3 className="font-medium text-lg">
-                                {template.name}
-                              </h3>
-                              <p className="text-sm text-gray-300 truncate">
-                                {template.description}
-                              </p>
-                            </div>
-                          </motion.div>
-                        );
-                      })
-                    ) : (
-                      <div className="col-span-2 text-center py-8">
-                        <p className="text-gray-500">
-                          Không có mẫu thiết kế nào cho loại biển hiệu này
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Customer Note cho Design Template */}
-                {selectedSampleProduct && (
-                  <motion.div
-                    className="mb-8"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center">
-                        <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
-                        Ghi chú thiết kế{" "}
-                        <span className="text-red-500 ml-1">*</span>
-                      </h3>
-                      <textarea
-                        className={`w-full px-4 py-3 border ${
-                          selectedSampleProduct && !customerNote.trim()
-                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                            : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
-                        } rounded-lg focus:ring-2 transition-all`}
-                        rows="3"
-                        name="designNotes"
-                        placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
-                        value={customerNote}
-                        onChange={(e) => setCustomerNote(e.target.value)}
-                      ></textarea>
-                      <div className="flex justify-between mt-2">
-                        <p className="text-gray-500 text-sm italic">
-                          Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu
-                          cầu của bạn
-                        </p>
-                        <p className="text-red-500 text-sm">
-                          {selectedSampleProduct && !customerNote.trim()
-                            ? "Vui lòng nhập ghi chú thiết kế"
-                            : ""}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Background Suggestions Section - Chỉ hiển thị khi isAiGenerated = false */}
-            {!isAiGenerated && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {backgroundStatus === "loading" ? (
-                  <div className="flex justify-center items-center py-12">
-                    <CircularProgress size={60} color="primary" />
-                    <p className="ml-4 text-gray-600">
-                      Đang tải đề xuất background...
-                    </p>
-                  </div>
-                ) : backgroundStatus === "failed" ? (
-                  <div className="text-center py-8 bg-red-50 rounded-lg">
-                    <p className="text-red-500">
-                      {backgroundError ||
-                        "Không thể tải đề xuất background. Vui lòng thử lại."}
-                    </p>
-                    <button
-                      onClick={() => {
-                        if (currentOrder?.id) {
-                          dispatch(
-                            fetchBackgroundSuggestionsByCustomerChoiceId(
-                              currentOrder.id
-                            )
-                          );
-                        }
-                      }}
-                      className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                    >
-                      Tải lại
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    {backgroundSuggestions &&
-                    backgroundSuggestions.length > 0 ? (
-                      backgroundSuggestions.map((background) => {
-                        const presignedUrl =
-                          backgroundPresignedUrls[background.id];
-                        const isLoadingUrl =
-                          loadingBackgroundUrls[background.id];
-                        const retryCount =
-                          backgroundRetryAttempts[background.id] || 0;
-                        const hasFailed = presignedUrl === null; // null means permanently failed
-
-                        return (
-                          <motion.div
-                            key={background.id}
-                            variants={cardVariants}
-                            whileHover="hover"
-                            className={`relative rounded-xl overflow-hidden shadow-lg cursor-pointer transition-all duration-300 ${
-                              selectedBackgroundId === background.id
-                                ? "ring-4 ring-custom-secondary scale-105"
-                                : "hover:scale-105"
-                            } ${hasFailed ? "opacity-75" : ""}`}
-                            onClick={() => {
-                              if (!hasFailed) {
-                                setSelectedBackgroundId(background.id);
-                                dispatch(setSelectedBackground(background));
-                              }
-                            }}
-                          >
-                            {/* Background Image - Tăng kích thước từ h-48 lên h-64 */}
-                            <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
-                              {isLoadingUrl ? (
-                                <div className="flex flex-col items-center">
-                                  <CircularProgress size={24} />
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    Đang tải ảnh... (Lần {retryCount + 1})
-                                  </p>
-                                </div>
-                              ) : hasFailed ? (
-                                // ✅ HIỂN THỊ LỖI PERMANENT
-                                <div className="flex flex-col items-center text-red-400">
-                                  <FaPalette className="w-8 h-8 mb-2" />
-                                  <p className="text-xs text-center">
-                                    Không thể tải ảnh
-                                  </p>
-                                  <p className="text-xs text-center text-gray-400">
-                                    Đã thử {retryCount} lần
-                                  </p>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // Reset retry count và thử lại
-                                      setBackgroundRetryAttempts((prev) => ({
-                                        ...prev,
-                                        [background.id]: 0,
-                                      }));
-                                      setBackgroundPresignedUrls((prev) => ({
-                                        ...prev,
-                                        [background.id]: undefined, // Reset để trigger fetch lại
-                                      }));
-                                      fetchBackgroundPresignedUrl(
-                                        background.id,
-                                        background.backgroundUrl
-                                      );
-                                    }}
-                                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
-                                  >
-                                    Thử lại
-                                  </button>
-                                </div>
-                              ) : presignedUrl ? (
-                                <img
-                                  src={presignedUrl}
-                                  alt={background.name}
-                                  className="w-full h-64 object-cover"
-                                  onLoad={() => {
-                                    console.log(
-                                      "✅ Background image loaded successfully:",
-                                      background.id
-                                    );
-                                  }}
-                                  onError={(e) => {
-                                    console.error(
-                                      `❌ Error displaying background ${background.id}:`,
-                                      e
-                                    );
-
-                                    // ✅ THÊM RETRY LOGIC CHO DISPLAY ERROR
-                                    const currentRetries =
-                                      backgroundRetryAttempts[background.id] ||
-                                      0;
-
-                                    if (currentRetries < 2) {
-                                      console.log(
-                                        `🔄 Retrying display for background ${
-                                          background.id
-                                        } (attempt ${currentRetries + 1})`
-                                      );
-
-                                      // Tăng retry count
-                                      setBackgroundRetryAttempts((prev) => ({
-                                        ...prev,
-                                        [background.id]: currentRetries + 1,
-                                      }));
-
-                                      // Fetch lại URL
-                                      setTimeout(() => {
-                                        fetchBackgroundPresignedUrl(
-                                          background.id,
-                                          background.backgroundUrl
-                                        );
-                                      }, 1000 * (currentRetries + 1)); // Delay tăng dần
-                                    } else {
-                                      // Sau 2 lần thử, hiển thị placeholder
-                                      e.target.style.display = "none";
-                                      const placeholder =
-                                        e.target.parentElement.querySelector(
-                                          ".error-placeholder"
-                                        );
-                                      if (placeholder) {
-                                        placeholder.style.display = "flex";
-                                      }
-                                    }
-                                  }}
-                                />
-                              ) : (
-                                // Waiting state
-                                <div className="flex flex-col items-center text-gray-400">
-                                  <FaPalette className="w-8 h-8 mb-2" />
-                                  <p className="text-xs text-center">
-                                    Chờ tải ảnh...
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* ✅ ERROR PLACEHOLDER - không tự động retry */}
-                              <div className="hidden w-full h-full items-center justify-center text-gray-400 flex-col">
-                                <FaPalette className="w-8 h-8 mb-2" />
-                                <p className="text-xs text-center">
-                                  Không thể hiển thị ảnh
-                                </p>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Manual retry with reset
-                                    setBackgroundRetryAttempts((prev) => ({
-                                      ...prev,
-                                      [background.id]: 0,
-                                    }));
-                                    setBackgroundPresignedUrls((prev) => ({
-                                      ...prev,
-                                      [background.id]: undefined,
-                                    }));
-                                    fetchBackgroundPresignedUrl(
-                                      background.id,
-                                      background.backgroundUrl
-                                    );
-                                  }}
-                                  className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
-                                >
-                                  Thử lại
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Hover overlay */}
-                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                              <div className="bg-white rounded-full p-2">
-                                <FaCheck className="w-6 h-6 text-custom-secondary" />
-                              </div>
-                            </div>
-
-                            {/* Selected indicator */}
-                            {selectedBackgroundId === background.id && (
-                              <div className="absolute top-2 right-2 bg-custom-secondary text-white rounded-full p-2">
-                                <FaCheckCircle className="w-6 h-6" />
-                              </div>
-                            )}
-
-                            {/* Background info - Tăng chiều cao và hiển thị đầy đủ description */}
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent text-white p-3">
-                              <h3 className="font-medium text-base mb-1 leading-tight">
-                                {background.name}
-                              </h3>
-
-                              {/* Tooltip cho description */}
-                              <div className="group/tooltip relative">
-                                <p className="text-sm text-gray-200 truncate cursor-help">
-                                  {background.description}
-                                </p>
-
-                                {/* Tooltip hiển thị full description */}
-                                <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-black/95 text-white text-xs rounded opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-10">
-                                  {background.description}
-                                </div>
-                              </div>
-
-                              {background.attributeValues && (
-                                <p className="text-xs text-blue-200 mt-1">
-                                  🏷️ {background.attributeValues.name}
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Unavailable overlay */}
-                            {!background.isAvailable && (
-                              <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
-                                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                  Không khả dụng
-                                </span>
-                              </div>
-                            )}
-                            {hasFailed && (
-                              <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
-                                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                  Lỗi tải ảnh
-                                </span>
-                              </div>
-                            )}
-                          </motion.div>
-                        );
-                      })
-                    ) : (
-                      <div className="col-span-3 text-center py-8">
-                        <FaPalette className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500">
-                          Không có đề xuất background nào phù hợp
-                        </p>
-                        <p className="text-gray-400 text-sm mt-2">
-                          Thử thay đổi các thông số kỹ thuật để có thêm đề xuất
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Customer Note cho Background */}
-                {selectedBackgroundId && (
-                  <motion.div
-                    className="mb-8"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center">
-                        <span className="inline-block w-1 h-4 bg-purple-500 mr-2 rounded"></span>
-                        Ghi chú thiết kế với background{" "}
-                        <span className="text-red-500 ml-1">*</span>
-                      </h3>
-                      <textarea
-                        className={`w-full px-4 py-3 border ${
-                          selectedBackgroundId && !customerNote.trim()
-                            ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                            : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
-                        } rounded-lg focus:ring-2 transition-all`}
-                        rows="3"
-                        name="backgroundNotes"
-                        placeholder="Mô tả cách bạn muốn sử dụng background này cho thiết kế..."
-                        value={customerNote}
-                        onChange={(e) => setCustomerNote(e.target.value)}
-                      ></textarea>
-                      <div className="flex justify-between mt-2">
-                        <p className="text-gray-500 text-sm italic">
-                          Mô tả chi tiết sẽ giúp chúng tôi thiết kế phù hợp hơn
-                          với background đã chọn
-                        </p>
-                        <p className="text-red-500 text-sm">
-                          {selectedBackgroundId && !customerNote.trim()
-                            ? "Vui lòng nhập ghi chú thiết kế"
-                            : ""}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Navigation Buttons */}
-            <motion.div
-              className="flex justify-between mt-8"
-              variants={itemVariants}
-            >
-              <motion.button
-                type="button"
-                onClick={() => setCurrentStep(4)}
-                className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <svg
-                  className="w-5 h-5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
-                </svg>
-                Quay lại
-              </motion.button>
-
-              <motion.button
-                type="button"
-                onClick={() => {
-                  if (isAiGenerated) {
-                    // Logic cho Design Template (giữ nguyên)
-                    if (!selectedSampleProduct) {
-                      setSnackbar({
-                        open: true,
-                        message:
-                          "Vui lòng chọn một mẫu thiết kế trước khi tiếp tục",
-                        severity: "warning",
-                      });
-                      return;
-                    }
-                    if (!customerNote.trim()) {
-                      setSnackbar({
-                        open: true,
-                        message:
-                          "Vui lòng nhập ghi chú thiết kế trước khi tiếp tục",
-                        severity: "warning",
-                      });
-                      return;
-                    }
-                    // Proceed với AI generation
-                    handleContinueToPreview();
-                  } else {
-                    // Logic cho Background - THAY ĐỔI Ở ĐÂY
-                    if (!selectedBackgroundId) {
-                      setSnackbar({
-                        open: true,
-                        message:
-                          "Vui lòng chọn một background trước khi tiếp tục",
-                        severity: "warning",
-                      });
-                      return;
-                    }
-                    if (!customerNote.trim()) {
-                      setSnackbar({
-                        open: true,
-                        message:
-                          "Vui lòng nhập ghi chú thiết kế trước khi tiếp tục",
-                        severity: "warning",
-                      });
-                      return;
-                    }
-
-                    // Lưu thông tin background đã chọn để sử dụng trong canvas
-                    const selectedBg = backgroundSuggestions.find(
-                      (bg) => bg.id === selectedBackgroundId
-                    );
-                    const backgroundUrl =
-                      backgroundPresignedUrls[selectedBackgroundId] ||
-                      selectedBg?.backgroundUrl;
-
-                    setSelectedBackgroundForCanvas({
-                      ...selectedBg,
-                      presignedUrl: backgroundUrl,
-                    });
-
-                    // Chuyển thẳng đến case 6 thay vì navigate đến custom-design
-                    setCurrentStep(7);
-                    navigate("/ai-design?step=edit");
-
-                    setSnackbar({
-                      open: true,
-                      message: "Đang tải editor với background đã chọn...",
-                      severity: "info",
-                    });
-                  }
-                }}
-                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  (isAiGenerated &&
-                    selectedSampleProduct &&
-                    customerNote.trim()) ||
-                  (!isAiGenerated &&
-                    selectedBackgroundId &&
-                    customerNote.trim())
-                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-                whileHover={
-                  (isAiGenerated &&
-                    selectedSampleProduct &&
-                    customerNote.trim()) ||
-                  (!isAiGenerated &&
-                    selectedBackgroundId &&
-                    customerNote.trim())
-                    ? { scale: 1.02 }
-                    : {}
-                }
-                whileTap={
-                  (isAiGenerated &&
-                    selectedSampleProduct &&
-                    customerNote.trim()) ||
-                  (!isAiGenerated &&
-                    selectedBackgroundId &&
-                    customerNote.trim())
-                    ? { scale: 0.98 }
-                    : {}
-                }
-                disabled={
-                  (isAiGenerated &&
-                    (!selectedSampleProduct || !customerNote.trim())) ||
-                  (!isAiGenerated &&
-                    (!selectedBackgroundId || !customerNote.trim()))
-                }
-              >
-                {isAiGenerated ? "Tạo thiết kế AI" : "Thiết kế với Background"}
-                <svg
-                  className="w-5 h-5 ml-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-              </motion.button>
-            </motion.div>
-          </motion.div>
+          <TemplateBackgroundSelection
+            billboardType={billboardType}
+            currentProductType={currentProductType}
+            currentOrder={currentOrder}
+            selectedSampleProduct={selectedSampleProduct}
+            selectedBackgroundId={selectedBackgroundId}
+            customerNote={customerNote}
+            designTemplateImageUrls={designTemplateImageUrls}
+            loadingDesignTemplateUrls={loadingDesignTemplateUrls}
+            backgroundPresignedUrls={backgroundPresignedUrls}
+            loadingBackgroundUrls={loadingBackgroundUrls}
+            backgroundRetryAttempts={backgroundRetryAttempts}
+            handleSelectSampleProduct={handleSelectSampleProduct}
+            setSelectedBackgroundId={setSelectedBackgroundId}
+            setCustomerNote={setCustomerNote}
+            fetchDesignTemplateImage={fetchDesignTemplateImage}
+            fetchBackgroundPresignedUrl={fetchBackgroundPresignedUrl}
+            setBackgroundRetryAttempts={setBackgroundRetryAttempts}
+            setBackgroundPresignedUrls={setBackgroundPresignedUrls}
+            setSelectedBackgroundForCanvas={setSelectedBackgroundForCanvas}
+            setCurrentStep={setCurrentStep}
+            setSnackbar={setSnackbar}
+            handleContinueToPreview={handleContinueToPreview}
+          />
         );
-      } // Đóng dấu ngoặc nhọn cho case 5
       case 6:
         return (
-          <motion.div
-            className="max-w-4xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-8 text-center"
-              variants={itemVariants}
-            >
-              Xem trước thiết kế
-            </motion.h2>
-
-            {imageGenerationError && (
-              <motion.div
-                className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center"
-                variants={itemVariants}
-              >
-                Có lỗi xảy ra khi tạo hình ảnh. Vui lòng thử lại.
-              </motion.div>
-            )}
-
-            <div className="mb-12">
-              {imageGenerationStatus === "loading" ? (
-                <div className="flex justify-center items-center py-12">
-                  <CircularProgress size={60} color="primary" />
-                  <p className="ml-4 text-gray-600">Đang tải thiết kế...</p>
-                </div>
-              ) : imageGenerationStatus === "succeeded" && generatedImage ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="rounded-xl overflow-hidden shadow-lg w-full mx-auto max-w-2xl"
-                >
-                  <img
-                    src={generatedImage}
-                    alt="AI Generated Design"
-                    className="w-full object-cover"
-                    onClick={() => setSelectedImage(1)}
-                  />
-                </motion.div>
-              ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-                  <FaRobot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">
-                    Không có thiết kế nào được tạo. Vui lòng quay lại và thử
-                    lại.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-center space-x-6">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleRegenerate}
-                className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center"
-              >
-                <FaRedo className="mr-2" />
-                Tạo lại
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  if (!generatedImage) {
-                    setSnackbar({
-                      open: true,
-                      message:
-                        "Vui lòng chờ thiết kế được tạo trước khi tiếp tục",
-                      severity: "warning",
-                    });
-                    return;
-                  }
-
-                  // Use the local isConfirming state
-                  setIsConfirming(true);
-
-                  // Use setTimeout to simulate processing time
-                  setTimeout(() => {
-                    setCurrentStep(7);
-                    setIsConfirming(false);
-                    navigate("/ai-design?step=confirm");
-                  }, 1000);
-                }}
-                disabled={!generatedImage || isConfirming}
-                className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  generatedImage && !isConfirming
-                    ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                {isConfirming ? (
-                  <>
-                    <CircularProgress
-                      size={20}
-                      color="inherit"
-                      className="mr-2"
-                    />
-                    Đang xử lý...
-                  </>
-                ) : (
-                  <>
-                    <FaCheck className="mr-2" />
-                    Xác nhận
-                  </>
-                )}
-              </motion.button>
-            </div>
-
-            {/* Success Snackbar */}
-            <Snackbar
-              open={showSuccess}
-              anchorOrigin={{ vertical: "top", horizontal: "right" }}
-              autoHideDuration={3000}
-              onClose={() => setShowSuccess(false)}
-            >
-              <Alert
-                onClose={() => setShowSuccess(false)}
-                severity="success"
-                variant="filled"
-                sx={{ width: "100%" }}
-              >
-                Đặt hàng thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.
-              </Alert>
-            </Snackbar>
-          </motion.div>
+          <DesignPreview
+            imageGenerationError={imageGenerationError}
+            imageGenerationStatus={imageGenerationStatus}
+            generatedImage={generatedImage}
+            setSelectedImage={setSelectedImage}
+            handleRegenerate={handleRegenerate}
+            setSnackbar={setSnackbar}
+            setCurrentStep={setCurrentStep}
+            setIsConfirming={setIsConfirming}
+            isConfirming={isConfirming}
+            showSuccess={showSuccess}
+            setShowSuccess={setShowSuccess}
+            containerVariants={containerVariants}
+            itemVariants={itemVariants}
+          />
         );
       case 7:
         return (
-          <motion.div
-            className="max-w-7xl mx-auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.h2
-              className="text-3xl font-bold text-custom-dark mb-8 text-center"
-              variants={itemVariants}
-            >
-              {selectedBackgroundForCanvas
-                ? "Chỉnh sửa thiết kế với Background"
-                : "Chỉnh sửa thiết kế AI"}
-            </motion.h2>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Business Info Panel - Bên trái - giảm xuống còn 2 cột */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-xl shadow-lg p-4">
-                  <h3 className="text-xl font-semibold mb-4">
-                    Thông tin doanh nghiệp
-                  </h3>
-
-                  <div className="space-y-4">
-                    {/* Company Name */}
-                    {businessPresets.companyName && (
-                      <div
-                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
-                        onClick={() =>
-                          addBusinessInfoToCanvas(
-                            "companyName",
-                            businessPresets.companyName
-                          )
-                        }
-                      >
-                        <div className="flex items-center mb-1">
-                          <FaFont className="text-blue-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-600">
-                            Tên công ty
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold text-gray-800 truncate">
-                          {businessPresets.companyName}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Nhấn để thêm vào thiết kế
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Tag Line */}
-                    {businessPresets.tagLine && (
-                      <div
-                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all"
-                        onClick={() =>
-                          addBusinessInfoToCanvas(
-                            "tagLine",
-                            businessPresets.tagLine
-                          )
-                        }
-                      >
-                        <div className="flex items-center mb-1">
-                          <FaFont className="text-green-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-600">
-                            Address
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-800 truncate">
-                          {businessPresets.tagLine}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Nhấn để thêm vào thiết kế
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Contact Info */}
-                    {businessPresets.contactInfo && (
-                      <div
-                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all"
-                        onClick={() =>
-                          addBusinessInfoToCanvas(
-                            "contactInfo",
-                            businessPresets.contactInfo
-                          )
-                        }
-                      >
-                        <div className="flex items-center mb-1">
-                          <FaFont className="text-orange-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-600">
-                            Liên hệ
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-800 truncate">
-                          {businessPresets.contactInfo}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Nhấn để thêm vào thiết kế
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Logo */}
-                    {businessPresets.logoUrl && (
-                      <div
-                        className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-all"
-                        onClick={() =>
-                          addBusinessInfoToCanvas(
-                            "logoUrl",
-                            s3Logo || businessPresets.logoUrl
-                          )
-                        }
-                      >
-                        <div className="flex items-center mb-1">
-                          <FaPalette className="text-purple-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-600">
-                            Logo
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <img
-                            src={s3Logo || businessPresets.logoUrl}
-                            alt="Logo preview"
-                            className="w-6 h-6 object-cover rounded"
-                            onError={(e) => {
-                              e.target.style.display = "none";
-                            }}
-                          />
-                          <span className="text-xs text-gray-800">
-                            Logo công ty
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Nhấn để thêm vào thiết kế
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Nếu không có thông tin */}
-                    {!businessPresets.companyName &&
-                      !businessPresets.tagLine &&
-                      !businessPresets.contactInfo &&
-                      !businessPresets.logoUrl && (
-                        <div className="text-center py-4">
-                          <p className="text-gray-500 text-sm">
-                            Không có thông tin doanh nghiệp
-                          </p>
-                          <p className="text-gray-400 text-xs mt-1">
-                            Hãy cập nhật thông tin ở bước 2
-                          </p>
-                        </div>
-                      )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Canvas Area - Tăng lên 8 cột để canvas lớn hơn */}
-              <div className="lg:col-span-8">
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-semibold">Thiết kế</h3>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={addText}
-                        className="px-3 py-2 bg-custom-secondary text-white rounded-lg hover:bg-custom-secondary/90 flex items-center text-sm"
-                      >
-                        <FaPlus className="mr-1" />
-                        Thêm text
-                      </button>
-
-                      {/* NÚT THÊM ICON MỚI */}
-                      <button
-                        onClick={() => {
-                          setShowIconPicker(true);
-                          if (icons.length === 0) {
-                            loadIcons(1);
-                          }
-                        }}
-                        className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center text-sm"
-                      >
-                        <FaPalette className="mr-1" />
-                        Thêm icon
-                      </button>
-
-                      <label className="px-3 py-2 bg-custom-primary text-white rounded-lg hover:bg-custom-primary/90 flex items-center text-sm cursor-pointer">
-                        <FaPlus className="mr-1" />
-                        Thêm ảnh
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleImageUpload}
-                        />
-                      </label>
-                      <button
-                        onClick={deleteSelectedObject}
-                        disabled={!fabricCanvas?.getActiveObject()}
-                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center text-sm"
-                      >
-                        <FaTrash className="mr-1" />
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-
-                  <div
-                    className="border-2 border-gray-200 rounded-lg overflow-hidden"
-                    style={{
-                      position: "relative",
-                      width: "100%",
-                      paddingTop: "50%", // Giữ tỷ lệ 2:1
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                      }}
-                    >
-                      <canvas
-                        ref={canvasRef}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Text Controls - Bên phải - giảm xuống còn 2 cột */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-xl shadow-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3">Tùy chỉnh text</h3>
-
-                  {selectedText ? (
-                    <div className="space-y-3">
-                      {/* Text Content */}
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Nội dung
-                        </label>
-                        <textarea
-                          value={textSettings.text}
-                          onChange={(e) => {
-                            updateTextProperty("text", e.target.value);
-                          }}
-                          className="w-full p-2 border border-gray-300 rounded-lg resize-none text-sm"
-                          rows={2}
-                        />
-                      </div>
-
-                      {/* Font Family */}
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Font chữ
-                        </label>
-                        <select
-                          value={textSettings.fontFamily}
-                          onChange={(e) =>
-                            updateTextProperty("fontFamily", e.target.value)
-                          }
-                          className="w-full p-1.5 border border-gray-300 rounded-lg text-sm"
-                        >
-                          {fonts.map((font) => (
-                            <option
-                              key={font}
-                              value={font}
-                              style={{ fontFamily: font }}
-                            >
-                              {font}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {/* Font Size */}
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Kích thước: {textSettings.fontSize}px
-                        </label>
-                        <input
-                          type="range"
-                          min="12"
-                          max="100"
-                          value={textSettings.fontSize}
-                          onChange={(e) =>
-                            updateTextProperty(
-                              "fontSize",
-                              parseInt(e.target.value)
-                            )
-                          }
-                          className="w-full"
-                        />
-                      </div>
-
-                      {/* Text Color */}
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Màu chữ
-                        </label>
-                        <div className="flex items-center space-x-1">
-                          <input
-                            type="color"
-                            value={textSettings.fill}
-                            onChange={(e) =>
-                              updateTextProperty("fill", e.target.value)
-                            }
-                            className="w-8 h-8 rounded border border-gray-300"
-                          />
-                          <input
-                            type="text"
-                            value={textSettings.fill}
-                            onChange={(e) =>
-                              updateTextProperty("fill", e.target.value)
-                            }
-                            className="flex-1 p-1.5 border border-gray-300 rounded-lg text-sm"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Text Style Controls */}
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Kiểu chữ
-                        </label>
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={() =>
-                              updateTextProperty(
-                                "fontWeight",
-                                textSettings.fontWeight === "bold"
-                                  ? "normal"
-                                  : "bold"
-                              )
-                            }
-                            className={`p-1.5 rounded border ${
-                              textSettings.fontWeight === "bold"
-                                ? "bg-custom-secondary text-white"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <FaBold />
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              updateTextProperty(
-                                "fontStyle",
-                                textSettings.fontStyle === "italic"
-                                  ? "normal"
-                                  : "italic"
-                              )
-                            }
-                            className={`p-1.5 rounded border ${
-                              textSettings.fontStyle === "italic"
-                                ? "bg-custom-secondary text-white"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <FaItalic />
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              updateTextProperty(
-                                "underline",
-                                !textSettings.underline
-                              )
-                            }
-                            className={`p-1.5 rounded border ${
-                              textSettings.underline
-                                ? "bg-custom-secondary text-white"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <FaUnderline />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Common Colors */}
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Màu phổ biến
-                        </label>
-                        <div className="grid grid-cols-4 gap-1">
-                          {[
-                            "#000000",
-                            "#ffffff",
-                            "#ff0000",
-                            "#00ff00",
-                            "#0000ff",
-                            "#ffff00",
-                            "#ff00ff",
-                            "#00ffff",
-                            "#ffa500",
-                            "#800080",
-                            "#ffc0cb",
-                            "#a52a2a",
-                          ].map((color) => (
-                            <button
-                              key={color}
-                              onClick={() => updateTextProperty("fill", color)}
-                              className="w-6 h-6 rounded border border-gray-300"
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-6 text-sm">
-                      Chọn một text để chỉnh sửa hoặc thêm text mới
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="mt-8 max-w-3xl mx-auto">
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-semibold mb-4">Ghi chú đơn hàng</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nhập ghi chú hoặc yêu cầu đặc biệt
-                    </label>
-                    <textarea
-                      value={customerNote}
-                      onChange={(e) => setCustomerNote(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                      rows={4}
-                      placeholder="Nhập yêu cầu đặc biệt hoặc ghi chú cho đơn hàng của bạn..."
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Action Buttons */}
-            <div className="flex justify-center space-x-6 mt-8">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  // Reset canvas trước khi quay lại
-                  if (fabricCanvas) {
-                    fabricCanvas.dispose();
-                    setFabricCanvas(null);
-                  }
-
-                  if (generatedImage) {
-                    setCurrentStep(6);
-                  } else {
-                    setCurrentStep(5);
-                  }
-                }}
-                className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all"
-              >
-                Quay lại
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={exportDesign}
-                disabled={isExporting}
-                className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all flex items-center"
-              >
-                {isExporting ? (
-                  <>
-                    <CircularProgress
-                      size={20}
-                      color="inherit"
-                      className="mr-2"
-                    />
-                    Đang xử lý...
-                  </>
-                ) : (
-                  <>
-                    {selectedBackgroundForCanvas
-                      ? "Xuất thiết kế Background"
-                      : "Xuất thiết kế AI"}
-                  </>
-                )}
-              </motion.button>
-
-              <motion.button
-                whileHover={{
-                  scale: currentAIDesign && !isOrdering ? 1.05 : 1,
-                }}
-                whileTap={{ scale: currentAIDesign && !isOrdering ? 0.95 : 1 }}
-                onClick={handleConfirm}
-                disabled={!currentAIDesign || isOrdering}
-                className={`order-button px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-                  currentAIDesign && !isOrdering
-                    ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                {isOrdering ? (
-                  <>
-                    <CircularProgress
-                      size={20}
-                      color="inherit"
-                      className="mr-2"
-                    />
-                    Đang xử lý...
-                  </>
-                ) : !currentAIDesign ? (
-                  <>
-                    <FaCheck className="mr-2" />
-                    {selectedBackgroundForCanvas
-                      ? "Xuất thiết kế Background trước khi đặt hàng"
-                      : "Xuất thiết kế AI trước khi đặt hàng"}
-                  </>
-                ) : (
-                  <>
-                    <FaCheck className="mr-2" />
-                    Đặt hàng
-                  </>
-                )}
-              </motion.button>
-            </div>
-          </motion.div>
+          <DesignEditor
+            selectedBackgroundForCanvas={selectedBackgroundForCanvas}
+            businessPresets={businessPresets}
+            s3Logo={s3Logo}
+            addBusinessInfoToCanvas={addBusinessInfoToCanvas}
+            addText={addText}
+            setShowIconPicker={setShowIconPicker}
+            icons={icons}
+            loadIcons={loadIcons}
+            handleImageUpload={handleImageUpload}
+            deleteSelectedObject={deleteSelectedObject}
+            fabricCanvas={fabricCanvas}
+            canvasRef={canvasRef}
+            selectedText={selectedText}
+            textSettings={textSettings}
+            updateTextProperty={updateTextProperty}
+            fonts={fonts}
+            customerNote={customerNote}
+            setCustomerNote={setCustomerNote}
+            setCurrentStep={setCurrentStep}
+            generatedImage={generatedImage}
+            setFabricCanvas={setFabricCanvas}
+            exportDesign={exportDesign}
+            isExporting={isExporting}
+            handleConfirm={handleConfirm}
+            currentAIDesign={currentAIDesign}
+            isOrdering={isOrdering}
+            containerVariants={containerVariants}
+            itemVariants={itemVariants}
+          />
         );
       default:
         return null;
