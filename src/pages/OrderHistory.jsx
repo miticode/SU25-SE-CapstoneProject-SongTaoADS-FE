@@ -61,6 +61,7 @@ import {
   getDemoDesigns,
   approveDemoDesign,
   rejectDemoDesign,
+  getDemoSubImages,
 } from "../store/features/demo/demoSlice";
 import { fetchUserDetail } from "../store/features/user/userSlice";
 import { unwrapResult } from "@reduxjs/toolkit";
@@ -90,6 +91,9 @@ import {
   selectCreateError,
   resetCreateStatus,
 } from "../store/features/ticket/ticketSlice";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+import "react-photo-view/dist/react-photo-view.css";
 
 const statusMap = {
   APPROVED: { label: "Đã xác nhận", color: "success" },
@@ -1415,6 +1419,12 @@ const OrderHistory = () => {
 
   // Thêm selector lấy ảnh S3 cho demo
   const s3Images = useSelector((state) => state.s3.images);
+
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  const demoSubImagesObj = useSelector((state) => state.demo.demoSubImages);
 
   if (!isAuthenticated) {
     return (
@@ -3471,7 +3481,13 @@ const OrderHistory = () => {
                           {demo.designerDescription || "(Không có)"}
                         </Typography>
                         {demo.demoImage && (
-                          <Box mt={1}>
+                          <Box
+                            mt={1}
+                            sx={{
+                              position: "relative",
+                              display: "inline-block",
+                            }}
+                          >
                             <img
                               src={
                                 demo.demoImage.startsWith("http")
@@ -3479,8 +3495,67 @@ const OrderHistory = () => {
                                   : s3Images[demo.demoImage] || ""
                               }
                               alt={`Demo ${idx + 1}`}
-                              style={{ maxWidth: 300, borderRadius: 8 }}
+                              style={{
+                                maxWidth: 300,
+                                borderRadius: 8,
+                                cursor: "pointer",
+                                display: "block",
+                              }}
                             />
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                top: 12,
+                                right: 12,
+                                bgcolor: "rgba(255,255,255,0.85)",
+                                borderRadius: "50%",
+                                p: 1,
+                                boxShadow: 2,
+                                cursor: "pointer",
+                                zIndex: 2,
+                                "&:hover": { bgcolor: "primary.light" },
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              onClick={async () => {
+                                let subImages = demoSubImagesObj[demo.id] || [];
+                                if (subImages.length === 0) {
+                                  const res = await dispatch(
+                                    getDemoSubImages(demo.id)
+                                  ).unwrap();
+                                  subImages = res || [];
+                                }
+                                const mainKey = demo.demoImage;
+                                const subKeys = subImages.map(
+                                  (img) => img.imageUrl
+                                );
+                                const allKeys = [mainKey, ...subKeys];
+                                await Promise.all(
+                                  allKeys.map(async (key) => {
+                                    if (
+                                      key &&
+                                      !key.startsWith("http") &&
+                                      !s3Images[key]
+                                    ) {
+                                      await dispatch(fetchImageFromS3(key));
+                                    }
+                                  })
+                                );
+                                const galleryArr = allKeys.map((key) =>
+                                  key.startsWith("http")
+                                    ? key
+                                    : s3Images[key] || ""
+                                );
+                                setGalleryImages(galleryArr);
+                                setGalleryIndex(0);
+                                setGalleryOpen(true);
+                              }}
+                            >
+                              <VisibilityIcon
+                                sx={{ fontSize: 28, color: "primary.main" }}
+                              />
+                            </Box>
                           </Box>
                         )}
                         <Typography>
@@ -5138,6 +5213,22 @@ const OrderHistory = () => {
           </DialogActions>
         </Dialog>
       </Box>
+      {galleryOpen && (
+        <PhotoProvider
+          visible={galleryOpen}
+          onVisibleChange={(v) => setGalleryOpen(v)}
+          images={galleryImages.map((url) => ({ src: url }))}
+          defaultIndex={galleryIndex}
+        >
+          <PhotoView src={galleryImages[galleryIndex] || ""}>
+            <img
+              src={galleryImages[galleryIndex] || ""}
+              style={{ display: "none" }}
+              alt="demo"
+            />
+          </PhotoView>
+        </PhotoProvider>
+      )}
     </Box>
   );
 };

@@ -8,7 +8,9 @@ import {
   fetchCustomDesignRequestsByCustomerDetailApi,
   createCustomDesignRequestApi,
   sendFinalDesignImageApi,
-  fetchDesignRequestsByDesignerApi
+  fetchDesignRequestsByDesignerApi,
+  uploadFinalDesignSubImagesApi,
+  getFinalDesignSubImagesApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -22,7 +24,8 @@ const initialState = {
     pageSize: 10,
     totalElements: 0
   },
-  currentDesignRequest: null
+  currentDesignRequest: null,
+  finalDesignSubImages: []
 };
 
 // Thêm hoặc cập nhật mapping trạng thái cho đơn thiết kế thủ công
@@ -206,6 +209,25 @@ export const fetchDesignRequestsByDesigner = createAsyncThunk(
   }
 );
 
+// Upload nhiều hình ảnh phụ cho bản thiết kế chính thức
+export const uploadFinalDesignSubImages = createAsyncThunk(
+  'customDesign/uploadFinalDesignSubImages',
+  async ({ customDesignRequestId, files }, { rejectWithValue }) => {
+    const res = await uploadFinalDesignSubImagesApi(customDesignRequestId, files);
+    if (!res.success) return rejectWithValue(res.error);
+    return res.result;
+  }
+);
+// Lấy danh sách hình ảnh phụ của bản thiết kế chính thức
+export const getFinalDesignSubImages = createAsyncThunk(
+  'customDesign/getFinalDesignSubImages',
+  async (customDesignRequestId, { rejectWithValue }) => {
+    const res = await getFinalDesignSubImagesApi(customDesignRequestId);
+    if (!res.success) return rejectWithValue(res.error);
+    return res.result;
+  }
+);
+
 // Create the slice
 const customerDesignSlice = createSlice({
   name: "customDesign",
@@ -347,6 +369,30 @@ const customerDesignSlice = createSlice({
       .addCase(fetchAllDesignRequests.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+      })
+      .addCase(uploadFinalDesignSubImages.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(uploadFinalDesignSubImages.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        // Có thể lưu subImages vào state nếu cần
+      })
+      .addCase(uploadFinalDesignSubImages.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(getFinalDesignSubImages.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(getFinalDesignSubImages.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.finalDesignSubImages = action.payload;
+      })
+      .addCase(getFinalDesignSubImages.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
       });
   }
 });
@@ -361,5 +407,6 @@ export const selectError = (state) => state.customDesign.error;
 export const selectPagination = (state) => state.customDesign.pagination;
 export const selectCurrentDesignRequest = (state) => state.customDesign.currentDesignRequest;
 export const selectAllDesignRequests = (state) => state.customDesign.designRequests;
+export const selectFinalDesignSubImages = (state) => state.customDesign.finalDesignSubImages;
 
 export default customerDesignSlice.reducer;
