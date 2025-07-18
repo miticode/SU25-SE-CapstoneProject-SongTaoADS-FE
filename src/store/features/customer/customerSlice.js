@@ -39,11 +39,17 @@ const initialState = {
 export const createCustomer = createAsyncThunk(
   "customers/createCustomer",
   async (customerData, { rejectWithValue }) => {
+    console.log("Creating customer with data:", customerData);
     const response = await createCustomerApi(customerData);
+    console.log("API response:", response);
+    
     if (!response.success) {
+      console.log("API failed:", response.error);
       return rejectWithValue(response.error || "Failed to create customer");
     }
-    return response.data;
+    
+    console.log("API success, returning result:", response.result);
+    return response.result; // Trả về result thay vì data
   }
 );
 export const linkCustomerToProductType = createAsyncThunk(
@@ -249,18 +255,28 @@ export const fetchCustomerDetailByUserId = createAsyncThunk(
   "customers/fetchDetailByUserId",
   async (userId, { rejectWithValue }) => {
     try {
+      console.log("Fetching customer detail for userId:", userId);
       const response = await getCustomerDetailByUserIdApi(userId);
+      console.log("Fetch response:", response);
 
       if (!response.success) {
+        console.log("Fetch failed:", response.error);
         return rejectWithValue(
           response.error || "Failed to fetch customer detail"
         );
       }
 
-      return response.result;
-    } catch (error) {
-      return rejectWithValue(error.message || "Unknown error occurred");
-    }
+              console.log("Fetch success, returning result:", response.result);
+        return response.result;
+      } catch (error) {
+        console.log("Fetch error:", error);
+        // Nếu là 404, trả về null thay vì error
+        if (error.response?.status === 404) {
+          console.log("404 error, returning null");
+          return null;
+        }
+        return rejectWithValue(error.message || "Unknown error occurred");
+      }
   }
 );
 export const updateCustomerChoiceSize = createAsyncThunk(
@@ -760,7 +776,7 @@ const customerSlice = createSlice({
         state.customDesignOrderStatus = "loading";
         state.customDesignOrderError = null;
       })
-      .addCase(createCustomDesignOrder.fulfilled, (state, action) => {
+      .addCase(createCustomDesignOrder.fulfilled, (state) => {
         state.customDesignOrderStatus = "succeeded";
         state.customDesignOrderError = null;
       })

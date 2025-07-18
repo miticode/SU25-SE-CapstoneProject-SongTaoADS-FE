@@ -260,27 +260,27 @@ const ModernBillboardForm = ({
     }));
 
     // Real-time validation với đúng thuộc tính từ API
-    const ptSize = productTypeSizes.find(size => size.sizes?.id === sizeId);
+    const ptSize = productTypeSizes.find((size) => size.sizes?.id === sizeId);
     if (ptSize && value) {
       const numValue = parseFloat(value);
       const fieldName = `size_${sizeId}`;
       const minValue = ptSize.minValue; // Đọc trực tiếp từ ptSize
       const maxValue = ptSize.maxValue; // Đọc trực tiếp từ ptSize
       const sizeName = ptSize.sizes?.name || "Kích thước";
-      
+
       if (!isNaN(numValue)) {
         if (numValue < minValue) {
-          setValidationErrors(prev => ({
+          setValidationErrors((prev) => ({
             ...prev,
-            [fieldName]: `${sizeName} phải ≥ ${minValue}m`
+            [fieldName]: `${sizeName} phải ≥ ${minValue}m`,
           }));
         } else if (numValue > maxValue) {
-          setValidationErrors(prev => ({
+          setValidationErrors((prev) => ({
             ...prev,
-            [fieldName]: `${sizeName} phải ≤ ${maxValue}m`
+            [fieldName]: `${sizeName} phải ≤ ${maxValue}m`,
           }));
         } else {
-          setValidationErrors(prev => {
+          setValidationErrors((prev) => {
             const newErrors = { ...prev };
             delete newErrors[fieldName];
             return newErrors;
@@ -604,26 +604,26 @@ const ModernBillboardForm = ({
     }
 
     // Thêm real-time validation cho size fields
-    if (name.startsWith('size_') && value) {
-      const sizeId = name.replace('size_', '');
-      const ptSize = productTypeSizes.find(size => size.sizes?.id === sizeId);
-      
+    if (name.startsWith("size_") && value) {
+      const sizeId = name.replace("size_", "");
+      const ptSize = productTypeSizes.find((size) => size.sizes?.id === sizeId);
+
       if (ptSize) {
         const numValue = parseFloat(value);
         const minValue = ptSize.minValue;
         const maxValue = ptSize.maxValue;
         const sizeName = ptSize.sizes?.name || "Kích thước";
-        
+
         if (!isNaN(numValue)) {
           if (numValue < minValue) {
-            setValidationErrors(prev => ({
+            setValidationErrors((prev) => ({
               ...prev,
-              [name]: `${sizeName} phải ≥ ${minValue}m`
+              [name]: `${sizeName} phải ≥ ${minValue}m`,
             }));
           } else if (numValue > maxValue) {
-            setValidationErrors(prev => ({
+            setValidationErrors((prev) => ({
               ...prev,
-              [name]: `${sizeName} phải ≤ ${maxValue}m`
+              [name]: `${sizeName} phải ≤ ${maxValue}m`,
             }));
           }
         }
@@ -1006,14 +1006,16 @@ const ModernBillboardForm = ({
                         disabled={sizesConfirmed && !isEditingSizes}
                         error={!!validationErrors[fieldName]}
                         helperText={
-                          validationErrors[fieldName] || 
-                          `Khoảng: ${ptSize.minValue || 'N/A'}m - ${ptSize.maxValue || 'N/A'}m`
+                          validationErrors[fieldName] ||
+                          `Khoảng: ${ptSize.minValue || "N/A"}m - ${
+                            ptSize.maxValue || "N/A"
+                          }m`
                         }
                         InputProps={{
-                          inputProps: { 
-                            min: ptSize.minValue, 
-                            max: ptSize.maxValue, 
-                            step: 0.01 
+                          inputProps: {
+                            min: ptSize.minValue,
+                            max: ptSize.maxValue,
+                            step: 0.01,
                           },
                           startAdornment: (
                             <span className="text-gray-400 mr-1 text-xs">
@@ -1607,7 +1609,7 @@ const AIDesign = () => {
   const [businessPresets, setBusinessPresets] = useState({
     logoUrl: "",
     companyName: "",
-    tagLine: "",
+    address: "",
     contactInfo: "",
   });
   const fonts = [
@@ -1698,68 +1700,74 @@ const AIDesign = () => {
     "UTM DuepuntozeroBold",
     "UTM EdwardianB",
   ];
-  const fetchDesignTemplateImage = useCallback(async (template) => {
-    if (
-      designTemplateImageUrls[template.id] ||
-      loadingDesignTemplateUrls[template.id]
-    ) {
-      console.log("⏭️ Template image already loading or loaded:", template.id);
-      return;
-    }
-
-    try {
-      setLoadingDesignTemplateUrls((prev) => ({
-        ...prev,
-        [template.id]: true,
-      }));
-
-      console.log(
-        "🔄 Fetching design template image via getImageFromS3:",
-        template.image
-      );
-
-      const s3Result = await getImageFromS3(template.image);
-
-      if (s3Result.success) {
-        setDesignTemplateImageUrls((prev) => ({
-          ...prev,
-          [template.id]: s3Result.imageUrl,
-        }));
+  const fetchDesignTemplateImage = useCallback(
+    async (template) => {
+      if (
+        designTemplateImageUrls[template.id] ||
+        loadingDesignTemplateUrls[template.id]
+      ) {
         console.log(
-          "✅ Design template image fetched successfully:",
+          "⏭️ Template image already loading or loaded:",
           template.id
         );
+        return;
+      }
+
+      try {
+        setLoadingDesignTemplateUrls((prev) => ({
+          ...prev,
+          [template.id]: true,
+        }));
+
         console.log(
-          "📋 Blob URL created:",
-          s3Result.imageUrl.substring(0, 50) + "..."
-        );
-      } else {
-        console.error(
-          "❌ Failed to fetch design template image via S3 API:",
-          s3Result.message
+          "🔄 Fetching design template image via getImageFromS3:",
+          template.image
         );
 
-        // ✅ THÊM: Mark as failed để có thể retry
+        const s3Result = await getImageFromS3(template.image);
+
+        if (s3Result.success) {
+          setDesignTemplateImageUrls((prev) => ({
+            ...prev,
+            [template.id]: s3Result.imageUrl,
+          }));
+          console.log(
+            "✅ Design template image fetched successfully:",
+            template.id
+          );
+          console.log(
+            "📋 Blob URL created:",
+            s3Result.imageUrl.substring(0, 50) + "..."
+          );
+        } else {
+          console.error(
+            "❌ Failed to fetch design template image via S3 API:",
+            s3Result.message
+          );
+
+          // ✅ THÊM: Mark as failed để có thể retry
+          setDesignTemplateImageUrls((prev) => ({
+            ...prev,
+            [template.id]: null,
+          }));
+        }
+      } catch (error) {
+        console.error("💥 Error fetching design template image:", error);
+
+        // Mark as failed
         setDesignTemplateImageUrls((prev) => ({
           ...prev,
           [template.id]: null,
         }));
+      } finally {
+        setLoadingDesignTemplateUrls((prev) => ({
+          ...prev,
+          [template.id]: false,
+        }));
       }
-    } catch (error) {
-      console.error("💥 Error fetching design template image:", error);
-
-      // Mark as failed
-      setDesignTemplateImageUrls((prev) => ({
-        ...prev,
-        [template.id]: null,
-      }));
-    } finally {
-      setLoadingDesignTemplateUrls((prev) => ({
-        ...prev,
-        [template.id]: false,
-      }));
-    }
-  }, [designTemplateImageUrls, loadingDesignTemplateUrls]);
+    },
+    [designTemplateImageUrls, loadingDesignTemplateUrls]
+  );
 
   useEffect(() => {
     if (designTemplates && designTemplates.length > 0) {
@@ -1792,7 +1800,9 @@ const AIDesign = () => {
       designTemplates.length > 0 &&
       Object.keys(designTemplateImageUrls).length === 0
     ) {
-      console.log("🔄 Force refetching design template images on return to step 5");
+      console.log(
+        "🔄 Force refetching design template images on return to step 5"
+      );
       designTemplates.forEach((template) => {
         if (template.image) {
           console.log("📥 Force fetching image for template:", template.id);
@@ -1800,7 +1810,12 @@ const AIDesign = () => {
         }
       });
     }
-  }, [currentStep, designTemplates, designTemplateImageUrls, fetchDesignTemplateImage]);
+  }, [
+    currentStep,
+    designTemplates,
+    designTemplateImageUrls,
+    fetchDesignTemplateImage,
+  ]);
 
   const handleIconLoadError = async (icon, retryCount = 0) => {
     if (retryCount >= 2) {
@@ -2574,12 +2589,12 @@ const AIDesign = () => {
   // ✅ Use refs to track blob URLs for cleanup
   const backgroundUrlsRef = useRef({});
   const designTemplateUrlsRef = useRef({});
-  
+
   // Update refs when URLs change
   useEffect(() => {
     backgroundUrlsRef.current = backgroundPresignedUrls;
   }, [backgroundPresignedUrls]);
-  
+
   useEffect(() => {
     designTemplateUrlsRef.current = designTemplateImageUrls;
   }, [designTemplateImageUrls]);
@@ -2588,14 +2603,14 @@ const AIDesign = () => {
     return () => {
       // ✅ Only cleanup on component unmount - revoke all blob URLs
       console.log("🧹 Component unmounting, cleaning up all blob URLs");
-      
+
       Object.values(backgroundUrlsRef.current).forEach((url) => {
         if (url && url.startsWith("blob:")) {
           console.log("🧹 Revoking background blob URL:", url);
           URL.revokeObjectURL(url);
         }
       });
-      
+
       Object.values(designTemplateUrlsRef.current).forEach((url) => {
         if (url && url.startsWith("blob:")) {
           console.log("🧹 Revoking design template blob URL:", url);
@@ -2611,7 +2626,9 @@ const AIDesign = () => {
     if (prevStepRef.current === 5 && currentStep !== 5) {
       // ✅ ONLY reset retry attempts when leaving step 5, but keep URLs cached
       setBackgroundRetryAttempts({});
-      console.log("🔄 Left step 5, clearing retry attempts but keeping blob URLs cached");
+      console.log(
+        "🔄 Left step 5, clearing retry attempts but keeping blob URLs cached"
+      );
     }
     prevStepRef.current = currentStep;
   }, [currentStep]);
@@ -4005,8 +4022,8 @@ const AIDesign = () => {
     try {
       let resultCustomerDetail = null;
 
-      // KIỂM TRA customerDetail từ Redux state trước
-      if (customerDetail) {
+      // LOGIC ĐƠN GIẢN: Nếu có customerDetail trong Redux thì update, không thì tạo mới
+      if (customerDetail && customerDetail.id) {
         console.log("Updating existing customer detail:", customerDetail.id);
         resultCustomerDetail = await dispatch(
           updateCustomerDetail({
@@ -4034,52 +4051,18 @@ const AIDesign = () => {
           });
         }
       } else {
-        // Nếu chưa có customerDetail, kiểm tra từ API trước khi tạo mới
-        console.log("Checking for existing customer detail via API...");
+        // LẦN ĐẦU: Tạo mới customer detail
+        console.log("Creating new customer detail for first time");
+        resultCustomerDetail = await dispatch(
+          createCustomer(customerData)
+        ).unwrap();
+        console.log("Customer created successfully:", resultCustomerDetail);
 
-        try {
-          const existingCustomerDetail = await dispatch(
-            fetchCustomerDetailByUserId(user.id)
-          ).unwrap();
-
-          if (existingCustomerDetail && existingCustomerDetail.id) {
-            console.log(
-              "Found existing customer detail, updating instead:",
-              existingCustomerDetail.id
-            );
-
-            resultCustomerDetail = await dispatch(
-              updateCustomerDetail({
-                customerDetailId: existingCustomerDetail.id,
-                customerData,
-              })
-            ).unwrap();
-
-            setSnackbar({
-              open: true,
-              message: "Cập nhật thông tin doanh nghiệp thành công",
-              severity: "success",
-            });
-          }
-        } catch (fetchError) {
-          // Nếu không tìm thấy customer detail existing, tạo mới
-          if (fetchError?.message?.includes("not found")) {
-            console.log("No existing customer detail found, creating new one");
-
-            resultCustomerDetail = await dispatch(
-              createCustomer(customerData)
-            ).unwrap();
-            console.log("Customer created successfully:", resultCustomerDetail);
-
-            setSnackbar({
-              open: true,
-              message: "Tạo thông tin doanh nghiệp thành công",
-              severity: "success",
-            });
-          } else {
-            throw fetchError; // Re-throw other errors
-          }
-        }
+        setSnackbar({
+          open: true,
+          message: "Tạo thông tin doanh nghiệp thành công",
+          severity: "success",
+        });
       }
 
       // Tiếp tục với logic kiểm tra customer choices
@@ -4189,6 +4172,7 @@ const AIDesign = () => {
           severity: "error",
         });
       } else {
+        console.log("Unknown error:", error);
         setSnackbar({
           open: true,
           message: "Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.",
@@ -4569,6 +4553,7 @@ const AIDesign = () => {
             navigate(`/ai-design?step=billboard&type=${productTypeId}`);
           }
         } catch (fetchError) {
+          console.log("Error loading existing design:", fetchError);
           setError(
             "Có lỗi xảy ra khi tải thiết kế hiện tại. Vui lòng thử lại."
           );
@@ -4717,10 +4702,72 @@ const AIDesign = () => {
               setCurrentStep(1);
               navigate("/ai-design");
             }}
-            onLogoChange={(event) => {
-              if (event?.target) {
-                // Nếu là event thay đổi file
-                handleInputChange(event);
+            onLogoChange={async (event) => {
+              if (event?.target?.files?.length > 0) {
+                const file = event.target.files[0];
+                
+                // Nếu đã có customerDetail, cập nhật logo ngay lập tức qua API
+                if (customerDetail?.id) {
+                  try {
+                    setSnackbar({
+                      open: true,
+                      message: "Đang cập nhật logo...",
+                      severity: "info",
+                    });
+
+                    // Gọi API cập nhật logo
+                    const result = await dispatch(
+                      updateCustomerDetail({
+                        customerDetailId: customerDetail.id,
+                        customerData: {
+                          companyName: businessInfo.companyName,
+                          address: businessInfo.address,
+                          contactInfo: businessInfo.contactInfo,
+                          customerDetailLogo: file, // File logo mới
+                          userId: user.id,
+                        },
+                      })
+                    ).unwrap();
+
+                    // Cập nhật preview trong state local
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setBusinessInfo((prev) => ({
+                        ...prev,
+                        customerDetailLogo: file,
+                        logoPreview: reader.result,
+                      }));
+                    };
+                    reader.readAsDataURL(file);
+
+                    // Fetch lại customer detail để lấy logoUrl mới
+                    if (result?.logoUrl) {
+                      dispatch(fetchImageFromS3(result.logoUrl));
+                    }
+
+                    setSnackbar({
+                      open: true,
+                      message: "Logo đã được cập nhật thành công!",
+                      severity: "success",
+                    });
+
+                    // Reset input file để cho phép chọn lại cùng file
+                    event.target.value = '';
+
+                  } catch (error) {
+                    console.error("Error updating logo:", error);
+                    setSnackbar({
+                      open: true,
+                      message: "Có lỗi xảy ra khi cập nhật logo. Vui lòng thử lại.",
+                      severity: "error",
+                    });
+                    // Reset input file khi có lỗi
+                    event.target.value = '';
+                  }
+                } else {
+                  // Nếu chưa có customerDetail, chỉ xử lý preview như bình thường
+                  handleInputChange(event);
+                }
               } else {
                 // Nếu là reset logo
                 setBusinessInfo((prev) => ({

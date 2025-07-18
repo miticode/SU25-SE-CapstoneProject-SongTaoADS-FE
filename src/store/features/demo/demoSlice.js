@@ -7,7 +7,9 @@ import {
   updateDemoDesignFeedbackImagesApi,
   updateDemoDesignDescriptionApi,
   approveDemoDesignApi,
-  deleteDemoDesignApi
+  deleteDemoDesignApi,
+  uploadDemoSubImagesApi,
+  getDemoSubImagesApi
 } from '../../../api/demoService';
 
 // Initial state
@@ -17,6 +19,7 @@ const initialState = {
   error: null,
   actionStatus: 'idle',
   actionError: null,
+  demoSubImages: {}, // Lưu sub-images theo từng demoId
 };
 
 //  Lấy lịch sử demo theo request
@@ -99,6 +102,25 @@ export const deleteDemoDesign = createAsyncThunk(
   }
 );
 
+// Upload nhiều hình ảnh phụ cho bản demo
+export const uploadDemoSubImages = createAsyncThunk(
+  'demo/uploadDemoSubImages',
+  async ({ customDesignId, files }, { rejectWithValue }) => {
+    const res = await uploadDemoSubImagesApi(customDesignId, files);
+    if (!res.success) return rejectWithValue(res.error);
+    return res.result;
+  }
+);
+// Lấy danh sách hình ảnh phụ của bản demo
+export const getDemoSubImages = createAsyncThunk(
+  'demo/getDemoSubImages',
+  async (customDesignId, { rejectWithValue }) => {
+    const res = await getDemoSubImagesApi(customDesignId);
+    if (!res.success) return rejectWithValue(res.error);
+    return res.result;
+  }
+);
+
 const demoSlice = createSlice({
   name: 'demo',
   initialState,
@@ -142,7 +164,7 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(rejectDemoDesign.fulfilled, (state, action) => {
+      .addCase(rejectDemoDesign.fulfilled, (state, _action) => {
         state.actionStatus = 'succeeded';
         // Cập nhật trạng thái demo trong mảng nếu cần
       })
@@ -154,7 +176,7 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(updateDemoDesignImage.fulfilled, (state, action) => {
+      .addCase(updateDemoDesignImage.fulfilled, (state, _action) => {
         state.actionStatus = 'succeeded';
       })
       .addCase(updateDemoDesignImage.rejected, (state, action) => {
@@ -165,7 +187,7 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(updateDemoDesignFeedbackImages.fulfilled, (state, action) => {
+      .addCase(updateDemoDesignFeedbackImages.fulfilled, (state, _action) => {
         state.actionStatus = 'succeeded';
       })
       .addCase(updateDemoDesignFeedbackImages.rejected, (state, action) => {
@@ -176,7 +198,7 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(updateDemoDesignDescription.fulfilled, (state, action) => {
+      .addCase(updateDemoDesignDescription.fulfilled, (state, _action) => {
         state.actionStatus = 'succeeded';
       })
       .addCase(updateDemoDesignDescription.rejected, (state, action) => {
@@ -187,7 +209,7 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(approveDemoDesign.fulfilled, (state, action) => {
+      .addCase(approveDemoDesign.fulfilled, (state, _action) => {
         state.actionStatus = 'succeeded';
       })
       .addCase(approveDemoDesign.rejected, (state, action) => {
@@ -206,6 +228,32 @@ const demoSlice = createSlice({
       .addCase(deleteDemoDesign.rejected, (state, action) => {
         state.actionStatus = 'failed';
         state.actionError = action.payload;
+      })
+      .addCase(uploadDemoSubImages.pending, (state) => {
+        state.actionStatus = 'loading';
+        state.actionError = null;
+      })
+      .addCase(uploadDemoSubImages.fulfilled, (state, _action) => {
+        state.actionStatus = 'succeeded';
+        // Có thể lưu subImages vào state nếu cần
+      })
+      .addCase(uploadDemoSubImages.rejected, (state, action) => {
+        state.actionStatus = 'failed';
+        state.actionError = action.payload;
+      })
+      .addCase(getDemoSubImages.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(getDemoSubImages.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        // Lưu sub-images cho demoId tương ứng
+        const demoId = action.meta.arg;
+        state.demoSubImages[demoId] = action.payload;
+      })
+      .addCase(getDemoSubImages.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
       });
   },
 });
@@ -219,3 +267,5 @@ export const selectDemoStatus = (state) => state.demo.status;
 export const selectDemoError = (state) => state.demo.error;
 export const selectDemoActionStatus = (state) => state.demo.actionStatus;
 export const selectDemoActionError = (state) => state.demo.actionError;
+// Selector lấy danh sách sub-images của demo theo demoId
+export const selectDemoSubImages = (state, demoId) => state.demo.demoSubImages[demoId] || [];

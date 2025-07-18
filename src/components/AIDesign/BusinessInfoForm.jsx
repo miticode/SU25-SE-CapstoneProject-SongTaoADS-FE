@@ -178,13 +178,21 @@ const BusinessInfoForm = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onLogoChange}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium bg-white px-3 py-1 rounded-lg shadow-sm hover:shadow-md transition-all"
-          >
-            Thay đổi
-          </button>
+          <div className="relative">
+            <input
+              type="file"
+              id="changeLogoInput"
+              accept="image/*"
+              onChange={onLogoChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+            <button
+              type="button"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium bg-white px-3 py-1 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer"
+            >
+              Thay đổi
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center space-x-4">

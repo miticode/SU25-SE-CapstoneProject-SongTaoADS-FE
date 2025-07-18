@@ -76,12 +76,16 @@ export const logout = createAsyncThunk(
 export const sendVerificationEmail = createAsyncThunk(
   "auth/sendVerificationEmail",
   async (userData, { rejectWithValue }) => {
+    console.log("Sending verification email in thunk:", userData);
     const response = await resendVerificationApi(userData);
+    console.log("Verification email thunk response:", response);
 
     if (!response.success) {
+      console.log("Verification email failed:", response.error);
       return rejectWithValue(response.error || "Gửi email xác thực thất bại");
     }
 
+    console.log("Verification email successful");
     return response;
   }
 );

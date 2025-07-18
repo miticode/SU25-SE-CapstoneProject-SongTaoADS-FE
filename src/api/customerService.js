@@ -81,16 +81,14 @@ export const createCustomerApi = async (customerData) => {
           "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`, // Đảm bảo token có trong header
         },
+        withCredentials: true, // Đảm bảo gửi cookies
       }
     );
 
-    const { success, result, message } = response.data;
+    console.log("API Response:", response.data);
 
-    if (success) {
-      return { success: true, data: result };
-    }
-
-    return { success: false, error: message || "Invalid response format" };
+    // Trả về response trực tiếp theo format API
+    return response.data;
   } catch (error) {
     console.error("API Error:", error.response?.data || error.message);
     return {
@@ -187,7 +185,6 @@ export const updateCustomerDetailApi = async (
         );
 
         const imageResult = imageResponse.data;
-        imageUpdateSuccess = imageResult.success;
         imageUpdateResult = imageResult.result;
         console.log("Image update response:", imageResult);
       } catch (imageError) {
@@ -229,14 +226,26 @@ export const updateCustomerDetailApi = async (
 };
 export const getCustomerDetailByUserIdApi = async (userId) => {
   try {
+    console.log("Fetching customer detail for userId:", userId);
+    // Thử endpoint ban đầu trước
+    const token = getToken();
     const response = await customerService.get(
-      `/api/users/${userId}/customer-details`
+      `/api/users/${userId}/customer-details`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        withCredentials: true,
+      }
     );
+    console.log("API response:", response.data);
 
     return response.data;
   } catch (error) {
+    console.log("API error:", error.response?.status, error.response?.data);
     // If 404, it means the customer detail doesn't exist yet, which is not an error
     if (error.response && error.response.status === 404) {
+      console.log("Customer detail not found (404), returning null");
       return { success: true, result: null };
     }
 
@@ -293,6 +302,7 @@ export const linkCustomerToProductTypeApi = async (
       }
     } catch (error) {
       console.log("No existing customer choice found, creating new...");
+      // error variable is intentionally unused here - this is expected behavior
     }
 
     // If no existing choice, create new
