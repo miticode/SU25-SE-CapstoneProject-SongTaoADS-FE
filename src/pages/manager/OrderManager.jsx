@@ -62,10 +62,6 @@ import {
   updateOrderToDelivering,
   updateOrderToInstalled,
 } from "../../store/features/order/orderSlice";
-import {
-  getFinalDesignSubImages,
-  selectFinalDesignSubImages,
-} from "../../store/features/customeDesign/customerDesignSlice";
 import { getOrdersApi } from "../../api/orderService";
 
 const OrderManager = () => {
@@ -76,7 +72,6 @@ const OrderManager = () => {
   const loading = useSelector(selectOrderStatus) === "loading";
   const error = useSelector(selectOrderError);
   const pagination = useSelector(selectOrderPagination);
-  const finalDesignSubImages = useSelector(selectFinalDesignSubImages);
 
   // Local state
   const [currentTab, setCurrentTab] = useState(0);
@@ -338,13 +333,6 @@ const OrderManager = () => {
     loadOrdersByTab(currentTab);
   }, [currentTab, page, pageSize]);
 
-  // Fetch sub-images final design khi mở dialog chi tiết đơn hàng
-  useEffect(() => {
-    if (dialogOpen && selectedOrder && selectedOrder.customDesignRequests?.id) {
-      dispatch(getFinalDesignSubImages(selectedOrder.customDesignRequests.id));
-    }
-  }, [dialogOpen, selectedOrder, dispatch]);
-
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
     setPage(1); // Reset về trang đầu
@@ -399,24 +387,24 @@ const OrderManager = () => {
   );
 
   // Tính toán progress dựa trên status
-  const calculateProgress = (status) => {
-    switch (status) {
-      case "IN_PROGRESS":
-        return 20;
-      case "PRODUCING":
-        return 40;
-      case "PRODUCTION_COMPLETED":
-        return 60;
-      case "DELIVERING":
-        return 80;
-      case "INSTALLED":
-        return 100; // ✅ Sửa từ 90 thành 100
-      case "COMPLETED":
-        return 100;
-      default:
-        return 0;
-    }
-  };
+ const calculateProgress = (status) => {
+  switch (status) {
+    case "IN_PROGRESS":
+      return 20;
+    case "PRODUCING":
+      return 40;
+    case "PRODUCTION_COMPLETED":
+      return 60;
+    case "DELIVERING":
+      return 80;
+    case "INSTALLED":
+      return 100; // ✅ Sửa từ 90 thành 100
+    case "COMPLETED":
+      return 100;
+    default:
+      return 0;
+  }
+};
 
   const ProductionProgress = ({ order }) => {
     const progress = calculateProgress(order.status);
@@ -1238,53 +1226,6 @@ const OrderManager = () => {
                 <Typography>
                   Địa chỉ: {selectedOrder.address || "Chưa có"}
                 </Typography>
-                {/* Hiển thị sub-images final design nếu có */}
-                {selectedOrder.customDesignRequests?.id && (
-                  <Box mt={2}>
-                    <Typography
-                      variant="subtitle2"
-                      color="primary"
-                      gutterBottom
-                    >
-                      Hình ảnh phụ của bản thiết kế chính thức:
-                    </Typography>
-                    <Box
-                      display="flex"
-                      flexWrap="wrap"
-                      gap={2}
-                      alignItems="center"
-                    >
-                      {finalDesignSubImages &&
-                      Array.isArray(finalDesignSubImages) &&
-                      finalDesignSubImages.length > 0 ? (
-                        finalDesignSubImages.map((img) => (
-                          <Box
-                            key={img.id}
-                            border={1}
-                            borderColor="grey.300"
-                            borderRadius={2}
-                            p={0.5}
-                          >
-                            <img
-                              src={img.imageUrl}
-                              alt={img.name}
-                              style={{
-                                width: 80,
-                                height: 80,
-                                objectFit: "cover",
-                                borderRadius: 8,
-                              }}
-                            />
-                          </Box>
-                        ))
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          Chưa có hình ảnh phụ.
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                )}
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" gutterBottom>
