@@ -1,5 +1,4 @@
 import axios from "axios";
-import { data } from "react-router-dom";
 
 // Sử dụng URL backend trực tiếp
 const API_URL = "https://songtaoads.online";
@@ -153,7 +152,13 @@ export const loginApi = async (credentials) => {
       return { success, data: result || {} };
     }
 
-    return { success: false, error: message || "Invalid response format" };
+    // Giả sử biến errorMessage là message trả về từ BE
+    let errorMessage = message;
+    if (errorMessage === "Invalid email or password") {
+      errorMessage = "Email hoặc mật khẩu không đúng";
+    }
+    // Sau đó show errorMessage lên giao diện
+    return { success: false, error: errorMessage || "Invalid response format" };
   } catch (error) {
     console.error("Login error:", error.response?.data || error.message);
     return {
@@ -448,13 +453,17 @@ export const updateUserPasswordApi = async (
 // Hàm gửi email xác thực
 export const resendVerificationApi = async (userData) => {
   try {
+    console.log("Sending verification email to:", userData.email);
+    
     const response = await authService.post("/api/verifications/resend", {
       email: userData.email
     });
 
+    console.log("Verification email response:", response.data);
     const { success, message, result } = response.data;
     return { success, message, result };
   } catch (error) {
+    console.error("Verification email error:", error.response?.data || error.message);
     return {
       success: false,
       error: error.response?.data?.message || "Gửi email xác thực thất bại",

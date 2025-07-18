@@ -40,7 +40,12 @@ import { fetchCustomerDetailById } from "../../store/features/customer/customerS
 import {
   createDemoDesign,
   getDemoDesigns,
+  uploadDemoSubImages,
+  getDemoSubImages,
+  selectDemoSubImages,
 } from "../../store/features/demo/demoSlice";
+import { fetchImageFromS3 } from "../../store/features/s3/s3Slice";
+import { useDropzone } from "react-dropzone";
 
 // Lấy designerId từ state đăng nhập
 import { useSelector as useAuthSelector } from "react-redux";
@@ -74,6 +79,7 @@ const DesignRequests = () => {
   const [demoForm, setDemoForm] = useState({
     designerDescription: "",
     customDesignImage: null,
+    subImages: [], // Thêm state cho sub-images
   });
   const [demoFormError, setDemoFormError] = useState("");
   const [updateDemoMode, setUpdateDemoMode] = useState(false);
@@ -81,6 +87,48 @@ const DesignRequests = () => {
   const [openFinalDesignDialog, setOpenFinalDesignDialog] = useState(false);
   const [finalDesignFile, setFinalDesignFile] = useState(null);
   const [finalDesignError, setFinalDesignError] = useState("");
+  // State cho upload sub-image demo
+  const [uploadingSubImage, setUploadingSubImage] = useState(false);
+
+  // State để lưu S3 URLs cho sub-images
+  const [s3ImageUrls, setS3ImageUrls] = useState({});
+
+  // State để lưu S3 URL cho demo chính
+  const [mainDemoS3Url, setMainDemoS3Url] = useState(null);
+
+  // Lấy sub-images cho demo hiện tại
+  const demoSubImages = useSelector((state) =>
+    latestDemo ? selectDemoSubImages(state, latestDemo.id) : []
+  );
+
+  // Dropzone cho sub-images
+  const subImagesDropzone = useDropzone({
+    accept: {
+      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".bmp", ".webp"],
+    },
+    onDrop: (acceptedFiles) => {
+      setDemoForm((prev) => ({
+        ...prev,
+        subImages: [...prev.subImages, ...acceptedFiles],
+      }));
+    },
+  });
+
+  // Dropzone cho main image
+  const mainImageDropzone = useDropzone({
+    accept: {
+      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".bmp", ".webp"],
+    },
+    maxFiles: 1,
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        setDemoForm((prev) => ({
+          ...prev,
+          customDesignImage: acceptedFiles[0],
+        }));
+      }
+    },
+  });
 
   useEffect(() => {
     if (designerId) {
@@ -142,17 +190,82 @@ const DesignRequests = () => {
   useEffect(() => {
     const fetchLatestDemo = async () => {
       if (openDialog && selectedRequest) {
-        const res = await dispatch(getDemoDesigns(selectedRequest.id)).unwrap();
-        if (res && res.length > 0) {
-          setLatestDemo(res[res.length - 1]);
-        } else {
+        try {
+          const res = await dispatch(
+            getDemoDesigns(selectedRequest.id)
+          ).unwrap();
+          if (res && res.length > 0) {
+            const latestDemo = res[res.length - 1];
+            setLatestDemo(latestDemo);
+            // Fetch sub-images cho demo mới nhất
+            await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
+            // Clear S3 URLs để fetch lại
+            setS3ImageUrls({});
+            setMainDemoS3Url(null);
+          } else {
+            setLatestDemo(null);
+            dispatch(getDemoSubImages(null)); // clear sub-images
+          }
+        } catch (error) {
+          console.error("Error fetching demo:", error);
           setLatestDemo(null);
+          dispatch(getDemoSubImages(null));
         }
       }
     };
     fetchLatestDemo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openDialog, selectedRequest]);
+
+  // Fetch S3 URLs cho sub-images khi demoSubImages thay đổi
+  useEffect(() => {
+    const fetchS3Urls = async () => {
+      if (demoSubImages && demoSubImages.length > 0) {
+        const newS3Urls = {};
+        for (const subImage of demoSubImages) {
+          if (subImage.imageUrl && !s3ImageUrls[subImage.id]) {
+            try {
+              const result = await dispatch(
+                fetchImageFromS3(subImage.imageUrl)
+              ).unwrap();
+              newS3Urls[subImage.id] = result.url;
+            } catch (error) {
+              console.error(
+                "Error fetching S3 image:",
+                subImage.imageUrl,
+                error
+              );
+            }
+          }
+        }
+        if (Object.keys(newS3Urls).length > 0) {
+          setS3ImageUrls((prev) => ({ ...prev, ...newS3Urls }));
+        }
+      }
+    };
+    fetchS3Urls();
+  }, [demoSubImages, dispatch, s3ImageUrls]);
+
+  // Fetch S3 URL cho demo chính khi latestDemo thay đổi
+  useEffect(() => {
+    const fetchMainDemoS3Url = async () => {
+      if (latestDemo && latestDemo.demoImage && !mainDemoS3Url) {
+        try {
+          const result = await dispatch(
+            fetchImageFromS3(latestDemo.demoImage)
+          ).unwrap();
+          setMainDemoS3Url(result.url);
+        } catch (error) {
+          console.error(
+            "Error fetching main demo S3 image:",
+            latestDemo.demoImage,
+            error
+          );
+        }
+      }
+    };
+    fetchMainDemoS3Url();
+  }, [latestDemo, dispatch, mainDemoS3Url]);
 
   const handlePageChange = (event, value) => {
     setPagination((prev) => ({ ...prev, currentPage: value }));
@@ -233,7 +346,11 @@ const DesignRequests = () => {
   };
 
   const handleOpenDemoDialog = async (isUpdate = false) => {
-    setDemoForm({ designerDescription: "", customDesignImage: null });
+    setDemoForm({
+      designerDescription: "",
+      customDesignImage: null,
+      subImages: [],
+    });
     setDemoFormError("");
     setUpdateDemoMode(isUpdate);
     setOpenDemoDialog(true);
@@ -246,9 +363,21 @@ const DesignRequests = () => {
     const { name, value, files } = e.target;
     if (name === "customDesignImage") {
       setDemoForm((f) => ({ ...f, customDesignImage: files[0] }));
+    } else if (name === "subImages") {
+      // Xử lý multiple files cho sub-images
+      const selectedFiles = Array.from(files);
+      setDemoForm((f) => ({ ...f, subImages: selectedFiles }));
     } else {
       setDemoForm((f) => ({ ...f, [name]: value }));
     }
+  };
+
+  // Hàm xóa sub-image khỏi danh sách
+  const handleRemoveSubImage = (index) => {
+    setDemoForm((f) => ({
+      ...f,
+      subImages: f.subImages.filter((_, i) => i !== index),
+    }));
   };
 
   const handleOpenFinalDesignDialog = () => {
@@ -298,6 +427,25 @@ const DesignRequests = () => {
       setFinalDesignError(err || "Gửi bản thiết kế chính thức thất bại");
     }
     setActionLoading(false);
+  };
+
+  // Hàm upload sub-image cho demo
+  const handleUploadDemoSubImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !latestDemo) return;
+    setUploadingSubImage(true);
+    try {
+      await dispatch(
+        uploadDemoSubImages({ customDesignId: latestDemo.id, files: [file] })
+      ).unwrap();
+      // Fetch lại sub-images sau khi upload thành công
+      await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
+      console.log("Upload sub-image thành công");
+    } catch (error) {
+      console.error("Error uploading sub-image:", error);
+      // Có thể show thông báo lỗi nếu muốn
+    }
+    setUploadingSubImage(false);
   };
 
   return (
@@ -405,13 +553,177 @@ const DesignRequests = () => {
                     </Typography>
                     {latestDemo.demoImage && (
                       <Box mt={1}>
-                        <img
-                          src={latestDemo.demoImage}
-                          alt="Demo đã gửi"
-                          style={{ maxWidth: 300, borderRadius: 8 }}
-                        />
+                        {mainDemoS3Url ? (
+                          <img
+                            src={mainDemoS3Url}
+                            alt="Demo đã gửi"
+                            style={{
+                              maxWidth: 300,
+                              borderRadius: 8,
+                              objectFit: "contain",
+                            }}
+                            onError={(e) => {
+                              console.error(
+                                "Error loading main demo S3 image:",
+                                latestDemo.demoImage
+                              );
+                              e.target.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: 300,
+                              height: 200,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              bgcolor: "#f5f5f5",
+                              borderRadius: 8,
+                              border: "1px dashed #ccc",
+                            }}
+                          >
+                            <CircularProgress size={32} />
+                          </Box>
+                        )}
                       </Box>
                     )}
+                    {/* Hiển thị sub-images của demo */}
+                    <Box
+                      mt={2}
+                      display="flex"
+                      flexWrap="wrap"
+                      gap={2}
+                      alignItems="center"
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ width: "100%", mb: 1 }}
+                      >
+                        Hình ảnh chi tiết Demo:
+                      </Typography>
+
+                      {/* Debug info */}
+                      {window.location.hostname === "localhost" && (
+                        <Typography
+                          variant="caption"
+                          color="textSecondary"
+                          sx={{ width: "100%", mb: 1 }}
+                        >
+                          Debug: latestDemo.id = {latestDemo?.id},
+                          demoSubImages.length = {demoSubImages?.length || 0},
+                          mainDemoS3Url = {mainDemoS3Url ? "loaded" : "loading"}
+                        </Typography>
+                      )}
+
+                      {/* Loading state */}
+                      {status === "loading" && (
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <CircularProgress size={20} />
+                          <Typography variant="body2">
+                            Đang tải hình ảnh...
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {/* Hiển thị sub-images */}
+                      {demoSubImages &&
+                      Array.isArray(demoSubImages) &&
+                      demoSubImages.length > 0 ? (
+                        demoSubImages.map((img) => (
+                          <Box
+                            key={img.id}
+                            border={1}
+                            borderColor="grey.300"
+                            borderRadius={2}
+                            p={0.5}
+                            sx={{ bgcolor: "white" }}
+                          >
+                            {s3ImageUrls[img.id] ? (
+                              <img
+                                src={s3ImageUrls[img.id]}
+                                alt={img.name || "Sub image"}
+                                style={{
+                                  width: 80,
+                                  height: 80,
+                                  objectFit: "cover",
+                                  borderRadius: 8,
+                                }}
+                                onError={(e) => {
+                                  console.error(
+                                    "Error loading S3 image:",
+                                    img.imageUrl
+                                  );
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <Box
+                                sx={{
+                                  width: 80,
+                                  height: 80,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  bgcolor: "#f5f5f5",
+                                  borderRadius: 8,
+                                }}
+                              >
+                                <CircularProgress size={24} />
+                              </Box>
+                            )}
+                          </Box>
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">
+                          Chưa có hình ảnh chi tiết
+                        </Typography>
+                      )}
+
+                      {/* Ô + để upload sub-image */}
+                      {latestDemo && (
+                        <Box>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            id="upload-demo-sub-image"
+                            onChange={handleUploadDemoSubImage}
+                            disabled={uploadingSubImage}
+                          />
+                          <label htmlFor="upload-demo-sub-image">
+                            <Box
+                              sx={{
+                                width: 80,
+                                height: 80,
+                                border: "2px dashed #1976d2",
+                                borderRadius: 2,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: uploadingSubImage
+                                  ? "not-allowed"
+                                  : "pointer",
+                                color: "#1976d2",
+                                fontSize: 32,
+                                fontWeight: "bold",
+                                background: uploadingSubImage
+                                  ? "#f5f5f5"
+                                  : "transparent",
+                                transition: "all 0.2s",
+                                ":hover": { background: "#e3f2fd" },
+                              }}
+                            >
+                              {uploadingSubImage ? (
+                                <CircularProgress size={28} />
+                              ) : (
+                                "+"
+                              )}
+                            </Box>
+                          </label>
+                        </Box>
+                      )}
+                    </Box>
                   </Box>
                 )}
                 <Typography>
@@ -547,7 +859,7 @@ const DesignRequests = () => {
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => setOpenDemoDialog(true)}
+                      onClick={() => handleOpenDemoDialog(false)}
                       sx={{ mt: 2 }}
                     >
                       GỬI LẠI DEMO
@@ -634,7 +946,7 @@ const DesignRequests = () => {
       <Dialog
         open={openDemoDialog}
         onClose={handleCloseDemoDialog}
-        maxWidth="xs"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>
@@ -657,21 +969,157 @@ const DesignRequests = () => {
             minRows={2}
             required
           />
-          <Button variant="outlined" component="label" fullWidth sx={{ mt: 2 }}>
-            {updateDemoMode ? "Chọn ảnh demo mới" : "Chọn ảnh demo"}
-            <input
-              type="file"
-              name="customDesignImage"
-              accept="image/*"
-              hidden
-              onChange={handleDemoFormChange}
-            />
-          </Button>
-          {demoForm.customDesignImage && (
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Đã chọn: {demoForm.customDesignImage.name}
+
+          {/* Ảnh demo chính */}
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+            Ảnh demo chính *
+          </Typography>
+
+          {/* Dropzone cho ảnh chính */}
+          <Box
+            {...mainImageDropzone.getRootProps()}
+            sx={{
+              border: "2px dashed #1976d2",
+              borderRadius: 2,
+              p: 3,
+              textAlign: "center",
+              cursor: "pointer",
+              bgcolor: mainImageDropzone.isDragActive
+                ? "#e3f2fd"
+                : "transparent",
+              transition: "all 0.2s",
+              "&:hover": { bgcolor: "#e3f2fd" },
+              mb: 2,
+            }}
+          >
+            <input {...mainImageDropzone.getInputProps()} />
+            {demoForm.customDesignImage ? (
+              <Box>
+                <img
+                  src={URL.createObjectURL(demoForm.customDesignImage)}
+                  alt="Main demo"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: 200,
+                    borderRadius: 8,
+                    objectFit: "contain",
+                  }}
+                />
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {demoForm.customDesignImage.name}
+                </Typography>
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDemoForm((prev) => ({
+                      ...prev,
+                      customDesignImage: null,
+                    }));
+                  }}
+                  sx={{ mt: 1 }}
+                >
+                  Xóa ảnh
+                </Button>
+              </Box>
+            ) : (
+              <Box>
+                <Typography variant="body1" color="primary">
+                  {mainImageDropzone.isDragActive
+                    ? "Thả ảnh vào đây..."
+                    : "Kéo thả ảnh hoặc click để chọn"}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Chỉ hỗ trợ file ảnh (JPG, PNG, GIF, BMP, WEBP)
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Hình ảnh chi tiết Demo */}
+          <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>
+            Hình ảnh chi tiết Demo
+          </Typography>
+
+          {/* Dropzone cho sub-images */}
+          <Box
+            {...subImagesDropzone.getRootProps()}
+            sx={{
+              border: "2px dashed #1976d2",
+              borderRadius: 2,
+              p: 3,
+              textAlign: "center",
+              cursor: "pointer",
+              bgcolor: subImagesDropzone.isDragActive
+                ? "#e3f2fd"
+                : "transparent",
+              transition: "all 0.2s",
+              "&:hover": { bgcolor: "#e3f2fd" },
+              mb: 2,
+            }}
+          >
+            <input {...subImagesDropzone.getInputProps()} />
+            <Typography variant="body1" color="primary">
+              {subImagesDropzone.isDragActive
+                ? "Thả ảnh vào đây..."
+                : "Kéo thả nhiều ảnh hoặc click để chọn"}
             </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Có thể chọn nhiều ảnh cùng lúc
+            </Typography>
+          </Box>
+
+          {/* Hiển thị danh sách sub-images đã chọn */}
+          {demoForm.subImages.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Đã chọn {demoForm.subImages.length} ảnh chi tiết:
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {demoForm.subImages.map((file, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      position: "relative",
+                      border: "1px solid #ddd",
+                      borderRadius: 1,
+                      p: 0.5,
+                      bgcolor: "white",
+                    }}
+                  >
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Sub image ${index + 1}`}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        top: -8,
+                        right: -8,
+                        bgcolor: "error.main",
+                        color: "white",
+                        "&:hover": { bgcolor: "error.dark" },
+                        width: 24,
+                        height: 24,
+                      }}
+                      onClick={() => handleRemoveSubImage(index)}
+                    >
+                      <DeleteIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
           )}
+
           {demoFormError && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {demoFormError}
@@ -704,12 +1152,25 @@ const DesignRequests = () => {
                   "customDesignImage",
                   demoForm.customDesignImage
                 );
-                await dispatch(
+
+                // Tạo demo trước
+                const demoResult = await dispatch(
                   createDemoDesign({
                     customDesignRequestId: selectedRequest.id,
                     data: formData,
                   })
                 ).unwrap();
+
+                // Nếu có sub-images, upload chúng
+                if (demoForm.subImages.length > 0 && demoResult.id) {
+                  await dispatch(
+                    uploadDemoSubImages({
+                      customDesignId: demoResult.id,
+                      files: demoForm.subImages,
+                    })
+                  ).unwrap();
+                }
+
                 setNotification({
                   open: true,
                   message:
@@ -720,16 +1181,32 @@ const DesignRequests = () => {
                 });
                 setOpenDemoDialog(false);
                 setOpenDialog(false);
-                // Reload danh sách
-                dispatch(
+
+                // Reload danh sách và fetch lại demo mới nhất
+                const reloadResult = await dispatch(
                   fetchDesignRequestsByDesigner({
                     designerId,
                     page: pagination.currentPage,
                     size: pagination.pageSize,
                   })
-                )
-                  .unwrap()
-                  .then((res) => setRequests(res.result || []));
+                ).unwrap();
+                setRequests(reloadResult.result || []);
+
+                // Fetch lại demo mới nhất và sub-images
+                if (selectedRequest) {
+                  const demoResult = await dispatch(
+                    getDemoDesigns(selectedRequest.id)
+                  ).unwrap();
+                  if (demoResult && demoResult.length > 0) {
+                    const latestDemo = demoResult[demoResult.length - 1];
+                    setLatestDemo(latestDemo);
+                    // Fetch sub-images cho demo mới nhất
+                    await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
+                    // Clear S3 URLs để fetch lại
+                    setS3ImageUrls({});
+                    setMainDemoS3Url(null);
+                  }
+                }
               } catch (err) {
                 setDemoFormError(
                   err?.message ||

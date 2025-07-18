@@ -102,4 +102,26 @@ export const deleteDemoDesignApi = async (demoDesignId) => {
   }
 };
 
+// Upload nhiều hình ảnh phụ cho bản demo
+export const uploadDemoSubImagesApi = async (customDesignId, files) => {
+  try {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    const res = await demoService.post(`/api/demo-designs/${customDesignId}/sub-images`, formData);
+    return res.data;
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Failed to upload demo sub images' };
+  }
+};
+
+// Lấy danh sách hình ảnh phụ của bản demo
+export const getDemoSubImagesApi = async (customDesignId) => {
+  try {
+    const res = await demoService.get(`/api/demo-designs/${customDesignId}/sub-images`);
+    return res.data;
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Failed to fetch demo sub images' };
+  }
+};
+
 export default demoService;
