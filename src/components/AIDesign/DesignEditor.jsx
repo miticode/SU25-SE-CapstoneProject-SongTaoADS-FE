@@ -93,12 +93,12 @@ const DesignEditor = ({
                 </div>
               )}
 
-              {/* Tag Line */}
-              {businessPresets.tagLine && (
+              {/* Address */}
+              {businessPresets.address && (
                 <div
                   className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all"
                   onClick={() =>
-                    addBusinessInfoToCanvas("tagLine", businessPresets.tagLine)
+                    addBusinessInfoToCanvas("address", businessPresets.address)
                   }
                 >
                   <div className="flex items-center mb-1">
@@ -108,7 +108,7 @@ const DesignEditor = ({
                     </span>
                   </div>
                   <p className="text-sm text-gray-800 truncate">
-                    {businessPresets.tagLine}
+                    {businessPresets.address}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Nhấn để thêm vào thiết kế
@@ -194,8 +194,8 @@ const DesignEditor = ({
           </div>
         </div>
 
-        {/* Canvas Area - Tăng lên 8 cột để canvas lớn hơn */}
-        <div className="lg:col-span-8">
+        {/* Canvas Area - Giảm xuống 7 cột để text controls có nhiều chỗ hơn */}
+        <div className="lg:col-span-7">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Thiết kế</h3>
@@ -269,8 +269,8 @@ const DesignEditor = ({
           </div>
         </div>
 
-        {/* Text Controls - Bên phải - giảm xuống còn 2 cột */}
-        <div className="lg:col-span-2">
+        {/* Text Controls - Bên phải - tăng lên 3 cột cho đủ chỗ màu chữ */}
+        <div className="lg:col-span-3">
           <div className="bg-white rounded-xl shadow-lg p-4">
             <h3 className="text-lg font-semibold mb-3">Tùy chỉnh text</h3>
 
@@ -336,22 +336,26 @@ const DesignEditor = ({
                   <label className="block text-sm font-medium mb-1">
                     Màu chữ
                   </label>
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="color"
-                      value={textSettings.fill}
-                      onChange={(e) =>
-                        updateTextProperty("fill", e.target.value)
-                      }
-                      className="w-8 h-8 rounded border border-gray-300"
-                    />
+                  <div className="flex items-center space-x-2">
+                    <div className="relative">
+                      <input
+                        type="color"
+                        value={textSettings.fill}
+                        onChange={(e) =>
+                          updateTextProperty("fill", e.target.value)
+                        }
+                        className="w-10 h-10 rounded-lg border-2 border-gray-300 cursor-pointer"
+                        title="Chọn màu"
+                      />
+                    </div>
                     <input
                       type="text"
                       value={textSettings.fill}
                       onChange={(e) =>
                         updateTextProperty("fill", e.target.value)
                       }
-                      className="flex-1 p-1.5 border border-gray-300 rounded-lg text-sm"
+                      placeholder="#000000"
+                      className="flex-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -416,10 +420,10 @@ const DesignEditor = ({
                   <label className="block text-sm font-medium mb-1">
                     Màu phổ biến
                   </label>
-                  <div className="grid grid-cols-4 gap-1">
+                  <div className="grid grid-cols-4 gap-2">
                     {[
                       "#000000",
-                      "#ffffff",
+                      "#ffffff", 
                       "#ff0000",
                       "#00ff00",
                       "#0000ff",
@@ -434,8 +438,13 @@ const DesignEditor = ({
                       <button
                         key={color}
                         onClick={() => updateTextProperty("fill", color)}
-                        className="w-6 h-6 rounded border border-gray-300"
+                        className={`w-10 h-10 rounded border-2 hover:scale-105 transition-transform duration-150 ${
+                          textSettings.fill === color 
+                            ? "border-custom-secondary shadow-lg" 
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
                         style={{ backgroundColor: color }}
+                        title={color}
                       />
                     ))}
                   </div>
