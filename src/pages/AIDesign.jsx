@@ -1609,7 +1609,7 @@ const AIDesign = () => {
   const [businessPresets, setBusinessPresets] = useState({
     logoUrl: "",
     companyName: "",
-    tagLine: "",
+    address: "",
     contactInfo: "",
   });
   const fonts = [
@@ -4702,10 +4702,72 @@ const AIDesign = () => {
               setCurrentStep(1);
               navigate("/ai-design");
             }}
-            onLogoChange={(event) => {
-              if (event?.target) {
-                // Nếu là event thay đổi file
-                handleInputChange(event);
+            onLogoChange={async (event) => {
+              if (event?.target?.files?.length > 0) {
+                const file = event.target.files[0];
+                
+                // Nếu đã có customerDetail, cập nhật logo ngay lập tức qua API
+                if (customerDetail?.id) {
+                  try {
+                    setSnackbar({
+                      open: true,
+                      message: "Đang cập nhật logo...",
+                      severity: "info",
+                    });
+
+                    // Gọi API cập nhật logo
+                    const result = await dispatch(
+                      updateCustomerDetail({
+                        customerDetailId: customerDetail.id,
+                        customerData: {
+                          companyName: businessInfo.companyName,
+                          address: businessInfo.address,
+                          contactInfo: businessInfo.contactInfo,
+                          customerDetailLogo: file, // File logo mới
+                          userId: user.id,
+                        },
+                      })
+                    ).unwrap();
+
+                    // Cập nhật preview trong state local
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setBusinessInfo((prev) => ({
+                        ...prev,
+                        customerDetailLogo: file,
+                        logoPreview: reader.result,
+                      }));
+                    };
+                    reader.readAsDataURL(file);
+
+                    // Fetch lại customer detail để lấy logoUrl mới
+                    if (result?.logoUrl) {
+                      dispatch(fetchImageFromS3(result.logoUrl));
+                    }
+
+                    setSnackbar({
+                      open: true,
+                      message: "Logo đã được cập nhật thành công!",
+                      severity: "success",
+                    });
+
+                    // Reset input file để cho phép chọn lại cùng file
+                    event.target.value = '';
+
+                  } catch (error) {
+                    console.error("Error updating logo:", error);
+                    setSnackbar({
+                      open: true,
+                      message: "Có lỗi xảy ra khi cập nhật logo. Vui lòng thử lại.",
+                      severity: "error",
+                    });
+                    // Reset input file khi có lỗi
+                    event.target.value = '';
+                  }
+                } else {
+                  // Nếu chưa có customerDetail, chỉ xử lý preview như bình thường
+                  handleInputChange(event);
+                }
               } else {
                 // Nếu là reset logo
                 setBusinessInfo((prev) => ({
