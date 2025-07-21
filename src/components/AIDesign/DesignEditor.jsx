@@ -178,7 +178,7 @@ const DesignEditor = ({
 
               {/* Nếu không có thông tin */}
               {!businessPresets.companyName &&
-                !businessPresets.tagLine &&
+                !businessPresets.address &&
                 !businessPresets.contactInfo &&
                 !businessPresets.logoUrl && (
                   <div className="text-center py-4">
