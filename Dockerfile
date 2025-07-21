@@ -13,8 +13,8 @@ ENV NODE_ENV=$NODE_ENV
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Clean install với cache clear
-RUN npm ci --only=production=false
+# Install ALL dependencies (production + dev)
+RUN npm ci --include=dev
 
 # Copy source code
 COPY . .
