@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+// Sử dụng URL backend từ biến môi trường
+const API_URL = import.meta.env.VITE_API_URL 
 // Lấy token
 const getToken = () => {
   return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -9,8 +11,6 @@ const getToken = () => {
 export const getImageFromS3 = async (key) => {
   try {
     const token = getToken();
-    // Sử dụng URL backend trực tiếp
-    const API_URL = "https://songtaoads.online";
     
     // Log để debug
     console.log('Fetching image from S3:');
@@ -41,8 +41,6 @@ export const getImageFromS3 = async (key) => {
 export const getPresignedUrl = async (key, durationInMinutes = 30) => {
   try {
     const token = getToken();
-    // Sử dụng URL backend trực tiếp
-    const API_URL = "https://songtaoads.online";
     
     console.log('Getting presigned URL for key:', key);
     
