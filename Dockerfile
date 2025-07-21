@@ -1,6 +1,15 @@
 # Stage 1: Build ứng dụng ReactJS + Vite
 FROM node:alpine3.18 AS build
 WORKDIR /app
+
+# Declare build arguments
+ARG VITE_API_URL
+ARG NODE_ENV
+
+# Set environment variables from build args
+ENV VITE_API_URL=$VITE_API_URL
+ENV NODE_ENV=$NODE_ENV
+
 COPY package.json package-lock.json ./
 RUN npm install
 COPY . .

@@ -17,7 +17,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Build Docker image
-        run: docker build -t mts983/su25-se-capstoneproject-songtaoads-fe .
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} \
+            --build-arg NODE_ENV=production \
+            -t mts983/su25-se-capstoneproject-songtaoads-fe .
       - name: Publish image to Docker Hub
         run: docker push mts983/su25-se-capstoneproject-songtaoads-fe:latest
 
