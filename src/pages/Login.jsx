@@ -17,6 +17,9 @@ import {
   FaCheckCircle,
   FaExclamationCircle,
   FaExclamationTriangle,
+  FaEye,
+  FaEyeSlash,
+  FaArrowLeft,
 } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { getDefaultRedirectPath, getUserRole } from "../utils/roleUtils";
@@ -26,6 +29,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [openAlert, setOpenAlert] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -84,6 +88,17 @@ const Login = () => {
   return (
     <PageTransition className="w-full">
       <div className="mb-10 text-center">
+        {/* Nút quay lại trang chủ */}
+        <div className="text-left mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 group"
+          >
+            <FaArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
+            Quay lại trang chủ
+          </Link>
+        </div>
+        
         <div className="inline-block p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4">
           <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
@@ -211,20 +226,27 @@ const Login = () => {
           <div className="relative">
             <input
               id="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+              className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
               placeholder="••••••••••••"
               disabled={status === "loading"}
               autoComplete="current-password"
             />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-              <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
-              </svg>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-blue-500 transition-colors duration-300"
+              disabled={status === "loading"}
+            >
+              {showPassword ? (
+                <FaEyeSlash className="w-5 h-5" />
+              ) : (
+                <FaEye className="w-5 h-5" />
+              )}
+            </button>
           </div>
         </div>
 

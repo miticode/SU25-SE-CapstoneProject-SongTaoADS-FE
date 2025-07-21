@@ -13,6 +13,12 @@ import {
   selectAuthError,
 } from "../store/features/auth/authSlice";
 import {
+  fetchCustomerDetailByUserId,
+  updateCustomerDetail,
+  selectCustomerDetail,
+  selectCustomerStatus,
+} from "../store/features/customer/customerSlice";
+import {
   Box,
   Container,
   Paper,
@@ -30,6 +36,9 @@ import {
   Snackbar,
   Alert,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  OutlinedInput,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -40,7 +49,11 @@ import {
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
-import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
+import {
+  fetchImageFromS3,
+  selectS3Image,
+  removeImage,
+} from "../store/features/s3/s3Slice";
 
 const DEFAULT_AVATAR = "https://i.imgur.com/HeIi0wU.png";
 
@@ -50,6 +63,10 @@ const Profile = () => {
   const loading = useSelector(selectAuthStatus) === "loading";
   const error = useSelector(selectAuthError);
   const { accessToken } = useSelector((state) => state.auth);
+
+  // Thêm selector cho customerDetail
+  const customerDetail = useSelector(selectCustomerDetail);
+  const customerStatus = useSelector(selectCustomerStatus);
 
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -83,8 +100,23 @@ const Profile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // State cho dialog edit customer detail
+  const [openCustomerDetail, setOpenCustomerDetail] = useState(false);
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editContactInfo, setEditContactInfo] = useState("");
+  const [editLogo, setEditLogo] = useState(null);
+  const [customerDetailLoading, setCustomerDetailLoading] = useState(false);
+
   const s3Avatar = useSelector((state) =>
     profile?.avatar ? selectS3Image(state, profile.avatar) : null
+  );
+
+  // Selector cho company logo từ S3
+  const s3CompanyLogo = useSelector((state) =>
+    customerDetail?.logoUrl && !customerDetail.logoUrl.startsWith("http")
+      ? selectS3Image(state, customerDetail.logoUrl)
+      : null
   );
 
   useEffect(() => {
@@ -93,11 +125,29 @@ const Profile = () => {
     }
   }, [profile?.avatar, s3Avatar, dispatch]);
 
+  // Fetch company logo từ S3 nếu cần
+  useEffect(() => {
+    if (
+      customerDetail?.logoUrl &&
+      !customerDetail.logoUrl.startsWith("http") &&
+      !s3CompanyLogo
+    ) {
+      dispatch(fetchImageFromS3(customerDetail.logoUrl));
+    }
+  }, [customerDetail?.logoUrl, s3CompanyLogo, dispatch]);
+
   useEffect(() => {
     if (accessToken) {
       dispatch(fetchProfile());
     }
   }, [dispatch, accessToken]);
+
+  // Fetch customerDetail khi có profile
+  useEffect(() => {
+    if (profile?.id) {
+      dispatch(fetchCustomerDetailByUserId(profile.id));
+    }
+  }, [dispatch, profile?.id]);
 
   // Đồng bộ editName, editPhone khi profile Redux thay đổi
   useEffect(() => {
@@ -106,6 +156,15 @@ const Profile = () => {
       setEditPhone(profile.phone || "");
     }
   }, [profile]);
+
+  // Đồng bộ customer detail khi có thay đổi
+  useEffect(() => {
+    if (customerDetail) {
+      setEditCompanyName(customerDetail.companyName || "");
+      setEditAddress(customerDetail.address || "");
+      setEditContactInfo(customerDetail.contactInfo || "");
+    }
+  }, [customerDetail]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -209,6 +268,90 @@ const Profile = () => {
         message: res.error || "Đổi mật khẩu thất bại!",
         severity: "error",
       });
+    }
+  };
+
+  // Hàm cập nhật customer detail
+  const handleSaveCustomerDetail = async () => {
+    if (!editCompanyName.trim()) {
+      setSnackbar({
+        open: true,
+        message: "Tên công ty không được để trống",
+        severity: "error",
+      });
+      return;
+    }
+
+    setCustomerDetailLoading(true);
+
+    const customerData = {
+      companyName: editCompanyName,
+      address: editAddress,
+      contactInfo: editContactInfo,
+      userId: profile.id,
+    };
+
+    // Thêm logo nếu có file mới được chọn
+    if (editLogo) {
+      customerData.customerDetailLogo = editLogo;
+    }
+
+    try {
+      await dispatch(
+        updateCustomerDetail({
+          customerDetailId: customerDetail.id,
+          customerData: customerData,
+        })
+      ).unwrap();
+
+      setCustomerDetailLoading(false);
+      setOpenCustomerDetail(false);
+      const hasNewLogo = editLogo !== null;
+      setEditLogo(null);
+
+      // Xóa cache S3 cũ nếu có logo cũ và đang upload logo mới
+      if (
+        hasNewLogo &&
+        customerDetail.logoUrl &&
+        !customerDetail.logoUrl.startsWith("http")
+      ) {
+        dispatch(removeImage(customerDetail.logoUrl));
+      }
+
+      // Fetch lại customer detail để cập nhật UI
+      const updatedCustomerDetail = await dispatch(
+        fetchCustomerDetailByUserId(profile.id)
+      ).unwrap();
+
+      // Fetch ảnh S3 mới nếu có logo mới được upload
+      if (
+        hasNewLogo &&
+        updatedCustomerDetail?.logoUrl &&
+        !updatedCustomerDetail.logoUrl.startsWith("http")
+      ) {
+        dispatch(fetchImageFromS3(updatedCustomerDetail.logoUrl));
+      }
+
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thông tin công ty thành công!",
+        severity: "success",
+      });
+    } catch (error) {
+      setCustomerDetailLoading(false);
+      setSnackbar({
+        open: true,
+        message: error || "Cập nhật thông tin công ty thất bại!",
+        severity: "error",
+      });
+    }
+  };
+
+  // Hàm xử lý thay đổi logo
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditLogo(file);
     }
   };
 
@@ -663,6 +806,253 @@ const Profile = () => {
           </Box>
         </Paper>
 
+        {/* Customer Detail Section */}
+        {customerDetail && (
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              p: { xs: 3, md: 6 },
+              maxWidth: 800,
+              mx: "auto",
+              mt: 4,
+              display: "flex",
+              flexDirection: "column",
+              background: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 25px 45px rgba(0, 0, 0, 0.1)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-5px)",
+                boxShadow: "0 35px 65px rgba(0, 0, 0, 0.15)",
+              },
+            }}
+          >
+            <Typography
+              variant="h5"
+              fontWeight={700}
+              sx={{
+                mb: 4,
+                letterSpacing: 1,
+                textAlign: "center",
+                background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                position: "relative",
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  bottom: -10,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 80,
+                  height: 3,
+                  background:
+                    "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+                  borderRadius: 2,
+                },
+              }}
+            >
+              Thông tin công ty
+            </Typography>
+
+            {/* Edit Button */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                mb: 2,
+              }}
+            >
+              <Button
+                variant="outlined"
+                startIcon={<Edit />}
+                onClick={() => setOpenCustomerDetail(true)}
+                sx={{
+                  color: "#0C1528",
+                  borderColor: "#0C1528",
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  px: 3,
+                  py: 1,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "#0C1528",
+                    color: "white",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 4px 15px rgba(12, 21, 40, 0.3)",
+                  },
+                }}
+              >
+                Chỉnh sửa
+              </Button>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                width: "100%",
+                alignItems: "flex-start",
+                gap: 4,
+              }}
+            >
+              {/* Company Information */}
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: 14,
+                      color: "#0C1528",
+                      mb: 1,
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Tên công ty
+                  </Typography>
+                  <TextField
+                    value={customerDetail.companyName || ""}
+                    size="small"
+                    fullWidth
+                    disabled
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        background: "rgba(0, 0, 0, 0.02)",
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: 14,
+                      color: "#0C1528",
+                      mb: 1,
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Địa chỉ
+                  </Typography>
+                  <TextField
+                    value={customerDetail.address || ""}
+                    size="small"
+                    fullWidth
+                    disabled
+                    multiline
+                    rows={2}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        background: "rgba(0, 0, 0, 0.02)",
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: 14,
+                      color: "#0C1528",
+                      mb: 1,
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Thông tin liên hệ
+                  </Typography>
+                  <TextField
+                    value={customerDetail.contactInfo || ""}
+                    size="small"
+                    fullWidth
+                    disabled
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        background: "rgba(0, 0, 0, 0.02)",
+                      },
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Company Logo */}
+              {customerDetail.logoUrl && (
+                <Box
+                  sx={{
+                    minWidth: 200,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: 14,
+                      color: "#0C1528",
+                      mb: 2,
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Logo công ty
+                  </Typography>
+                  <Box
+                    component="img"
+                    src={
+                      customerDetail.logoUrl.startsWith("http")
+                        ? customerDetail.logoUrl
+                        : s3CompanyLogo || customerDetail.logoUrl
+                    }
+                    alt="Company Logo"
+                    sx={{
+                      width: 150,
+                      height: 150,
+                      objectFit: "contain",
+                      border: "2px solid rgba(12, 21, 40, 0.1)",
+                      borderRadius: 2,
+                      background: "white",
+                      p: 1,
+                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.1)",
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          </Paper>
+        )}
+
+        {/* Loading state for customer detail */}
+        {customerStatus === "loading" && !customerDetail && (
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              p: { xs: 3, md: 6 },
+              maxWidth: 800,
+              mx: "auto",
+              mt: 4,
+              textAlign: "center",
+              background: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 25px 45px rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            <Typography>Đang tải thông tin công ty...</Typography>
+          </Paper>
+        )}
+
         <Dialog
           open={openPwd}
           onClose={() => setOpenPwd(false)}
@@ -853,6 +1243,302 @@ const Profile = () => {
               }}
             >
               {pwdLoading ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog Edit Customer Detail */}
+        <Dialog
+          open={openCustomerDetail}
+          onClose={() => setOpenCustomerDetail(false)}
+          PaperProps={{
+            sx: {
+              borderRadius: 4,
+              background: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 25px 45px rgba(0, 0, 0, 0.15)",
+              minWidth: { xs: "90%", sm: 500 },
+              maxWidth: 600,
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontWeight: 700,
+              fontSize: "1.5rem",
+              textAlign: "center",
+              pb: 1,
+            }}
+          >
+            Chỉnh sửa thông tin công ty
+          </DialogTitle>
+          <DialogContent sx={{ pt: 4, px: 4, pb: 2 }}>
+            <FormControl fullWidth sx={{ mb: 3, mt: 2 }}>
+              <InputLabel
+                htmlFor="company-name-input"
+                shrink
+                sx={{
+                  color: "#0C1528",
+                  "&.Mui-focused": {
+                    color: "#0C1528",
+                  },
+                  transform: "translate(14px, -9px) scale(0.75)",
+                }}
+              >
+                Tên công ty *
+              </InputLabel>
+              <OutlinedInput
+                id="company-name-input"
+                value={editCompanyName}
+                onChange={(e) => setEditCompanyName(e.target.value)}
+                label="Tên công ty *"
+                sx={{
+                  borderRadius: 2,
+                  background: "rgba(12, 21, 40, 0.04)",
+                  transition: "all 0.3s ease",
+                  height: "60px",
+                  "& .MuiOutlinedInput-input": {
+                    padding: "18px 14px",
+                  },
+                  "&:hover": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                  },
+                  "&.Mui-focused": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                    boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                  },
+                }}
+              />
+            </FormControl>
+            <TextField
+              label="Địa chỉ"
+              fullWidth
+              multiline
+              rows={3}
+              value={editAddress}
+              onChange={(e) => setEditAddress(e.target.value)}
+              sx={{
+                mb: 3,
+                "& .MuiInputLabel-root": {
+                  color: "#0C1528",
+                  "&.Mui-focused": {
+                    color: "#0C1528",
+                  },
+                },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  background: "rgba(12, 21, 40, 0.04)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                  },
+                  "&.Mui-focused": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                    boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                  },
+                },
+              }}
+            />
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel
+                htmlFor="contact-info-input"
+                shrink
+                sx={{
+                  color: "#0C1528",
+                  "&.Mui-focused": {
+                    color: "#0C1528",
+                  },
+                  transform: "translate(14px, -9px) scale(0.75)",
+                }}
+              >
+                Thông tin liên hệ
+              </InputLabel>
+              <OutlinedInput
+                id="contact-info-input"
+                value={editContactInfo}
+                onChange={(e) => setEditContactInfo(e.target.value)}
+                label="Thông tin liên hệ"
+                sx={{
+                  borderRadius: 2,
+                  background: "rgba(12, 21, 40, 0.04)",
+                  transition: "all 0.3s ease",
+                  height: "60px",
+                  "& .MuiOutlinedInput-input": {
+                    padding: "18px 14px",
+                  },
+                  "&:hover": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                  },
+                  "&.Mui-focused": {
+                    background: "rgba(12, 21, 40, 0.08)",
+                    boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                  },
+                }}
+              />
+            </FormControl>
+
+            {/* Logo Upload Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: 14,
+                  color: "#0C1528",
+                  mb: 2,
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                }}
+              >
+                Logo công ty
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  flexWrap: "wrap",
+                }}
+              >
+                {/* Current Logo Preview */}
+                {(customerDetail?.logoUrl || editLogo) && (
+                  <Box
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      border: "2px solid rgba(12, 21, 40, 0.1)",
+                      borderRadius: 2,
+                      background: "white",
+                      p: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {editLogo ? (
+                      <img
+                        src={URL.createObjectURL(editLogo)}
+                        alt="Preview"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={
+                          customerDetail.logoUrl.startsWith("http")
+                            ? customerDetail.logoUrl
+                            : s3CompanyLogo || customerDetail.logoUrl
+                        }
+                        alt="Current Logo"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                        }}
+                      />
+                    )}
+                  </Box>
+                )}
+
+                {/* Upload Button */}
+                <Button
+                  variant="outlined"
+                  startIcon={<PhotoCamera />}
+                  onClick={() =>
+                    document.getElementById("logo-upload-input").click()
+                  }
+                  sx={{
+                    color: "#0C1528",
+                    borderColor: "#0C1528",
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    px: 3,
+                    py: 1.5,
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      background: "#0C1528",
+                      color: "white",
+                      transform: "translateY(-1px)",
+                      boxShadow: "0 4px 15px rgba(12, 21, 40, 0.3)",
+                    },
+                  }}
+                >
+                  {editLogo ? "Thay đổi logo" : "Chọn logo"}
+                </Button>
+
+                <input
+                  id="logo-upload-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={handleLogoChange}
+                />
+              </Box>
+
+              {editLogo && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#4ade80",
+                    fontWeight: 600,
+                    mt: 1,
+                    display: "block",
+                  }}
+                >
+                  ✓ Logo mới đã được chọn: {editLogo.name}
+                </Typography>
+              )}
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 3, pt: 1 }}>
+            <Button
+              onClick={() => {
+                setOpenCustomerDetail(false);
+                setEditLogo(null);
+              }}
+              sx={{
+                color: "#0C1528",
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  background: "rgba(12, 21, 40, 0.1)",
+                  transform: "translateY(-1px)",
+                },
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleSaveCustomerDetail}
+              variant="contained"
+              disabled={customerDetailLoading}
+              sx={{
+                background: "#0C1528",
+                borderRadius: 2,
+                fontWeight: 600,
+                px: 4,
+                py: 1,
+                boxShadow: "0 4px 15px rgba(12, 21, 40, 0.3)",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  background: "#1a2332",
+                  boxShadow: "0 6px 20px rgba(12, 21, 40, 0.4)",
+                },
+              }}
+            >
+              {customerDetailLoading ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </DialogActions>
         </Dialog>
