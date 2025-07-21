@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+// Sử dụng URL backend từ biến môi trường
+const API_URL = import.meta.env.VITE_API_URL 
 // Lấy token
 const getToken = () => {
   return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
@@ -23,8 +25,6 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
     }
     
     const token = getToken();
-    // Sử dụng URL backend trực tiếp
-    const API_URL = "https://songtaoads.online";
     
     // Log formData để kiểm tra
     for (let pair of formData.entries()) {
@@ -56,8 +56,6 @@ export const generateImageFromTextApi = async (designTemplateId, prompt) => {
     formData.append('prompt', prompt);
     
     const token = getToken();
-    // Sử dụng URL backend trực tiếp
-    const API_URL = "https://songtaoads.online";
     
     // Log để debug
     console.log('Sending text-to-image request:');

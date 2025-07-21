@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Sử dụng URL backend trực tiếp
-const API_URL = "https://songtaoads.online";
+// Sử dụng URL backend từ biến môi trường
+const API_URL = import.meta.env.VITE_API_URL 
 
 const priceService = axios.create({
   baseURL: API_URL,

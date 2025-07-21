@@ -2,8 +2,8 @@ import axios from 'axios';
 import { getPresignedUrl } from './s3Service';
 
 
-// Sử dụng URL backend trực tiếp
-const API_URL = "https://songtaoads.online";
+// Sử dụng URL backend từ biến môi trường
+const API_URL = import.meta.env.VITE_API_URL 
 
 // Get token function
 const getToken = () => {
