@@ -10,9 +10,16 @@ ARG NODE_ENV
 ENV VITE_API_URL=$VITE_API_URL
 ENV NODE_ENV=$NODE_ENV
 
+# Copy package files
 COPY package.json package-lock.json ./
-RUN npm install
+
+# Clean install với cache clear
+RUN npm ci --only=production=false
+
+# Copy source code
 COPY . .
+
+# Build application
 RUN npm run build
 
 # Stage 2: Chạy ứng dụng với Nginx
