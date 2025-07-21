@@ -18,6 +18,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { FaExclamationCircle } from "react-icons/fa";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { FaCheckCircle } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaArrowLeft } from "react-icons/fa";
 
 const Signup = () => {
   const [fullName, setFullName] = useState("");
@@ -29,6 +30,22 @@ const Signup = () => {
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // State cho password validation
+  const [passwordValidation, setPasswordValidation] = useState({
+    length: false,
+    hasLetter: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
+  
+  // State cho confirm password validation
+  const [confirmPasswordValidation, setConfirmPasswordValidation] = useState({
+    matches: false,
+    isValid: false,
+  });
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -52,10 +69,50 @@ const Signup = () => {
   }, [dispatch, reduxAuth, navigate]);
 
   const validatePassword = (password) => {
-    // Kiểm tra mật khẩu có ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt
+    // Kiểm tra mật khẩu có ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt
     const passwordRegex =
-      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{6,}$/;
+      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{7,}$/;
     return passwordRegex.test(password);
+  };
+
+  // Hàm kiểm tra password real-time
+  const checkPasswordStrength = (password) => {
+    const validation = {
+      length: password.length >= 7,
+      hasLetter: /[A-Za-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[@$!%*#?&]/.test(password),
+    };
+    setPasswordValidation(validation);
+    return validation;
+  };
+
+  // Hàm xử lý thay đổi password
+  const handlePasswordChange = (e) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    checkPasswordStrength(newPassword);
+    // Kiểm tra lại confirm password khi password thay đổi
+    if (confirmPassword) {
+      checkConfirmPasswordMatch(confirmPassword, newPassword);
+    }
+  };
+
+  // Hàm kiểm tra confirm password match
+  const checkConfirmPasswordMatch = (confirmPwd, originalPwd = password) => {
+    const validation = {
+      matches: confirmPwd === originalPwd && confirmPwd !== "",
+      isValid: confirmPwd !== "" && confirmPwd === originalPwd,
+    };
+    setConfirmPasswordValidation(validation);
+    return validation;
+  };
+
+  // Hàm xử lý thay đổi confirm password
+  const handleConfirmPasswordChange = (e) => {
+    const newConfirmPassword = e.target.value;
+    setConfirmPassword(newConfirmPassword);
+    checkConfirmPasswordMatch(newConfirmPassword);
   };
 
   const validatePhone = (phone) => {
@@ -77,7 +134,7 @@ const Signup = () => {
     // Kiểm tra độ mạnh của mật khẩu
     if (!validatePassword(password)) {
       setPasswordError(
-        "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt"
+        "Mật khẩu phải có ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt"
       );
       return false;
     }
@@ -127,6 +184,17 @@ const Signup = () => {
   return (
     <PageTransition className="w-full">
       <div className="mb-10 text-center">
+        {/* Nút quay lại trang chủ */}
+        <div className="text-left mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center text-gray-600 hover:text-green-600 font-medium transition-colors duration-300 group"
+          >
+            <FaArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
+            Quay lại trang chủ
+          </Link>
+        </div>
+        
         <div className="inline-block p-3 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl mb-4">
           <svg
             className="w-8 h-8 text-white"
@@ -302,31 +370,66 @@ const Signup = () => {
             <div className="relative">
               <input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
                 required
-                className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                 placeholder="••••••••••••"
                 disabled={status === "loading"}
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-                <svg
-                  className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors duration-300"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
+                disabled={status === "loading"}
+              >
+                {showPassword ? (
+                  <FaEyeSlash className="w-5 h-5" />
+                ) : (
+                  <FaEye className="w-5 h-5" />
+                )}
+              </button>
             </div>
-            <p className="mt-2 text-xs text-gray-500 font-medium">
-              💡 Ít nhất 8 ký tự, bao gồm chữ, số và ký tự đặc biệt
-            </p>
+            
+            {/* Password validation checklist */}
+            {password && (
+              <div className="mt-3 space-y-2">
+                <div className="text-xs font-medium text-gray-600 mb-2">Yêu cầu mật khẩu:</div>
+                <div className="space-y-1">
+                  <div className={`flex items-center text-xs ${passwordValidation.length ? 'text-green-600' : 'text-gray-400'}`}>
+                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.length ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                      {passwordValidation.length ? '✓' : '○'}
+                    </span>
+                    Ít nhất 7 ký tự
+                  </div>
+                  <div className={`flex items-center text-xs ${passwordValidation.hasLetter ? 'text-green-600' : 'text-gray-400'}`}>
+                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasLetter ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                      {passwordValidation.hasLetter ? '✓' : '○'}
+                    </span>
+                    Có chữ cái
+                  </div>
+                  <div className={`flex items-center text-xs ${passwordValidation.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasNumber ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                      {passwordValidation.hasNumber ? '✓' : '○'}
+                    </span>
+                    Có số
+                  </div>
+                  <div className={`flex items-center text-xs ${passwordValidation.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
+                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasSpecial ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                      {passwordValidation.hasSpecial ? '✓' : '○'}
+                    </span>
+                    Có ký tự đặc biệt (@$!%*#?&)
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {!password && (
+              <p className="mt-2 text-xs text-gray-500 font-medium">
+                💡 Ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt
+              </p>
+            )}
           </div>
 
           <div className="group">
@@ -339,28 +442,40 @@ const Signup = () => {
             <div className="relative">
               <input
                 id="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={handleConfirmPasswordChange}
                 required
-                className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                 placeholder="••••••••••••"
                 disabled={status === "loading"}
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-                <svg
-                  className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors duration-300"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
+                disabled={status === "loading"}
+              >
+                {showConfirmPassword ? (
+                  <FaEyeSlash className="w-5 h-5" />
+                ) : (
+                  <FaEye className="w-5 h-5" />
+                )}
+              </button>
             </div>
+            
+            {/* Confirm password validation */}
+            {confirmPassword && (
+              <div className="mt-3">
+                <div className={`flex items-center text-xs ${confirmPasswordValidation.matches ? 'text-green-600' : 'text-red-500'}`}>
+                  <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${confirmPasswordValidation.matches ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                    {confirmPasswordValidation.matches ? '✓' : '✗'}
+                  </span>
+                  {confirmPasswordValidation.matches ? 'Mật khẩu khớp' : 'Mật khẩu không khớp'}
+                </div>
+              </div>
+            )}
+            
             {passwordError && (
               <Box sx={{ width: "100%", mt: 1 }}>
                 <Alert
