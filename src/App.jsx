@@ -46,6 +46,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import AccessDeny from "./pages/AccessDeny";
 import RoleBasedRoute from "./components/RoleBasedRoute";
 import { ROLES } from "./utils/roleUtils";
+import Order from "./pages/Order";
 
 
 // Custom event để theo dõi đăng nhập thành công
@@ -276,6 +277,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+               <Route
+                path="order"
+                element={
+                  <ProtectedRoute>
+                    <Order />
                   </ProtectedRoute>
                 }
               />
