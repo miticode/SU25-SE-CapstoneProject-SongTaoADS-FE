@@ -23,6 +23,7 @@ import backgroundReducer from "./features/background/backgroundSlice";
 import ticketReducer from "./features/ticket/ticketSlice";
 import iconReducer from "./features/icon/iconSlice";
 import costypeReducer from "./features/costype/costypeSlice";
+import contractorReducer from "./features/contractor/contractorSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -48,6 +49,7 @@ export const store = configureStore({
     ticket: ticketReducer,
     icon: iconReducer,
     costype: costypeReducer,
+    contractor: contractorReducer,
   },
 });
 
