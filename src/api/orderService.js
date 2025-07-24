@@ -1,24 +1,23 @@
 import axios from "axios";
 
-
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Tạo instance axios với interceptors
 const orderService = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json'
+    "Content-Type": "application/json",
   },
-  withCredentials: true // Cho phép gửi và nhận cookies từ API
+  withCredentials: true, // Allow sending and receiving cookies from API
 });
 
 // Thêm interceptor request để gắn accessToken vào header Authorization
 orderService.interceptors.request.use(
   (config) => {
-    const accessToken = localStorage.getItem('accessToken');
+    const accessToken = localStorage.getItem("accessToken");
     if (accessToken) {
-      config.headers['Authorization'] = `Bearer ${accessToken}`;
+      config.headers["Authorization"] = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -33,30 +32,168 @@ orderService.interceptors.response.use(
   }
 );
 
+// Hàm tạo đơn hàng mới với API /api/orders
+export const createNewOrderApi = async (orderData) => {
+  try {
+    console.log("Gọi API tạo đơn hàng mới với:", orderData);
+
+    // Kiểm tra token trước khi gọi API
+    const accessToken = localStorage.getItem("accessToken");
+    console.log("Access Token:", accessToken ? "Có token" : "Không có token");
+
+    if (!accessToken) {
+      return {
+        success: false,
+        error: "Không tìm thấy token. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    const response = await orderService.post("/api/orders", {
+      address: orderData.address,
+      orderType: orderData.orderType, // AI_DESIGN, CUSTOM_DESIGN_WITH_CONSTRUCTION, CUSTOM_DESIGN_WITHOUT_CONSTRUCTION
+    });
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API tạo đơn hàng mới:", {
+        success,
+        result,
+      });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    console.error("Error creating new order:", error.response?.data || error);
+
+    // Xử lý lỗi cụ thể
+    if (error.code === "ERR_NETWORK") {
+      return {
+        success: false,
+        error: "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.",
+      };
+    }
+
+    if (error.response?.status === 401) {
+      return {
+        success: false,
+        error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    if (error.response?.status === 403) {
+      return {
+        success: false,
+        error: "Không có quyền thực hiện thao tác này.",
+      };
+    }
+
+    return {
+      success: false,
+      error:
+        error.response?.data?.message ||
+        "Không thể tạo đơn hàng. Vui lòng thử lại.",
+    };
+  }
+};
+
+// Hàm thêm chi tiết đơn hàng với API /api/orders/{orderId}/details
+export const addOrderDetailApi = async (orderId, orderDetailData) => {
+  try {
+    console.log("Gọi API thêm chi tiết đơn hàng với:", {
+      orderId,
+      orderDetailData,
+    });
+
+    // Tạo request body theo đúng format API documentation
+    const requestBody = {
+      customDesignRequestId: orderDetailData.customDesignRequestId || "",
+      editedDesignId: orderDetailData.editedDesignId || "",
+      customerChoiceId: orderDetailData.customerChoiceId || "",
+      quantity: orderDetailData.quantity || 1,
+    };
+
+    console.log("Sending request to:", `/api/orders/${orderId}/details`);
+    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+
+    const response = await orderService.post(
+      `/api/orders/${orderId}/details`,
+      requestBody
+    );
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API thêm chi tiết đơn hàng:", {
+        success,
+        result,
+      });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    console.error("Error adding order detail:", {
+      url: `/api/orders/${orderId}/details`,
+      request: {
+        customDesignRequestId: orderDetailData.customDesignRequestId || "",
+        editedDesignId: orderDetailData.editedDesignId || "",
+        customerChoiceId: orderDetailData.customerChoiceId || "",
+        quantity: orderDetailData.quantity || 1,
+      },
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      errorData: error.response?.data,
+      fullError: error.response,
+      message: error.message,
+    });
+
+    // Log chi tiết error response để debug
+    if (error.response?.data) {
+      console.error(
+        "Backend error details:",
+        JSON.stringify(error.response.data, null, 2)
+      );
+    }
+
+    return {
+      success: false,
+      error:
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to add order detail",
+    };
+  }
+};
+
 // Hàm tạo đơn hàng mới theo customerChoiceId ( tạo đơn hàng bằng AI)
 export const createOrderApi = async (customerChoiceId, orderData) => {
   try {
     // Lấy userId từ accessToken trong localStorage nếu chưa có trong orderData
     let userId = orderData.userId;
     if (!userId) {
-      const accessToken = localStorage.getItem('accessToken');
+      const accessToken = localStorage.getItem("accessToken");
       if (accessToken) {
         // Giả sử accessToken là JWT, giải mã để lấy userId
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        const payload = JSON.parse(atob(accessToken.split(".")[1]));
         userId = payload.userId || payload.id || payload.sub;
       }
     }
     console.log("Gọi API tạo order với:", { customerChoiceId, orderData });
-    const response = await orderService.post(`/api/customer-choices/${customerChoiceId}/orders`, {
-      totalAmount: orderData.totalAmount,
-      depositAmount: orderData.depositAmount,
-      remainingAmount: orderData.remainingAmount,
-      note: orderData.note,
-      isCustomDesign: orderData.isCustomDesign,
-      histories: orderData.histories || [],
-      userId: userId,
-      aiDesignId: orderData.aiDesignId
-    });
+    const response = await orderService.post(
+      `/api/customer-choices/${customerChoiceId}/orders`,
+      {
+        totalAmount: orderData.totalAmount,
+        depositAmount: orderData.depositAmount,
+        remainingAmount: orderData.remainingAmount,
+        note: orderData.note,
+        isCustomDesign: orderData.isCustomDesign,
+        histories: orderData.histories || [],
+        userId: userId,
+        aiDesignId: orderData.aiDesignId,
+      }
+    );
 
     const { success, result, message } = response.data;
 
@@ -69,36 +206,50 @@ export const createOrderApi = async (customerChoiceId, orderData) => {
           calculateFormula: "",
           totalAmount: result.totalAmount,
           attributeSelections: [],
-          sizeSelections: []
-        }
+          sizeSelections: [],
+        },
       };
-      console.log("Kết quả trả về từ API tạo order:", { success, result: formattedResult });
+      console.log("Kết quả trả về từ API tạo order:", {
+        success,
+        result: formattedResult,
+      });
       return { success: true, data: formattedResult };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to create order'
+      error: error.response?.data?.message || "Failed to create order",
     };
   }
 };
-export const createAiOrderApi = async (editedDesignId, customerChoiceId, orderData) => {
+export const createAiOrderApi = async (
+  editedDesignId,
+  customerChoiceId,
+  orderData
+) => {
   try {
-    console.log("Gọi API tạo AI order với:", { editedDesignId, customerChoiceId, orderData });
-
-    const response = await orderService.post(`/api/edited-designs/${editedDesignId}/customer-choices/${customerChoiceId}/orders`, {
-      totalAmount: orderData.totalAmount,
-      depositAmount: orderData.depositAmount || 0,
-      remainingAmount: orderData.remainingAmount || orderData.totalAmount,
-      note: orderData.note || '',
-      address: orderData.address || '',
-      deliveryDate: orderData.deliveryDate || null,
-      histories: orderData.histories || [],
-      // thêm vô
-      status: 'PENDING'
+    console.log("Gọi API tạo AI order với:", {
+      editedDesignId,
+      customerChoiceId,
+      orderData,
     });
+
+    const response = await orderService.post(
+      `/api/edited-designs/${editedDesignId}/customer-choices/${customerChoiceId}/orders`,
+      {
+        totalAmount: orderData.totalAmount,
+        depositAmount: orderData.depositAmount || 0,
+        remainingAmount: orderData.remainingAmount || orderData.totalAmount,
+        note: orderData.note || "",
+        address: orderData.address || "",
+        deliveryDate: orderData.deliveryDate || null,
+        histories: orderData.histories || [],
+        // thêm vô
+        status: "PENDING",
+      }
+    );
 
     const { success, result, message } = response.data;
 
@@ -107,44 +258,52 @@ export const createAiOrderApi = async (editedDesignId, customerChoiceId, orderDa
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
     console.error("Error creating AI order:", error.response?.data || error);
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to create AI order'
+      error: error.response?.data?.message || "Failed to create AI order",
     };
   }
 };
 // Hàm lấy danh sách đơn hàng
 export const getOrdersApi = async (orderStatus, page = 1, size = 10) => {
   if (!orderStatus) {
-    throw new Error('orderStatus is required!');
+    throw new Error("orderStatus is required!");
   }
   try {
     const url = `/api/orders?orderStatus=${orderStatus}&page=${page}&size=${size}`;
     const response = await orderService.get(url);
 
-    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+    const {
+      success,
+      result,
+      message,
+      currentPage,
+      totalPages,
+      pageSize,
+      totalElements,
+    } = response.data;
 
     if (success) {
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: result,
         pagination: {
           currentPage,
           totalPages,
           pageSize,
-          totalElements
-        }
+          totalElements,
+        },
       };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to fetch orders'
+      error: error.response?.data?.message || "Failed to fetch orders",
     };
   }
 };
@@ -177,11 +336,16 @@ export const getOrderByIdApi = async (orderId) => {
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Định dạng phản hồi không hợp lệ' };
+    return {
+      success: false,
+      error: message || "Định dạng phản hồi không hợp lệ",
+    };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Không thể lấy thông tin chi tiết đơn hàng'
+      error:
+        error.response?.data?.message ||
+        "Không thể lấy thông tin chi tiết đơn hàng",
     };
   }
 };
@@ -194,11 +358,11 @@ export const getOrdersByUserIdApi = async (userId) => {
     if (success) {
       return { success: true, data: result };
     }
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to fetch orders'
+      error: error.response?.data?.message || "Failed to fetch orders",
     };
   }
 };
@@ -206,26 +370,35 @@ export const getOrdersByUserIdApi = async (userId) => {
 // Cập nhật trạng thái đơn hàng (status)
 export const updateOrderStatusApi = async (orderId, status) => {
   try {
-   
-    const response = await orderService.put(`/api/orders/${orderId}/status?status=${status}`);
+    const response = await orderService.put(
+      `/api/orders/${orderId}/status?status=${status}`
+    );
     return response.data;
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update order status'
+      error: error.response?.data?.message || "Failed to update order status",
     };
   }
 };
 
 // Tạo đơn hàng mới theo customDesignId ( tạo đơn hàng bằng custom design)
-export const createOrderByCustomDesignApi = async (customDesignId, orderData) => {
+export const createOrderByCustomDesignApi = async (
+  customDesignId,
+  orderData
+) => {
   try {
-    const response = await orderService.post(`/api/custom-designs/${customDesignId}/orders`, orderData);
+    const response = await orderService.post(
+      `/api/custom-designs/${customDesignId}/orders`,
+      orderData
+    );
     return response.data;
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to create order by custom design'
+      error:
+        error.response?.data?.message ||
+        "Failed to create order by custom design",
     };
   }
 };
@@ -233,12 +406,15 @@ export const createOrderByCustomDesignApi = async (customDesignId, orderData) =>
 // Xác nhận sale cho đơn hàng
 export const saleConfirmOrderApi = async (orderId, data) => {
   try {
-    const response = await orderService.patch(`/api/orders/${orderId}/sale-confirm`, data);
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/sale-confirm`,
+      data
+    );
     return response.data;
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to confirm sale'
+      error: error.response?.data?.message || "Failed to confirm sale",
     };
   }
 };
@@ -246,12 +422,17 @@ export const saleConfirmOrderApi = async (orderId, data) => {
 // Cập nhật thông tin khách hàng cho đơn hàng
 export const updateOrderCustomerInfoApi = async (orderId, data) => {
   try {
-    const response = await orderService.patch(`/api/orders/${orderId}/customer-information`, data);
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/customer-information`,
+      data
+    );
     return response.data;
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update customer information'
+      error:
+        error.response?.data?.message ||
+        "Failed to update customer information",
     };
   }
 };
@@ -264,267 +445,388 @@ export const deleteOrderApi = async (orderId) => {
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to delete order'
+      error: error.response?.data?.message || "Failed to delete order",
     };
   }
 };
 // Tạo đơn hàng từ request thiết kế
-export const createOrderFromDesignRequestApi = async (customDesignRequestId) => {
+export const createOrderFromDesignRequestApi = async (
+  customDesignRequestId
+) => {
   try {
-    const response = await orderService.post(`/api/custom-design-request/${customDesignRequestId}/orders`);
-    
+    const response = await orderService.post(
+      `/api/custom-design-request/${customDesignRequestId}/orders`
+    );
+
     const { success, result, message } = response.data;
-    
+
     if (success) {
       return { success: true, data: result };
     }
-    
-    return { success: false, error: message || 'Invalid response format' };
+
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error creating order from design request:", error.response?.data || error);
+    console.error(
+      "Error creating order from design request:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to create order from design request'
+      error:
+        error.response?.data?.message ||
+        "Failed to create order from design request",
     };
   }
 };
 export const contractResignOrderApi = async (orderId) => {
   try {
     console.log("Gọi API ký lại hợp đồng với orderId:", orderId);
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/contract-resign`);
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/contract-resign`
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API ký lại hợp đồng:", { success, result });
+      console.log("Kết quả trả về từ API ký lại hợp đồng:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error contract resign order:", error.response?.data || error);
+    console.error(
+      "Error contract resign order:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to contract resign order'
+      error: error.response?.data?.message || "Failed to contract resign order",
     };
   }
 };
 export const contractSignedOrderApi = async (orderId) => {
   try {
     console.log("Gọi API đánh dấu hợp đồng đã ký với orderId:", orderId);
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/contract-signed`);
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/contract-signed`
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API contract-signed:", { success, result });
+      console.log("Kết quả trả về từ API contract-signed:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error contract signed order:", error.response?.data || error);
+    console.error(
+      "Error contract signed order:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to mark contract as signed'
+      error:
+        error.response?.data?.message || "Failed to mark contract as signed",
     };
   }
 };
 export const updateOrderAddressApi = async (orderId, addressData) => {
   try {
-    console.log("Gọi API cập nhật địa chỉ đơn hàng với:", { orderId, addressData });
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/address`, {
-      address: addressData.address,
-      note: addressData.note
+    console.log("Gọi API cập nhật địa chỉ đơn hàng với:", {
+      orderId,
+      addressData,
     });
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/address`,
+      {
+        address: addressData.address,
+        note: addressData.note,
+      }
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API cập nhật địa chỉ:", { success, result });
+      console.log("Kết quả trả về từ API cập nhật địa chỉ:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error updating order address:", error.response?.data || error);
+    console.error(
+      "Error updating order address:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update order address'
+      error: error.response?.data?.message || "Failed to update order address",
     };
   }
 };
-export const updateOrderEstimatedDeliveryDateApi = async (orderId, estimatedDeliveryDate) => {
+export const updateOrderEstimatedDeliveryDateApi = async (
+  orderId,
+  estimatedDeliveryDate
+) => {
   try {
-    console.log("Gọi API cập nhật ngày giao hàng dự kiến với:", { orderId, estimatedDeliveryDate });
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/estimate-delivery-date`, {
-      estimatedDeliveryDate: estimatedDeliveryDate
+    console.log("Gọi API cập nhật ngày giao hàng dự kiến với:", {
+      orderId,
+      estimatedDeliveryDate,
     });
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/estimate-delivery-date`,
+      {
+        estimatedDeliveryDate: estimatedDeliveryDate,
+      }
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API cập nhật ngày giao hàng:", { success, result });
+      console.log("Kết quả trả về từ API cập nhật ngày giao hàng:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error updating order estimated delivery date:", error.response?.data || error);
+    console.error(
+      "Error updating order estimated delivery date:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update estimated delivery date'
+      error:
+        error.response?.data?.message ||
+        "Failed to update estimated delivery date",
     };
   }
 };
 export const updateOrderToProducingApi = async (orderId, draftImageFile) => {
   try {
-    console.log("Gọi API cập nhật trạng thái PRODUCING với:", { orderId, draftImageFile });
-    
+    console.log("Gọi API cập nhật trạng thái PRODUCING với:", {
+      orderId,
+      draftImageFile,
+    });
+
     // Tạo FormData để upload file
     const formData = new FormData();
-    formData.append('draftImage', draftImageFile);
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/producing`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("draftImage", draftImageFile);
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/producing`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API cập nhật PRODUCING:", { success, result });
+      console.log("Kết quả trả về từ API cập nhật PRODUCING:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error updating order to producing:", error.response?.data || error);
+    console.error(
+      "Error updating order to producing:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update order to producing'
+      error:
+        error.response?.data?.message || "Failed to update order to producing",
     };
   }
 };
-export const updateOrderToProductionCompletedApi = async (orderId, productImageFile) => {
+export const updateOrderToProductionCompletedApi = async (
+  orderId,
+  productImageFile
+) => {
   try {
-    console.log("Gọi API cập nhật trạng thái PRODUCTION_COMPLETED với:", { orderId, productImageFile });
-    
+    console.log("Gọi API cập nhật trạng thái PRODUCTION_COMPLETED với:", {
+      orderId,
+      productImageFile,
+    });
+
     // Validate input
     if (!orderId) {
-      throw new Error('orderId is required');
+      throw new Error("orderId is required");
     }
-    
+
     if (!productImageFile) {
-      throw new Error('productImageFile is required');
+      throw new Error("productImageFile is required");
     }
 
     // Tạo FormData để upload file
     const formData = new FormData();
-    formData.append('productImage', productImageFile);
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/production-completed`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("productImage", productImageFile);
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/production-completed`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API cập nhật PRODUCTION_COMPLETED:", { success, result });
+      console.log("Kết quả trả về từ API cập nhật PRODUCTION_COMPLETED:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error updating order to production completed:", error.response?.data || error);
+    console.error(
+      "Error updating order to production completed:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update order to production completed'
+      error:
+        error.response?.data?.message ||
+        "Failed to update order to production completed",
     };
   }
 };
-export const updateOrderToDeliveringApi = async (orderId, deliveryImageFile) => {
+export const updateOrderToDeliveringApi = async (
+  orderId,
+  deliveryImageFile
+) => {
   try {
-    console.log("Gọi API cập nhật trạng thái DELIVERING với:", { orderId, deliveryImageFile });
-    
+    console.log("Gọi API cập nhật trạng thái DELIVERING với:", {
+      orderId,
+      deliveryImageFile,
+    });
+
     // Validate input
     if (!orderId) {
-      throw new Error('orderId is required');
+      throw new Error("orderId is required");
     }
-    
+
     if (!deliveryImageFile) {
-      throw new Error('deliveryImageFile is required');
+      throw new Error("deliveryImageFile is required");
     }
 
     // Tạo FormData để upload file
     const formData = new FormData();
-    formData.append('deliveryImage', deliveryImageFile);
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/delivering`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("deliveryImage", deliveryImageFile);
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/delivering`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API cập nhật DELIVERING:", { success, result });
+      console.log("Kết quả trả về từ API cập nhật DELIVERING:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error updating order to delivering:", error.response?.data || error);
+    console.error(
+      "Error updating order to delivering:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update order to delivering'
+      error:
+        error.response?.data?.message || "Failed to update order to delivering",
     };
   }
 };
-export const updateOrderToInstalledApi = async (orderId, installedImageFile) => {
+export const updateOrderToInstalledApi = async (
+  orderId,
+  installedImageFile
+) => {
   try {
-    console.log("Gọi API cập nhật trạng thái INSTALLED với:", { orderId, installedImageFile });
-    
+    console.log("Gọi API cập nhật trạng thái INSTALLED với:", {
+      orderId,
+      installedImageFile,
+    });
+
     // Validate input
     if (!orderId) {
-      throw new Error('orderId is required');
+      throw new Error("orderId is required");
     }
-    
+
     if (!installedImageFile) {
-      throw new Error('installedImageFile is required');
+      throw new Error("installedImageFile is required");
     }
 
     // Tạo FormData để upload file
     const formData = new FormData();
-    formData.append('installedImage', installedImageFile);
-    
-    const response = await orderService.patch(`/api/orders/${orderId}/installed`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("installedImage", installedImageFile);
+
+    const response = await orderService.patch(
+      `/api/orders/${orderId}/installed`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     const { success, result, message } = response.data;
 
     if (success) {
-      console.log("Kết quả trả về từ API cập nhật INSTALLED:", { success, result });
+      console.log("Kết quả trả về từ API cập nhật INSTALLED:", {
+        success,
+        result,
+      });
       return { success: true, data: result };
     }
 
-    return { success: false, error: message || 'Invalid response format' };
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    console.error("Error updating order to installed:", error.response?.data || error);
+    console.error(
+      "Error updating order to installed:",
+      error.response?.data || error
+    );
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to update order to installed'
+      error:
+        error.response?.data?.message || "Failed to update order to installed",
     };
   }
 };

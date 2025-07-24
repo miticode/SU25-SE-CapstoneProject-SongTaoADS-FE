@@ -7,7 +7,8 @@ import {
   updateBackgroundInfoApi,
   updateBackgroundImageApi,
   fetchAllBackgroundsApi,
-  deleteBackgroundByIdApi
+  deleteBackgroundByIdApi,
+  fetchEditedDesignByIdApi
 } from "../../../api/backgroundService";
 
 // Initial state
@@ -20,6 +21,10 @@ const initialState = {
   editedDesign: null,
   editedDesignStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   editedDesignError: null,
+  // Thêm state cho edited design detail
+  editedDesignDetail: null,
+  editedDesignDetailStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  editedDesignDetailError: null,
 };
 
 // Async thunk for fetching background suggestions by customer choice ID
@@ -94,6 +99,30 @@ export const createEditedDesignWithBackgroundThunk = createAsyncThunk(
       return response.data;
     } catch (error) {
       console.error("Error in create edited design thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
+
+// Async thunk for fetching edited design by ID
+export const fetchEditedDesignById = createAsyncThunk(
+  "background/fetchEditedDesignById",
+  async (editedDesignId, { rejectWithValue }) => {
+    try {
+      console.log("Fetching edited design by ID:", editedDesignId);
+
+      const response = await fetchEditedDesignByIdApi(editedDesignId);
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to fetch edited design"
+        );
+      }
+
+      console.log("Edited design fetched successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error in fetch edited design by ID thunk:", error);
       return rejectWithValue(error.message || "Something went wrong");
     }
   }
@@ -188,6 +217,16 @@ const backgroundSlice = createSlice({
       state.editedDesignStatus = "idle";
       state.editedDesignError = null;
     },
+    // Reset và clear edited design detail
+    resetEditedDesignDetailStatus: (state) => {
+      state.editedDesignDetailStatus = "idle";
+      state.editedDesignDetailError = null;
+    },
+    clearEditedDesignDetail: (state) => {
+      state.editedDesignDetail = null;
+      state.editedDesignDetailStatus = "idle";
+      state.editedDesignDetailError = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -247,6 +286,23 @@ const backgroundSlice = createSlice({
           console.error("Failed to create edited design:", action.payload);
         }
       )
+      // Fetch edited design by ID cases
+      .addCase(fetchEditedDesignById.pending, (state) => {
+        state.editedDesignDetailStatus = "loading";
+        state.editedDesignDetailError = null;
+        console.log("Fetching edited design by ID...");
+      })
+      .addCase(fetchEditedDesignById.fulfilled, (state, action) => {
+        state.editedDesignDetailStatus = "succeeded";
+        state.editedDesignDetail = action.payload;
+        state.editedDesignDetailError = null;
+        console.log("Edited design fetched successfully:", action.payload);
+      })
+      .addCase(fetchEditedDesignById.rejected, (state, action) => {
+        state.editedDesignDetailStatus = "failed";
+        state.editedDesignDetailError = action.payload;
+        console.error("Failed to fetch edited design:", action.payload);
+      })
       // Lấy background theo giá trị thuộc tính
       .addCase(fetchBackgroundsByAttributeValueId.pending, (state) => {
         state.status = 'loading';
@@ -337,6 +393,10 @@ export const {
   setSelectedBackground,
   clearSelectedBackground,
   clearBackgroundSuggestions,
+  resetEditedDesignStatus,
+  clearEditedDesign,
+  resetEditedDesignDetailStatus,
+  clearEditedDesignDetail,
 } = backgroundSlice.actions;
 
 // Export selectors
@@ -358,4 +418,12 @@ export const selectEditedDesignStatus = (state) =>
   state.background.editedDesignStatus;
 export const selectEditedDesignError = (state) =>
   state.background.editedDesignError;
+
+// Selectors cho edited design detail
+export const selectEditedDesignDetail = (state) => state.background.editedDesignDetail;
+export const selectEditedDesignDetailStatus = (state) =>
+  state.background.editedDesignDetailStatus;
+export const selectEditedDesignDetailError = (state) =>
+  state.background.editedDesignDetailError;
+
 export default backgroundSlice.reducer;
