@@ -367,6 +367,33 @@ export const getOrdersByUserIdApi = async (userId) => {
   }
 };
 
+// Lấy chi tiết đơn hàng theo orderId
+export const getOrderDetailsApi = async (orderId) => {
+  try {
+    console.log("Gọi API lấy chi tiết đơn hàng với orderId:", orderId);
+
+    const response = await orderService.get(`/api/orders/${orderId}/details`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API lấy chi tiết đơn hàng:", {
+        success,
+        result,
+      });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    console.error("Error fetching order details:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch order details",
+    };
+  }
+};
+
 // Cập nhật trạng thái đơn hàng (status)
 export const updateOrderStatusApi = async (orderId, status) => {
   try {

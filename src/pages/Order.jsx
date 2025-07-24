@@ -291,10 +291,10 @@ const Order = () => {
           console.log("Xử lý đơn hàng thông thường (không từ AI Design)");
         }
 
-        setSuccessMessage("Đơn hàng đã được xác nhận thành công!");
+        setSuccessMessage("Đơn hàng đã được xác nhận thành công! Đang chuyển đến lịch sử đơn hàng...");
 
         setTimeout(() => {
-          navigate("/");
+          navigate("/order-history");
         }, 2000);
       } catch (error) {
         console.error("Lỗi xác nhận đơn hàng:", error);

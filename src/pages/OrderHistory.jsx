@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -43,6 +43,11 @@ import {
 import {
   createOrderFromDesignRequest,
   fetchOrdersByUserId,
+  fetchOrderDetails,
+  selectOrderDetails,
+  selectOrderDetailsStatus,
+  selectOrderDetailsError,
+  clearOrderDetails,
 } from "../store/features/order/orderSlice";
 import { fetchCustomerDetailByUserId } from "../store/features/customer/customerSlice";
 import {
@@ -161,6 +166,10 @@ const OrderHistory = () => {
   const orderLoading = useSelector((state) => state.order.loading);
   const orderError = useSelector((state) => state.order.error);
 
+  // State để lưu order details cho mỗi đơn hàng
+  const [orderDetailsMap, setOrderDetailsMap] = useState({}); // { orderId: orderDetails }
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState({}); // { orderId: boolean }
+
   const [customerDetailId, setCustomerDetailId] = useState(undefined);
   const currentDesignRequest = useSelector(selectCurrentDesignRequest);
   const [openDetail, setOpenDetail] = useState(false);
@@ -208,6 +217,48 @@ const OrderHistory = () => {
   const getOrderImpressions = (orderId) => {
     return allImpressionsByOrder[orderId] || [];
   };
+
+  // Helper function để lấy order details
+  const getOrderDetails = (orderId) => {
+    return orderDetailsMap[orderId] || null;
+  };
+
+  // Helper function để kiểm tra loading state của order details
+  const isLoadingOrderDetails = (orderId) => {
+    return loadingOrderDetails[orderId] || false;
+  };
+
+  // Hàm fetch order details cho một đơn hàng
+  const fetchOrderDetailsForOrder = useCallback(
+    async (orderId) => {
+      if (orderDetailsMap[orderId] || loadingOrderDetails[orderId]) {
+        return; // Đã có data hoặc đang loading
+      }
+
+      setLoadingOrderDetails((prev) => ({ ...prev, [orderId]: true }));
+
+      try {
+        const result = await dispatch(fetchOrderDetails(orderId));
+        if (fetchOrderDetails.fulfilled.match(result)) {
+          setOrderDetailsMap((prev) => ({
+            ...prev,
+            [orderId]: result.payload,
+          }));
+          console.log(`Order details for ${orderId}:`, result.payload);
+        } else {
+          console.error(
+            `Failed to fetch order details for ${orderId}:`,
+            result.payload
+          );
+        }
+      } catch (error) {
+        console.error(`Error fetching order details for ${orderId}:`, error);
+      } finally {
+        setLoadingOrderDetails((prev) => ({ ...prev, [orderId]: false }));
+      }
+    },
+    [dispatch, orderDetailsMap, loadingOrderDetails]
+  );
   const handlePayRemaining = async (order) => {
     if (!order?.id) {
       setNotification({
@@ -1041,6 +1092,18 @@ const OrderHistory = () => {
     }
   }, [orders, dispatch]);
 
+  // useEffect để fetch order details cho tất cả đơn hàng ở tab 0 (Lịch sử đơn hàng)
+  useEffect(() => {
+    if (tab === 0 && orders.length > 0) {
+      console.log("Fetching order details for all orders in tab 0");
+      orders.forEach((order) => {
+        if (order.id) {
+          fetchOrderDetailsForOrder(order.id);
+        }
+      });
+    }
+  }, [tab, orders, fetchOrderDetailsForOrder]);
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -1633,6 +1696,8 @@ const OrderHistory = () => {
                 {orders.map((order) => {
                   // ✅ Sử dụng helper function thay vì useSelector
                   const orderImpressions = getOrderImpressions(order.id);
+                  const orderDetails = getOrderDetails(order.id);
+                  const loadingDetails = isLoadingOrderDetails(order.id);
 
                   return (
                     <Card
@@ -1897,6 +1962,187 @@ const OrderHistory = () => {
                                   ).toLocaleDateString("vi-VN")}
                                 </Typography>
                               )}
+
+                              {/* Hiển thị Order Details */}
+                              {loadingDetails && (
+                                <Box
+                                  sx={{
+                                    mt: 2,
+                                    p: 2,
+                                    backgroundColor: "grey.50",
+                                    borderRadius: 1,
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    <CircularProgress size={16} />
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      Đang tải chi tiết đơn hàng...
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              )}
+
+                              {orderDetails && orderDetails.length > 0 && (
+                                <Box sx={{ mt: 2 }}>
+                                  <Typography
+                                    variant="subtitle2"
+                                    fontWeight={600}
+                                    color="primary.main"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    📋 Chi tiết đơn hàng
+                                  </Typography>
+                                  <Box
+                                    sx={{
+                                      backgroundColor: "primary.50",
+                                      borderRadius: 1,
+                                      p: 2,
+                                      border: "1px solid",
+                                      borderColor: "primary.200",
+                                    }}
+                                  >
+                                    {orderDetails.map((detail, index) => (
+                                      <Box
+                                        key={detail.id}
+                                        sx={{
+                                          mb:
+                                            index < orderDetails.length - 1
+                                              ? 2
+                                              : 0,
+                                        }}
+                                      >
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            mb: 1,
+                                          }}
+                                        >
+                                          <Typography
+                                            variant="body2"
+                                            fontWeight={600}
+                                          >
+                                            Chi tiết #{index + 1}
+                                          </Typography>
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            SL: {detail.quantity}
+                                          </Typography>
+                                        </Box>
+
+                                        {detail.detailDesignAmount > 0 && (
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ display: "block" }}
+                                          >
+                                            Phí thiết kế:{" "}
+                                            {detail.detailDesignAmount?.toLocaleString(
+                                              "vi-VN"
+                                            )}
+                                            ₫
+                                          </Typography>
+                                        )}
+
+                                        {detail.detailConstructionAmount >
+                                          0 && (
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ display: "block" }}
+                                          >
+                                            Phí thi công:{" "}
+                                            {detail.detailConstructionAmount?.toLocaleString(
+                                              "vi-VN"
+                                            )}
+                                            ₫
+                                          </Typography>
+                                        )}
+
+                                        {detail.editedDesigns && (
+                                          <Typography
+                                            variant="caption"
+                                            color="primary.dark"
+                                            sx={{
+                                              display: "block",
+                                              fontStyle: "italic",
+                                            }}
+                                          >
+                                            🎨 Thiết kế:{" "}
+                                            {detail.editedDesigns.name ||
+                                              detail.editedDesigns.description}
+                                          </Typography>
+                                        )}
+
+                                        {detail.customDesignRequests && (
+                                          <Typography
+                                            variant="caption"
+                                            color="secondary.dark"
+                                            sx={{
+                                              display: "block",
+                                              fontStyle: "italic",
+                                            }}
+                                          >
+                                            ✏️ Yêu cầu tùy chỉnh:{" "}
+                                            {detail.customDesignRequests.name ||
+                                              detail.customDesignRequests
+                                                .description}
+                                          </Typography>
+                                        )}
+
+                                        {detail.customerChoiceHistories && (
+                                          <Box
+                                            sx={{
+                                              mt: 1,
+                                              p: 1,
+                                              backgroundColor: "white",
+                                              borderRadius: 0.5,
+                                              border: "1px solid",
+                                              borderColor: "grey.200",
+                                            }}
+                                          >
+                                            <Typography
+                                              variant="caption"
+                                              fontWeight={600}
+                                              color="text.primary"
+                                            >
+                                              Lựa chọn:{" "}
+                                              {
+                                                detail.customerChoiceHistories
+                                                  .productTypeName
+                                              }
+                                            </Typography>
+                                            <Typography
+                                              variant="caption"
+                                              color="text.secondary"
+                                              sx={{ display: "block" }}
+                                            >
+                                              Tổng:{" "}
+                                              {detail.customerChoiceHistories.totalAmount?.toLocaleString(
+                                                "vi-VN"
+                                              )}
+                                              ₫
+                                            </Typography>
+                                          </Box>
+                                        )}
+                                      </Box>
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+
                               {/* Thêm thanh tiến trình cho các trạng thái sản xuất */}
                               {[
                                 "PRODUCING",
