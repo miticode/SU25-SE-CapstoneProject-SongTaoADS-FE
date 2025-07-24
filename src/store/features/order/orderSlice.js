@@ -8,6 +8,7 @@ import {
   updateOrderStatusApi,
   getOrderByIdApi,
   getOrdersByUserIdApi,
+  getOrderDetailsApi,
   createOrderFromDesignRequestApi,
   contractResignOrderApi,
   contractSignedOrderApi,
@@ -172,6 +173,17 @@ export const fetchOrdersByUserId = createAsyncThunk(
     return rejectWithValue(response.error);
   }
 );
+
+export const fetchOrderDetails = createAsyncThunk(
+  "order/fetchOrderDetails",
+  async (orderId, { rejectWithValue }) => {
+    const response = await getOrderDetailsApi(orderId);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
 export const createOrderFromDesignRequest = createAsyncThunk(
   "order/createOrderFromDesignRequest",
   async (customDesignRequestId, { rejectWithValue }) => {
@@ -309,6 +321,9 @@ const initialState = {
   currentOrder: null,
   currentOrderStatus: "idle",
   currentOrderError: null,
+  orderDetails: null,
+  orderDetailsStatus: "idle",
+  orderDetailsError: null,
   pagination: {
     currentPage: 1,
     totalPages: 1,
@@ -326,6 +341,11 @@ const orderSlice = createSlice({
     },
     setCurrentOrder: (state, action) => {
       state.currentOrder = action.payload;
+    },
+    clearOrderDetails: (state) => {
+      state.orderDetails = null;
+      state.orderDetailsStatus = "idle";
+      state.orderDetailsError = null;
     },
   },
   extraReducers: (builder) => {
@@ -444,6 +464,18 @@ const orderSlice = createSlice({
       .addCase(fetchOrdersByUserId.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(fetchOrderDetails.pending, (state) => {
+        state.orderDetailsStatus = "loading";
+        state.orderDetailsError = null;
+      })
+      .addCase(fetchOrderDetails.fulfilled, (state, action) => {
+        state.orderDetailsStatus = "succeeded";
+        state.orderDetails = action.payload;
+      })
+      .addCase(fetchOrderDetails.rejected, (state, action) => {
+        state.orderDetailsStatus = "failed";
+        state.orderDetailsError = action.payload;
       })
       .addCase(createOrderFromDesignRequest.pending, (state) => {
         state.loading = true;
@@ -649,7 +681,7 @@ const orderSlice = createSlice({
   },
 });
 
-export const { clearError, setCurrentOrder } = orderSlice.actions;
+export const { clearError, setCurrentOrder, clearOrderDetails } = orderSlice.actions;
 export default orderSlice.reducer;
 
 export const selectCurrentOrder = (state) => state.order.currentOrder;
@@ -661,3 +693,6 @@ export const selectOrderStatus = (state) =>
   state.order.loading ? "loading" : state.order.error ? "failed" : "succeeded";
 export const selectOrderError = (state) => state.order.error;
 export const selectOrderPagination = (state) => state.order.pagination;
+export const selectOrderDetails = (state) => state.order.orderDetails;
+export const selectOrderDetailsStatus = (state) => state.order.orderDetailsStatus;
+export const selectOrderDetailsError = (state) => state.order.orderDetailsError;
