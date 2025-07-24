@@ -4296,99 +4296,36 @@ const AIDesign = () => {
   };
 
   const handleConfirm = async () => {
-    if (!user?.id) {
-      setSnackbar({
-        open: true,
-        message: "Vui lòng đăng nhập để tạo đơn hàng",
-        severity: "error",
-      });
-      return;
-    }
+    console.log("AIDesign - handleConfirm được gọi");
+    console.log("AIDesign - editedDesign data:", editedDesign);
+    console.log("AIDesign - currentAIDesign:", currentAIDesign);
+    console.log("AIDesign - currentOrder:", currentOrder);
 
-    try {
-      // Kiểm tra currentAIDesign đã được tạo chưa (từ hàm exportDesign)
-      if (!currentAIDesign?.id) {
-        setSnackbar({
-          open: true,
-          message: "Vui lòng xuất và lưu thiết kế trước khi đặt hàng",
-          severity: "warning",
-        });
-        return;
-      }
-
-      // Lấy customerChoiceId từ currentOrder
-      const customerChoiceId = currentOrder?.id;
-      if (!customerChoiceId) {
-        setSnackbar({
-          open: true,
-          message: "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại.",
-          severity: "error",
-        });
-        return;
-      }
-
-      // Lấy aiDesignId từ currentAIDesign
-      const aiDesignId = currentAIDesign.id;
-
-      // Chuẩn bị dữ liệu đơn hàng
-      const orderData = {
-        totalAmount: totalAmount,
-        note: customerNote || "Đơn hàng thiết kế AI",
-        isCustomDesign: true,
-        histories: [`Đơn hàng được tạo lúc ${new Date().toLocaleString()}`],
-        userId: user.id,
-      };
-
-      // Use local loading state instead of global
-      setIsOrdering(true);
-
-      // Gọi API createAiOrder
-      const resultAction = await dispatch(
-        createAiOrder({
-          aiDesignId,
-          customerChoiceId,
-          orderData,
-        })
+    // Chỉ truyền ảnh nếu đã có editedDesign (đã xuất thiết kế)
+    let editedImageFromResponse = null;
+    if (editedDesign && editedDesign.editedImage) {
+      editedImageFromResponse = editedDesign.editedImage;
+      console.log(
+        "AIDesign - Có ảnh đã xuất từ editedDesign:",
+        editedImageFromResponse
       );
-
-      // Turn off loading
-      setIsOrdering(false);
-
-      // Kiểm tra kết quả
-      if (createAiOrder.fulfilled.match(resultAction)) {
-        // Thành công
-        setSnackbar({
-          open: true,
-          message: "Đơn hàng đã được tạo thành công!",
-          severity: "success",
-        });
-
-        // Hiển thị thông báo thành công
-        setShowSuccess(true);
-
-        // Sau 3 giây sẽ đóng popup và chuyển về trang chủ
-        setTimeout(() => {
-          setShowSuccess(false);
-          navigate("/");
-        }, 3000);
-      } else {
-        // Thất bại
-        setSnackbar({
-          open: true,
-          message:
-            resultAction.error?.message || "Có lỗi xảy ra khi tạo đơn hàng",
-          severity: "error",
-        });
-      }
-    } catch (error) {
-      console.error("Error creating order:", error);
-      setIsOrdering(false);
-      setSnackbar({
-        open: true,
-        message: "Có lỗi xảy ra khi tạo đơn hàng",
-        severity: "error",
-      });
+    } else {
+      console.log(
+        "AIDesign - Chưa có ảnh đã xuất, editedDesign:",
+        editedDesign
+      );
     }
+
+    navigate("/order", {
+      state: {
+        fromAIDesign: true,
+        editedDesignId: currentAIDesign?.id,
+        customerChoiceId: currentOrder?.id,
+        editedDesignImage: editedImageFromResponse, // Chỉ truyền nếu đã xuất
+        editedDesignData: editedDesign || null,
+        hasExportedDesign: !!editedDesign, // Đánh dấu đã xuất hay chưa
+      },
+    });
   };
   useEffect(() => {
     setImageLoadError(null);
@@ -4705,7 +4642,7 @@ const AIDesign = () => {
             onLogoChange={async (event) => {
               if (event?.target?.files?.length > 0) {
                 const file = event.target.files[0];
-                
+
                 // Nếu đã có customerDetail, cập nhật logo ngay lập tức qua API
                 if (customerDetail?.id) {
                   try {
@@ -4752,17 +4689,17 @@ const AIDesign = () => {
                     });
 
                     // Reset input file để cho phép chọn lại cùng file
-                    event.target.value = '';
-
+                    event.target.value = "";
                   } catch (error) {
                     console.error("Error updating logo:", error);
                     setSnackbar({
                       open: true,
-                      message: "Có lỗi xảy ra khi cập nhật logo. Vui lòng thử lại.",
+                      message:
+                        "Có lỗi xảy ra khi cập nhật logo. Vui lòng thử lại.",
                       severity: "error",
                     });
                     // Reset input file khi có lỗi
-                    event.target.value = '';
+                    event.target.value = "";
                   }
                 } else {
                   // Nếu chưa có customerDetail, chỉ xử lý preview như bình thường

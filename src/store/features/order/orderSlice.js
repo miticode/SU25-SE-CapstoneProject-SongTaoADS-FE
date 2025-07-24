@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createAiOrderApi,
   createOrderApi,
+  createNewOrderApi,
+  addOrderDetailApi,
   getOrdersApi,
   updateOrderStatusApi,
   getOrderByIdApi,
@@ -33,9 +35,39 @@ export const ORDER_STATUS_MAP = {
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
   COMPLETED: { label: "Hoàn tất", color: "success" },
   CANCELLED: { label: "Đã hủy", color: "error" },
+  PENDING_DESIGN: { label: "Chờ thiết kế", color: "warning" }
+};
+
+// Định nghĩa mapping loại đơn hàng
+export const ORDER_TYPE_MAP = {
+  AI_DESIGN: { label: "Thiết kế AI", color: "primary" },
+  CUSTOM_DESIGN_WITH_CONSTRUCTION: { label: "Thiết kế tùy chỉnh có thi công", color: "success" },
+  CUSTOM_DESIGN_WITHOUT_CONSTRUCTION: { label: "Thiết kế tùy chỉnh không thi công", color: "info" }
 };
 
 // Async thunks
+export const createNewOrder = createAsyncThunk(
+  "order/createNewOrder",
+  async (orderData, { rejectWithValue }) => {
+    const response = await createNewOrderApi(orderData);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
+
+export const addOrderDetail = createAsyncThunk(
+  "order/addOrderDetail",
+  async ({ orderId, orderDetailData }, { rejectWithValue }) => {
+    const response = await addOrderDetailApi(orderId, orderDetailData);
+    if (response.success) {
+      return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
+
 export const createOrder = createAsyncThunk(
   "order/createOrder",
   async ({ customerChoiceId, orderData }, { rejectWithValue }) => {
@@ -298,6 +330,36 @@ const orderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Create New Order (API /api/orders)
+      .addCase(createNewOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createNewOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders.push(action.payload);
+        state.currentOrder = action.payload;
+      })
+      .addCase(createNewOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Add Order Detail
+      .addCase(addOrderDetail.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addOrderDetail.fulfilled, (state, action) => {
+        state.loading = false;
+        // Cập nhật current order với thông tin chi tiết mới
+        if (state.currentOrder) {
+          state.currentOrder = { ...state.currentOrder, orderDetail: action.payload };
+        }
+      })
+      .addCase(addOrderDetail.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Create Order
       .addCase(createOrder.pending, (state) => {
         state.loading = true;
