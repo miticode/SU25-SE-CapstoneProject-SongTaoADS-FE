@@ -123,6 +123,126 @@ const statusMap = {
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
 };
 
+// Component để hiển thị ảnh thiết kế đã chỉnh sửa
+const EditedDesignImage = ({
+  imagePath,
+  customerNote,
+  customerDetail,
+  designTemplate,
+}) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!imagePath) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(false);
+        const result = await getPresignedUrl(imagePath);
+
+        if (result.success) {
+          setImageUrl(result.url);
+        } else {
+          setError(true);
+          console.error("Failed to load image:", result.message);
+        }
+      } catch (err) {
+        setError(true);
+        console.error("Error loading image:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+  }, [imagePath]);
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: 100,
+        }}
+      >
+        <CircularProgress size={24} />
+        <Typography variant="body2" sx={{ ml: 1 }}>
+          Đang tải ảnh...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (error || !imageUrl) {
+    return (
+      <Box
+        sx={{
+          p: 2,
+          border: "1px dashed #ccc",
+          borderRadius: 1,
+          textAlign: "center",
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          Không thể tải ảnh thiết kế
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{ border: "1px solid #e0e0e0", borderRadius: 2, overflow: "hidden" }}
+    >
+      <Box
+        component="img"
+        src={imageUrl}
+        alt="Thiết kế đã chỉnh sửa"
+        sx={{
+          width: "100%",
+          maxHeight: 300,
+          objectFit: "cover",
+          cursor: "pointer",
+          "&:hover": {
+            opacity: 0.9,
+          },
+        }}
+        onClick={() => window.open(imageUrl, "_blank")}
+      />
+
+      {/* Thông tin bổ sung */}
+      <Box sx={{ p: 2, backgroundColor: "#f8f9fa" }}>
+        {customerNote && (
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Ghi chú khách hàng:</strong> {customerNote}
+          </Typography>
+        )}
+
+        {designTemplate && (
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Mẫu thiết kế:</strong> {designTemplate.name}
+          </Typography>
+        )}
+
+        {customerDetail && (
+          <Typography variant="body2">
+            <strong>Công ty:</strong> {customerDetail.companyName}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
 const OrderHistory = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [tab, setTab] = useState(0);
@@ -1867,6 +1987,117 @@ const OrderHistory = () => {
                                   "vi-VN"
                                 )}
                               </Typography>
+
+                              {/* Hiển thị địa chỉ nếu có */}
+                              {order.address && (
+                                <Typography
+                                  color="text.secondary"
+                                  fontSize={14}
+                                >
+                                  <b>📍 Địa chỉ:</b> {order.address}
+                                </Typography>
+                              )}
+
+                              {/* Hiển thị thông tin thi công cho đơn PENDING_CONTRACT */}
+                              {order.status === "PENDING_CONTRACT" && (
+                                <Box
+                                  sx={{
+                                    mt: 1,
+                                    p: 1.5,
+                                    backgroundColor: "warning.50",
+                                    borderRadius: 1,
+                                    border: "1px solid",
+                                    borderColor: "warning.200",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={600}
+                                    color="warning.dark"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    💰 Thông tin thi công:
+                                  </Typography>
+                                  <Typography
+                                    color="text.secondary"
+                                    fontSize={13}
+                                  >
+                                    <b>Tổng phí thi công:</b>{" "}
+                                    {order.totalConstructionAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || "Chưa xác định"}
+                                    ₫
+                                  </Typography>
+                                  <Typography
+                                    color="text.secondary"
+                                    fontSize={13}
+                                  >
+                                    <b>Cọc thi công:</b>{" "}
+                                    {order.depositConstructionAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || "Chưa xác định"}
+                                    ₫
+                                  </Typography>
+                                  <Typography
+                                    color="text.secondary"
+                                    fontSize={13}
+                                  >
+                                    <b>Còn lại thi công:</b>{" "}
+                                    {order.remainingConstructionAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || "Chưa xác định"}
+                                    ₫
+                                  </Typography>
+                                  {order.totalDesignAmount && (
+                                    <>
+                                      <Typography
+                                        color="text.secondary"
+                                        fontSize={13}
+                                      >
+                                        <b>Phí thiết kế:</b>{" "}
+                                        {order.totalDesignAmount?.toLocaleString(
+                                          "vi-VN"
+                                        )}
+                                        ₫
+                                      </Typography>
+                                      {order.depositDesignAmount && (
+                                        <Typography
+                                          color="text.secondary"
+                                          fontSize={13}
+                                        >
+                                          <b>Cọc thiết kế:</b>{" "}
+                                          {order.depositDesignAmount?.toLocaleString(
+                                            "vi-VN"
+                                          )}
+                                          ₫
+                                        </Typography>
+                                      )}
+                                      {order.remainingDesignAmount && (
+                                        <Typography
+                                          color="text.secondary"
+                                          fontSize={13}
+                                        >
+                                          <b>Còn lại thiết kế:</b>{" "}
+                                          {order.remainingDesignAmount?.toLocaleString(
+                                            "vi-VN"
+                                          )}
+                                          ₫
+                                        </Typography>
+                                      )}
+                                    </>
+                                  )}
+                                  {order.note && (
+                                    <Typography
+                                      color="text.secondary"
+                                      fontSize={13}
+                                      sx={{ mt: 1, fontStyle: "italic" }}
+                                    >
+                                      <b>📝 Ghi chú:</b> {order.note}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              )}
+
                               <Typography color="text.secondary" fontSize={14}>
                                 Tổng tiền:{" "}
                                 {order.totalAmount?.toLocaleString("vi-VN") ||
@@ -2011,133 +2242,306 @@ const OrderHistory = () => {
                                     }}
                                   >
                                     {orderDetails.map((detail, index) => (
-                                      <Box
+                                      <Card
                                         key={detail.id}
                                         sx={{
                                           mb:
                                             index < orderDetails.length - 1
                                               ? 2
                                               : 0,
+                                          backgroundColor: "#fff",
+                                          border: "1px solid #e0e0e0",
+                                          borderRadius: 2,
+                                          overflow: "hidden",
                                         }}
                                       >
-                                        <Box
-                                          sx={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            mb: 1,
-                                          }}
-                                        >
-                                          <Typography
-                                            variant="body2"
-                                            fontWeight={600}
-                                          >
-                                            Chi tiết #{index + 1}
-                                          </Typography>
-                                          <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                          >
-                                            SL: {detail.quantity}
-                                          </Typography>
-                                        </Box>
-
-                                        {detail.detailDesignAmount > 0 && (
-                                          <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{ display: "block" }}
-                                          >
-                                            Phí thiết kế:{" "}
-                                            {detail.detailDesignAmount?.toLocaleString(
-                                              "vi-VN"
-                                            )}
-                                            ₫
-                                          </Typography>
-                                        )}
-
-                                        {detail.detailConstructionAmount >
-                                          0 && (
-                                          <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{ display: "block" }}
-                                          >
-                                            Phí thi công:{" "}
-                                            {detail.detailConstructionAmount?.toLocaleString(
-                                              "vi-VN"
-                                            )}
-                                            ₫
-                                          </Typography>
-                                        )}
-
-                                        {detail.editedDesigns && (
-                                          <Typography
-                                            variant="caption"
-                                            color="primary.dark"
-                                            sx={{
-                                              display: "block",
-                                              fontStyle: "italic",
-                                            }}
-                                          >
-                                            🎨 Thiết kế:{" "}
-                                            {detail.editedDesigns.name ||
-                                              detail.editedDesigns.description}
-                                          </Typography>
-                                        )}
-
-                                        {detail.customDesignRequests && (
-                                          <Typography
-                                            variant="caption"
-                                            color="secondary.dark"
-                                            sx={{
-                                              display: "block",
-                                              fontStyle: "italic",
-                                            }}
-                                          >
-                                            ✏️ Yêu cầu tùy chỉnh:{" "}
-                                            {detail.customDesignRequests.name ||
-                                              detail.customDesignRequests
-                                                .description}
-                                          </Typography>
-                                        )}
-
-                                        {detail.customerChoiceHistories && (
+                                        <CardContent sx={{ p: 2 }}>
+                                          {/* Header */}
                                           <Box
                                             sx={{
-                                              mt: 1,
-                                              p: 1,
-                                              backgroundColor: "white",
-                                              borderRadius: 0.5,
-                                              border: "1px solid",
-                                              borderColor: "grey.200",
+                                              display: "flex",
+                                              justifyContent: "space-between",
+                                              alignItems: "center",
+                                              mb: 2,
+                                              pb: 1,
+                                              borderBottom: "1px solid #f0f0f0",
                                             }}
                                           >
                                             <Typography
-                                              variant="caption"
+                                              variant="subtitle2"
                                               fontWeight={600}
-                                              color="text.primary"
+                                              color="primary.main"
                                             >
-                                              Lựa chọn:{" "}
-                                              {
-                                                detail.customerChoiceHistories
-                                                  .productTypeName
-                                              }
+                                              Chi tiết #{index + 1}
                                             </Typography>
-                                            <Typography
-                                              variant="caption"
-                                              color="text.secondary"
-                                              sx={{ display: "block" }}
-                                            >
-                                              Tổng:{" "}
-                                              {detail.customerChoiceHistories.totalAmount?.toLocaleString(
-                                                "vi-VN"
-                                              )}
-                                              ₫
-                                            </Typography>
+                                            <Chip
+                                              label={`SL: ${detail.quantity}`}
+                                              size="small"
+                                              color="primary"
+                                              variant="outlined"
+                                            />
                                           </Box>
-                                        )}
-                                      </Box>
+
+                                          {/* Thông tin giá cả */}
+                                          <Box sx={{ mb: 2 }}>
+                                            <Typography
+                                              variant="body2"
+                                              sx={{ mb: 1 }}
+                                            >
+                                              <strong>
+                                                💰 Thông tin giá cả:
+                                              </strong>
+                                            </Typography>
+                                            <Box sx={{ ml: 2 }}>
+                                              <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{ mb: 0.5 }}
+                                              >
+                                                • Phí thi công:{" "}
+                                                {detail.detailConstructionAmount?.toLocaleString(
+                                                  "vi-VN"
+                                                ) || 0}
+                                                ₫
+                                              </Typography>
+                                              {detail.detailDesignAmount && (
+                                                <Typography
+                                                  variant="body2"
+                                                  color="text.secondary"
+                                                  sx={{ mb: 0.5 }}
+                                                >
+                                                  • Phí thiết kế:{" "}
+                                                  {detail.detailDesignAmount.toLocaleString(
+                                                    "vi-VN"
+                                                  )}
+                                                  ₫
+                                                </Typography>
+                                              )}
+                                              {detail.detailDepositDesignAmount && (
+                                                <Typography
+                                                  variant="body2"
+                                                  color="text.secondary"
+                                                  sx={{ mb: 0.5 }}
+                                                >
+                                                  • Tiền cọc thiết kế:{" "}
+                                                  {detail.detailDepositDesignAmount.toLocaleString(
+                                                    "vi-VN"
+                                                  )}
+                                                  ₫
+                                                </Typography>
+                                              )}
+                                              {detail.detailRemainingDesignAmount && (
+                                                <Typography
+                                                  variant="body2"
+                                                  color="text.secondary"
+                                                >
+                                                  • Còn lại thiết kế:{" "}
+                                                  {detail.detailRemainingDesignAmount.toLocaleString(
+                                                    "vi-VN"
+                                                  )}
+                                                  ₫
+                                                </Typography>
+                                              )}
+                                            </Box>
+                                          </Box>
+
+                                          {/* Thông tin sản phẩm */}
+                                          {detail.customerChoiceHistories && (
+                                            <Box sx={{ mb: 2 }}>
+                                              <Typography
+                                                variant="body2"
+                                                sx={{ mb: 1 }}
+                                              >
+                                                <strong>
+                                                  🏷️ Thông tin sản phẩm:
+                                                </strong>
+                                              </Typography>
+                                              <Box sx={{ ml: 2 }}>
+                                                <Typography
+                                                  variant="body2"
+                                                  color="text.secondary"
+                                                  sx={{ mb: 0.5 }}
+                                                >
+                                                  • Loại sản phẩm:{" "}
+                                                  {detail
+                                                    .customerChoiceHistories
+                                                    .productTypeName || "N/A"}
+                                                </Typography>
+                                                <Typography
+                                                  variant="body2"
+                                                  color="text.secondary"
+                                                  sx={{ mb: 0.5 }}
+                                                >
+                                                  • Công thức tính:{" "}
+                                                  {detail
+                                                    .customerChoiceHistories
+                                                    .calculateFormula || "N/A"}
+                                                </Typography>
+                                                <Typography
+                                                  variant="body2"
+                                                  color="text.secondary"
+                                                >
+                                                  • Tổng tiền:{" "}
+                                                  {detail.customerChoiceHistories.totalAmount?.toLocaleString(
+                                                    "vi-VN"
+                                                  ) || 0}
+                                                  ₫
+                                                </Typography>
+                                              </Box>
+                                            </Box>
+                                          )}
+
+                                          {/* Ảnh thiết kế */}
+                                          {detail.editedDesigns
+                                            ?.editedImage && (
+                                            <Box sx={{ mb: 2 }}>
+                                              <Typography
+                                                variant="body2"
+                                                sx={{ mb: 1 }}
+                                              >
+                                                <strong>
+                                                  🎨 Thiết kế đã chỉnh sửa:
+                                                </strong>
+                                              </Typography>
+                                              <EditedDesignImage
+                                                imagePath={
+                                                  detail.editedDesigns
+                                                    .editedImage
+                                                }
+                                                customerNote={
+                                                  detail.editedDesigns
+                                                    .customerNote
+                                                }
+                                                customerDetail={
+                                                  detail.editedDesigns
+                                                    .customerDetail
+                                                }
+                                                designTemplate={
+                                                  detail.editedDesigns
+                                                    .designTemplates
+                                                }
+                                              />
+                                            </Box>
+                                          )}
+
+                                          {/* Lựa chọn thuộc tính */}
+                                          {detail.customerChoiceHistories
+                                            ?.attributeSelections &&
+                                            detail.customerChoiceHistories
+                                              .attributeSelections.length >
+                                              0 && (
+                                              <Box sx={{ mb: 2 }}>
+                                                <Typography
+                                                  variant="body2"
+                                                  sx={{ mb: 1 }}
+                                                >
+                                                  <strong>
+                                                    ⚙️ Lựa chọn thuộc tính:
+                                                  </strong>
+                                                </Typography>
+                                                <Box sx={{ ml: 2 }}>
+                                                  {detail.customerChoiceHistories.attributeSelections.map(
+                                                    (attr, attrIndex) => (
+                                                      <Box
+                                                        key={attrIndex}
+                                                        sx={{
+                                                          mb: 1,
+                                                          p: 1,
+                                                          backgroundColor:
+                                                            "#f8f9fa",
+                                                          borderRadius: 1,
+                                                        }}
+                                                      >
+                                                        <Typography
+                                                          variant="body2"
+                                                          fontWeight={500}
+                                                        >
+                                                          {attr.attribute}:{" "}
+                                                          {attr.value}
+                                                          {attr.unit &&
+                                                            ` (${attr.unit})`}
+                                                        </Typography>
+                                                        <Typography
+                                                          variant="caption"
+                                                          color="text.secondary"
+                                                          sx={{
+                                                            display: "block",
+                                                          }}
+                                                        >
+                                                          Giá vật liệu:{" "}
+                                                          {attr.materialPrice?.toLocaleString(
+                                                            "vi-VN"
+                                                          ) || 0}
+                                                          ₫ • Đơn giá:{" "}
+                                                          {attr.unitPrice?.toLocaleString(
+                                                            "vi-VN"
+                                                          ) || 0}
+                                                          ₫ • Thành tiền:{" "}
+                                                          {attr.subTotal?.toLocaleString(
+                                                            "vi-VN"
+                                                          ) || 0}
+                                                          ₫
+                                                        </Typography>
+                                                        {attr.calculateFormula && (
+                                                          <Typography
+                                                            variant="caption"
+                                                            color="primary.main"
+                                                            sx={{
+                                                              fontStyle:
+                                                                "italic",
+                                                            }}
+                                                          >
+                                                            Công thức:{" "}
+                                                            {
+                                                              attr.calculateFormula
+                                                            }
+                                                          </Typography>
+                                                        )}
+                                                      </Box>
+                                                    )
+                                                  )}
+                                                </Box>
+                                              </Box>
+                                            )}
+
+                                          {/* Kích thước */}
+                                          {detail.customerChoiceHistories
+                                            ?.sizeSelections &&
+                                            detail.customerChoiceHistories
+                                              .sizeSelections.length > 0 && (
+                                              <Box>
+                                                <Typography
+                                                  variant="body2"
+                                                  sx={{ mb: 1 }}
+                                                >
+                                                  <strong>
+                                                    📐 Kích thước:
+                                                  </strong>
+                                                </Typography>
+                                                <Box
+                                                  sx={{
+                                                    ml: 2,
+                                                    display: "flex",
+                                                    flexWrap: "wrap",
+                                                    gap: 1,
+                                                  }}
+                                                >
+                                                  {detail.customerChoiceHistories.sizeSelections.map(
+                                                    (size, sizeIndex) => (
+                                                      <Chip
+                                                        key={sizeIndex}
+                                                        label={`${size.size}: ${size.value}`}
+                                                        size="small"
+                                                        variant="outlined"
+                                                        color="info"
+                                                      />
+                                                    )
+                                                  )}
+                                                </Box>
+                                              </Box>
+                                            )}
+                                        </CardContent>
+                                      </Card>
                                     ))}
                                   </Box>
                                 </Box>
