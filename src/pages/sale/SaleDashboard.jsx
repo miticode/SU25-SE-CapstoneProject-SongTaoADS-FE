@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   fetchOrders,
   fetchOrderById,
@@ -7,6 +8,7 @@ import {
   selectCurrentOrderStatus,
   ORDER_STATUS_MAP,
 } from "../../store/features/order/orderSlice";
+import { logout } from "../../store/features/auth/authSlice";
 import {
   updateOrderStatusApi,
   saleConfirmOrderApi,
@@ -72,18 +74,17 @@ const drawerWidth = 240;
 
 const SaleDashboard = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { orders } = useSelector((state) => state.order);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [openDialog, setOpenDialog] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("PENDING_CONTRACT");
   const [deliveryDate, setDeliveryDate] = useState(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
-  const [selectedFeedback, setSelectedFeedback] = useState(null);
-  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   const selectedOrder = useSelector(selectCurrentOrder);
   const currentOrderStatus = useSelector(selectCurrentOrderStatus);
@@ -101,9 +102,20 @@ const SaleDashboard = () => {
     setAvatarAnchorEl(null);
   };
 
+  const handleLogout = async () => {
+    try {
+      // Clear chatbot history from localStorage
+      localStorage.removeItem("ai_chatbot_messages");
+      await dispatch(logout()).unwrap();
+      navigate("/auth/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
   useEffect(() => {
-    // Lấy tất cả đơn hàng với mọi trạng thái khi load trang
-    dispatch(fetchOrders());
+    // Lấy đơn hàng với trạng thái mặc định "PENDING_CONTRACT" khi load trang
+    dispatch(fetchOrders("PENDING_CONTRACT"));
   }, [dispatch]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
@@ -121,8 +133,12 @@ const SaleDashboard = () => {
     try {
       const res = await updateOrderStatusApi(orderId, { status: newStatus });
       if (res.success) {
-        // Refresh orders list
-        dispatch(fetchOrders());
+        // Refresh orders list with current filter
+        if (statusFilter) {
+          dispatch(fetchOrders(statusFilter));
+        } else {
+          dispatch(fetchOrders());
+        }
         // Close dialog
         handleCloseDialog();
       } else {
@@ -231,7 +247,12 @@ const SaleDashboard = () => {
     try {
       const res = await updateOrderStatusApi(orderId, "CANCELLED");
       if (res.success) {
-        dispatch(fetchOrders());
+        // Refresh orders list with current filter
+        if (statusFilter) {
+          dispatch(fetchOrders(statusFilter));
+        } else {
+          dispatch(fetchOrders());
+        }
         handleCloseDialog();
       } else {
         alert(res.error || "Cập nhật trạng thái thất bại!");
@@ -247,7 +268,12 @@ const SaleDashboard = () => {
     try {
       const res = await saleConfirmOrderApi(selectedOrder.id, { deliveryDate });
       if (res.success) {
-        dispatch(fetchOrders());
+        // Refresh orders list with current filter
+        if (statusFilter) {
+          dispatch(fetchOrders(statusFilter));
+        } else {
+          dispatch(fetchOrders());
+        }
         setShowDeliveryPicker(false);
         setOpenDialog(false);
       } else {
@@ -326,7 +352,7 @@ const SaleDashboard = () => {
             transformOrigin={{ horizontal: "right", vertical: "top" }}
             anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
           >
-            <MenuItem>
+            <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <Logout fontSize="small" />
               </ListItemIcon>
@@ -515,8 +541,12 @@ const SaleDashboard = () => {
                     </Box>
                     <Typography>
                       <b>Ngày tạo:</b>{" "}
-                      {selectedOrder.orderDate
-                        ? new Date(selectedOrder.orderDate).toLocaleDateString(
+                      {selectedOrder.users?.createdAt
+                        ? new Date(selectedOrder.users.createdAt).toLocaleDateString(
+                            "vi-VN"
+                          )
+                        : selectedOrder.users?.updatedAt
+                        ? new Date(selectedOrder.users.updatedAt).toLocaleDateString(
                             "vi-VN"
                           )
                         : "N/A"}
