@@ -132,6 +132,7 @@ export const fetchOrders = createAsyncThunk(
     } else {
       // Nếu orderStatus là string
       const response = await getOrdersApi(orderStatus, page, size);
+      
       if (response.success) {
         return {
           orders: response.data,

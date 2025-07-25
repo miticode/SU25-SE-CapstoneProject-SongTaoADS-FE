@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, selectModelForChatApi, uploadFileExcelApi, getFineTuneJobDetailApi, testChatApi, getOpenAiModelsApi, getFineTunedModelsApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
@@ -23,6 +23,18 @@ const initialState = {
   openAiModels: [],
   openAiModelsStatus: 'idle',
   fineTunedModels: [],
+  frequentQuestions: [],
+  frequentQuestionsStatus: 'idle',
+  traditionalPricingResult: null,
+  traditionalPricingStatus: 'idle',
+  modernPricingResult: null,
+  modernPricingStatus: 'idle',
+  modelChatSelectedModel: null,
+  modelChatSelectedModelStatus: 'idle',
+  modelChatUploadedFile: null,
+  modelChatUploadedFileStatus: 'idle',
+  modelChatFineTunedModels: [],
+  modelChatFineTunedModelsStatus: 'idle',
 };
 
 export const sendChatMessage = createAsyncThunk(
@@ -100,26 +112,6 @@ export const fetchFineTuneFileDetail = createAsyncThunk(
   }
 );
 
-// Chọn model để chat từ list job
-export const selectModelForChat = createAsyncThunk(
-  'chat/selectModelForChat',
-  async (fineTuningJobId, { rejectWithValue }) => {
-    const response = await selectModelForChatApi(fineTuningJobId);
-    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi chọn model');
-    return response.result;
-  }
-);
-
-// Upload file excel để convert thành file jsonl
-export const uploadFileExcel = createAsyncThunk(
-  'chat/uploadFileExcel',
-  async ({ file, fileName }, { rejectWithValue }) => {
-    const response = await uploadFileExcelApi(file, fileName);
-    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi upload file excel');
-    return response.result;
-  }
-);
-
 // Lấy chi tiết job đã fine-tune
 export const fetchFineTuneJobDetail = createAsyncThunk(
   'chat/fetchFineTuneJobDetail',
@@ -130,31 +122,70 @@ export const fetchFineTuneJobDetail = createAsyncThunk(
   }
 );
 
-// Test chat với model dành cho staff
+// Lấy top 10 câu hỏi được hỏi nhiều nhất
+export const fetchFrequentQuestions = createAsyncThunk(
+  'chat/fetchFrequentQuestions',
+  async (_, { rejectWithValue }) => {
+    const response = await getFrequentQuestionsApi();
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Báo giá bảng quảng cáo truyền thống bằng chatbot
+export const getTraditionalPricing = createAsyncThunk(
+  'chat/getTraditionalPricing',
+  async (data, { rejectWithValue }) => {
+    const response = await getTraditionalPricingApi(data);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Báo giá bảng quảng cáo hiện đại bằng chatbot
+export const getModernPricing = createAsyncThunk(
+  'chat/getModernPricing',
+  async (data, { rejectWithValue }) => {
+    const response = await getModernPricingApi(data);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Chọn model để chat từ list model (model-chat)
+export const selectModelForModelChat = createAsyncThunk(
+  'chat/selectModelForModelChat',
+  async (modelChatId, { rejectWithValue }) => {
+    const response = await selectModelForModelChatApi(modelChatId);
+    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi chọn model');
+    return response.result;
+  }
+);
+
+// Upload file excel để convert thành file jsonl (model-chat)
+export const uploadFileExcelModelChat = createAsyncThunk(
+  'chat/uploadFileExcelModelChat',
+  async ({ file, fileName }, { rejectWithValue }) => {
+    const response = await uploadFileExcelModelChatApi(file, fileName);
+    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi upload file excel');
+    return response.result;
+  }
+);
+
+// Lấy danh sách tất cả các model đã fine-tune (model-chat, có phân trang)
+export const fetchFineTunedModelsModelChat = createAsyncThunk(
+  'chat/fetchFineTunedModelsModelChat',
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+    const response = await getFineTunedModelsModelChatApi(page, size);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
 export const testChat = createAsyncThunk(
   'chat/testChat',
   async (data, { rejectWithValue }) => {
     const response = await testChatApi(data);
-    if (!response.success) return rejectWithValue(response.error);
-    return response.result;
-  }
-);
-
-// Lấy danh sách tất cả các model OpenAI
-export const fetchOpenAiModels = createAsyncThunk(
-  'chat/fetchOpenAiModels',
-  async (_, { rejectWithValue }) => {
-    const response = await getOpenAiModelsApi();
-    if (!response.success) return rejectWithValue(response.error);
-    return response.result;
-  }
-);
-
-// Lấy danh sách tất cả các model đã fine-tune
-export const fetchFineTunedModels = createAsyncThunk(
-  'chat/fetchFineTunedModels',
-  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
-    const response = await getFineTunedModelsApi(page, size);
     if (!response.success) return rejectWithValue(response.error);
     return response.result;
   }
@@ -286,32 +317,6 @@ const chatSlice = createSlice({
         state.fineTuneFileDetailStatus = 'failed';
         state.error = action.payload;
       })
-      // Chọn model để chat từ list job
-      .addCase(selectModelForChat.pending, (state) => {
-        state.fineTuneStatus = 'loading';
-      })
-      .addCase(selectModelForChat.fulfilled, (state, action) => {
-        state.fineTuneStatus = 'succeeded';
-        state.fineTuningJobId = action.payload.id;
-        state.error = null;
-      })
-      .addCase(selectModelForChat.rejected, (state, action) => {
-        state.fineTuneStatus = 'failed';
-        state.error = action.payload;
-      })
-      // Upload file excel để convert thành file jsonl
-      .addCase(uploadFileExcel.pending, (state) => {
-        state.fineTuneStatus = 'loading';
-      })
-      .addCase(uploadFileExcel.fulfilled, (state, action) => {
-        state.fineTuneStatus = 'succeeded';
-        state.uploadedFile = action.payload;
-        state.error = null;
-      })
-      .addCase(uploadFileExcel.rejected, (state, action) => {
-        state.fineTuneStatus = 'failed';
-        state.error = action.payload;
-      })
       // Lấy chi tiết job đã fine-tune
       .addCase(fetchFineTuneJobDetail.pending, (state) => {
         state.fineTuneFileDetailStatus = 'loading';
@@ -324,33 +329,90 @@ const chatSlice = createSlice({
         state.fineTuneFileDetailStatus = 'failed';
         state.error = action.payload;
       })
-      // Lấy danh sách tất cả các model OpenAI
-      .addCase(fetchOpenAiModels.pending, (state) => {
-        state.openAiModelsStatus = 'loading';
+      // Lấy top 10 câu hỏi được hỏi nhiều nhất
+      .addCase(fetchFrequentQuestions.pending, (state) => {
+        state.frequentQuestionsStatus = 'loading';
       })
-      .addCase(fetchOpenAiModels.fulfilled, (state, action) => {
-        state.openAiModelsStatus = 'succeeded';
-        // Lấy đúng danh sách model từ payload.data
-        if (
-          action.payload &&
-          Array.isArray(action.payload.data)
-        ) {
-          state.openAiModels = action.payload.data;
-        } else {
-          state.openAiModels = [];
-        }
+      .addCase(fetchFrequentQuestions.fulfilled, (state, action) => {
+        state.frequentQuestionsStatus = 'succeeded';
+        state.frequentQuestions = action.payload;
       })
-      .addCase(fetchOpenAiModels.rejected, (state, action) => {
-        state.openAiModelsStatus = 'failed';
+      .addCase(fetchFrequentQuestions.rejected, (state, action) => {
+        state.frequentQuestionsStatus = 'failed';
         state.error = action.payload;
       })
-      // Lấy danh sách tất cả các model đã fine-tune
-      .addCase(fetchFineTunedModels.fulfilled, (state, action) => {
-        // Lưu đúng mảng model đã fine-tune từ result
-        state.fineTunedModels = Array.isArray(action.payload) ? action.payload : Array.isArray(action.payload.result) ? action.payload.result : [];
+      // Báo giá bảng quảng cáo truyền thống bằng chatbot
+      .addCase(getTraditionalPricing.pending, (state) => {
+        state.traditionalPricingStatus = 'loading';
       })
-      .addCase(fetchFineTunedModels.rejected, (state, action) => {
-        state.fineTunedModelsStatus = 'failed';
+      .addCase(getTraditionalPricing.fulfilled, (state, action) => {
+        state.traditionalPricingStatus = 'succeeded';
+        state.traditionalPricingResult = action.payload;
+      })
+      .addCase(getTraditionalPricing.rejected, (state, action) => {
+        state.traditionalPricingStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Báo giá bảng quảng cáo hiện đại bằng chatbot
+      .addCase(getModernPricing.pending, (state) => {
+        state.modernPricingStatus = 'loading';
+      })
+      .addCase(getModernPricing.fulfilled, (state, action) => {
+        state.modernPricingStatus = 'succeeded';
+        state.modernPricingResult = action.payload;
+      })
+      .addCase(getModernPricing.rejected, (state, action) => {
+        state.modernPricingStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Chọn model để chat từ list model (model-chat)
+      .addCase(selectModelForModelChat.pending, (state) => {
+        state.modelChatSelectedModelStatus = 'loading';
+      })
+      .addCase(selectModelForModelChat.fulfilled, (state, action) => {
+        state.modelChatSelectedModelStatus = 'succeeded';
+        state.modelChatSelectedModel = action.payload;
+      })
+      .addCase(selectModelForModelChat.rejected, (state, action) => {
+        state.modelChatSelectedModelStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Upload file excel để convert thành file jsonl (model-chat)
+      .addCase(uploadFileExcelModelChat.pending, (state) => {
+        state.modelChatUploadedFileStatus = 'loading';
+      })
+      .addCase(uploadFileExcelModelChat.fulfilled, (state, action) => {
+        state.modelChatUploadedFileStatus = 'succeeded';
+        state.modelChatUploadedFile = action.payload;
+      })
+      .addCase(uploadFileExcelModelChat.rejected, (state, action) => {
+        state.modelChatUploadedFileStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy danh sách tất cả các model đã fine-tune (model-chat)
+      .addCase(fetchFineTunedModelsModelChat.pending, (state) => {
+        state.modelChatFineTunedModelsStatus = 'loading';
+      })
+      .addCase(fetchFineTunedModelsModelChat.fulfilled, (state, action) => {
+        state.modelChatFineTunedModelsStatus = 'succeeded';
+        state.modelChatFineTunedModels = Array.isArray(action.payload) ? action.payload : Array.isArray(action.payload.result) ? action.payload.result : [];
+      })
+      .addCase(fetchFineTunedModelsModelChat.rejected, (state, action) => {
+        state.modelChatFineTunedModelsStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Test chat reducers
+      .addCase(testChat.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(testChat.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.messages.push({ from: 'bot', text: action.payload });
+        state.error = null;
+      })
+      .addCase(testChat.rejected, (state, action) => {
+        state.status = 'failed';
+        state.messages.push({ from: 'bot', text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.' });
         state.error = action.payload;
       });
   },
@@ -381,5 +443,17 @@ export const selectOpenAiModelsStatus = (state) => state.chat.openAiModelsStatus
 export const selectFineTunedModels = (state) => state.chat.fineTunedModels;
 export const selectSucceededFineTuneJobs = (state) =>
   (state.chat.fineTuneJobs || []).filter(job => job.status === 'succeeded');
+export const selectFrequentQuestions = (state) => state.chat.frequentQuestions;
+export const selectFrequentQuestionsStatus = (state) => state.chat.frequentQuestionsStatus;
+export const selectTraditionalPricingResult = (state) => state.chat.traditionalPricingResult;
+export const selectTraditionalPricingStatus = (state) => state.chat.traditionalPricingStatus;
+export const selectModernPricingResult = (state) => state.chat.modernPricingResult;
+export const selectModernPricingStatus = (state) => state.chat.modernPricingStatus;
+export const selectModelChatSelectedModel = (state) => state.chat.modelChatSelectedModel;
+export const selectModelChatSelectedModelStatus = (state) => state.chat.modelChatSelectedModelStatus;
+export const selectModelChatUploadedFile = (state) => state.chat.modelChatUploadedFile;
+export const selectModelChatUploadedFileStatus = (state) => state.chat.modelChatUploadedFileStatus;
+export const selectModelChatFineTunedModels = (state) => state.chat.modelChatFineTunedModels;
+export const selectModelChatFineTunedModelsStatus = (state) => state.chat.modelChatFineTunedModelsStatus;
 
 export default chatSlice.reducer;
