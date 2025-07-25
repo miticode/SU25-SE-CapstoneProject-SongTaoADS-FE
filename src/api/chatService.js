@@ -55,19 +55,15 @@ export const uploadFileFineTuneApi = async (file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-
-    const response = await chatService.post('/api/chat-bot/upload-file-finetune', formData, {
+    const response = await chatService.post('/api/fine-tune/upload-file-finetune', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
     const { success, result, message } = response.data;
-    
     if (success) {
       return { success, result };
     }
-    
     return { success: false, error: message || 'Lỗi khi upload file' };
   } catch (error) {
     return {
@@ -79,17 +75,14 @@ export const uploadFileFineTuneApi = async (file) => {
 // training model
 export const fineTuneModelApi = async (model, trainingFile) => {
   try {
-    const response = await chatService.post('/api/chat-bot/finetune-model', {
+    const response = await chatService.post('/api/fine-tune/finetune-model', {
       model,
       training_file: trainingFile
     });
-    
     const { success, result, message } = response.data;
-    
     if (success) {
       return { success, result };
     }
-    
     return { success: false, error: message || 'Lỗi khi fine-tune model' };
   } catch (error) {
     return {
@@ -101,7 +94,7 @@ export const fineTuneModelApi = async (model, trainingFile) => {
 // hủy training model
 export const cancelFineTuneJobApi = async (fineTuningJobId) => {
   try {
-    const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/cancel`);
+    const response = await chatService.post(`/api/fine-tune/${fineTuningJobId}/fine-tuning-jobs/cancel`);
     const { success, result, message } = response.data;
     if (success) {
       return { success, result };
@@ -117,7 +110,7 @@ export const cancelFineTuneJobApi = async (fineTuningJobId) => {
 // xóa file 
 export const deleteFineTuneFileApi = async (fileId) => {
   try {
-    const response = await chatService.delete(`/api/chat-bot/files/${fileId}`);
+    const response = await chatService.delete(`/api/fine-tune/files/${fileId}`);
     const { success, result, message } = response.data;
     if (success) {
       return { success, result };
@@ -133,7 +126,7 @@ export const deleteFineTuneFileApi = async (fileId) => {
 // Lấy danh sách job fine-tune
 export const getFineTuneJobsApi = async () => {
   try {
-    const response = await chatService.get('/api/chat-bot/fine-tune-jobs');
+    const response = await chatService.get('/api/fine-tune/fine-tune-jobs');
     const { success, result, message } = response.data;
     if (success) return { success, result };
     return { success: false, error: message || 'Lỗi khi lấy danh sách job' };
@@ -145,7 +138,7 @@ export const getFineTuneJobsApi = async () => {
 // Lấy danh sách file
 export const getFineTuneFilesApi = async () => {
   try {
-    const response = await chatService.get('/api/chat-bot/files');
+    const response = await chatService.get('/api/fine-tune/files');
     const { success, result, message } = response.data;
     if (success) return { success, result };
     return { success: false, error: message || 'Lỗi khi lấy danh sách file' };
@@ -157,7 +150,7 @@ export const getFineTuneFilesApi = async () => {
 // Lấy chi tiết file
 export const getFineTuneFileDetailApi = async (fileId) => {
   try {
-    const response = await chatService.get(`/api/chat-bot/files/${fileId}`);
+    const response = await chatService.get(`/api/fine-tune/files/${fileId}`);
     const { success, result, message } = response.data;
     if (success) return { success, result };
     return { success: false, error: message || 'Lỗi khi lấy chi tiết file' };
@@ -166,10 +159,22 @@ export const getFineTuneFileDetailApi = async (fileId) => {
   }
 }; 
 
-// Chọn model để chat từ list job
-export const selectModelForChatApi = async (fineTuningJobId) => {
+// Lấy chi tiết job đã fine-tune
+export const getFineTuneJobDetailApi = async (fineTuneJobId) => {
   try {
-    const response = await chatService.post(`/api/chat-bot/${fineTuningJobId}/fine-tuning-jobs/select-model`);
+    const response = await chatService.get(`/api/fine-tune/${fineTuneJobId}/fine-tune-jobs`);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy chi tiết job' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết job' };
+  }
+};
+
+// Chọn model để chat từ list model (model-chat)
+export const selectModelForModelChatApi = async (modelChatId) => {
+  try {
+    const response = await chatService.post(`/api/model-chat/${modelChatId}/fine-tuning-jobs/select-model`);
     const { success, result, message } = response.data;
     if (success) {
       return { success, result };
@@ -183,13 +188,13 @@ export const selectModelForChatApi = async (fineTuningJobId) => {
   }
 };
 
-// Upload file excel để convert thành file jsonl
-export const uploadFileExcelApi = async (file, fileName) => {
+// Upload file excel để convert thành file jsonl (model-chat)
+export const uploadFileExcelModelChatApi = async (file, fileName) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
     const response = await chatService.post(
-      `/api/chat-bot/upload-file-excel?fileName=${encodeURIComponent(fileName)}`,
+      `/api/model-chat/upload-file-excel?fileName=${encodeURIComponent(fileName)}`,
       formData
     );
     const { success, result, message } = response.data;
@@ -205,15 +210,51 @@ export const uploadFileExcelApi = async (file, fileName) => {
   }
 };
 
-// Lấy chi tiết job đã fine-tune
-export const getFineTuneJobDetailApi = async (fineTuneJobId) => {
+// Lấy danh sách tất cả các model đã fine-tune (model-chat, có phân trang)
+export const getFineTunedModelsModelChatApi = async (page = 1, size = 10) => {
   try {
-    const response = await chatService.get(`/api/chat-bot/${fineTuneJobId}/fine-tune-jobs`);
+    const response = await chatService.get(`/api/model-chat/models-fine-tune?page=${page}&size=${size}`);
     const { success, result, message } = response.data;
     if (success) return { success, result };
-    return { success: false, error: message || 'Lỗi khi lấy chi tiết job' };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model fine-tune' };
   } catch (error) {
-    return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết job' };
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model fine-tune' };
+  }
+};
+
+// Lấy top 10 câu hỏi được hỏi nhiều nhất
+export const getFrequentQuestionsApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/frequent-questions');
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi lấy danh sách câu hỏi thường gặp' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách câu hỏi thường gặp' };
+  }
+};
+
+// Báo giá bảng quảng cáo truyền thống bằng chatbot
+export const getTraditionalPricingApi = async (data) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/pricing/traditional', data);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi báo giá truyền thống' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể báo giá truyền thống' };
+  }
+};
+
+// Báo giá bảng quảng cáo hiện đại bằng chatbot
+export const getModernPricingApi = async (data) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/pricing/modern', data);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi báo giá hiện đại' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể báo giá hiện đại' };
   }
 }; 
 
@@ -226,29 +267,5 @@ export const testChatApi = async (data) => {
     return { success: false, error: message || 'Lỗi khi test chat' };
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể test chat' };
-  }
-};
-
-// Lấy danh sách tất cả các model OpenAI
-export const getOpenAiModelsApi = async () => {
-  try {
-    const response = await chatService.get('/api/chat-bot/models');
-    const { success, result, message } = response.data;
-    if (success) return { success, result };
-    return { success: false, error: message || 'Lỗi khi lấy danh sách model' };
-  } catch (error) {
-    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model' };
-  }
-};
-
-// Lấy danh sách tất cả các model đã fine-tune (có phân trang)
-export const getFineTunedModelsApi = async (page = 1, size = 10) => {
-  try {
-    const response = await chatService.get(`/api/chat-bot/models-fine-tune?page=${page}&size=${size}`);
-    const { success, result, message } = response.data;
-    if (success) return { success, result };
-    return { success: false, error: message || 'Lỗi khi lấy danh sách model fine-tune' };
-  } catch (error) {
-    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model fine-tune' };
   }
 }; 

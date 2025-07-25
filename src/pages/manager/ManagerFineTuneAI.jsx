@@ -56,16 +56,34 @@ import {
   selectFineTuneFilesStatus,
   selectFineTuneFileDetail,
   selectFineTuneFileDetailStatus,
-  selectModelForChat,
   fetchFineTuneJobDetail,
-  uploadFileExcel,
-  fetchOpenAiModels,
-  selectOpenAiModels,
-  selectOpenAiModelsStatus,
-  fetchFineTunedModels,
-  selectFineTunedModels,
   selectSucceededFineTuneJobs,
+  // Model-chat API
+  fetchFineTunedModelsModelChat,
+  selectModelChatFineTunedModels,
+  selectModelChatFineTunedModelsStatus,
+  selectModelForModelChat,
+  uploadFileExcelModelChat,
+  testChat,
+  selectFrequentQuestions,
+  selectFrequentQuestionsStatus,
+  fetchFrequentQuestions,
 } from "../../store/features/chat/chatSlice";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -91,8 +109,10 @@ const renderStatusChip = (status) => (
 
 const ManagerFineTuneAI = () => {
   const dispatch = useDispatch();
-  const openAiModels = useSelector(selectOpenAiModels);
-  const openAiModelsStatus = useSelector(selectOpenAiModelsStatus);
+  const modelChatFineTunedModels = useSelector(selectModelChatFineTunedModels);
+  const modelChatFineTunedModelsStatus = useSelector(
+    selectModelChatFineTunedModelsStatus
+  );
   const [selectedModel, setSelectedModel] = useState("");
   const [tab, setTab] = useState(0);
   const [openFileDetail, setOpenFileDetail] = useState(false);
@@ -111,6 +131,10 @@ const ManagerFineTuneAI = () => {
   const [trainingFile, setTrainingFile] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [alert, setAlert] = useState(null);
+  const [chatPrompt, setChatPrompt] = useState("");
+  const [chatResponse, setChatResponse] = useState("");
+  const frequentQuestions = useSelector(selectFrequentQuestions);
+  const frequentQuestionsStatus = useSelector(selectFrequentQuestionsStatus);
 
   const fineTuneStatus = useSelector(selectFineTuneStatus);
   const trainingStatus = useSelector(selectTrainingStatus);
@@ -154,21 +178,26 @@ const ManagerFineTuneAI = () => {
   }, [fineTuneJobs]);
 
   useEffect(() => {
-    dispatch(fetchOpenAiModels());
+    dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
   }, [dispatch]);
 
   useEffect(() => {
-    if (openAiModels && openAiModels.length > 0 && !selectedModel) {
-      setSelectedModel(openAiModels[0]);
+    if (
+      modelChatFineTunedModels &&
+      modelChatFineTunedModels.length > 0 &&
+      !selectedModel
+    ) {
+      setSelectedModel(modelChatFineTunedModels[0]);
     }
-  }, [openAiModels, selectedModel]);
-
-  useEffect(() => {
-    dispatch(fetchFineTunedModels({ page: 1, size: 10 }));
-  }, [dispatch]);
+  }, [modelChatFineTunedModels, selectedModel]);
 
   useEffect(() => {
     dispatch(fetchFineTuneJobs());
+  }, [dispatch]);
+
+  // Fetch frequent questions for analytics
+  useEffect(() => {
+    dispatch(fetchFrequentQuestions());
   }, [dispatch]);
 
   const handleTrainingFileChange = (e) => {
@@ -188,7 +217,10 @@ const ManagerFineTuneAI = () => {
         result = await dispatch(uploadFileFineTune(trainingFile)).unwrap();
       } else {
         result = await dispatch(
-          uploadFileExcel({ file: trainingFile, fileName: trainingFile.name })
+          uploadFileExcelModelChat({
+            file: trainingFile,
+            fileName: trainingFile.name,
+          })
         ).unwrap();
       }
       setUploadResult(result);
@@ -246,7 +278,7 @@ const ManagerFineTuneAI = () => {
 
   const handleSelectModelForChat = async (jobId) => {
     try {
-      await dispatch(selectModelForChat(jobId)).unwrap();
+      await dispatch(selectModelForModelChat(jobId)).unwrap();
       setActiveModelId(jobId);
       setAlert({ type: "success", message: "Đã chọn model này cho chat!" });
     } catch (error) {
@@ -288,20 +320,43 @@ const ManagerFineTuneAI = () => {
     jobPage * jobRowsPerPage + jobRowsPerPage
   );
 
+  // Dummy data for UI demo
+  const dummyLineData = [
+    { date: "01/07", count: 12 },
+    { date: "02/07", count: 18 },
+    { date: "03/07", count: 9 },
+    { date: "04/07", count: 15 },
+    { date: "05/07", count: 22 },
+    { date: "06/07", count: 17 },
+    { date: "07/07", count: 25 },
+  ];
+  const dummyPieData = [
+    { name: "Báo giá", value: 8 },
+    { name: "Kỹ thuật", value: 5 },
+    { name: "Sản phẩm", value: 7 },
+    { name: "Hỗ trợ", value: 4 },
+  ];
+  const dummyBarData = [
+    { type: "Tự động", value: 32 },
+    { type: "Chuyển người thật", value: 8 },
+  ];
+  const pieColors = ["#1976d2", "#43a047", "#ff9800", "#e53935"];
+
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" mb={2}>
-        Fine Tune AI
+        Quản lí Chatbot- Tinh chỉnh Model-AI
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Upload dữ liệu training mới, bắt đầu training và quản lý model AI của
-        bạn. Tính năng này cho phép quản lý fine-tune AI để có hiệu suất tốt hơn
-        và lấy model mới nhất.
+        Tải lên file dữ liệu của bạn, bắt đầu tinh chỉnh và quản lý model AI của
+        bạn. Tính năng này cho phép quản lý tinh chỉnh AI để có hiệu suất tốt
+        hơn và lấy model mới nhất tích hợp vào Chatbot hệ thống.
       </Typography>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab label="Quản lý Fine-tune" />
         <Tab label="Danh sách Job Fine-tune" />
         <Tab label="Danh sách File Đã Upload" />
+        <Tab label="Thống Kê" />
       </Tabs>
       {tab === 0 && (
         <>
@@ -315,7 +370,7 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              1. Upload File Training (jsonl hoặc excel)
+              1. Tải lên file dữ liệu (jsonl hoặc excel)
             </Typography>
             <FormControl sx={{ mb: 2 }}>
               <RadioGroup
@@ -326,7 +381,7 @@ const ManagerFineTuneAI = () => {
                 <FormControlLabel
                   value="jsonl"
                   control={<Radio />}
-                  label="File training (.jsonl)"
+                  label="File data (.jsonl)"
                 />
                 <FormControlLabel
                   value="excel"
@@ -387,17 +442,21 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              2. Training Model AI
+              2. Tinh chỉnh Model-AI
             </Typography>
             <Box display="flex" alignItems="center" gap={2}>
               <Autocomplete
                 disablePortal
-                options={Array.isArray(openAiModels) ? openAiModels : []}
+                options={
+                  Array.isArray(modelChatFineTunedModels)
+                    ? modelChatFineTunedModels
+                    : []
+                }
                 value={selectedModel}
                 onChange={(_, value) => setSelectedModel(value)}
                 sx={{ width: 300 }}
-                loading={openAiModelsStatus === "loading"}
-                getOptionLabel={(option) => option.id || ""}
+                loading={modelChatFineTunedModelsStatus === "loading"}
+                getOptionLabel={(option) => option.modelName || option.id || ""}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 renderInput={(params) => (
                   <TextField {...params} label="Chọn model" />
@@ -452,10 +511,57 @@ const ManagerFineTuneAI = () => {
               p: 3,
               borderRadius: 2,
               boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              mb: 3,
             }}
           >
             <Typography variant="h6" mb={2}>
-              3. Chọn Model để tích hợp vào chatbot
+              3. Kiểm tra Model-AI
+            </Typography>
+            <Box display="flex" alignItems="center" gap={2}>
+              <TextField
+                label="Nhập câu hỏi cho chatbot"
+                value={chatPrompt}
+                onChange={(e) => setChatPrompt(e.target.value)}
+                sx={{ width: 400 }}
+              />
+              <Button
+                variant="contained"
+                onClick={async () => {
+                  // Call API test chat with selectedModel
+                  if (!selectedModel || !chatPrompt) return;
+                  try {
+                    const res = await dispatch(
+                      testChat({
+                        prompt: chatPrompt,
+                        model: selectedModel.modelName || selectedModel.id,
+                      })
+                    ).unwrap();
+                    setChatResponse(res);
+                  } catch {
+                    setChatResponse("Lỗi khi kiểm tra model");
+                  }
+                }}
+                disabled={!selectedModel || !chatPrompt}
+              >
+                Gửi
+              </Button>
+            </Box>
+            {chatResponse && (
+              <Alert severity="info" sx={{ mt: 2, width: 500 }}>
+                <b>Phản hồi Chatbot:</b> {chatResponse}
+              </Alert>
+            )}
+          </Paper>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Typography variant="h6" mb={2}>
+              4. Chọn Model-AI tích hợp vào Chatbot hệ thống
             </Typography>
             <Autocomplete
               options={Array.isArray(succeededJobs) ? succeededJobs : []}
@@ -481,7 +587,7 @@ const ManagerFineTuneAI = () => {
                 if (!selectedSucceededJob) return;
                 try {
                   await dispatch(
-                    selectModelForChat(selectedSucceededJob.id)
+                    selectModelForModelChat(selectedSucceededJob.id)
                   ).unwrap();
                   setAlert({
                     type: "success",
@@ -902,6 +1008,162 @@ const ManagerFineTuneAI = () => {
             </DialogContent>
           </Dialog>
         </Paper>
+      )}
+      {tab === 3 && (
+        <Box>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6" mb={2}>
+              5. Phân tích: Top 10 câu hỏi được hỏi nhiều nhất
+            </Typography>
+            {frequentQuestionsStatus === "loading" ? (
+              <CircularProgress />
+            ) : (
+              <Box sx={{ width: "100%", height: 350 }}>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart
+                    data={frequentQuestions}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="question"
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                      angle={-20}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="frequency" fill="#1976d2" name="Số lần hỏi" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
+          </Paper>
+          {/* Số lượng câu hỏi theo thời gian */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6" mb={2}>
+              Số lượng câu hỏi theo thời gian (Demo)
+            </Typography>
+            <Box sx={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={dummyLineData}
+                  margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#1976d2"
+                    strokeWidth={2}
+                    name="Số câu hỏi"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Box>
+            {/* TODO: Kết nối API số lượng câu hỏi theo thời gian */}
+          </Paper>
+          {/* Tỉ lệ chủ đề câu hỏi */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6" mb={2}>
+              Tỉ lệ chủ đề câu hỏi (Demo)
+            </Typography>
+            <Box
+              sx={{
+                width: "100%",
+                height: 300,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <ResponsiveContainer width={300} height={300}>
+                <PieChart>
+                  <Pie
+                    data={dummyPieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label
+                  >
+                    {dummyPieData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={pieColors[index % pieColors.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+            {/* TODO: Kết nối API phân loại chủ đề câu hỏi */}
+          </Paper>
+          {/* Tỉ lệ câu hỏi đã trả lời tự động vs. chuyển người thật */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6" mb={2}>
+              Tỉ lệ câu hỏi đã trả lời tự động vs. chuyển người thật (Demo)
+            </Typography>
+            <Box sx={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={dummyBarData}
+                  margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="type" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="value" fill="#43a047" name="Số câu hỏi" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+            {/* TODO: Kết nối API tỉ lệ tự động vs. chuyển người thật */}
+          </Paper>
+        </Box>
       )}
     </Box>
   );
