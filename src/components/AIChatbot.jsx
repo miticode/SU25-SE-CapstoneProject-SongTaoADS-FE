@@ -54,6 +54,7 @@ import {
   addUserMessage,
   selectChatMessages,
   selectChatStatus,
+  getTraditionalPricing,
 } from "../store/features/chat/chatSlice";
 
 const FAQS = [
@@ -165,6 +166,20 @@ const ADVANCED_FEATURES = [
   },
 ];
 
+const PRICING_FIELDS = [
+  { key: "frame", label: "Loại khung (frame)?" },
+  { key: "background", label: "Chất liệu nền (background)?" },
+  { key: "border", label: "Viền bảng (border)?" },
+  { key: "numberOfFaces", label: "Số mặt bảng (numberOfFaces)?" },
+  {
+    key: "installationMethod",
+    label: "Phương pháp lắp đặt (installationMethod)?",
+  },
+  { key: "billboardFace", label: "Mặt hiển thị (billboardFace)?" },
+  { key: "height", label: "Chiều cao (m)?" },
+  { key: "width", label: "Chiều rộng (m)?" },
+];
+
 const TypingIndicator = () => (
   <Box
     sx={{
@@ -231,11 +246,14 @@ const AIChatbot = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
-  const [advancedFeatures, setAdvancedFeatures] = useState(ADVANCED_FEATURES);
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
+  const [isPricingFlow, setIsPricingFlow] = useState(false);
+  const [pricingStep, setPricingStep] = useState(0);
+  const [pricingData, setPricingData] = useState({});
+  const [pricingResult, setPricingResult] = useState(null);
+  const [pricingError, setPricingError] = useState(null);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -295,6 +313,38 @@ const AIChatbot = () => {
     const userMessage = msg || input.trim();
     setInput("");
     dispatch(addUserMessage(userMessage));
+    // Nếu đang ở flow báo giá truyền thống
+    if (isPricingFlow) {
+      const field = PRICING_FIELDS[pricingStep];
+      const nextData = { ...pricingData, [field.key]: userMessage };
+      setPricingData(nextData);
+      if (pricingStep < PRICING_FIELDS.length - 1) {
+        setPricingStep(pricingStep + 1);
+        setTimeout(() => {
+          dispatch(addUserMessage(PRICING_FIELDS[pricingStep + 1].label));
+        }, 400);
+      } else {
+        setIsPricingFlow(false);
+        dispatch(addUserMessage("Đang lấy báo giá..."));
+        try {
+          const result = await dispatch(
+            getTraditionalPricing(nextData)
+          ).unwrap();
+          dispatch(
+            addUserMessage(
+              result.choices && result.choices[0]
+                ? `Báo giá: ${result.choices[0].message.content}`
+                : "Không có dữ liệu báo giá."
+            )
+          );
+        } catch (err) {
+          dispatch(
+            addUserMessage("Lỗi khi báo giá: " + (err || "Không xác định"))
+          );
+        }
+      }
+      return;
+    }
     try {
       await dispatch(sendChatMessage(userMessage)).unwrap();
     } catch {
@@ -306,16 +356,6 @@ const AIChatbot = () => {
     setIsAdvancedMode(!isAdvancedMode);
   };
 
-  const handleFeatureToggle = (featureId) => {
-    setAdvancedFeatures((prev) =>
-      prev.map((feature) =>
-        feature.id === featureId
-          ? { ...feature, enabled: !feature.enabled }
-          : feature
-      )
-    );
-  };
-
   const handleQuickAction = (action) => {
     const message = `Tôi muốn ${action.label.toLowerCase()}`;
     handleSend(message);
@@ -323,6 +363,21 @@ const AIChatbot = () => {
 
   const handleDetailedQuestion = (question) => {
     handleSend(question);
+  };
+
+  const handleStartPricingFlow = () => {
+    setIsPricingFlow(true);
+    setPricingStep(0);
+    setPricingData({});
+    dispatch(addUserMessage(PRICING_FIELDS[0].label));
+  };
+
+  const handleCancelPricingFlow = () => {
+    setIsPricingFlow(false);
+    setPricingStep(0);
+    setPricingData({});
+    setPricingResult(null);
+    setPricingError(null);
   };
 
   return (
@@ -479,7 +534,7 @@ const AIChatbot = () => {
                   <Tooltip title="Cài đặt nâng cao">
                     <IconButton
                       size="small"
-                      onClick={() => setShowSettings(true)}
+                      onClick={() => setIsAdvancedMode(!isAdvancedMode)}
                       sx={{ color: "#fff" }}
                     >
                       <SettingsIcon />
@@ -521,7 +576,7 @@ const AIChatbot = () => {
                   </Button>
                   {isAdvancedMode && (
                     <Chip
-                      label="Pro Mode"
+                      label="Nâng cao"
                       size="small"
                       color="primary"
                       sx={{ fontSize: 10 }}
@@ -548,7 +603,6 @@ const AIChatbot = () => {
                   >
                     <Tab label="Chat" />
                     <Tab label="Hướng dẫn" />
-                    <Tab label="Cài đặt" />
                   </Tabs>
                 </Box>
               )}
@@ -640,36 +694,7 @@ const AIChatbot = () => {
               )}
 
               {/* Settings Tab */}
-              {isAdvancedMode && activeTab === 2 && (
-                <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#f4f6fb" }}>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ mb: 1, color: "#1a237e" }}
-                  >
-                    Tính năng AI:
-                  </Typography>
-                  <List dense>
-                    {advancedFeatures.map((feature) => (
-                      <ListItem key={feature.id} dense>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          {feature.icon}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={feature.title}
-                          secondary={feature.description}
-                          primaryTypographyProps={{ fontSize: 13 }}
-                          secondaryTypographyProps={{ fontSize: 11 }}
-                        />
-                        <Switch
-                          size="small"
-                          checked={feature.enabled}
-                          onChange={() => handleFeatureToggle(feature.id)}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              )}
+              {/* This section is removed as the settings dialog is removed */}
 
               {/* FAQ Quick Replies - Only in Chat tab */}
               {(activeTab === 0 || !isAdvancedMode) && (
@@ -703,6 +728,25 @@ const AIChatbot = () => {
                       </Button>
                     ))}
                   </Stack>
+                </Box>
+              )}
+
+              {isAdvancedMode && activeTab === 0 && (
+                <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    sx={{
+                      mb: 2,
+                      borderRadius: 999,
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                    onClick={handleStartPricingFlow}
+                    disabled={isPricingFlow}
+                  >
+                    Báo giá bảng quảng cáo truyền thống
+                  </Button>
                 </Box>
               )}
 
@@ -915,61 +959,85 @@ const AIChatbot = () => {
       </AnimatePresence>
 
       {/* Advanced Settings Dialog */}
-      <Dialog
-        open={showSettings}
-        onClose={() => setShowSettings(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <SettingsIcon color="primary" />
-            <Typography variant="h6">Cài đặt nâng cao</Typography>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2}>
-            <Typography variant="subtitle1" color="primary">
-              Tính năng AI
+      {/* This section is removed as the settings dialog is removed */}
+
+      {/* Flow nhập từng trường báo giá truyền thống */}
+      {isPricingFlow && (
+        <Dialog
+          open={isPricingFlow}
+          onClose={handleCancelPricingFlow}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Báo giá bảng quảng cáo truyền thống</DialogTitle>
+          <DialogContent>
+            <Typography variant="subtitle2" mb={1}>
+              {PRICING_FIELDS[pricingStep].label}
             </Typography>
-            {advancedFeatures.map((feature) => (
-              <FormControlLabel
-                key={feature.id}
-                control={
-                  <Switch
-                    checked={feature.enabled}
-                    onChange={() => handleFeatureToggle(feature.id)}
-                  />
+            <TextField
+              autoFocus
+              fullWidth
+              type={PRICING_FIELDS[pricingStep].type || "text"}
+              placeholder={PRICING_FIELDS[pricingStep].placeholder}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.target.value) {
+                  handleSend(e.target.value);
                 }
-                label={
-                  <Stack>
-                    <Typography variant="body2">{feature.title}</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {feature.description}
-                    </Typography>
-                  </Stack>
-                }
-              />
-            ))}
-            <Divider />
-            <Typography variant="subtitle1" color="primary">
-              Giao diện
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={isAdvancedMode}
-                  onChange={handleAdvancedToggle}
-                />
-              }
-              label="Chế độ nâng cao"
+              }}
+              sx={{ mb: 2 }}
             />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSettings(false)}>Đóng</Button>
-        </DialogActions>
-      </Dialog>
+            <Button onClick={handleCancelPricingFlow} color="error">
+              Huỷ
+            </Button>
+          </DialogContent>
+        </Dialog>
+      )}
+      {/* Hiển thị kết quả báo giá sau khi gọi API */}
+      {pricingResult && (
+        <Dialog
+          open={!!pricingResult}
+          onClose={() => setPricingResult(null)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Kết quả báo giá</DialogTitle>
+          <DialogContent>
+            {typeof pricingResult === "string" ? (
+              <Typography>{pricingResult}</Typography>
+            ) : pricingResult.choices && pricingResult.choices[0] ? (
+              <Box>
+                <Typography variant="subtitle2" mb={1}>
+                  Báo giá:
+                </Typography>
+                <Typography color="primary" fontWeight={600}>
+                  {pricingResult.choices[0].message.content}
+                </Typography>
+              </Box>
+            ) : (
+              <Typography>Không có dữ liệu báo giá.</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPricingResult(null)}>Đóng</Button>
+          </DialogActions>
+        </Dialog>
+      )}
+      {pricingError && (
+        <Dialog
+          open={!!pricingError}
+          onClose={() => setPricingError(null)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Lỗi báo giá</DialogTitle>
+          <DialogContent>
+            <Typography color="error">{pricingError}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPricingError(null)}>Đóng</Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </>
   );
 };

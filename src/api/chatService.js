@@ -1,12 +1,12 @@
 import axios from 'axios';
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
   },
-  withCredentials: true 
+  withCredentials: true
 });
 
 // Add request interceptor to update token
@@ -35,13 +35,13 @@ export const sendChatMessageApi = async (prompt) => {
     const response = await chatService.post('/api/chat-bot/chat', {
       prompt
     });
-    
+
     const { success, result, message } = response.data;
-    
+
     if (success) {
       return { success, result };
     }
-    
+
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {
@@ -49,7 +49,7 @@ export const sendChatMessageApi = async (prompt) => {
       error: error.response?.data?.message || 'Failed to send chat message'
     };
   }
-}; 
+};
 // upload file để finetunefinetune
 export const uploadFileFineTuneApi = async (file) => {
   try {
@@ -90,7 +90,7 @@ export const fineTuneModelApi = async (model, trainingFile) => {
       error: error.response?.data?.message || 'Không thể fine-tune model'
     };
   }
-}; 
+};
 // hủy training model
 export const cancelFineTuneJobApi = async (fineTuningJobId) => {
   try {
@@ -106,7 +106,7 @@ export const cancelFineTuneJobApi = async (fineTuningJobId) => {
       error: error.response?.data?.message || 'Không thể huỷ training'
     };
   }
-}; 
+};
 // xóa file 
 export const deleteFineTuneFileApi = async (fileId) => {
   try {
@@ -122,7 +122,7 @@ export const deleteFineTuneFileApi = async (fileId) => {
       error: error.response?.data?.message || 'Không thể xóa file'
     };
   }
-}; 
+};
 // Lấy danh sách job fine-tune
 export const getFineTuneJobsApi = async () => {
   try {
@@ -157,7 +157,7 @@ export const getFineTuneFileDetailApi = async (fileId) => {
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể lấy chi tiết file' };
   }
-}; 
+};
 
 // Lấy chi tiết job đã fine-tune
 export const getFineTuneJobDetailApi = async (fineTuneJobId) => {
@@ -256,7 +256,7 @@ export const getModernPricingApi = async (data) => {
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể báo giá hiện đại' };
   }
-}; 
+};
 
 // Test chat với model dành cho staff
 export const testChatApi = async (data) => {
@@ -267,5 +267,32 @@ export const testChatApi = async (data) => {
     return { success: false, error: message || 'Lỗi khi test chat' };
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể test chat' };
+  }
+};
+
+// Gọi API báo giá bảng quảng cáo truyền thống (advance chatbot)
+export const requestTraditionalPricingApi = async (data) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/pricing/traditional', data);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi báo giá truyền thống' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể báo giá truyền thống' };
+  }
+};
+
+// Lấy danh sách model OpenAI gốc
+export const getOpenAiModelsApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/models');
+    const { success, result, message } = response.data;
+    // Đảm bảo trả về đúng mảng model
+    if (success && result && Array.isArray(result.data)) {
+      return { success, result: result.data };
+    }
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model OpenAI' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model OpenAI' };
   }
 }; 

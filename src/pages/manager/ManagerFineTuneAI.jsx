@@ -28,6 +28,9 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  InputAdornment,
+  Pagination,
+  Tooltip,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -68,6 +71,9 @@ import {
   selectFrequentQuestions,
   selectFrequentQuestionsStatus,
   fetchFrequentQuestions,
+  fetchOpenAiModels,
+  selectOpenAiModels,
+  selectOpenAiModelsStatus,
 } from "../../store/features/chat/chatSlice";
 import {
   BarChart,
@@ -75,7 +81,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+
   ResponsiveContainer,
   Legend,
   LineChart,
@@ -98,6 +104,19 @@ const getStatusColor = (status) => {
   }
 };
 
+const getStatusIcon = (status) => {
+  switch (status) {
+    case "succeeded":
+      return <CheckCircleIcon fontSize="small" />;
+    case "failed":
+      return <DeleteIcon fontSize="small" />;
+    case "cancelled":
+      return <AutorenewIcon fontSize="small" />;
+    default:
+      return null;
+  }
+};
+
 const renderStatusChip = (status) => (
   <Chip
     label={status}
@@ -113,7 +132,9 @@ const ManagerFineTuneAI = () => {
   const modelChatFineTunedModelsStatus = useSelector(
     selectModelChatFineTunedModelsStatus
   );
-  const [selectedModel, setSelectedModel] = useState("");
+  const openAiModels = useSelector(selectOpenAiModels);
+  const openAiModelsStatus = useSelector(selectOpenAiModelsStatus);
+  const [selectedModel, setSelectedModel] = useState(null);
   const [tab, setTab] = useState(0);
   const [openFileDetail, setOpenFileDetail] = useState(false);
   const [fileFilter, setFileFilter] = useState("");
@@ -149,6 +170,7 @@ const ManagerFineTuneAI = () => {
   const fineTuneFileDetailStatus = useSelector(selectFineTuneFileDetailStatus);
   const succeededJobs = useSelector(selectSucceededFineTuneJobs);
   const [selectedSucceededJob, setSelectedSucceededJob] = useState(null);
+  const [integrateAlert, setIntegrateAlert] = useState(null);
 
   // Debug dữ liệu file
   console.log("fineTuneFiles:", fineTuneFiles);
@@ -168,6 +190,8 @@ const ManagerFineTuneAI = () => {
   useEffect(() => {
     if (tab === 1) dispatch(fetchFineTuneJobs());
     if (tab === 2) dispatch(fetchFineTuneFiles());
+    // Bỏ useEffect fetchOpenAiModels khi vào tab 0
+    // if (tab === 0) dispatch(fetchOpenAiModels());
   }, [tab, dispatch]);
 
   useEffect(() => {
@@ -181,24 +205,57 @@ const ManagerFineTuneAI = () => {
     dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
   }, [dispatch]);
 
+  // Chỉ giữ lại 1 useEffect này, KHÔNG tự động chọn model đầu tiên
   useEffect(() => {
     if (
-      modelChatFineTunedModels &&
-      modelChatFineTunedModels.length > 0 &&
-      !selectedModel
+      selectedModel &&
+      (!openAiModels || !openAiModels.some((m) => m.id === selectedModel.id))
     ) {
-      setSelectedModel(modelChatFineTunedModels[0]);
+      setSelectedModel(null);
     }
-  }, [modelChatFineTunedModels, selectedModel]);
+    // KHÔNG setSelectedModel(openAiModels[0]) ở đây!
+  }, [openAiModels, selectedModel]);
 
   useEffect(() => {
     dispatch(fetchFineTuneJobs());
   }, [dispatch]);
 
   // Fetch frequent questions for analytics
+  // Bỏ useEffect fetchFrequentQuestions khi vào trang
+  // useEffect(() => {
+  //   dispatch(fetchFrequentQuestions());
+  // }, [dispatch]);
+
   useEffect(() => {
-    dispatch(fetchFrequentQuestions());
-  }, [dispatch]);
+    if (openAiModels && openAiModels.length > 0 && !selectedModel) {
+      setSelectedModel(openAiModels[0]);
+    }
+  }, [openAiModels, selectedModel]);
+
+  // Khi options thay đổi, nếu selectedModel không còn trong options, set lại về null
+  // useEffect(() => {
+  //   if (
+  //     selectedModel &&
+  //     (!openAiModels || !openAiModels.some((m) => m.id === selectedModel.id))
+  //   ) {
+  //     setSelectedModel(null);
+  //   }
+  // }, [openAiModels, selectedModel]);
+
+  // Gọi fetchFrequentQuestions khi chuyển sang tab Thống Kê
+  useEffect(() => {
+    if (tab === 3) {
+      dispatch(fetchFrequentQuestions());
+    }
+  }, [tab, dispatch]);
+
+  // Tự động ẩn thông báo tích hợp model sau 10 giây
+  useEffect(() => {
+    if (integrateAlert) {
+      const timer = setTimeout(() => setIntegrateAlert(null), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [integrateAlert]);
 
   const handleTrainingFileChange = (e) => {
     setTrainingFile(e.target.files[0]);
@@ -291,7 +348,7 @@ const ManagerFineTuneAI = () => {
     setOpenJobDetail(true);
     try {
       const detail = await dispatch(fetchFineTuneJobDetail(jobId)).unwrap();
-      setSelectedJobDetail(detail);
+      setSelectedJobDetail(detail.result || detail); // Lấy đúng object chi tiết job
     } catch {
       setSelectedJobDetail(null);
     }
@@ -352,7 +409,41 @@ const ManagerFineTuneAI = () => {
         bạn. Tính năng này cho phép quản lý tinh chỉnh AI để có hiệu suất tốt
         hơn và lấy model mới nhất tích hợp vào Chatbot hệ thống.
       </Typography>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{
+          mb: 2,
+          bgcolor: 'background.paper',
+          borderRadius: 2,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          '.MuiTab-root': {
+            fontWeight: 600,
+            fontSize: 16,
+            px: 3,
+            py: 1.5,
+            color: '#555',
+            transition: 'color 0.2s',
+            '&.Mui-selected': {
+              color: '#1976d2',
+              bgcolor: '#e3f2fd',
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.08)',
+            },
+            '&:hover': {
+              color: '#1976d2',
+              bgcolor: '#f5faff',
+            },
+          },
+          '.MuiTabs-indicator': {
+            height: 4,
+            borderRadius: 2,
+            bgcolor: '#1976d2',
+          },
+        }}
+      >
         <Tab label="Quản lý Fine-tune" />
         <Tab label="Danh sách Job Fine-tune" />
         <Tab label="Danh sách File Đã Upload" />
@@ -372,6 +463,26 @@ const ManagerFineTuneAI = () => {
             <Typography variant="h6" mb={2}>
               1. Tải lên file dữ liệu (jsonl hoặc excel)
             </Typography>
+            
+            {/* Hướng dẫn */}
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Hướng dẫn:</strong> Tải lên file dữ liệu để training model AI. 
+                Hỗ trợ 2 định dạng:
+              </Typography>
+              <Box mt={1}>
+                <Typography variant="body2" component="div">
+                  • <strong>File JSONL (.jsonl):</strong> Dữ liệu đã được format sẵn cho AI training
+                </Typography>
+                <Typography variant="body2" component="div">
+                  • <strong>File Excel (.xlsx, .xls):</strong> Dữ liệu thô, hệ thống sẽ tự động convert thành JSONL
+                </Typography>
+              </Box>
+              <Typography variant="body2" mt={1}>
+                <strong>Lưu ý:</strong> File Excel cần có cấu trúc cột: "prompt" (câu hỏi) và "completion" (câu trả lời)
+              </Typography>
+            </Alert>
+
             <FormControl sx={{ mb: 2 }}>
               <RadioGroup
                 row
@@ -444,22 +555,45 @@ const ManagerFineTuneAI = () => {
             <Typography variant="h6" mb={2}>
               2. Tinh chỉnh Model-AI
             </Typography>
+            
+            {/* Hướng dẫn */}
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Hướng dẫn:</strong> Chọn model OpenAI gốc và bắt đầu quá trình fine-tune với dữ liệu đã upload.
+              </Typography>
+              <Box mt={1}>
+                <Typography variant="body2" component="div">
+                  • <strong>Chọn model:</strong> GPT-4 hoặc GPT-3.5 là lựa chọn phổ biến
+                </Typography>
+                <Typography variant="body2" component="div">
+                  • <strong>Training:</strong> Quá trình có thể mất từ 10-60 phút tùy thuộc vào lượng dữ liệu
+                </Typography>
+                <Typography variant="body2" component="div">
+                  • <strong>Huỷ training:</strong> Có thể huỷ bất cứ lúc nào nếu cần thiết
+                </Typography>
+              </Box>
+              <Typography variant="body2" mt={1} color="warning.main">
+                <strong>Lưu ý:</strong> Cần upload file dữ liệu ở bước 1 trước khi có thể bắt đầu training
+              </Typography>
+            </Alert>
+
             <Box display="flex" alignItems="center" gap={2}>
               <Autocomplete
                 disablePortal
-                options={
-                  Array.isArray(modelChatFineTunedModels)
-                    ? modelChatFineTunedModels
-                    : []
-                }
+                options={Array.isArray(openAiModels) ? openAiModels : []}
                 value={selectedModel}
                 onChange={(_, value) => setSelectedModel(value)}
+                onOpen={() => {
+                  if (openAiModelsStatus === "idle") {
+                    dispatch(fetchOpenAiModels());
+                  }
+                }}
                 sx={{ width: 300 }}
-                loading={modelChatFineTunedModelsStatus === "loading"}
-                getOptionLabel={(option) => option.modelName || option.id || ""}
+                loading={openAiModelsStatus === "loading"}
+                getOptionLabel={(option) => option.id + (option.owned_by ? ` (${option.owned_by})` : "")}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 renderInput={(params) => (
-                  <TextField {...params} label="Chọn model" />
+                  <TextField {...params} label="Chọn model OpenAI" />
                 )}
               />
               <Button
@@ -505,6 +639,7 @@ const ManagerFineTuneAI = () => {
               <LinearProgress sx={{ mt: 2, width: 200 }} />
             )}
           </Paper>
+          {/* Mục 3: Kiểm tra model-AI đã tinh chỉnh */}
           <Paper
             elevation={0}
             sx={{
@@ -515,235 +650,395 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              3. Kiểm tra Model-AI
+              3. Kiểm tra model-AI đã tinh chỉnh
             </Typography>
-            <Box display="flex" alignItems="center" gap={2}>
-              <TextField
-                label="Nhập câu hỏi cho chatbot"
-                value={chatPrompt}
-                onChange={(e) => setChatPrompt(e.target.value)}
-                sx={{ width: 400 }}
+            
+            {/* Bước 1: Chọn model để test */}
+            <Box mb={3}>
+              <Typography variant="subtitle1" mb={2} fontWeight={600}>
+                3.1. Chọn model để kiểm tra
+            </Typography>
+            <Autocomplete
+              options={Array.isArray(modelChatFineTunedModels) ? modelChatFineTunedModels : []}
+              getOptionLabel={(option) =>
+                  `${option.modelName} ${option.active ? "(Đang dùng)" : ""}`
+              }
+              value={selectedSucceededJob}
+              onChange={(_, value) => setSelectedSucceededJob(value)}
+              onOpen={() => {
+                if (modelChatFineTunedModelsStatus === "idle") {
+                  dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
+                }
+              }}
+                sx={{ width: 500, mb: 2 }}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id} style={{
+                  fontWeight: option.active ? 700 : 400,
+                  color: option.active ? '#43a047' : 'inherit',
+                  background: option.active ? '#e8f5e9' : 'inherit',
+                }}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={option.active ? 700 : 500}>
+                        {option.modelName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Tạo lúc: {new Date(option.createdAt).toLocaleString('vi-VN')}
+                      </Typography>
+                      {option.active && (
+                        <Chip 
+                          label="Đang dùng" 
+                          color="success" 
+                          size="small" 
+                          sx={{ ml: 1, fontSize: '0.7rem' }}
+                        />
+                      )}
+                    </Box>
+                  </li>
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                loading={modelChatFineTunedModelsStatus === "loading"}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Chọn model-AI đã tinh chỉnh thành công"
+                    placeholder="Chọn model để test..."
+                  />
+                )}
               />
-              <Button
-                variant="contained"
-                onClick={async () => {
-                  // Call API test chat with selectedModel
-                  if (!selectedModel || !chatPrompt) return;
-                  try {
-                    const res = await dispatch(
-                      testChat({
-                        prompt: chatPrompt,
-                        model: selectedModel.modelName || selectedModel.id,
-                      })
-                    ).unwrap();
-                    setChatResponse(res);
-                  } catch {
-                    setChatResponse("Lỗi khi kiểm tra model");
-                  }
-                }}
-                disabled={!selectedModel || !chatPrompt}
-              >
-                Gửi
-              </Button>
+              {modelChatFineTunedModelsStatus === "loading" && (
+                <CircularProgress size={20} sx={{ ml: 2 }} />
+              )}
             </Box>
-            {chatResponse && (
-              <Alert severity="info" sx={{ mt: 2, width: 500 }}>
-                <b>Phản hồi Chatbot:</b> {chatResponse}
+
+            {/* Bước 2: Test model */}
+            {selectedSucceededJob && (
+              <Box>
+                <Typography variant="subtitle1" mb={2} fontWeight={600}>
+                  3.2. Test model: <span style={{ color: '#1976d2' }}>{selectedSucceededJob.modelName}</span>
+                </Typography>
+                
+                <Box display="flex" gap={2} mb={2}>
+                  <TextField
+                    label="Nhập câu hỏi để test model"
+                    value={chatPrompt}
+                    onChange={(e) => setChatPrompt(e.target.value)}
+                    sx={{ flex: 1 }}
+                    multiline
+                    rows={2}
+                    placeholder="Ví dụ: giá biển hiệu truyền thống, thông tin về sản phẩm..."
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={async () => {
+                      if (!selectedSucceededJob || !chatPrompt.trim()) return;
+                      try {
+                        const res = await dispatch(
+                          testChat({
+                            prompt: chatPrompt.trim(),
+                            model: selectedSucceededJob.modelName,
+                          })
+                        ).unwrap();
+                        setChatResponse(res);
+                      } catch (error) {
+                        setChatResponse("Lỗi khi kiểm tra model: " + (error || "Không thể kết nối"));
+                      }
+                    }}
+                    disabled={!selectedSucceededJob || !chatPrompt.trim()}
+                    sx={{ minWidth: 100, height: 56 }}
+                  >
+                    {fineTuneStatus === "loading" ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      "Test"
+                    )}
+                  </Button>
+                </Box>
+
+                {/* Hiển thị kết quả test */}
+                {chatResponse && (
+                  <Paper 
+                    elevation={1} 
+                    sx={{ 
+                      p: 2, 
+                      bgcolor: '#f8f9fa', 
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="primary" mb={1} fontWeight={600}>
+                      Phản hồi từ model:
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {chatResponse}
+                    </Typography>
+                    <Box mt={2} display="flex" gap={1}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          setChatPrompt("");
+                          setChatResponse("");
+                        }}
+                      >
+                        Xóa
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          navigator.clipboard.writeText(chatResponse);
+                          setAlert({ type: "success", message: "Đã copy vào clipboard!" });
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </Box>
+                  </Paper>
+                )}
+
+                {/* Thông tin model */}
+                <Box mt={2} p={2} bgcolor="#f5f5f5" borderRadius={1}>
+                  <Typography variant="caption" color="text.secondary">
+                    <strong>Model ID:</strong> {selectedSucceededJob.id} | 
+                    <strong> Tạo lúc:</strong> {new Date(selectedSucceededJob.createdAt).toLocaleString('vi-VN')} |
+                    <strong> Trạng thái:</strong> {selectedSucceededJob.active ? "Đang sử dụng" : "Chưa sử dụng"}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
+            {/* Hướng dẫn */}
+            {!selectedSucceededJob && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  <strong>Hướng dẫn:</strong> Chọn một model đã fine-tune thành công từ danh sách trên để bắt đầu test. 
+                  Model có nhãn "Đang dùng" là model hiện tại đang được sử dụng trong hệ thống.
+                </Typography>
               </Alert>
             )}
           </Paper>
+          {/* Mục 4: Chọn Model-AI tích hợp vào Chatbot hệ thống */}
           <Paper
             elevation={0}
             sx={{
               p: 3,
               borderRadius: 2,
               boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              mb: 3,
             }}
           >
             <Typography variant="h6" mb={2}>
               4. Chọn Model-AI tích hợp vào Chatbot hệ thống
             </Typography>
+            
+            {/* Hướng dẫn */}
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Hướng dẫn:</strong> Tích hợp model đã fine-tune thành công vào hệ thống chatbot để sử dụng thực tế.
+              </Typography>
+              <Box mt={1}>
+                <Typography variant="body2" component="div">
+                  • <strong>Chọn model:</strong> Chỉ hiển thị các model đã training thành công
+                </Typography>
+                <Typography variant="body2" component="div">
+                  • <strong>Model đang dùng:</strong> Được highlight màu xanh, không thể chọn lại
+                </Typography>
+                <Typography variant="body2" component="div">
+                  • <strong>Tích hợp:</strong> Model mới sẽ thay thế model cũ trong hệ thống
+                </Typography>
+              </Box>
+              <Typography variant="body2" mt={1} color="success.main">
+                <strong>Lưu ý:</strong> Nên test model ở bước 3 trước khi tích hợp để đảm bảo chất lượng
+              </Typography>
+            </Alert>
+
             <Autocomplete
-              options={Array.isArray(succeededJobs) ? succeededJobs : []}
-              getOptionLabel={(option) => option.fine_tuned_model || ""}
+              options={Array.isArray(modelChatFineTunedModels) ? modelChatFineTunedModels : []}
+              getOptionLabel={(option) =>
+                `${option.modelName} ${option.active ? "(Đang dùng)" : ""}`
+              }
               value={selectedSucceededJob}
               onChange={(_, value) => setSelectedSucceededJob(value)}
-              sx={{ width: 400, mb: 2 }}
+              onOpen={() => {
+                if (modelChatFineTunedModelsStatus === "idle") {
+                  dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
+                }
+              }}
+              sx={{ width: 500, mb: 2 }}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id} style={{
+                  fontWeight: option.active ? 700 : 400,
+                  color: option.active ? '#43a047' : 'inherit',
+                  background: option.active ? '#e8f5e9' : 'inherit',
+                }}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={option.active ? 700 : 500}>
+                      {option.modelName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Tạo lúc: {new Date(option.createdAt).toLocaleString('vi-VN')}
+                    </Typography>
+                    {option.active && (
+                      <Chip 
+                        label="Đang dùng" 
+                        color="success" 
+                        size="small" 
+                        sx={{ ml: 1, fontSize: '0.7rem' }}
+                      />
+                    )}
+                  </Box>
+                </li>
+              )}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              loading={modelChatFineTunedModelsStatus === "loading"}
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Chọn model fine-tune đã thành công"
+                  label="Chọn model-AI tinh chỉnh thành công"
+                  placeholder="Chọn model để tích hợp..."
                 />
               )}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
             />
+            {modelChatFineTunedModelsStatus === "loading" && (
+              <CircularProgress size={20} sx={{ ml: 2 }} />
+            )}
             <Button
               variant="outlined"
               color="primary"
               startIcon={<CheckCircleIcon />}
               sx={{ borderRadius: 2 }}
-              disabled={!selectedSucceededJob}
+              disabled={!selectedSucceededJob || selectedSucceededJob.active}
               onClick={async () => {
                 if (!selectedSucceededJob) return;
                 try {
                   await dispatch(
                     selectModelForModelChat(selectedSucceededJob.id)
                   ).unwrap();
-                  setAlert({
+                  setIntegrateAlert({
                     type: "success",
-                    message: "Đã tích hợp model cho chatbot!",
+                    message: `Đã tích hợp model "${selectedSucceededJob.modelName}" cho chatbot!`,
                   });
+                  setAlert(null); // Ẩn alert cũ nếu có
+                  // Refresh lại danh sách model fine-tune để cập nhật trạng thái active
+                  dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
                 } catch (error) {
-                  setAlert({
+                  setIntegrateAlert({
                     type: "error",
-                    message: error || "Lỗi khi tích hợp model",
+                    message: error || "Lưu khi tích hợp model",
                   });
                 }
               }}
             >
-              Tích hợp model này cho chatbot
+              Tích hợp model vào chatbot
             </Button>
+            {integrateAlert && (
+              <Alert
+                severity={integrateAlert.type}
+                sx={{ mt: 2, width: 400 }}
+                onClose={() => setIntegrateAlert(null)}
+              >
+                {integrateAlert.message}
+              </Alert>
+            )}
             <Typography variant="body2" color="text.secondary" mt={1}>
-              Model đã training mới nhất có sẵn để tải xuống.
+              Model đã training mới nhất có sẵn để tải xuống. Model đang dùng sẽ có nhãn <b>Đang dùng</b>.
             </Typography>
           </Paper>
         </>
       )}
       {tab === 1 && (
-        <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-          <Box
-            display="flex"
-            alignItems="center"
-            justifyContent="space-between"
-            mb={2}
-          >
-            <Typography variant="h6">Danh sách Job Fine-tune</Typography>
-            <Box display="flex" alignItems="center" gap={1}>
+        <Paper elevation={3} sx={{ borderRadius: 3, boxShadow: '0 4px 24px rgba(25,118,210,0.08)', p: 2 }}>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography variant="h6" fontWeight={700}>Danh sách Job Fine-tune</Typography>
               <TextField
                 size="small"
                 variant="outlined"
-                placeholder="Tìm kiếm model, file, trạng thái..."
-                value={jobFilter}
-                onChange={(e) => {
-                  setJobFilter(e.target.value);
-                  setJobPage(0);
-                }}
+              placeholder="Tìm kiếm..."
                 InputProps={{
                   startAdornment: (
-                    <SearchIcon fontSize="small" sx={{ mr: 1 }} />
-                  ),
-                }}
-                sx={{ minWidth: 220 }}
-              />
-              <IconButton onClick={handleReloadJobs}>
-                <RefreshIcon />
-              </IconButton>
+                  <InputAdornment position="start">
+                    <SearchIcon color="primary" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                bgcolor: '#f5faff',
+                borderRadius: 2,
+                boxShadow: '0 1px 4px rgba(25,118,210,0.04)',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                },
+              }}
+            />
             </Box>
-          </Box>
-          {fineTuneJobsStatus === "loading" ? (
-            <CircularProgress />
-          ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
+          <TableContainer sx={{ borderRadius: 2, overflow: 'hidden' }}>
+            <Table>
+              <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                   <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Model</TableCell>
-                    <TableCell>File</TableCell>
-                    <TableCell>Trạng thái</TableCell>
-                    <TableCell>Thời gian tạo</TableCell>
-                    <TableCell>Hành động</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Model</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>File</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Thời gian tạo</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {pagedJobs.length > 0 ? (
-                    pagedJobs.map((job) => (
-                      <TableRow key={job.id}>
+                {pagedJobs.map((job) => (
+                  <TableRow
+                    key={job.id}
+                    hover
+                    sx={{
+                      transition: 'background 0.2s',
+                      '&:hover': { bgcolor: '#f5faff' },
+                    }}
+                  >
                         <TableCell>{job.id}</TableCell>
                         <TableCell>{job.model}</TableCell>
                         <TableCell>{job.training_file}</TableCell>
-                        <TableCell>{renderStatusChip(job.status)}</TableCell>
                         <TableCell>
-                          {job.created_at
-                            ? new Date(job.created_at).toLocaleString()
-                            : ""}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleSelectModelForChat(job.id)}
-                            disabled={job.status !== "succeeded"}
-                            sx={{ mr: 1, mb: 1 }}
-                          >
-                            Chọn làm model chat
-                          </Button>
-                          {activeModelId === job.id && (
                             <Chip
-                              label="Đang dùng cho chat"
-                              color="success"
+                        label={job.status}
+                        color={getStatusColor(job.status)}
                               size="small"
-                              sx={{ mb: 1 }}
-                            />
-                          )}
+                        icon={getStatusIcon(job.status)}
+                        sx={{ textTransform: 'capitalize', fontWeight: 500 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {job.created_at ? new Date(job.created_at).toLocaleString() : ""}
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title="Xem chi tiết">
                           <IconButton
                             onClick={() => handleViewJobDetail(job.id)}
+                          sx={{
+                            bgcolor: '#e3f2fd',
+                            '&:hover': { bgcolor: '#1976d2', color: '#fff' },
+                            transition: 'all 0.2s',
+                            borderRadius: 2,
+                          }}
                           >
                             <VisibilityIcon />
                           </IconButton>
+                      </Tooltip>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        Không có job nào
-                      </TableCell>
-                    </TableRow>
-                  )}
+                ))}
                 </TableBody>
               </Table>
-              <Box display="flex" justifyContent="flex-end" mt={1}>
-                <Button
-                  size="small"
-                  disabled={jobPage === 0}
-                  onClick={() => setJobPage((p) => Math.max(0, p - 1))}
-                >
-                  Trước
-                </Button>
-                <Typography mx={2} mt={1}>
-                  {jobPage + 1} /{" "}
-                  {Math.ceil(filteredJobs.length / jobRowsPerPage) || 1}
-                </Typography>
-                <Button
-                  size="small"
-                  disabled={
-                    (jobPage + 1) * jobRowsPerPage >= filteredJobs.length
-                  }
-                  onClick={() => setJobPage((p) => p + 1)}
-                >
-                  Sau
-                </Button>
-                <TextField
-                  select
-                  size="small"
-                  value={jobRowsPerPage}
-                  onChange={(e) => {
-                    setJobRowsPerPage(Number(e.target.value));
-                    setJobPage(0);
-                  }}
-                  sx={{ width: 70, ml: 2 }}
-                  SelectProps={{ native: true }}
-                >
-                  {[5, 10, 20].map((n) => (
-                    <option key={n} value={n}>
-                      {n}/trang
-                    </option>
-                  ))}
-                </TextField>
-              </Box>
             </TableContainer>
-          )}
+          <Box display="flex" justifyContent="center" mt={2}>
+            <Pagination
+              count={Math.ceil(filteredJobs.length / jobRowsPerPage)}
+              page={jobPage + 1}
+              onChange={(_, value) => setJobPage(value - 1)}
+              color="primary"
+              shape="rounded"
+              size="medium"
+            />
+          </Box>
+          {/* Dialog xem chi tiết job */}
           <Dialog
             open={openJobDetail}
             onClose={() => setOpenJobDetail(false)}
@@ -756,36 +1051,13 @@ const ManagerFineTuneAI = () => {
                 <CircularProgress />
               ) : selectedJobDetail ? (
                 <Box>
-                  <Typography variant="subtitle2">
-                    ID: {selectedJobDetail.id}
-                  </Typography>
-                  <Typography variant="subtitle2">
-                    Model: {selectedJobDetail.model}
-                  </Typography>
-                  <Typography variant="subtitle2">
-                    Status: {selectedJobDetail.status}
-                  </Typography>
-                  <Typography variant="subtitle2">
-                    Training file: {selectedJobDetail.training_file}
-                  </Typography>
-                  <Typography variant="subtitle2">
-                    Created at:{" "}
-                    {selectedJobDetail.created_at
-                      ? new Date(selectedJobDetail.created_at).toLocaleString()
-                      : ""}
-                  </Typography>
-                  <Typography variant="subtitle2">
-                    Finished at:{" "}
-                    {selectedJobDetail.finished_at
-                      ? new Date(selectedJobDetail.finished_at).toLocaleString()
-                      : ""}
-                  </Typography>
-                  <Typography variant="subtitle2">
-                    Hyperparameters:{" "}
-                    {selectedJobDetail.hyperparameters
-                      ? JSON.stringify(selectedJobDetail.hyperparameters)
-                      : ""}
-                  </Typography>
+                  <Typography variant="subtitle2">ID: {selectedJobDetail.id}</Typography>
+                  <Typography variant="subtitle2">Model: {selectedJobDetail.model}</Typography>
+                  <Typography variant="subtitle2">Trạng Thái: {selectedJobDetail.status}</Typography>
+                  <Typography variant="subtitle2">File Dữ Liệu: {selectedJobDetail.training_file}</Typography>
+                  <Typography variant="subtitle2">Thời Gian Tạo: {selectedJobDetail.created_at ? new Date(selectedJobDetail.created_at * 1000).toLocaleString('vi-VN') : ''}</Typography>
+                  {/* <Typography variant="subtitle2">Thời Gian Hoàn Thành: {selectedJobDetail.finished_at ? new Date(selectedJobDetail.finished_at * 1000).toLocaleString('vi-VN') : ''}</Typography> */}
+                  {/* <Typography variant="subtitle2">Hyperparameters: {selectedJobDetail.hyperparameters ? JSON.stringify(selectedJobDetail.hyperparameters) : ''}</Typography> */}
                   {/* Có thể bổ sung thêm các trường khác nếu cần */}
                 </Box>
               ) : (
@@ -796,15 +1068,10 @@ const ManagerFineTuneAI = () => {
         </Paper>
       )}
       {tab === 2 && (
-        <Paper sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-          <Box
-            display="flex"
-            alignItems="center"
-            justifyContent="space-between"
-            mb={2}
-          >
-            <Typography variant="h6">Danh sách File Đã Upload</Typography>
-            <Box display="flex" alignItems="center" gap={1}>
+        <Paper elevation={3} sx={{ borderRadius: 3, boxShadow: '0 4px 24px rgba(25,118,210,0.08)', p: 2 }}>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography variant="h6" fontWeight={700}>Danh sách File Đã Upload</Typography>
+            <Box display="flex" alignItems="center" gap={2}>
               <TextField
                 size="small"
                 variant="outlined"
@@ -816,109 +1083,148 @@ const ManagerFineTuneAI = () => {
                 }}
                 InputProps={{
                   startAdornment: (
-                    <SearchIcon fontSize="small" sx={{ mr: 1 }} />
+                    <InputAdornment position="start">
+                      <SearchIcon color="primary" />
+                    </InputAdornment>
                   ),
                 }}
-                sx={{ minWidth: 180 }}
+                sx={{
+                  bgcolor: '#f5faff',
+                  borderRadius: 2,
+                  boxShadow: '0 1px 4px rgba(25,118,210,0.04)',
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  },
+                }}
               />
-              <IconButton onClick={handleReloadFiles}>
-                <RefreshIcon />
-              </IconButton>
+              <Tooltip title="Làm mới danh sách">
+                <IconButton 
+                  onClick={handleReloadFiles}
+                  sx={{
+                    bgcolor: '#e3f2fd',
+                    '&:hover': { bgcolor: '#1976d2', color: '#fff' },
+                    transition: 'all 0.2s',
+                    borderRadius: 2,
+                  }}
+                >
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
             </Box>
           </Box>
           {fineTuneFilesStatus === "loading" ? (
-            <CircularProgress />
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
           ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
+            <TableContainer sx={{ borderRadius: 2, overflow: 'hidden' }}>
+              <Table>
+                <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                   <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Tên file</TableCell>
-                    <TableCell>Mục đích</TableCell>
-                    <TableCell>Kích thước (bytes)</TableCell>
-                    <TableCell>Ngày upload</TableCell>
-                    <TableCell>Hành động</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Tên file</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Mục đích</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Kích thước</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Ngày upload</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {pagedFiles.length > 0 ? (
                     pagedFiles.map((file) => (
-                      <TableRow key={file.id}>
+                      <TableRow
+                        key={file.id}
+                        hover
+                        sx={{
+                          transition: 'background 0.2s',
+                          '&:hover': { bgcolor: '#f5faff' },
+                        }}
+                      >
                         <TableCell>{file.id}</TableCell>
-                        <TableCell>{file.filename}</TableCell>
-                        <TableCell>{file.purpose}</TableCell>
-                        <TableCell>{file.bytes}</TableCell>
                         <TableCell>
-                          {file.created_at
-                            ? new Date(file.created_at * 1000).toLocaleString()
-                            : ""}
+                          <Typography variant="body2" fontWeight={500}>
+                            {file.filename}
+                          </Typography>
                         </TableCell>
                         <TableCell>
-                          <IconButton
-                            onClick={() => handleViewFileDetail(file.id)}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                          <IconButton
-                            color="error"
-                            onClick={() => setConfirmDeleteFileId(file.id)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
+                          <Chip
+                            label={file.purpose}
+                            size="small"
+                            sx={{ 
+                              bgcolor: '#e8f5e9', 
+                              color: '#2e7d32',
+                              fontWeight: 500 
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {(file.bytes / 1024).toFixed(1)} KB
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {file.created_at
+                              ? new Date(file.created_at * 1000).toLocaleString('vi-VN')
+                              : ""}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" gap={1}>
+                            <Tooltip title="Xem chi tiết">
+                              <IconButton
+                                onClick={() => handleViewFileDetail(file.id)}
+                                sx={{
+                                  bgcolor: '#e3f2fd',
+                                  '&:hover': { bgcolor: '#1976d2', color: '#fff' },
+                                  transition: 'all 0.2s',
+                                  borderRadius: 2,
+                                }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Xóa file">
+                              <IconButton
+                                color="error"
+                                onClick={() => setConfirmDeleteFileId(file.id)}
+                                sx={{
+                                  bgcolor: '#ffebee',
+                                  '&:hover': { bgcolor: '#d32f2f', color: '#fff' },
+                                  transition: 'all 0.2s',
+                                  borderRadius: 2,
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        Không có file nào
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                          Không có file nào
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
-              <Box display="flex" justifyContent="flex-end" mt={1}>
-                <Button
-                  size="small"
-                  disabled={filePage === 0}
-                  onClick={() => setFilePage((p) => Math.max(0, p - 1))}
-                >
-                  Trước
-                </Button>
-                <Typography mx={2} mt={1}>
-                  {filePage + 1} /{" "}
-                  {Math.ceil(filteredFiles.length / fileRowsPerPage) || 1}
-                </Typography>
-                <Button
-                  size="small"
-                  disabled={
-                    (filePage + 1) * fileRowsPerPage >= filteredFiles.length
-                  }
-                  onClick={() => setFilePage((p) => p + 1)}
-                >
-                  Sau
-                </Button>
-                <TextField
-                  select
-                  size="small"
-                  value={fileRowsPerPage}
-                  onChange={(e) => {
-                    setFileRowsPerPage(Number(e.target.value));
-                    setFilePage(0);
-                  }}
-                  sx={{ width: 70, ml: 2 }}
-                  SelectProps={{ native: true }}
-                >
-                  {[5, 10, 20].map((n) => (
-                    <option key={n} value={n}>
-                      {n}/trang
-                    </option>
-                  ))}
-                </TextField>
-              </Box>
             </TableContainer>
           )}
+          <Box display="flex" justifyContent="center" mt={2}>
+            <Pagination
+              count={Math.ceil(filteredFiles.length / fileRowsPerPage)}
+              page={filePage + 1}
+              onChange={(_, value) => setFilePage(value - 1)}
+              color="primary"
+              shape="rounded"
+              size="medium"
+            />
+          </Box>
           {/* Dialog xem chi tiết file */}
           <Dialog
             open={openFileDetail}
