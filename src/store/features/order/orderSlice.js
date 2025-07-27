@@ -18,6 +18,7 @@ import {
   updateOrderToProductionCompletedApi,
   updateOrderToDeliveringApi,
   updateOrderToInstalledApi,
+  deleteOrderApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -315,6 +316,24 @@ export const updateOrderToInstalled = createAsyncThunk(
     }
   }
 );
+
+export const deleteOrder = createAsyncThunk(
+  'order/deleteOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await deleteOrderApi(orderId);
+      
+      if (response.success) {
+        return { orderId, ...response.data, message: response.message, timestamp: response.timestamp };
+      } else {
+        return rejectWithValue(response.error);
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to delete order');
+    }
+  }
+);
+
 const initialState = {
   orders: [],
   loading: false,
@@ -676,6 +695,28 @@ const orderSlice = createSlice({
         }
       })
       .addCase(updateOrderToInstalled.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Delete Order
+      .addCase(deleteOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        
+        // Xóa order khỏi danh sách
+        const orderId = action.payload.orderId;
+        state.orders = state.orders.filter(order => order.id !== orderId);
+        
+        // Xóa currentOrder nếu đó là order đang được chọn
+        if (state.currentOrder && state.currentOrder.id === orderId) {
+          state.currentOrder = null;
+        }
+      })
+      .addCase(deleteOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

@@ -467,9 +467,25 @@ export const updateOrderCustomerInfoApi = async (orderId, data) => {
 // Xóa đơn hàng
 export const deleteOrderApi = async (orderId) => {
   try {
+    console.log("Gọi API xóa đơn hàng với orderId:", orderId);
+
     const response = await orderService.delete(`/api/orders/${orderId}`);
-    return response.data;
+
+    const { success, result, message, timestamp } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API xóa đơn hàng:", {
+        success,
+        result,
+        message,
+        timestamp,
+      });
+      return { success: true, data: result, message, timestamp };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
   } catch (error) {
+    console.error("Error deleting order:", error.response?.data || error);
     return {
       success: false,
       error: error.response?.data?.message || "Failed to delete order",
