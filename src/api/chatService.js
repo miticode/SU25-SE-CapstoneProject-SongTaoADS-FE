@@ -1,13 +1,16 @@
 import axios from "axios";
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL;
+
+const API_URL = import.meta.env.VITE_API_URL
 
 const chatService = axios.create({
   baseURL: API_URL,
   headers: {
     Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
   },
-  withCredentials: true,
+
+  withCredentials: true
+
 });
 
 chatService.interceptors.request.use(
@@ -47,7 +50,9 @@ export const sendChatMessageApi = async (prompt) => {
       return { success, result };
     }
 
-    return { success: false, error: message || "Invalid response format" };
+
+    return { success: false, error: message || 'Invalid response format' };
+
   } catch (error) {
     return {
       success: false,
@@ -121,7 +126,9 @@ export const cancelFineTuneJobApi = async (fineTuningJobId) => {
     };
   }
 };
-// xóa file
+
+// xóa file 
+
 export const deleteFineTuneFileApi = async (fileId) => {
   try {
     const response = await chatService.delete(`/api/fine-tune/files/${fileId}`);
@@ -338,3 +345,32 @@ export const testChatApi = async (data) => {
     };
   }
 };
+
+
+// Gọi API báo giá bảng quảng cáo truyền thống (advance chatbot)
+export const requestTraditionalPricingApi = async (data) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/pricing/traditional', data);
+    const { success, result, message } = response.data;
+    if (success) return { success, result };
+    return { success: false, error: message || 'Lỗi khi báo giá truyền thống' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể báo giá truyền thống' };
+  }
+};
+
+// Lấy danh sách model OpenAI gốc
+export const getOpenAiModelsApi = async () => {
+  try {
+    const response = await chatService.get('/api/chat-bot/models');
+    const { success, result, message } = response.data;
+    // Đảm bảo trả về đúng mảng model
+    if (success && result && Array.isArray(result.data)) {
+      return { success, result: result.data };
+    }
+    return { success: false, error: message || 'Lỗi khi lấy danh sách model OpenAI' };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model OpenAI' };
+  }
+}; 
+

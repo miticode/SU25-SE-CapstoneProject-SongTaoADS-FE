@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi, requestTraditionalPricingApi, getOpenAiModelsApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
@@ -186,6 +186,24 @@ export const testChat = createAsyncThunk(
   'chat/testChat',
   async (data, { rejectWithValue }) => {
     const response = await testChatApi(data);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+export const requestTraditionalPricing = createAsyncThunk(
+  'chat/requestTraditionalPricing',
+  async (data, { rejectWithValue }) => {
+    const response = await requestTraditionalPricingApi(data);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+export const fetchOpenAiModels = createAsyncThunk(
+  'chat/fetchOpenAiModels',
+  async (_, { rejectWithValue }) => {
+    const response = await getOpenAiModelsApi();
     if (!response.success) return rejectWithValue(response.error);
     return response.result;
   }
@@ -414,15 +432,39 @@ const chatSlice = createSlice({
         state.status = 'failed';
         state.messages.push({ from: 'bot', text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.' });
         state.error = action.payload;
+      })
+      // Request traditional pricing reducers
+      .addCase(requestTraditionalPricing.pending, (state) => {
+        state.traditionalPricingStatus = 'loading';
+      })
+      .addCase(requestTraditionalPricing.fulfilled, (state, action) => {
+        state.traditionalPricingStatus = 'succeeded';
+        state.traditionalPricingResult = action.payload;
+      })
+      .addCase(requestTraditionalPricing.rejected, (state, action) => {
+        state.traditionalPricingStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Lấy danh sách model OpenAI
+      .addCase(fetchOpenAiModels.pending, (state) => {
+        state.openAiModelsStatus = 'loading';
+      })
+      .addCase(fetchOpenAiModels.fulfilled, (state, action) => {
+        state.openAiModelsStatus = 'succeeded';
+        state.openAiModels = action.payload;
+      })
+      .addCase(fetchOpenAiModels.rejected, (state, action) => {
+        state.openAiModelsStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });
 
-export const { 
-  addUserMessage, 
-  resetChat, 
+export const {
+  addUserMessage,
+  resetChat,
   loadMessagesFromStorage,
-  resetFineTuneStatus 
+  resetFineTuneStatus
 } = chatSlice.actions;
 
 export const selectChatMessages = (state) => state.chat.messages;

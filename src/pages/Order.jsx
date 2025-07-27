@@ -34,9 +34,15 @@ import {
 import {
   createNewOrder,
   addOrderDetail,
+  deleteOrder,
+  setCurrentOrder,
   ORDER_TYPE_MAP,
   selectOrderStatus,
   selectCurrentOrder,
+  fetchOrderDetails,
+  selectOrderDetails,
+  selectOrderDetailsStatus,
+  selectOrderDetailsError,
 } from "../store/features/order/orderSlice";
 import { 
   fetchEditedDesignById,
@@ -47,12 +53,86 @@ import {
 } from "../store/features/background/backgroundSlice";
 import { getImageFromS3 } from "../api/s3Service";
 
+// Component để load ảnh từ S3
+const S3Image = ({ imageKey, alt, className }) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!imageKey) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await getImageFromS3(imageKey);
+        if (response && response.imageUrl) {
+          setImageUrl(response.imageUrl);
+          setError(false);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error("Lỗi tải ảnh từ S3:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+
+    // Cleanup blob URL
+    return () => {
+      if (imageUrl && imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imageUrl);
+      }
+    };
+  }, [imageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
+        <CircularProgress size={30} />
+      </div>
+    );
+  }
+
+  if (error || !imageUrl) {
+    return (
+      <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
+        <Typography variant="caption" className="text-gray-500">
+          Không thể tải ảnh
+        </Typography>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={alt}
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+};
+
 const Order = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const orderStatus = useSelector(selectOrderStatus);
   const currentOrder = useSelector(selectCurrentOrder);
+
+  // Selectors cho order details (step 3)
+  const orderDetails = useSelector(selectOrderDetails);
+  const orderDetailsStatus = useSelector(selectOrderDetailsStatus);
+  const orderDetailsError = useSelector(selectOrderDetailsError);
 
   // Selectors cho edited design detail
   const editedDesignDetail = useSelector(selectEditedDesignDetail);
@@ -64,33 +144,119 @@ const Order = () => {
   const editedDesignId = location.state?.editedDesignId || null;
   const customerChoiceId = location.state?.customerChoiceId || null;
 
-  const [formData, setFormData] = useState({
-    address: "",
-    orderType: isFromAIDesign ? "AI_DESIGN" : "",
-    quantity: 1,
+  // Khôi phục AI design info từ localStorage nếu không có trong location.state
+  const [aiDesignInfo] = useState(() => {
+    const savedAIInfo = localStorage.getItem('orderAIDesignInfo');
+    if (savedAIInfo) {
+      try {
+        return JSON.parse(savedAIInfo);
+      } catch (error) {
+        console.error("Lỗi parse AI design info từ localStorage:", error);
+        return null;
+      }
+    }
+    return null;
   });
 
-  const [currentStep, setCurrentStep] = useState(1);
+  // Sử dụng giá trị từ location.state hoặc localStorage
+  const finalIsFromAIDesign = isFromAIDesign || aiDesignInfo?.isFromAIDesign || false;
+  const finalEditedDesignId = editedDesignId || aiDesignInfo?.editedDesignId || null;
+  const finalCustomerChoiceId = customerChoiceId || aiDesignInfo?.customerChoiceId || null;
+
+  // Lưu AI design info vào localStorage khi có
+  useEffect(() => {
+    if (finalIsFromAIDesign && finalEditedDesignId && finalCustomerChoiceId) {
+      const aiDesignInfo = {
+        isFromAIDesign: true,
+        editedDesignId: finalEditedDesignId,
+        customerChoiceId: finalCustomerChoiceId
+      };
+      localStorage.setItem('orderAIDesignInfo', JSON.stringify(aiDesignInfo));
+    }
+  }, [finalIsFromAIDesign, finalEditedDesignId, finalCustomerChoiceId]);
+
+  const [formData, setFormData] = useState(() => {
+    // Khôi phục formData từ localStorage khi component mount
+    const savedFormData = localStorage.getItem('orderFormData');
+    const defaultFormData = {
+      address: "",
+      orderType: finalIsFromAIDesign ? "AI_DESIGN" : "",
+      quantity: 1,
+    };
+    
+    if (savedFormData) {
+      try {
+        const parsedData = JSON.parse(savedFormData);
+        return {
+          ...defaultFormData,
+          ...parsedData,
+          // Đảm bảo orderType được set đúng nếu từ AI Design
+          orderType: finalIsFromAIDesign ? "AI_DESIGN" : parsedData.orderType || "",
+        };
+      } catch (error) {
+        console.error("Lỗi parse formData từ localStorage:", error);
+        return defaultFormData;
+      }
+    }
+    
+    return defaultFormData;
+  });
+
+  const [currentStep, setCurrentStep] = useState(() => {
+    // Khôi phục step từ localStorage khi component mount
+    const savedStep = localStorage.getItem('orderCurrentStep');
+    return savedStep ? parseInt(savedStep, 10) : 1;
+  });
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [editedImageUrl, setEditedImageUrl] = useState(null);
   const [loadingEditedImage, setLoadingEditedImage] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
 
   // Cập nhật orderType khi component mount nếu từ AI Design
   useEffect(() => {
-    if (isFromAIDesign) {
+    if (finalIsFromAIDesign) {
       setFormData((prev) => ({
         ...prev,
         orderType: "AI_DESIGN",
       }));
     }
-  }, [isFromAIDesign]);
+  }, [finalIsFromAIDesign]);
+
+  // Lưu currentStep vào localStorage mỗi khi thay đổi
+  useEffect(() => {
+    localStorage.setItem('orderCurrentStep', currentStep.toString());
+  }, [currentStep]);
+
+  // Lưu formData vào localStorage mỗi khi thay đổi
+  useEffect(() => {
+    localStorage.setItem('orderFormData', JSON.stringify(formData));
+  }, [formData]);
+
+  // Validate step khi component mount
+  useEffect(() => {
+    const savedStep = parseInt(localStorage.getItem('orderCurrentStep') || '1', 10);
+    
+    // Nếu step > 1 nhưng không có currentOrder, reset về step 1
+    if (savedStep > 1 && !currentOrder) {
+      console.log("Reset to step 1: No current order found");
+      setCurrentStep(1);
+      localStorage.setItem('orderCurrentStep', '1');
+    }
+    
+    // Nếu step = 3 nhưng không có orderDetails, reset về step 1  
+    if (savedStep === 3 && (!orderDetails || orderDetails.length === 0)) {
+      console.log("Reset to step 1: No order details found for step 3");
+      setCurrentStep(1);
+      localStorage.setItem('orderCurrentStep', '1');
+    }
+  }, [currentOrder, orderDetails]);
 
   // Fetch edited design detail khi ở step 2 và có editedDesignId
   useEffect(() => {
-    if (currentStep === 2 && isFromAIDesign && editedDesignId) {
-      console.log("Order - Fetching edited design detail for step 2:", editedDesignId);
-      dispatch(fetchEditedDesignById(editedDesignId));
+    if (currentStep === 2 && finalIsFromAIDesign && finalEditedDesignId) {
+      console.log("Order - Fetching edited design detail for step 2:", finalEditedDesignId);
+      dispatch(fetchEditedDesignById(finalEditedDesignId));
     }
 
     // Cleanup khi component unmount hoặc không còn cần thiết
@@ -101,7 +267,15 @@ const Order = () => {
         setLoadingEditedImage(false);
       }
     };
-  }, [currentStep, isFromAIDesign, editedDesignId, dispatch]);
+  }, [currentStep, finalIsFromAIDesign, finalEditedDesignId, dispatch]);
+
+  // Fetch order details khi ở step 3
+  useEffect(() => {
+    if (currentStep === 3 && currentOrder?.id) {
+      console.log("Order - Fetching order details for step 3:", currentOrder.id);
+      dispatch(fetchOrderDetails(currentOrder.id));
+    }
+  }, [currentStep, currentOrder?.id, dispatch]);
 
   // Fetch S3 image when editedDesignDetail.editedImage is available
   useEffect(() => {
@@ -136,6 +310,26 @@ const Order = () => {
 
     fetchEditedImage();
   }, [editedDesignDetail?.editedImage]);
+
+  // Cleanup localStorage khi component unmount
+  useEffect(() => {
+    return () => {
+      // Chỉ clear localStorage nếu đã hoàn tất đơn hàng (step 3)
+      const savedStep = localStorage.getItem('orderCurrentStep');
+      if (savedStep && parseInt(savedStep, 10) === 3) {
+        // Có thể clear sau một thời gian delay để user có thể reload ở step 3
+        // localStorage.removeItem('orderCurrentStep');
+        // localStorage.removeItem('orderFormData');
+      }
+    };
+  }, []);
+
+  // Clear localStorage khi navigate sang trang khác từ step 3
+  const clearOrderLocalStorage = () => {
+    localStorage.removeItem('orderCurrentStep');
+    localStorage.removeItem('orderFormData');
+    localStorage.removeItem('orderAIDesignInfo'); 
+  };
 
   // Cleanup blob URL khi component unmount
   useEffect(() => {
@@ -187,7 +381,7 @@ const Order = () => {
         return;
       }
 
-      if (isFromAIDesign && (!editedDesignId || !customerChoiceId)) {
+      if (finalIsFromAIDesign && (!finalEditedDesignId || !finalCustomerChoiceId)) {
         setErrorMessage(
           "Thiếu thông tin thiết kế AI. Vui lòng quay lại trang thiết kế và thử lại."
         );
@@ -202,7 +396,7 @@ const Order = () => {
         const result = await dispatch(
           createNewOrder({
             address: formData.address.trim(),
-            orderType: isFromAIDesign ? "AI_DESIGN" : formData.orderType,
+            orderType: finalIsFromAIDesign ? "AI_DESIGN" : formData.orderType,
             quantity: formData.quantity,
           })
         ).unwrap();
@@ -233,15 +427,15 @@ const Order = () => {
         setErrorMessage("");
         setSuccessMessage("");
 
-        if (isFromAIDesign) {
-          if (!customerChoiceId) {
+        if (finalIsFromAIDesign) {
+          if (!finalCustomerChoiceId) {
             setErrorMessage(
               "Thiếu customerChoiceId. Vui lòng quay lại trang thiết kế AI."
             );
             return;
           }
 
-          if (!editedDesignId) {
+          if (!finalEditedDesignId) {
             setErrorMessage(
               "Thiếu editedDesignId. Vui lòng quay lại trang thiết kế AI."
             );
@@ -263,9 +457,9 @@ const Order = () => {
           console.log("Thông tin trước khi gọi addOrderDetail:", {
             orderId: currentOrder.id,
             orderDetailData: {
-              customerChoiceId: customerChoiceId,
+              customerChoiceId: finalCustomerChoiceId,
               quantity: formData.quantity,
-              editedDesignId: editedDesignId,
+              editedDesignId: finalEditedDesignId,
             },
           });
 
@@ -273,29 +467,31 @@ const Order = () => {
             addOrderDetail({
               orderId: currentOrder.id,
               orderDetailData: {
-                customerChoiceId: customerChoiceId,
+                customerChoiceId: finalCustomerChoiceId,
                 quantity: formData.quantity,
-                editedDesignId: editedDesignId,
+                editedDesignId: finalEditedDesignId,
               },
             })
           ).unwrap();
 
           console.log("Order detail được tạo thành công:", {
             orderId: currentOrder.id,
-            customerChoiceId,
+            customerChoiceId: finalCustomerChoiceId,
             quantity: formData.quantity,
-            editedDesignId,
+            editedDesignId: finalEditedDesignId,
             result,
           });
         } else {
           console.log("Xử lý đơn hàng thông thường (không từ AI Design)");
         }
 
-        setSuccessMessage("Đơn hàng đã được xác nhận thành công! Đang chuyển đến lịch sử đơn hàng...");
+        setSuccessMessage("Đơn hàng đã được xác nhận thành công!");
 
+        // Chuyển sang step 3 để hiển thị thông tin đơn hàng hoàn tất
         setTimeout(() => {
-          navigate("/order-history");
-        }, 2000);
+          setCurrentStep(3);
+          setSuccessMessage("");
+        }, 1500);
       } catch (error) {
         console.error("Lỗi xác nhận đơn hàng:", error);
         setErrorMessage(error || "Xác nhận đơn hàng thất bại");
@@ -304,13 +500,40 @@ const Order = () => {
     }
   };
 
-  const handleBackToEdit = () => {
-    setCurrentStep(1);
-    setErrorMessage("");
-    setSuccessMessage("");
+  const handleBackToEdit = async () => {
+    try {
+      // Nếu có currentOrder (đơn hàng đã tạo ở step 1), xóa nó trước khi quay lại
+      if (currentOrder?.id) {
+        console.log("Đang xóa đơn hàng trước khi quay lại chỉnh sửa:", currentOrder.id);
+        
+        setDeletingOrder(true);
+        setErrorMessage("");
+        setSuccessMessage("");
+        
+        await dispatch(deleteOrder(currentOrder.id)).unwrap();
+        
+        console.log("Đã xóa đơn hàng thành công");
+        
+        // Clear currentOrder khỏi state
+        dispatch(setCurrentOrder(null));
+      }
+      
+      // Quay lại step 1
+      setCurrentStep(1);
+      setErrorMessage("");
+      setSuccessMessage("");
+      
+      // Không clear localStorage để giữ formData
+    } catch (error) {
+      console.error("Lỗi khi xóa đơn hàng:", error);
+      setErrorMessage("Không thể xóa đơn hàng. Vui lòng thử lại.");
+      setSuccessMessage("");
+    } finally {
+      setDeletingOrder(false);
+    }
   };
 
-  const steps = ["Thông tin đơn hàng", "Xác nhận đơn hàng"];
+  const steps = ["Thông tin đơn hàng", "Xác nhận đơn hàng", "Hoàn tất đơn hàng"];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-6 px-4 sm:px-6 lg:px-8">
@@ -329,7 +552,9 @@ const Order = () => {
               ? isFromAIDesign
                 ? "Đặt Hàng Thiết Kế AI"
                 : "Tạo Đơn Hàng Mới"
-              : "Xác Nhận Đơn Hàng"}
+              : currentStep === 2
+              ? "Xác Nhận Đơn Hàng"
+              : "Hoàn Tất Đơn Hàng"}
           </Typography>
           <Typography
             variant="subtitle1"
@@ -337,7 +562,9 @@ const Order = () => {
           >
             {currentStep === 1
               ? "Vui lòng điền thông tin để tạo đơn hàng của bạn"
-              : "Kiểm tra lại thông tin trước khi xác nhận"}
+              : currentStep === 2
+              ? "Kiểm tra lại thông tin trước khi xác nhận"
+              : "Đơn hàng của bạn đã được tạo thành công"}
           </Typography>
         </div>
 
@@ -390,7 +617,9 @@ const Order = () => {
             className={`p-6 sm:p-8 lg:p-10 ${
               currentStep === 1
                 ? "bg-gradient-to-r from-gray-50 to-blue-50"
-                : "bg-gradient-to-r from-green-50 to-emerald-50"
+                : currentStep === 2
+                ? "bg-gradient-to-r from-green-50 to-emerald-50"
+                : "bg-gradient-to-r from-blue-50 to-indigo-50"
             }`}
           >
             {currentStep === 1 ? (
@@ -559,7 +788,7 @@ const Order = () => {
                   </Button>
                 </div>
               </form>
-            ) : (
+            ) : currentStep === 2 ? (
               // Bước 2: Xác nhận đơn hàng
               <div className="space-y-8">
                 <div className="text-center mb-6">
@@ -625,7 +854,7 @@ const Order = () => {
                             style={{
                               backgroundColor: `var(--${
                                 ORDER_TYPE_MAP[
-                                  isFromAIDesign
+                                  finalIsFromAIDesign
                                     ? "AI_DESIGN"
                                     : formData.orderType
                                 ]?.color || "blue"
@@ -637,7 +866,7 @@ const Order = () => {
                             className="text-gray-800 font-medium"
                           >
                             {ORDER_TYPE_MAP[
-                              isFromAIDesign ? "AI_DESIGN" : formData.orderType
+                              finalIsFromAIDesign ? "AI_DESIGN" : formData.orderType
                             ]?.label || "Không xác định"}
                           </Typography>
                         </div>
@@ -889,6 +1118,7 @@ const Order = () => {
                     size="large"
                     fullWidth
                     onClick={handleBackToEdit}
+                    disabled={deletingOrder || orderStatus === "loading"}
                     className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
                     sx={{
                       borderColor: "#6B7280",
@@ -898,10 +1128,21 @@ const Order = () => {
                         color: "#374151",
                         backgroundColor: "#F9FAFB",
                       },
+                      "&:disabled": {
+                        borderColor: "#D1D5DB",
+                        color: "#9CA3AF",
+                        backgroundColor: "#F9FAFB",
+                      },
                     }}
-                    startIcon={<ArrowBack />}
+                    startIcon={
+                      deletingOrder ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        <ArrowBack />
+                      )
+                    }
                   >
-                    Quay lại chỉnh sửa
+                    {deletingOrder ? "Đang xóa đơn hàng..." : "Quay lại chỉnh sửa"}
                   </Button>
 
                   <Button
@@ -934,6 +1175,493 @@ const Order = () => {
                     {orderStatus === "loading"
                       ? "Đang xác nhận..."
                       : "Xác nhận đơn hàng"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Bước 3: Hoàn tất đơn hàng
+              <div className="space-y-8">
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-lg mb-4">
+                    <CheckCircle className="text-white text-2xl" />
+                  </div>
+                  <Typography
+                    variant="h4"
+                    className="text-gray-800 font-bold mb-2"
+                  >
+                    Đơn hàng đã được tạo thành công!
+                  </Typography>
+                  <Typography variant="body1" className="text-gray-600">
+                    Cảm ơn bạn đã tin tướng và sử dụng dịch vụ của chúng tôi
+                  </Typography>
+                </div>
+
+                {/* Order Success Information */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                    <Typography
+                      variant="h6"
+                      className="text-white font-semibold"
+                    >
+                      Thông tin đơn hàng
+                    </Typography>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    {orderDetailsStatus === 'loading' ? (
+                      <div className="text-center py-8">
+                        <CircularProgress size={40} className="mb-4" />
+                        <Typography variant="body2" className="text-gray-600">
+                          Đang tải thông tin đơn hàng...
+                        </Typography>
+                      </div>
+                    ) : orderDetailsError ? (
+                      <div className="text-center py-8">
+                        <Typography variant="body2" className="text-red-600 mb-2">
+                          Lỗi khi tải thông tin đơn hàng
+                        </Typography>
+                        <Typography variant="caption" className="text-red-500">
+                          {orderDetailsError}
+                        </Typography>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Order ID */}
+                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
+                          <div>
+                            <Typography
+                              variant="subtitle2"
+                              className="text-blue-600 font-semibold mb-1"
+                            >
+                              Mã đơn hàng
+                            </Typography>
+                            <Typography
+                              variant="h6"
+                              className="text-blue-800 font-bold"
+                            >
+                              #{currentOrder?.id || 'N/A'}
+                            </Typography>
+                          </div>
+                          <div className="text-right">
+                            <Typography
+                              variant="subtitle2"
+                              className="text-blue-600 font-semibold mb-1"
+                            >
+                              Ngày tạo
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              className="text-blue-800 font-mono"
+                            >
+                              {currentOrder?.createdAt 
+                                ? new Date(currentOrder.createdAt).toLocaleString('vi-VN')
+                                : 'N/A'}
+                            </Typography>
+                          </div>
+                        </div>
+
+                        {/* Order Basic Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <Typography
+                              variant="subtitle2"
+                              className="text-gray-600 font-semibold mb-2"
+                            >
+                              Địa chỉ giao hàng
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              className="text-gray-800"
+                            >
+                              {currentOrder?.address || formData.address}
+                            </Typography>
+                          </div>
+
+                          <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <Typography
+                              variant="subtitle2"
+                              className="text-gray-600 font-semibold mb-2"
+                            >
+                              Loại đơn hàng
+                            </Typography>
+                            <div className="flex items-center space-x-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{
+                                  backgroundColor: `var(--${
+                                    ORDER_TYPE_MAP[currentOrder?.orderType || formData.orderType]?.color || "blue"
+                                  }-500, #3B82F6)`,
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                className="text-gray-800 font-medium"
+                              >
+                                {ORDER_TYPE_MAP[currentOrder?.orderType || formData.orderType]?.label || "Không xác định"}
+                              </Typography>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Order Details */}
+                        {orderDetails && orderDetails.length > 0 && (
+                          <div className="space-y-4">
+                            <Typography
+                              variant="subtitle1"
+                              className="text-gray-700 font-semibold"
+                            >
+                              Chi tiết sản phẩm
+                            </Typography>
+                            {orderDetails.map((detail, index) => (
+                              <div key={detail.id || index} className="space-y-4">
+                                {/* Thông tin cơ bản của order detail */}
+                                <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                      <Typography
+                                        variant="subtitle2"
+                                        className="text-green-600 font-semibold mb-1"
+                                      >
+                                        Số lượng
+                                      </Typography>
+                                      <Typography
+                                        variant="body2"
+                                        className="text-green-800 font-medium"
+                                      >
+                                        {detail.quantity || formData.quantity} sản phẩm
+                                      </Typography>
+                                    </div>
+                                    
+                                    {detail.detailConstructionAmount && (
+                                      <div>
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-green-600 font-semibold mb-1"
+                                        >
+                                          Giá thi công
+                                        </Typography>
+                                        <Typography
+                                          variant="body2"
+                                          className="text-green-800 font-medium"
+                                        >
+                                          {detail.detailConstructionAmount.toLocaleString('vi-VN')} VNĐ
+                                        </Typography>
+                                      </div>
+                                    )}
+
+                                    {detail.detailDesignAmount && (
+                                      <div>
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-green-600 font-semibold mb-1"
+                                        >
+                                          Giá thiết kế
+                                        </Typography>
+                                        <Typography
+                                          variant="body2"
+                                          className="text-green-800 font-medium"
+                                        >
+                                          {detail.detailDesignAmount.toLocaleString('vi-VN')} VNĐ
+                                        </Typography>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Customer Choice Histories */}
+                                {detail.customerChoiceHistories && (
+                                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                    <Typography
+                                      variant="subtitle2"
+                                      className="text-blue-600 font-semibold mb-3"
+                                    >
+                                      📋 Thông tin lựa chọn sản phẩm
+                                    </Typography>
+                                    
+                                    <div className="space-y-4">
+                                      {/* Product Type */}
+                                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200">
+                                        <Typography variant="body2" className="text-blue-700 font-medium">
+                                          Loại sản phẩm:
+                                        </Typography>
+                                        <Typography variant="body2" className="text-blue-800 font-bold">
+                                          {detail.customerChoiceHistories.productTypeName}
+                                        </Typography>
+                                      </div>
+
+                                      {/* Total Amount */}
+                                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200">
+                                        <Typography variant="body2" className="text-blue-700 font-medium">
+                                          Tổng tiền:
+                                        </Typography>
+                                        <Typography variant="h6" className="text-blue-800 font-bold">
+                                          {detail.customerChoiceHistories.totalAmount.toLocaleString('vi-VN')} VNĐ
+                                        </Typography>
+                                      </div>
+
+                                      {/* Size Selections */}
+                                      {detail.customerChoiceHistories.sizeSelections && (
+                                        <div className="p-3 bg-white rounded-lg border border-blue-200">
+                                          <Typography variant="body2" className="text-blue-700 font-medium mb-2">
+                                            Kích thước:
+                                          </Typography>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            {detail.customerChoiceHistories.sizeSelections.map((size, sizeIndex) => (
+                                              <div key={sizeIndex} className="flex items-center justify-between">
+                                                <Typography variant="caption" className="text-blue-600">
+                                                  {size.size}:
+                                                </Typography>
+                                                <Typography variant="caption" className="text-blue-800 font-semibold">
+                                                  {size.value}m
+                                                </Typography>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Attribute Selections */}
+                                      {detail.customerChoiceHistories.attributeSelections && (
+                                        <div className="space-y-2">
+                                          <Typography variant="body2" className="text-blue-700 font-medium">
+                                            Chi tiết thuộc tính:
+                                          </Typography>
+                                          {detail.customerChoiceHistories.attributeSelections.map((attr, attrIndex) => (
+                                            <div key={attrIndex} className="p-3 bg-white rounded-lg border border-blue-200">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <Typography variant="caption" className="text-blue-600 font-semibold">
+                                                  {attr.attribute}
+                                                </Typography>
+                                                <Typography variant="caption" className="text-blue-800 font-bold">
+                                                  {attr.subTotal.toLocaleString('vi-VN')} VNĐ
+                                                </Typography>
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div>
+                                                  <span className="text-blue-600">Giá trị: </span>
+                                                  <span className="text-blue-800">{attr.value}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="text-blue-600">Đơn vị: </span>
+                                                  <span className="text-blue-800">{attr.unit}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="text-blue-600">Giá vật liệu: </span>
+                                                  <span className="text-blue-800">{attr.materialPrice.toLocaleString('vi-VN')} VNĐ</span>
+                                                </div>
+                                                <div>
+                                                  <span className="text-blue-600">Đơn giá: </span>
+                                                  <span className="text-blue-800">{attr.unitPrice.toLocaleString('vi-VN')} VNĐ</span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Edited Design Information */}
+                                {detail.editedDesigns && (
+                                  <div className="space-y-4">
+                                    {/* Design Image */}
+                                    {detail.editedDesigns.editedImage && (
+                                      <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-purple-600 font-semibold mb-3"
+                                        >
+                                          🎨 Hình ảnh thiết kế
+                                        </Typography>
+                                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                                          <S3Image 
+                                            imageKey={detail.editedDesigns.editedImage}
+                                            alt="Thiết kế đã chỉnh sửa"
+                                            className="w-full max-h-80 object-contain rounded-lg shadow-sm"
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Customer Note */}
+                                    {detail.editedDesigns.customerNote && (
+                                      <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-yellow-600 font-semibold mb-2"
+                                        >
+                                          💬 Ghi chú từ khách hàng
+                                        </Typography>
+                                        <Typography variant="body2" className="text-yellow-800">
+                                          {detail.editedDesigns.customerNote}
+                                        </Typography>
+                                      </div>
+                                    )}
+
+                                    {/* Design Template Info */}
+                                    {detail.editedDesigns.designTemplates && (
+                                      <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-orange-600 font-semibold mb-2"
+                                        >
+                                          📄 Mẫu thiết kế sử dụng
+                                        </Typography>
+                                        <Typography variant="body2" className="text-orange-800 font-medium">
+                                          {detail.editedDesigns.designTemplates.name}
+                                        </Typography>
+                                        {detail.editedDesigns.designTemplates.description && (
+                                          <Typography variant="caption" className="text-orange-700 block mt-1">
+                                            {detail.editedDesigns.designTemplates.description}
+                                          </Typography>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Customer Detail Info */}
+                                    {detail.editedDesigns.customerDetail && (
+                                      <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-gray-600 font-semibold mb-2"
+                                        >
+                                          👤 Thông tin khách hàng
+                                        </Typography>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div>
+                                            <Typography variant="caption" className="text-gray-500">
+                                              Tên công ty:
+                                            </Typography>
+                                            <Typography variant="body2" className="text-gray-800 font-medium">
+                                              {detail.editedDesigns.customerDetail.companyName}
+                                            </Typography>
+                                          </div>
+                                          <div>
+                                            <Typography variant="caption" className="text-gray-500">
+                                              Thông tin liên hệ:
+                                            </Typography>
+                                            <Typography variant="body2" className="text-gray-800 font-medium">
+                                              {detail.editedDesigns.customerDetail.contactInfo}
+                                            </Typography>
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <Typography variant="caption" className="text-gray-500">
+                                              Địa chỉ công ty:
+                                            </Typography>
+                                            <Typography variant="body2" className="text-gray-800 font-medium">
+                                              {detail.editedDesigns.customerDetail.address}
+                                            </Typography>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Next Steps */}
+                        <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                          <Typography
+                            variant="subtitle2"
+                            className="text-yellow-700 font-semibold mb-2"
+                          >
+                            📋 Bước tiếp theo
+                          </Typography>
+                          <Typography variant="body2" className="text-yellow-800 mb-2">
+                            Đơn hàng của bạn đang được xử lý. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất để:
+                          </Typography>
+                          <ul className="list-disc list-inside text-yellow-800 text-sm space-y-1">
+                            <li>Xác nhận chi tiết đơn hàng</li>
+                            <li>Thỏa thuận về thời gian và địa điểm khảo sát (nếu cần)</li>
+                            <li>Cung cấp báo giá chi tiết</li>
+                            <li>Lập hợp đồng và tiến hành thực hiện</li>
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      fullWidth
+                      onClick={() => {
+                        clearOrderLocalStorage();
+                        navigate("/order-history");
+                      }}
+                      className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
+                      sx={{
+                        borderColor: "#3B82F6",
+                        color: "#3B82F6",
+                        "&:hover": {
+                          borderColor: "#2563EB",
+                          color: "#2563EB",
+                          backgroundColor: "#EFF6FF",
+                        },
+                      }}
+                    >
+                      Xem lịch sử đơn hàng
+                    </Button>
+
+                    <Button
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      onClick={() => {
+                        clearOrderLocalStorage();
+                        navigate("/");
+                      }}
+                      className="py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
+                        "&:hover": {
+                          background:
+                            "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
+                        },
+                      }}
+                    >
+                      Về trang chủ
+                    </Button>
+                  </div>
+
+                  {/* Nút tạo đơn hàng mới */}
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    fullWidth
+                    onClick={() => {
+                      clearOrderLocalStorage();
+                      // Reset tất cả state về ban đầu
+                      setCurrentStep(1);
+                      setFormData({
+                        address: "",
+                        orderType: isFromAIDesign ? "AI_DESIGN" : "",
+                        quantity: 1,
+                      });
+                      setSuccessMessage("");
+                      setErrorMessage("");
+                    }}
+                    className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
+                    sx={{
+                      borderColor: "#10B981",
+                      color: "#10B981",
+                      "&:hover": {
+                        borderColor: "#059669",
+                        color: "#059669",
+                        backgroundColor: "#F0FDF4",
+                      },
+                    }}
+                  >
+                    🎯 Tạo đơn hàng mới
                   </Button>
                 </div>
               </div>
