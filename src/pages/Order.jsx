@@ -143,6 +143,20 @@ const Order = () => {
   const isFromAIDesign = location.state?.fromAIDesign || false;
   const editedDesignId = location.state?.editedDesignId || null;
   const customerChoiceId = location.state?.customerChoiceId || null;
+  
+  // Kiểm tra có sử dụng order có sẵn không (từ localStorage hoặc location.state)
+  const localStorageOrderId = localStorage.getItem('orderIdForNewOrder');
+  const useExistingOrder = location.state?.useExistingOrder || !!localStorageOrderId;
+  const existingOrderId = location.state?.existingOrderId || localStorageOrderId;
+
+  console.log("Order - Debug localStorage and existingOrderId:", {
+    localStorageOrderId,
+    locationStateOrderId: location.state?.existingOrderId,
+    useExistingOrder,
+    existingOrderId,
+    typeOfExistingOrderId: typeof existingOrderId,
+    shouldHideBackButton: !!existingOrderId
+  });
 
   // Khôi phục AI design info từ localStorage nếu không có trong location.state
   const [aiDesignInfo] = useState(() => {
@@ -252,6 +266,29 @@ const Order = () => {
     }
   }, [currentOrder, orderDetails]);
 
+  // Xử lý trường hợp sử dụng existing order từ localStorage
+  useEffect(() => {
+    if (useExistingOrder && existingOrderId && finalIsFromAIDesign) {
+      console.log("Order - Sử dụng existing order:", existingOrderId);
+      
+      // Tạo mock currentOrder object với existingOrderId
+      const mockOrder = {
+        id: existingOrderId, // Giữ nguyên UUID string, không parse thành integer
+        orderType: "AI_DESIGN",
+        // Các thông tin khác sẽ được fetch từ API nếu cần
+      };
+      
+      // Set currentOrder trong Redux store
+      dispatch(setCurrentOrder(mockOrder));
+      
+      // Chuyển đến step 2 để xác nhận đơn hàng
+      setCurrentStep(2);
+      localStorage.setItem('orderCurrentStep', '2');
+      
+      console.log("Order - Đã setup existing order và chuyển đến step 2");
+    }
+  }, [useExistingOrder, existingOrderId, finalIsFromAIDesign, dispatch]);
+
   // Fetch edited design detail khi ở step 2 và có editedDesignId
   useEffect(() => {
     if (currentStep === 2 && finalIsFromAIDesign && finalEditedDesignId) {
@@ -271,11 +308,22 @@ const Order = () => {
 
   // Fetch order details khi ở step 3
   useEffect(() => {
-    if (currentStep === 3 && currentOrder?.id) {
-      console.log("Order - Fetching order details for step 3:", currentOrder.id);
-      dispatch(fetchOrderDetails(currentOrder.id));
+    // Lấy order ID từ currentOrder hoặc existingOrderId
+    const orderIdToFetch = currentOrder?.id || existingOrderId;
+    
+    console.log("Order - Debug fetch order details:", {
+      currentStep,
+      currentOrderId: currentOrder?.id,
+      existingOrderId: existingOrderId,
+      orderIdToFetch: orderIdToFetch,
+      typeOfOrderId: typeof orderIdToFetch
+    });
+    
+    if (currentStep === 3 && orderIdToFetch) {
+      console.log("Order - Fetching order details for step 3:", orderIdToFetch);
+      dispatch(fetchOrderDetails(orderIdToFetch));
     }
-  }, [currentStep, currentOrder?.id, dispatch]);
+  }, [currentStep, currentOrder?.id, existingOrderId, dispatch]);
 
   // Fetch S3 image when editedDesignDetail.editedImage is available
   useEffect(() => {
@@ -329,6 +377,13 @@ const Order = () => {
     localStorage.removeItem('orderCurrentStep');
     localStorage.removeItem('orderFormData');
     localStorage.removeItem('orderAIDesignInfo'); 
+  };
+
+  // Clear localStorage bao gồm cả order info cho navigation
+  const clearAllOrderLocalStorage = () => {
+    clearOrderLocalStorage();
+    localStorage.removeItem('orderIdForNewOrder');
+    localStorage.removeItem('orderTypeForNewOrder');
   };
 
   // Cleanup blob URL khi component unmount
@@ -442,7 +497,17 @@ const Order = () => {
             return;
           }
 
-          if (!currentOrder?.id) {
+          // Lấy order ID từ currentOrder hoặc existingOrderId (từ localStorage)
+          const orderIdToUse = currentOrder?.id || existingOrderId;
+          
+          console.log("Order - Debug order ID:", {
+            currentOrderId: currentOrder?.id,
+            existingOrderId: existingOrderId,
+            orderIdToUse: orderIdToUse,
+            typeOfOrderId: typeof orderIdToUse
+          });
+          
+          if (!orderIdToUse) {
             setErrorMessage(
               "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại."
             );
@@ -455,7 +520,7 @@ const Order = () => {
           }
 
           console.log("Thông tin trước khi gọi addOrderDetail:", {
-            orderId: currentOrder.id,
+            orderId: orderIdToUse,
             orderDetailData: {
               customerChoiceId: finalCustomerChoiceId,
               quantity: formData.quantity,
@@ -465,7 +530,7 @@ const Order = () => {
 
           const result = await dispatch(
             addOrderDetail({
-              orderId: currentOrder.id,
+              orderId: orderIdToUse,
               orderDetailData: {
                 customerChoiceId: finalCustomerChoiceId,
                 quantity: formData.quantity,
@@ -475,7 +540,7 @@ const Order = () => {
           ).unwrap();
 
           console.log("Order detail được tạo thành công:", {
-            orderId: currentOrder.id,
+            orderId: orderIdToUse,
             customerChoiceId: finalCustomerChoiceId,
             quantity: formData.quantity,
             editedDesignId: finalEditedDesignId,
@@ -486,6 +551,13 @@ const Order = () => {
         }
 
         setSuccessMessage("Đơn hàng đã được xác nhận thành công!");
+
+        // Xóa localStorage nếu đã sử dụng existing order
+        if (useExistingOrder && existingOrderId) {
+          localStorage.removeItem('orderIdForNewOrder');
+          localStorage.removeItem('orderTypeForNewOrder');
+          console.log("Order - Đã xóa orderIdForNewOrder và orderTypeForNewOrder khỏi localStorage");
+        }
 
         // Chuyển sang step 3 để hiển thị thông tin đơn hàng hoàn tất
         setTimeout(() => {
@@ -1111,39 +1183,63 @@ const Order = () => {
                   </Alert>
                 )}
 
+                {/* Thông báo khi sử dụng existing order */}
+                {existingOrderId && (
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <Typography variant="subtitle2" className="text-blue-800 font-semibold">
+                          Đang sử dụng đơn hàng có sẵn
+                        </Typography>
+                        <Typography variant="body2" className="text-blue-600">
+                          Bạn không thể quay lại chỉnh sửa đơn hàng đã được tạo trước đó từ trang thiết kế AI.
+                        </Typography>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    fullWidth
-                    onClick={handleBackToEdit}
-                    disabled={deletingOrder || orderStatus === "loading"}
-                    className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
-                    sx={{
-                      borderColor: "#6B7280",
-                      color: "#6B7280",
-                      "&:hover": {
-                        borderColor: "#374151",
-                        color: "#374151",
-                        backgroundColor: "#F9FAFB",
-                      },
-                      "&:disabled": {
-                        borderColor: "#D1D5DB",
-                        color: "#9CA3AF",
-                        backgroundColor: "#F9FAFB",
-                      },
-                    }}
-                    startIcon={
-                      deletingOrder ? (
-                        <CircularProgress size={20} color="inherit" />
-                      ) : (
-                        <ArrowBack />
-                      )
-                    }
-                  >
-                    {deletingOrder ? "Đang xóa đơn hàng..." : "Quay lại chỉnh sửa"}
-                  </Button>
+                <div className={`grid gap-4 pt-4 ${existingOrderId ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                  {/* Chỉ hiển thị nút "Quay lại chỉnh sửa" nếu không có existingOrderId */}
+                  {!existingOrderId && (
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      fullWidth
+                      onClick={handleBackToEdit}
+                      disabled={deletingOrder || orderStatus === "loading"}
+                      className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
+                      sx={{
+                        borderColor: "#6B7280",
+                        color: "#6B7280",
+                        "&:hover": {
+                          borderColor: "#374151",
+                          color: "#374151",
+                          backgroundColor: "#F9FAFB",
+                        },
+                        "&:disabled": {
+                          borderColor: "#D1D5DB",
+                          color: "#9CA3AF",
+                          backgroundColor: "#F9FAFB",
+                        },
+                      }}
+                      startIcon={
+                        deletingOrder ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          <ArrowBack />
+                        )
+                      }
+                    >
+                      {deletingOrder ? "Đang xóa đơn hàng..." : "Quay lại chỉnh sửa"}
+                    </Button>
+                  )}
 
                   <Button
                     variant="contained"
@@ -1239,7 +1335,7 @@ const Order = () => {
                               variant="h6"
                               className="text-blue-800 font-bold"
                             >
-                              #{currentOrder?.id || 'N/A'}
+                              #{currentOrder?.id || existingOrderId || 'N/A'}
                             </Typography>
                           </div>
                           <div className="text-right">
@@ -1594,7 +1690,7 @@ const Order = () => {
                       size="large"
                       fullWidth
                       onClick={() => {
-                        clearOrderLocalStorage();
+                        clearAllOrderLocalStorage();
                         navigate("/order-history");
                       }}
                       className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
@@ -1616,7 +1712,7 @@ const Order = () => {
                       size="large"
                       fullWidth
                       onClick={() => {
-                        clearOrderLocalStorage();
+                        clearAllOrderLocalStorage();
                         navigate("/");
                       }}
                       className="py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
@@ -1639,6 +1735,12 @@ const Order = () => {
                     size="large"
                     fullWidth
                     onClick={() => {
+                      // Lưu order ID và order Type vào localStorage
+                      if (currentOrder?.id) {
+                        localStorage.setItem('orderIdForNewOrder', currentOrder.id.toString());
+                        localStorage.setItem('orderTypeForNewOrder', currentOrder.orderType || formData.orderType || '');
+                      }
+                      
                       clearOrderLocalStorage();
                       // Reset tất cả state về ban đầu
                       setCurrentStep(1);
@@ -1649,6 +1751,9 @@ const Order = () => {
                       });
                       setSuccessMessage("");
                       setErrorMessage("");
+                      
+                      // Chuyển đến case 3 của trang AI Design (chọn loại biển hiệu)
+                      navigate("/ai-design?step=billboard");
                     }}
                     className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
                     sx={{

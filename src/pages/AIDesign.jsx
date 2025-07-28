@@ -4316,16 +4316,50 @@ const AIDesign = () => {
       );
     }
 
-    navigate("/order", {
-      state: {
-        fromAIDesign: true,
+    // Kiểm tra localStorage để xem có orderId từ trang Order không
+    const orderIdFromStorage = localStorage.getItem('orderIdForNewOrder');
+    const orderTypeFromStorage = localStorage.getItem('orderTypeForNewOrder');
+    
+    if (orderIdFromStorage && orderTypeFromStorage === 'AI_DESIGN') {
+      console.log("AIDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:", orderIdFromStorage);
+      
+      // Lưu thông tin AI Design để sử dụng trong Order page
+      const aiDesignInfo = {
+        isFromAIDesign: true,
         editedDesignId: currentAIDesign?.id,
         customerChoiceId: currentOrder?.id,
-        editedDesignImage: editedImageFromResponse, // Chỉ truyền nếu đã xuất
-        editedDesignData: editedDesign || null,
-        hasExportedDesign: !!editedDesign, // Đánh dấu đã xuất hay chưa
-      },
-    });
+        orderIdFromStorage: orderIdFromStorage, // Lưu orderId để tạo order detail
+      };
+      localStorage.setItem('orderAIDesignInfo', JSON.stringify(aiDesignInfo));
+      
+      // Chuyển đến step 2 của trang Order với orderId trong localStorage
+      navigate("/order", {
+        state: {
+          fromAIDesign: true,
+          editedDesignId: currentAIDesign?.id,
+          customerChoiceId: currentOrder?.id,
+          editedDesignImage: editedImageFromResponse,
+          editedDesignData: editedDesign || null,
+          hasExportedDesign: !!editedDesign,
+          useExistingOrder: true, // Đánh dấu sử dụng order có sẵn
+          existingOrderId: orderIdFromStorage,
+        },
+      });
+    } else {
+      // Logic cũ: tạo order mới
+      console.log("AIDesign - Không có orderIdFromStorage, tạo order mới");
+      
+      navigate("/order", {
+        state: {
+          fromAIDesign: true,
+          editedDesignId: currentAIDesign?.id,
+          customerChoiceId: currentOrder?.id,
+          editedDesignImage: editedImageFromResponse, // Chỉ truyền nếu đã xuất
+          editedDesignData: editedDesign || null,
+          hasExportedDesign: !!editedDesign, // Đánh dấu đã xuất hay chưa
+        },
+      });
+    }
   };
   useEffect(() => {
     setImageLoadError(null);

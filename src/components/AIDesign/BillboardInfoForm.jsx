@@ -28,6 +28,10 @@ const BillboardInfoForm = ({
   const productTypes = useSelector(selectAllProductTypes);
   const customerDetail = useSelector(selectCustomerDetail);
 
+  // Đọc orderType từ localStorage để kiểm tra có phải AI_DESIGN không
+  const orderTypeFromStorage = localStorage.getItem('orderTypeForNewOrder');
+  const isFromAIDesignOrder = orderTypeFromStorage === 'AI_DESIGN';
+
   const containerVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
@@ -178,29 +182,32 @@ const BillboardInfoForm = ({
 
           {/* 2 nút: Thiết kế thủ công (giữa) và Đề xuất thiết kế (phải) */}
           <div className="flex space-x-4">
-            <motion.button
-              type="button"
-              onClick={handleCustomDesign}
-              className="px-8 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <FaEdit className="w-5 h-5 mr-2" />
-              Thiết kế thủ công
-              <svg
-                className="w-5 h-5 ml-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            {/* Chỉ hiển thị nút thiết kế thủ công nếu không phải từ AI Design order */}
+            {!isFromAIDesignOrder && (
+              <motion.button
+                type="button"
+                onClick={handleCustomDesign}
+                className="px-8 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
-            </motion.button>
+                <FaEdit className="w-5 h-5 mr-2" />
+                Thiết kế thủ công
+                <svg
+                  className="w-5 h-5 ml-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.button>
+            )}
 
             <motion.button
               type="submit"
