@@ -144,6 +144,14 @@ const Order = () => {
   const editedDesignId = location.state?.editedDesignId || null;
   const customerChoiceId = location.state?.customerChoiceId || null;
   
+  // Kiểm tra xem có phải đến từ trang Custom Design không
+  const isFromCustomDesign = location.state?.fromCustomDesign || false;
+  const customDesignRequestId = location.state?.customDesignRequestId || null;
+  const hasConstruction = location.state?.hasConstruction || false;
+  const requirements = location.state?.requirements || "";
+  const selectedType = location.state?.selectedType || null;
+  const customerDetail = location.state?.customerDetail || null;
+  
   // Kiểm tra có sử dụng order có sẵn không (từ localStorage hoặc location.state)
   const localStorageOrderId = localStorage.getItem('orderIdForNewOrder');
   const useExistingOrder = location.state?.useExistingOrder || !!localStorageOrderId;
@@ -172,10 +180,43 @@ const Order = () => {
     return null;
   });
 
+  // Khôi phục Custom Design info từ localStorage nếu không có trong location.state
+  const [customDesignInfo] = useState(() => {
+    const savedCustomDesignInfo = localStorage.getItem('orderCustomDesignInfo');
+    if (savedCustomDesignInfo) {
+      try {
+        return JSON.parse(savedCustomDesignInfo);
+      } catch (error) {
+        console.error("Lỗi parse Custom Design info từ localStorage:", error);
+        return null;
+      }
+    }
+    return null;
+  });
+
   // Sử dụng giá trị từ location.state hoặc localStorage
   const finalIsFromAIDesign = isFromAIDesign || aiDesignInfo?.isFromAIDesign || false;
   const finalEditedDesignId = editedDesignId || aiDesignInfo?.editedDesignId || null;
   const finalCustomerChoiceId = customerChoiceId || aiDesignInfo?.customerChoiceId || null;
+
+  // Sử dụng giá trị Custom Design từ location.state hoặc localStorage
+  const finalIsFromCustomDesign = isFromCustomDesign || customDesignInfo?.isFromCustomDesign || false;
+  const finalCustomDesignRequestId = customDesignRequestId || customDesignInfo?.customDesignRequestId || null;
+  const finalHasConstruction = hasConstruction !== undefined ? hasConstruction : customDesignInfo?.hasConstruction || false;
+  const finalRequirements = requirements || customDesignInfo?.requirements || "";
+
+  console.log("Order - Debug Custom Design:", {
+    isFromCustomDesign,
+    finalIsFromCustomDesign,
+    customDesignRequestId,
+    finalCustomDesignRequestId,
+    hasConstruction,
+    finalHasConstruction,
+    requirements,
+    finalRequirements,
+    selectedType,
+    customerDetail
+  });
 
   // Lưu AI design info vào localStorage khi có
   useEffect(() => {
@@ -189,12 +230,26 @@ const Order = () => {
     }
   }, [finalIsFromAIDesign, finalEditedDesignId, finalCustomerChoiceId]);
 
+  // Lưu Custom Design info vào localStorage khi có
+  useEffect(() => {
+    if (finalIsFromCustomDesign && finalCustomDesignRequestId && finalCustomerChoiceId) {
+      const customDesignInfo = {
+        isFromCustomDesign: true,
+        customDesignRequestId: finalCustomDesignRequestId,
+        customerChoiceId: finalCustomerChoiceId,
+        hasConstruction: finalHasConstruction,
+        requirements: finalRequirements
+      };
+      localStorage.setItem('orderCustomDesignInfo', JSON.stringify(customDesignInfo));
+    }
+  }, [finalIsFromCustomDesign, finalCustomDesignRequestId, finalCustomerChoiceId, finalHasConstruction, finalRequirements]);
+
   const [formData, setFormData] = useState(() => {
     // Khôi phục formData từ localStorage khi component mount
     const savedFormData = localStorage.getItem('orderFormData');
     const defaultFormData = {
       address: "",
-      orderType: finalIsFromAIDesign ? "AI_DESIGN" : "",
+      orderType: "",
       quantity: 1,
     };
     
@@ -204,8 +259,6 @@ const Order = () => {
         return {
           ...defaultFormData,
           ...parsedData,
-          // Đảm bảo orderType được set đúng nếu từ AI Design
-          orderType: finalIsFromAIDesign ? "AI_DESIGN" : parsedData.orderType || "",
         };
       } catch (error) {
         console.error("Lỗi parse formData từ localStorage:", error);
@@ -227,15 +280,24 @@ const Order = () => {
   const [loadingEditedImage, setLoadingEditedImage] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
 
-  // Cập nhật orderType khi component mount nếu từ AI Design
+  // Cập nhật orderType khi component mount nếu từ AI Design hoặc Custom Design
   useEffect(() => {
     if (finalIsFromAIDesign) {
       setFormData((prev) => ({
         ...prev,
         orderType: "AI_DESIGN",
       }));
+    } else if (finalIsFromCustomDesign) {
+      const orderType = finalHasConstruction 
+        ? "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+        : "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION";
+      
+      setFormData((prev) => ({
+        ...prev,
+        orderType: orderType,
+      }));
     }
-  }, [finalIsFromAIDesign]);
+  }, [finalIsFromAIDesign, finalIsFromCustomDesign, finalHasConstruction]);
 
   // Lưu currentStep vào localStorage mỗi khi thay đổi
   useEffect(() => {
@@ -377,6 +439,7 @@ const Order = () => {
     localStorage.removeItem('orderCurrentStep');
     localStorage.removeItem('orderFormData');
     localStorage.removeItem('orderAIDesignInfo'); 
+    localStorage.removeItem('orderCustomDesignInfo');
   };
 
   // Clear localStorage bao gồm cả order info cho navigation
@@ -424,7 +487,7 @@ const Order = () => {
         return;
       }
 
-      if (!formData.orderType && !isFromAIDesign) {
+      if (!formData.orderType && !finalIsFromAIDesign && !finalIsFromCustomDesign) {
         setErrorMessage("Vui lòng chọn loại đơn hàng");
         setSuccessMessage("");
         return;
@@ -439,6 +502,14 @@ const Order = () => {
       if (finalIsFromAIDesign && (!finalEditedDesignId || !finalCustomerChoiceId)) {
         setErrorMessage(
           "Thiếu thông tin thiết kế AI. Vui lòng quay lại trang thiết kế và thử lại."
+        );
+        setSuccessMessage("");
+        return;
+      }
+
+      if (finalIsFromCustomDesign && (!finalCustomDesignRequestId || !finalCustomerChoiceId)) {
+        setErrorMessage(
+          "Thiếu thông tin thiết kế tùy chỉnh. Vui lòng quay lại trang thiết kế và thử lại."
         );
         setSuccessMessage("");
         return;
@@ -546,8 +617,72 @@ const Order = () => {
             editedDesignId: finalEditedDesignId,
             result,
           });
+        } else if (finalIsFromCustomDesign) {
+          if (!finalCustomerChoiceId) {
+            setErrorMessage(
+              "Thiếu customerChoiceId. Vui lòng quay lại trang thiết kế tùy chỉnh."
+            );
+            return;
+          }
+
+          if (!finalCustomDesignRequestId) {
+            setErrorMessage(
+              "Thiếu customDesignRequestId. Vui lòng quay lại trang thiết kế tùy chỉnh."
+            );
+            return;
+          }
+
+          // Lấy order ID từ currentOrder hoặc existingOrderId (từ localStorage)
+          const orderIdToUse = currentOrder?.id || existingOrderId;
+          
+          console.log("Order - Debug order ID for Custom Design:", {
+            currentOrderId: currentOrder?.id,
+            existingOrderId: existingOrderId,
+            orderIdToUse: orderIdToUse,
+            typeOfOrderId: typeof orderIdToUse
+          });
+          
+          if (!orderIdToUse) {
+            setErrorMessage(
+              "Không tìm thấy thông tin đơn hàng. Vui lòng thử lại."
+            );
+            return;
+          }
+
+          if (!formData.quantity || formData.quantity < 1) {
+            setErrorMessage("Số lượng phải lớn hơn 0.");
+            return;
+          }
+
+          console.log("Thông tin trước khi gọi addOrderDetail cho Custom Design:", {
+            orderId: orderIdToUse,
+            orderDetailData: {
+              customerChoiceId: finalCustomerChoiceId,
+              quantity: formData.quantity,
+              customDesignRequestId: finalCustomDesignRequestId,
+            },
+          });
+
+          const result = await dispatch(
+            addOrderDetail({
+              orderId: orderIdToUse,
+              orderDetailData: {
+                customerChoiceId: finalCustomerChoiceId,
+                quantity: formData.quantity,
+                customDesignRequestId: finalCustomDesignRequestId,
+              },
+            })
+          ).unwrap();
+
+          console.log("Order detail cho Custom Design được tạo thành công:", {
+            orderId: orderIdToUse,
+            customerChoiceId: finalCustomerChoiceId,
+            quantity: formData.quantity,
+            customDesignRequestId: finalCustomDesignRequestId,
+            result,
+          });
         } else {
-          console.log("Xử lý đơn hàng thông thường (không từ AI Design)");
+          console.log("Xử lý đơn hàng thông thường (không từ AI Design hoặc Custom Design)");
         }
 
         setSuccessMessage("Đơn hàng đã được xác nhận thành công!");
@@ -621,8 +756,10 @@ const Order = () => {
             className="font-bold text-gray-800 mb-2 text-2xl sm:text-3xl lg:text-4xl"
           >
             {currentStep === 1
-              ? isFromAIDesign
+              ? finalIsFromAIDesign
                 ? "Đặt Hàng Thiết Kế AI"
+                : finalIsFromCustomDesign
+                ? "Đặt Hàng Thiết Kế Tùy Chỉnh"
                 : "Tạo Đơn Hàng Mới"
               : currentStep === 2
               ? "Xác Nhận Đơn Hàng"
@@ -633,7 +770,11 @@ const Order = () => {
             className="text-gray-600 max-w-2xl mx-auto"
           >
             {currentStep === 1
-              ? "Vui lòng điền thông tin để tạo đơn hàng của bạn"
+              ? finalIsFromAIDesign
+                ? "Vui lòng điền thông tin để tạo đơn hàng thiết kế AI"
+                : finalIsFromCustomDesign
+                ? "Vui lòng điền thông tin để tạo đơn hàng thiết kế tùy chỉnh"
+                : "Vui lòng điền thông tin để tạo đơn hàng của bạn"
               : currentStep === 2
               ? "Kiểm tra lại thông tin trước khi xác nhận"
               : "Đơn hàng của bạn đã được tạo thành công"}
@@ -730,8 +871,8 @@ const Order = () => {
                   />
                 </div>
 
-                {/* Order Type Select - Chỉ hiển thị nếu không phải từ AI Design */}
-                {!isFromAIDesign && (
+                {/* Order Type Select - Chỉ hiển thị nếu không phải từ AI Design hoặc Custom Design */}
+                {!finalIsFromAIDesign && !finalIsFromCustomDesign && (
                   <div className="space-y-3">
                     <label className="flex items-center text-lg font-semibold text-gray-700 mb-2">
                       <Category className="w-5 h-5 mr-2 text-purple-500" />
@@ -784,7 +925,7 @@ const Order = () => {
                 )}
 
                 {/* AI Design Order Type Display */}
-                {isFromAIDesign && (
+                {finalIsFromAIDesign && (
                   <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="w-6 h-6 text-green-500" />
@@ -798,6 +939,27 @@ const Order = () => {
                         </Typography>
                         <Typography variant="body2" className="text-green-600">
                           Đã được thiết lập tự động cho đơn hàng thiết kế AI
+                        </Typography>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Design Order Type Display */}
+                {finalIsFromCustomDesign && (
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-6 h-6 text-purple-500" />
+                      <div>
+                        <Typography
+                          variant="h6"
+                          className="text-purple-800 font-semibold"
+                        >
+                          Loại đơn hàng:{" "}
+                          {ORDER_TYPE_MAP[formData.orderType]?.label || "Thiết kế tùy chỉnh"}
+                        </Typography>
+                        <Typography variant="body2" className="text-purple-600">
+                          Đã được thiết lập tự động cho đơn hàng thiết kế tùy chỉnh
                         </Typography>
                       </div>
                     </div>
@@ -996,7 +1158,7 @@ const Order = () => {
                     </div>
 
                     {/* AI Design Information */}
-                    {isFromAIDesign && (
+                    {finalIsFromAIDesign && (
                       <>
                         <div className="border-t border-gray-200 pt-6">
                      
@@ -1156,6 +1318,93 @@ const Order = () => {
                               </div>
                             </div>
                           )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Custom Design Information */}
+                    {finalIsFromCustomDesign && (
+                      <>
+                        <div className="border-t border-gray-200 pt-6">
+                          {/* Yêu cầu thiết kế */}
+                          {finalRequirements && (
+                            <div className="mt-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                              <Typography variant="subtitle2" className="text-purple-700 font-semibold mb-2">
+                                Yêu cầu thiết kế
+                              </Typography>
+                              <Typography variant="body2" className="text-purple-800">
+                                {finalRequirements}
+                              </Typography>
+                            </div>
+                          )}
+
+                          {/* Loại biển hiệu */}
+                          {selectedType && (
+                            <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                              <Typography variant="subtitle2" className="text-blue-600 font-semibold mb-2">
+                                Loại biển hiệu
+                              </Typography>
+                              <Typography variant="body2" className="text-blue-800 font-medium">
+                                {selectedType.name}
+                              </Typography>
+                              {selectedType.description && (
+                                <Typography variant="caption" className="text-blue-700 block mt-1">
+                                  {selectedType.description}
+                                </Typography>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Thông tin khách hàng */}
+                          {customerDetail && (
+                            <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
+                              <Typography variant="subtitle2" className="text-green-600 font-semibold mb-2">
+                                Thông tin khách hàng
+                              </Typography>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <Typography variant="caption" className="text-green-500">
+                                    Tên công ty:
+                                  </Typography>
+                                  <Typography variant="body2" className="text-green-800 font-medium">
+                                    {customerDetail.companyName}
+                                  </Typography>
+                                </div>
+                                <div>
+                                  <Typography variant="caption" className="text-green-500">
+                                    Thông tin liên hệ:
+                                  </Typography>
+                                  <Typography variant="body2" className="text-green-800 font-medium">
+                                    {customerDetail.contactInfo}
+                                  </Typography>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <Typography variant="caption" className="text-green-500">
+                                    Địa chỉ:
+                                  </Typography>
+                                  <Typography variant="body2" className="text-green-800 font-medium">
+                                    {customerDetail.address}
+                                  </Typography>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Thông tin thiết kế */}
+                          <div className="mt-6 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                            <Typography variant="subtitle2" className="text-orange-600 font-semibold mb-2">
+                              Thông tin thiết kế
+                            </Typography>
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-3 h-3 rounded-full ${finalHasConstruction ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                              <Typography variant="body2" className="text-orange-800 font-medium">
+                                {finalHasConstruction ? "Có thi công" : "Không thi công"}
+                              </Typography>
+                            </div>
+                            <Typography variant="caption" className="text-orange-700 block mt-1">
+                              Custom Design Request ID: {finalCustomDesignRequestId}
+                            </Typography>
+                          </div>
                         </div>
                       </>
                     )}
