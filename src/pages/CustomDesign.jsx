@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchCustomerChoiceSizesByCustomerChoiceId,
@@ -35,6 +35,7 @@ import { fetchProfile, selectAuthUser } from "../store/features/auth/authSlice";
 
 const CustomDesign = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [selectedType, setSelectedType] = useState(null);
   const [selectedTypeId, setSelectedTypeId] = useState("");
@@ -131,12 +132,20 @@ const CustomDesign = () => {
           },
         })
       ).unwrap();
-      if (hasOrder && result?.id) {
-        await dispatch(createOrderFromDesignRequest(result.id)).unwrap();
-        setSnackbar({
-          open: true,
-          message: "Tạo yêu cầu thiết kế và đơn hàng thành công!",
-          severity: "success",
+      
+      if (result?.id) {
+        // Luôn navigate đến Order.jsx sau khi tạo custom design request thành công
+        // Dù có thi công hay không thi công
+        navigate("/order", {
+          state: {
+            fromCustomDesign: true,
+            customerChoiceId: currentOrder.id,
+            customDesignRequestId: result.id,
+            hasConstruction: hasOrder,
+            requirements: note,
+            selectedType: selectedType,
+            customerDetail: customerDetail
+          }
         });
       } else {
         setSnackbar({
@@ -144,11 +153,12 @@ const CustomDesign = () => {
           message: "Tạo yêu cầu thiết kế thủ công thành công!",
           severity: "success",
         });
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 3000);
       }
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 3000);
-    } catch {
+    } catch (error) {
+      console.error("Lỗi tạo custom design request:", error);
       setSnackbar({
         open: true,
         message:
