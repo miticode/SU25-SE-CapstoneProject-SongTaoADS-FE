@@ -27,7 +27,7 @@ export const ORDER_STATUS_MAP = {
   CONTRACT_SENT: { label: "Đã gửi hợp đồng", color: "info" },
   CONTRACT_SIGNED: { label: "Đã ký hợp đồng", color: "primary" },
   CONTRACT_DISCUSS: { label: "Đàm phán hợp đồng", color: "secondary" },
-  CONTRACT_RESIGNED: { label: "Yêu cầu ký lại hợp đồng", color: "warning" },
+  CONTRACT_RESIGNED: { label: "Từ chối hợp đồng", color: "error" },
   CONTRACT_CONFIRMED: { label: "Xác nhận hợp đồng", color: "success" },
   DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   IN_PROGRESS: { label: "Đang thực hiện", color: "primary" },
@@ -35,7 +35,7 @@ export const ORDER_STATUS_MAP = {
   PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
   DELIVERING: { label: "Đang giao hàng", color: "info" },
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
-  COMPLETED: { label: "Hoàn tất", color: "success" },
+  ORDER_COMPLETED: { label: "Hoàn tất đơn hàng", color: "success" },
   CANCELLED: { label: "Đã hủy", color: "error" },
   PENDING_DESIGN: { label: "Chờ thiết kế", color: "warning" }
 };

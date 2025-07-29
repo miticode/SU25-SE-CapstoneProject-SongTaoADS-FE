@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchCustomerChoiceSizesByCustomerChoiceId,
@@ -26,8 +26,25 @@ import {
   FormControlLabel,
   FormControl,
   FormLabel,
+  Divider,
+  Chip,
+  Avatar,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { FaRulerCombined, FaListAlt, FaRegStickyNote } from "react-icons/fa";
+import { 
+  FaRulerCombined, 
+  FaListAlt, 
+  FaRegStickyNote,
+  FaBuilding,
+  FaMapMarkerAlt,
+  FaPhone,
+  FaImage,
+  FaCheckCircle,
+  FaInfoCircle,
+  FaPalette,
+  FaHammer
+} from "react-icons/fa";
 
 import { createCustomDesignRequest } from "../store/features/customeDesign/customerDesignSlice";
 import { createOrderFromDesignRequest } from "../store/features/order/orderSlice";
@@ -35,6 +52,7 @@ import { fetchProfile, selectAuthUser } from "../store/features/auth/authSlice";
 
 const CustomDesign = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [selectedType, setSelectedType] = useState(null);
   const [selectedTypeId, setSelectedTypeId] = useState("");
@@ -131,12 +149,20 @@ const CustomDesign = () => {
           },
         })
       ).unwrap();
-      if (hasOrder && result?.id) {
-        await dispatch(createOrderFromDesignRequest(result.id)).unwrap();
-        setSnackbar({
-          open: true,
-          message: "Tạo yêu cầu thiết kế và đơn hàng thành công!",
-          severity: "success",
+      
+      if (result?.id) {
+        // Luôn navigate đến Order.jsx sau khi tạo custom design request thành công
+        // Dù có thi công hay không thi công
+        navigate("/order", {
+          state: {
+            fromCustomDesign: true,
+            customerChoiceId: currentOrder.id,
+            customDesignRequestId: result.id,
+            hasConstruction: hasOrder,
+            requirements: note,
+            selectedType: selectedType,
+            customerDetail: customerDetail
+          }
         });
       } else {
         setSnackbar({
@@ -144,11 +170,12 @@ const CustomDesign = () => {
           message: "Tạo yêu cầu thiết kế thủ công thành công!",
           severity: "success",
         });
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 3000);
       }
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 3000);
-    } catch {
+    } catch (error) {
+      console.error("Lỗi tạo custom design request:", error);
       setSnackbar({
         open: true,
         message:
@@ -159,248 +186,445 @@ const CustomDesign = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white py-8 px-2 md:px-0 w-full">
-      <Box maxWidth="1200px" mx="auto" px={2}>
-        <Typography
-          variant="h4"
-          align="center"
-          gutterBottom
-          style={{
-            fontWeight: 700,
-            letterSpacing: 1,
-            color: "var(--color-primary)",
-            marginBottom: 20,
+    <Box 
+      sx={{
+        minHeight: '100vh',
+        background: '#f8f9fa',
+        py: 4,
+        px: { xs: 2, md: 0 }
+      }}
+    >
+      <Box maxWidth="1000px" mx="auto" px={2}>
+        {/* Header Section */}
+        <Box 
+          sx={{
+            textAlign: 'center',
+            mb: 6
           }}
         >
-          Thông tin thiết kế thủ công
-        </Typography>
-        {/* Thông tin doanh nghiệp */}
-        <Box mb={4}>
           <Typography
-            variant="h6"
-            fontWeight={700}
-            color="var(--color-secondary)"
-            mb={2}
-            align="left"
-          >
-            Thông tin doanh nghiệp
-          </Typography>
-          <Box
-            component="dl"
-            className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2 bg-gray-50 rounded-lg p-6 border border-gray-200"
-          >
-            <dt className="font-medium text-gray-700">Tên doanh nghiệp:</dt>
-            <dd className="col-span-2 text-black">
-              {customerDetail?.companyName || (
-                <span className="text-red-500">
-                  Chưa có thông tin doanh nghiệp
-                </span>
-              )}
-            </dd>
-            <dt className="font-medium text-gray-700">Địa chỉ:</dt>
-            <dd className="col-span-2 text-black">
-              {customerDetail?.address || (
-                <span className="text-red-500">
-                  Chưa có thông tin doanh nghiệp
-                </span>
-              )}
-            </dd>
-            <dt className="font-medium text-gray-700">Liên hệ:</dt>
-            <dd className="col-span-2 text-black">
-              {customerDetail?.contactInfo || (
-                <span className="text-red-500">
-                  Chưa có thông tin doanh nghiệp
-                </span>
-              )}
-            </dd>
-            {customerDetail?.logoUrl && (
-              <>
-                <dt className="font-medium text-gray-700">Logo:</dt>
-                <dd className="col-span-2">
-                  <img
-                    src={customerDetail.logoUrl}
-                    alt="Logo"
-                    style={{ maxHeight: 60, borderRadius: 10 }}
-                  />
-                </dd>
-              </>
-            )}
-          </Box>
-        </Box>
-        {/* Loại biển hiệu */}
-        <Box mb={4}>
-          <Typography
-            variant="h6"
-            fontWeight={700}
-            color="var(--color-secondary)"
-            mb={2}
-            align="left"
-          >
-            Loại biển hiệu
-          </Typography>
-          <Box
-            component="dl"
-            className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2 bg-gray-50 rounded-lg p-6 border border-gray-200"
-          >
-            <dt className="font-medium text-gray-700">Tên loại biển hiệu:</dt>
-            <dd className="col-span-2 text-black">
-              {selectedType?.name || ""}
-            </dd>
-            <dt className="font-medium text-gray-700">Kích thước đã nhập:</dt>
-            <dd className="col-span-2">
-              {customerChoiceSizes?.length > 0 ? (
-                customerChoiceSizes.map((sz) => (
-                  <div key={sz.id} className="mb-1">
-                    <span className="text-gray-700 font-semibold">
-                      {sz.sizes?.name || sz.sizeId}:
-                    </span>{" "}
-                    <span className="text-custom-primary font-bold">
-                      {sz.sizeValue} m
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <span className="italic text-gray-400">
-                  Chưa nhập kích thước
-                </span>
-              )}
-            </dd>
-          </Box>
-        </Box>
-        {/* Thuộc tính đã chọn */}
-        <Box mb={4}>
-          <Typography
-            variant="h6"
-            fontWeight={700}
-            color="var(--color-secondary)"
-            mb={2}
-            align="left"
-          >
-            Thuộc tính đã chọn
-          </Typography>
-          <Box
-            component="dl"
-            className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2 bg-gray-50 rounded-lg p-6 border border-gray-200"
-          >
-            {customerChoiceDetailsList &&
-            customerChoiceDetailsList.length > 0 ? (
-              customerChoiceDetailsList.map((attr) => (
-                <React.Fragment key={attr.id}>
-                  <dt className="font-medium text-gray-700">
-                    {attr.attributeValues?.description ||
-                      attr.attributeValues?.name ||
-                      attr.attributeValuesId}
-                  </dt>
-                  <dd className="col-span-2">
-                    <span className="text-custom-primary font-semibold">
-                      {attr.attributeValues?.name || attr.attributeValuesId}
-                    </span>{" "}
-                    <span className="text-green-700 font-bold">
-                      (Giá: {attr.subTotal?.toLocaleString("vi-VN") || 0} VND)
-                    </span>
-                  </dd>
-                </React.Fragment>
-              ))
-            ) : (
-              <>
-                <dt className="font-medium text-gray-700">-</dt>
-                <dd className="col-span-2 italic text-gray-400">
-                  Chưa chọn thuộc tính nào
-                </dd>
-              </>
-            )}
-          </Box>
-        </Box>
-        {/* Yêu cầu thiết kế */}
-        <Box mb={4}>
-          <Typography
-            variant="h6"
-            fontWeight={700}
-            color="var(--color-secondary)"
-            mb={2}
-            align="left"
-          >
-            Yêu cầu Thiết Kế
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            minRows={4}
-            placeholder="Nhập yêu cầu thiết kế đặc biệt (nếu có)..."
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            variant="outlined"
+            variant="h3"
             sx={{
-              borderRadius: 2,
-              background: "#fafafa",
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-              },
-              fontSize: "1.05rem",
+              fontWeight: 600,
+              color: '#2c3e50',
+              mb: 2
             }}
-          />
-        </Box>
-        {/* Nút xác nhận */}
-        <Box mb={4}>
+          >
+            Thiết Kế Tùy Chỉnh
+          </Typography>
           <Typography
             variant="h6"
-            fontWeight={700}
-            color="var(--color-secondary)"
-            mb={2}
-            align="left"
+            sx={{
+              color: '#7f8c8d',
+              fontWeight: 400
+            }}
           >
-            Bạn có muốn thi công không?
+            Xác nhận thông tin và yêu cầu thiết kế
           </Typography>
-          <FormControl component="fieldset">
-            <RadioGroup
-              row
-              value={hasOrder ? "yes" : "no"}
-              onChange={(e) => setHasOrder(e.target.value === "yes")}
-              name="hasOrderRadio"
-            >
-              <FormControlLabel
-                value="yes"
-                control={<Radio />}
-                label="Có thi công"
-              />
-              <FormControlLabel
-                value="no"
-                control={<Radio />}
-                label="Không thi công"
-              />
-            </RadioGroup>
-          </FormControl>
         </Box>
-        <Box mt={6} mb={2} display="flex" justifyContent="flex-start">
-          <div style={{ width: "100%", maxWidth: 320 }}>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={handleConfirm}
-              className="bg-custom-primary hover:bg-custom-secondary text-white font-bold rounded-full px-10 py-3 text-lg shadow-lg transition-all"
+
+        <Grid container spacing={3}>
+          {/* Thông tin doanh nghiệp */}
+          <Grid item xs={12} md={6}>
+            <Card 
+              elevation={2}
               sx={{
-                background: "var(--color-primary)",
-                color: "#fff",
-                borderRadius: 999,
-                fontWeight: 700,
-                fontSize: "1.15rem",
-                letterSpacing: 1,
-                minWidth: 220,
-                width: "100%",
-                boxShadow: 6,
-                textTransform: "none",
-                "&:hover": {
-                  background: "var(--color-secondary)",
-                  color: "#fff",
-                  boxShadow: 12,
-                },
+                borderRadius: 2,
+                border: '1px solid #e9ecef'
               }}
             >
-              Xác nhận
-            </Button>
-          </div>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Avatar sx={{ bgcolor: '#3498db', mr: 2 }}>
+                    <FaBuilding />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight={600} color="#2c3e50">
+                    Thông Tin Doanh Nghiệp
+                  </Typography>
+                </Box>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="#7f8c8d" mb={0.5}>
+                        Tên doanh nghiệp
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {customerDetail?.companyName || (
+                          <Chip 
+                            label="Chưa có thông tin" 
+                            color="error" 
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="#7f8c8d" mb={0.5}>
+                        Địa chỉ
+                      </Typography>
+                      <Typography variant="body1">
+                        {customerDetail?.address || (
+                          <Chip 
+                            label="Chưa có thông tin" 
+                            color="error" 
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="#7f8c8d" mb={0.5}>
+                        Liên hệ
+                      </Typography>
+                      <Typography variant="body1">
+                        {customerDetail?.contactInfo || (
+                          <Chip 
+                            label="Chưa có thông tin" 
+                            color="error" 
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  {customerDetail?.logoUrl && (
+                    <Grid item xs={12}>
+                      <Box>
+                        <Typography variant="subtitle2" color="#7f8c8d" mb={1}>
+                          Logo
+                        </Typography>
+                        <img
+                          src={customerDetail.logoUrl}
+                          alt="Logo"
+                          style={{ 
+                            maxHeight: 50, 
+                            borderRadius: 8,
+                            border: '1px solid #e9ecef'
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Loại biển hiệu */}
+          <Grid item xs={12} md={6}>
+            <Card 
+              elevation={2}
+              sx={{
+                borderRadius: 2,
+                border: '1px solid #e9ecef'
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Avatar sx={{ bgcolor: '#e74c3c', mr: 2 }}>
+                    <FaPalette />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight={600} color="#2c3e50">
+                    Loại Biển Hiệu
+                  </Typography>
+                </Box>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="#7f8c8d" mb={0.5}>
+                        Tên loại biển hiệu
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500} color="#2c3e50">
+                        {selectedType?.name || "Chưa chọn"}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Box>
+                      <Typography variant="subtitle2" color="#7f8c8d" mb={1}>
+                        Kích thước đã nhập
+                      </Typography>
+                      {customerChoiceSizes?.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {customerChoiceSizes.map((sz) => (
+                            <Chip
+                              key={sz.id}
+                              label={`${sz.sizes?.name || sz.sizeId}: ${sz.sizeValue}m`}
+                              variant="outlined"
+                              size="small"
+                              sx={{ 
+                                borderColor: '#3498db',
+                                color: '#3498db'
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      ) : (
+                        <Chip 
+                          label="Chưa nhập kích thước" 
+                          color="warning" 
+                          variant="outlined"
+                          size="small"
+                        />
+                      )}
+                    </Box>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Thuộc tính đã chọn */}
+          <Grid item xs={12}>
+            <Card 
+              elevation={2}
+              sx={{
+                borderRadius: 2,
+                border: '1px solid #e9ecef'
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Avatar sx={{ bgcolor: '#27ae60', mr: 2 }}>
+                    <FaListAlt />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight={600} color="#2c3e50">
+                    Thuộc Tính Đã Chọn
+                  </Typography>
+                </Box>
+                
+                {customerChoiceDetailsList && customerChoiceDetailsList.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {customerChoiceDetailsList.map((attr, index) => (
+                      <Grid item xs={12} sm={6} md={4} key={attr.id}>
+                        <Paper
+                          elevation={1}
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            border: '1px solid #e9ecef',
+                            background: '#ffffff'
+                          }}
+                        >
+                          <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                            {attr.attributeValues?.description ||
+                              attr.attributeValues?.name ||
+                              attr.attributeValuesId}
+                          </Typography>
+                          <Typography variant="body2" color="#7f8c8d" mb={1}>
+                            {attr.attributeValues?.name || attr.attributeValuesId}
+                          </Typography>
+                          <Chip
+                            label={`${attr.subTotal?.toLocaleString("vi-VN") || 0} VND`}
+                            color="success"
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <Typography variant="body1" color="#7f8c8d">
+                      Chưa chọn thuộc tính nào
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Yêu cầu thiết kế */}
+          <Grid item xs={12}>
+            <Card 
+              elevation={2}
+              sx={{
+                borderRadius: 2,
+                border: '1px solid #e9ecef'
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Avatar sx={{ bgcolor: '#f39c12', mr: 2 }}>
+                    <FaRegStickyNote />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight={600} color="#2c3e50">
+                    Yêu Cầu Thiết Kế
+                  </Typography>
+                </Box>
+                
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={4}
+                  placeholder="Nhập yêu cầu thiết kế đặc biệt (nếu có)..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      background: '#ffffff',
+                      '&:hover': {
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#3498db',
+                        },
+                      },
+                      '&.Mui-focused': {
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#3498db',
+                          borderWidth: 2,
+                        },
+                      },
+                    },
+                    '& .MuiInputBase-input': {
+                      fontSize: '1rem',
+                    },
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Lựa chọn thi công */}
+          <Grid item xs={12}>
+            <Card 
+              elevation={2}
+              sx={{
+                borderRadius: 2,
+                border: '1px solid #e9ecef'
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Avatar sx={{ bgcolor: '#9b59b6', mr: 2 }}>
+                    <FaHammer />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight={600} color="#2c3e50">
+                    Lựa Chọn Thi Công
+                  </Typography>
+                </Box>
+                
+                <Typography variant="body1" color="#7f8c8d" mb={3}>
+                  Bạn có muốn chúng tôi thi công biển hiệu sau khi thiết kế không?
+                </Typography>
+                
+                <FormControl component="fieldset">
+                  <RadioGroup
+                    row
+                    value={hasOrder ? "yes" : "no"}
+                    onChange={(e) => setHasOrder(e.target.value === "yes")}
+                    name="hasOrderRadio"
+                  >
+                    <FormControlLabel
+                      value="yes"
+                      control={
+                        <Radio 
+                          sx={{
+                            color: '#27ae60',
+                            '&.Mui-checked': {
+                              color: '#27ae60',
+                            },
+                          }}
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Chip 
+                            label="Có thi công" 
+                            color="success" 
+                            variant={hasOrder ? "filled" : "outlined"}
+                            size="small"
+                            sx={{ mr: 1 }}
+                          />
+                          <Typography variant="body2" color="#7f8c8d">
+                            (Bao gồm thiết kế + thi công)
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <FormControlLabel
+                      value="no"
+                      control={
+                        <Radio 
+                          sx={{
+                            color: '#3498db',
+                            '&.Mui-checked': {
+                              color: '#3498db',
+                            },
+                          }}
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Chip 
+                            label="Không thi công" 
+                            color="info" 
+                            variant={!hasOrder ? "filled" : "outlined"}
+                            size="small"
+                            sx={{ mr: 1 }}
+                          />
+                          <Typography variant="body2" color="#7f8c8d">
+                            (Chỉ thiết kế)
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </RadioGroup>
+                </FormControl>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Nút xác nhận */}
+        <Box 
+          sx={{ 
+            mt: 6, 
+            mb: 2, 
+            display: 'flex', 
+            justifyContent: 'center'
+          }}
+        >
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleConfirm}
+            sx={{
+              background: '#3498db',
+              color: '#fff',
+              borderRadius: 2,
+              fontWeight: 600,
+              fontSize: '1.1rem',
+              minWidth: 200,
+              height: 50,
+              textTransform: 'none',
+              '&:hover': {
+                background: '#2980b9',
+                boxShadow: '0 4px 12px rgba(52, 152, 219, 0.3)',
+              },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Xác Nhận Thiết Kế
+          </Button>
         </Box>
       </Box>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
@@ -416,7 +640,7 @@ const CustomDesign = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </div>
+    </Box>
   );
 };
 

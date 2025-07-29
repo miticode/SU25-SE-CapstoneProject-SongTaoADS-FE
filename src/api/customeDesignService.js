@@ -2,12 +2,12 @@ import axios from 'axios';
 
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL
 
 // Create axios instance with interceptors
 const customDesignService = axios.create({
   baseURL: API_URL,
- 
+
   withCredentials: true
 });
 
@@ -20,17 +20,17 @@ const getToken = () => {
 customDesignService.interceptors.request.use(
   (config) => {
     const token = getToken();
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
       console.log('Adding token to request:', config.url);
     } else {
       console.warn('No token found for request:', config.url);
     }
-    
+
     return config;
   },
-  (error) => { 
+  (error) => {
     return Promise.reject(error);
   }
 );
@@ -68,7 +68,7 @@ export const assignDesignerToRequestApi = async (customDesignRequestId, designer
     const response = await customDesignService.patch(
       `/api/custom-design-requests/${customDesignRequestId}/users/${designerId}`
     );
-    
+
     return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);
@@ -88,7 +88,7 @@ export const updateRequestStatusApi = async (customDesignRequestId, status) => {
         params: { status }
       }
     );
-    
+
     return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);
@@ -150,13 +150,25 @@ export const fetchCustomDesignRequestsByCustomerDetailApi = async (customerDetai
 };
 
 // 1. Tạo yêu cầu thiết kế tùy chỉnh
-// POST /api/customer-details/{customerDetailId}/customer-choices/{customerChoiceId}
+// POST /api/customer-details/{customerDetailId}/custom-design-requests
 export const createCustomDesignRequestApi = async (customerDetailId, customerChoiceId, data) => {
   try {
-    const response = await customDesignService.post(
-      `/api/customer-details/${customerDetailId}/customer-choices/${customerChoiceId}`,
+    console.log('Creating custom design request with:', {
+      customerDetailId,
+      customerChoiceId,
       data
+    });
+
+    const response = await customDesignService.post(
+      `/api/customer-details/${customerDetailId}/custom-design-requests`,
+      {
+        requirements: data.requirements || "",
+        customerChoiceId: customerChoiceId,
+        hasOrder: data.hasOrder || false
+      }
     );
+
+    console.log('Custom design request response:', response.data);
     return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);

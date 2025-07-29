@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { getOrderDetailsApi } from "../../api/orderService";
 import { getImageFromS3 } from "../../api/s3Service";
+import { useDispatch } from "react-redux";
+import { uploadContract } from "../../store/features/contract/contractSlice";
 import {
   Box,
   Typography,
@@ -25,6 +27,12 @@ import {
   CircularProgress,
   Paper,
   Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  Snackbar,
 } from "@mui/material";
 import {
   ShoppingCart as OrderIcon,
@@ -33,6 +41,7 @@ import {
   MonetizationOn as MoneyIcon,
   Search as SearchIcon,
   People as PeopleIcon,
+  Upload as UploadIcon,
 } from "@mui/icons-material";
 import { ORDER_STATUS_MAP } from "../../store/features/order/orderSlice";
 
@@ -101,6 +110,198 @@ const UserAvatar = memo(({ user, size = 40 }) => {
 
 UserAvatar.displayName = "UserAvatar";
 
+// Component Upload Contract Dialog
+const UploadContractDialog = memo(({ open, onClose, orderId, onUploadSuccess }) => {
+  const dispatch = useDispatch();
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [depositPercent, setDepositPercent] = useState(10); // Mặc định 10%
+  const [contractNumber, setContractNumber] = useState(''); // Số hợp đồng
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Kiểm tra định dạng file (chỉ cho phép PDF)
+      if (file.type !== 'application/pdf') {
+        setError('Vui lòng chọn file PDF');
+        return;
+      }
+      
+      // Kiểm tra kích thước file (tối đa 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Kích thước file không được vượt quá 10MB');
+        return;
+      }
+      
+      setSelectedFile(file);
+      setError(null);
+    }
+  };
+
+  const handleDepositPercentChange = (event) => {
+    const value = parseFloat(event.target.value);
+    if (isNaN(value) || value < 0 || value > 100) {
+      setError('Phần trăm cọc phải từ 0% đến 100%');
+      return;
+    }
+    setDepositPercent(value);
+    setError(null);
+  };
+
+  const handleContractNumberChange = (event) => {
+    setContractNumber(event.target.value);
+    setError(null);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError('Vui lòng chọn file hợp đồng');
+      return;
+    }
+
+    if (depositPercent < 0 || depositPercent > 100) {
+      setError('Phần trăm cọc phải từ 0% đến 100%');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('contactFile', selectedFile); // Theo API spec: contactFile
+      formData.append('depositPercentChanged', depositPercent.toString());
+      formData.append('contractNumber', contractNumber.trim()); // Sử dụng giá trị Sale nhập
+
+      await dispatch(uploadContract({ orderId, formData })).unwrap();
+      
+      // Thông báo thành công và refresh danh sách
+      onUploadSuccess();
+      handleClose();
+      
+    } catch (error) {
+      setError(error || 'Có lỗi xảy ra khi tải lên hợp đồng');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedFile(null);
+    setError(null);
+    setUploading(false);
+    setDepositPercent(10); // Reset về mặc định 10%
+    setContractNumber(''); // Reset số hợp đồng
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <UploadIcon color="primary" />
+          <Typography variant="h6">Tải lên hợp đồng</Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ py: 2 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Chọn file hợp đồng (định dạng PDF, tối đa 10MB)
+          </Typography>
+          
+          {/* Trường nhập phần trăm cọc */}
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <TextField
+              label="Phần trăm cọc (%)"
+              type="number"
+              value={depositPercent}
+              onChange={handleDepositPercentChange}
+              fullWidth
+              inputProps={{
+                min: 0,
+                max: 100,
+                step: 0.1
+              }}
+              helperText="Nhập phần trăm tiền cọc (mặc định 10%)"
+              sx={{ mb: 2 }}
+            />
+            
+            <TextField
+              label="Số hợp đồng"
+              type="text"
+              value={contractNumber}
+              onChange={handleContractNumberChange}
+              fullWidth
+              placeholder="Nhập số hợp đồng (tùy chọn)"
+              helperText="Số hợp đồng để quản lý và tra cứu"
+              sx={{ mb: 2 }}
+            />
+          </Box>
+          
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <input
+              accept=".pdf"
+              style={{ display: 'none' }}
+              id="contract-file-input"
+              type="file"
+              onChange={handleFileSelect}
+            />
+            <label htmlFor="contract-file-input">
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<UploadIcon />}
+                sx={{ mb: 1 }}
+                fullWidth
+              >
+                Chọn file hợp đồng
+              </Button>
+            </label>
+            
+            {selectedFile && (
+              <Box sx={{ 
+                mt: 1, 
+                p: 2, 
+                bgcolor: 'success.50',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'success.200'
+              }}>
+                <Typography variant="body2" color="success.main">
+                  ✓ Đã chọn file: {selectedFile.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Kích thước: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={uploading}>
+          Hủy
+        </Button>
+        <Button 
+          onClick={handleUpload} 
+          variant="contained" 
+          disabled={!selectedFile || uploading}
+          startIcon={uploading ? <CircularProgress size={20} /> : <UploadIcon />}
+        >
+          {uploading ? 'Đang tải lên...' : 'Tải lên'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+});
+
+UploadContractDialog.displayName = "UploadContractDialog";
+
 // Memoized OrderRow component for better performance
 const OrderRow = memo(
   ({
@@ -118,6 +319,7 @@ const OrderRow = memo(
     getCreatedDate,
     generateOrderCode,
     onViewDetail,
+    onUploadContract,
     orderDetails,
   }) => {
     console.log(`OrderRow for order ${order.id}: orderDetails =`, orderDetails);
@@ -213,24 +415,49 @@ const OrderRow = memo(
           />
         </TableCell>
         <TableCell>
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={() => onViewDetail(order.id || order.orderId)}
-            sx={{
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: "medium",
-              boxShadow: 2,
-              "&:hover": {
-                boxShadow: 4,
-                transform: "translateY(-1px)"
-              }
-            }}
-          >
-            Xem chi tiết
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={() => onViewDetail(order.id || order.orderId)}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: "medium",
+                boxShadow: 2,
+                "&:hover": {
+                  boxShadow: 4,
+                  transform: "translateY(-1px)"
+                }
+              }}
+            >
+              Xem chi tiết
+            </Button>
+            
+            {/* Nút tải lên hợp đồng cho trạng thái PENDING_CONTRACT */}
+            {order.status === 'PENDING_CONTRACT' && (
+              <Button
+                variant="outlined"
+                color="success"
+                size="small"
+                startIcon={<UploadIcon />}
+                onClick={() => onUploadContract(order.id || order.orderId)}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: "medium",
+                  boxShadow: 1,
+                  "&:hover": {
+                    boxShadow: 2,
+                    transform: "translateY(-1px)"
+                  }
+                }}
+              >
+                Gửi hợp đồng
+              </Button>
+            )}
+          </Box>
         </TableCell>
       </TableRow>
       {Array.isArray(orderDetails) && orderDetails.length > 0 && (
@@ -505,12 +732,24 @@ const DashboardContent = ({
   onViewDetail,
   statusFilter,
   onStatusFilterChange,
+  onRefreshOrders, // Thêm callback để refresh danh sách orders
 }) => {
   // State lưu orderDetails cho từng đơn hàng
   const [orderDetailsMap, setOrderDetailsMap] = useState({});
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  
+  // State cho upload contract dialog
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  
+  // State cho thông báo
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   // Debounce search input for better performance
   useEffect(() => {
@@ -648,6 +887,31 @@ const DashboardContent = ({
       console.warn("Error generating order code for order:", order);
       return `DH-${(index + 1).toString().padStart(4, "0")}`;
     }
+  }, []);
+
+  // Handler để mở dialog upload hợp đồng
+  const handleUploadContract = useCallback((orderId) => {
+    setSelectedOrderId(orderId);
+    setUploadDialogOpen(true);
+  }, []);
+
+  // Handler khi upload thành công
+  const handleUploadSuccess = useCallback(() => {
+    setSnackbar({
+      open: true,
+      message: 'Đã gửi hợp đồng thành công!',
+      severity: 'success'
+    });
+    
+    // Tự động làm mới danh sách orders
+    if (onRefreshOrders) {
+      onRefreshOrders();
+    }
+  }, [onRefreshOrders]);
+
+  // Handler đóng snackbar
+  const handleCloseSnackbar = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   }, []);
 
   // Filtered orders with useMemo for performance optimization
@@ -834,16 +1098,15 @@ const DashboardContent = ({
               <MenuItem value="CONTRACT_SENT">Đã gửi hợp đồng</MenuItem>
               <MenuItem value="CONTRACT_SIGNED">Đã ký hợp đồng</MenuItem>
               <MenuItem value="CONTRACT_DISCUSS">Đàm phán hợp đồng</MenuItem>
+              <MenuItem value="CONTRACT_RESIGNED">Từ chối hợp đồng</MenuItem>
               <MenuItem value="CONTRACT_CONFIRMED">Xác nhận hợp đồng</MenuItem>
               <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
               <MenuItem value="IN_PROGRESS">Đang thực hiện</MenuItem>
               <MenuItem value="PRODUCING">Đang sản xuất</MenuItem>
-              <MenuItem value="PRODUCTION_COMPLETED">
-                Hoàn thành sản xuất
-              </MenuItem>
+              <MenuItem value="PRODUCTION_COMPLETED">Hoàn thành sản xuất</MenuItem>
               <MenuItem value="DELIVERING">Đang giao hàng</MenuItem>
               <MenuItem value="INSTALLED">Đã lắp đặt</MenuItem>
-              <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
+              <MenuItem value="ORDER_COMPLETED">Hoàn tất đơn hàng</MenuItem>
               <MenuItem value="CANCELLED">Đã hủy</MenuItem>
             </Select>
           </FormControl>
@@ -926,6 +1189,7 @@ const DashboardContent = ({
                   getCreatedDate={getCreatedDate}
                   generateOrderCode={generateOrderCode}
                   onViewDetail={onViewDetail}
+                  onUploadContract={handleUploadContract}
                   orderDetails={orderDetailsMap[order.id]}
                 />
               ))}
@@ -933,6 +1197,30 @@ const DashboardContent = ({
           </Table>
         </TableContainer>
       </Card>
+
+      {/* Upload Contract Dialog */}
+      <UploadContractDialog
+        open={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+        orderId={selectedOrderId}
+        onUploadSuccess={handleUploadSuccess}
+      />
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

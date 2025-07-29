@@ -177,6 +177,15 @@ const SaleDashboard = () => {
     }
   };
 
+  // Hàm refresh danh sách orders
+  const handleRefreshOrders = () => {
+    if (statusFilter) {
+      dispatch(fetchOrders(statusFilter));
+    } else {
+      dispatch(fetchOrders());
+    }
+  };
+
   const renderContent = () => {
     switch (selectedMenu) {
       case "customers":
@@ -200,6 +209,7 @@ const SaleDashboard = () => {
             onViewDetail={handleViewDetail}
             statusFilter={statusFilter}
             onStatusFilterChange={handleStatusFilterChange}
+            onRefreshOrders={handleRefreshOrders}
           />
         );
     }
