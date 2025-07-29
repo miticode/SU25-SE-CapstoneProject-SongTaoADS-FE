@@ -867,6 +867,11 @@ const OrderHistory = () => {
           ...prev,
           contract: result.payload,
         }));
+
+        // Tự động refresh trang để hiển thị trạng thái mới
+        if (user?.id) {
+          dispatch(fetchOrdersByUserId(user.id));
+        }
       } else {
         setNotification({
           open: true,
@@ -909,6 +914,11 @@ const OrderHistory = () => {
           ...prev,
           contract: result.payload,
         }));
+
+        // Tự động refresh trang để hiển thị trạng thái mới
+        if (user?.id) {
+          dispatch(fetchOrdersByUserId(user.id));
+        }
       } else {
         setNotification({
           open: true,
@@ -4919,67 +4929,6 @@ const OrderHistory = () => {
                           </label>
                         </>
                       )}
-
-                      {/* Nút cho trạng thái CONTRACT_RESIGNED */}
-                      {contractDialog.contract.status === "NEED_RESIGNED" && (
-                        <>
-                          <input
-                            type="file"
-                            accept=".pdf,.doc,.docx"
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (file) {
-                                handleUploadSignedContract(
-                                  contractDialog.contract.id,
-                                  file
-                                );
-                              }
-                              e.target.value = "";
-                            }}
-                            style={{ display: "none" }}
-                            id={`resigned-contract-upload-${contractDialog.contract.id}`}
-                          />
-                          <label
-                            htmlFor={`resigned-contract-upload-${contractDialog.contract.id}`}
-                          >
-                            <Button
-                              variant="contained"
-                              component="span"
-                              disabled={uploadingSignedContract}
-                              startIcon={
-                                uploadingSignedContract ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <Box
-                                    component="span"
-                                    sx={{ fontSize: "1.1rem" }}
-                                  >
-                                    🔄
-                                  </Box>
-                                )
-                              }
-                              sx={{
-                                borderRadius: 2,
-                                background:
-                                  "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                                fontWeight: 600,
-                                py: 1.5,
-                                px: 3,
-                                boxShadow: "0 4px 15px rgba(245, 158, 11, 0.3)",
-                                "&:hover": {
-                                  transform: "translateY(-1px)",
-                                  boxShadow:
-                                    "0 6px 20px rgba(245, 158, 11, 0.4)",
-                                },
-                              }}
-                            >
-                              {uploadingSignedContract
-                                ? "Đang upload..."
-                                : "Gửi lại hợp đồng đã ký"}
-                            </Button>
-                          </label>
-                        </>
-                      )}
                     </Box>
                   </Box>
                 )}
@@ -5314,72 +5263,6 @@ const OrderHistory = () => {
                       Yêu cầu thảo luận đã được gửi. Chúng tôi sẽ liên hệ với
                       bạn sớm nhất.
                     </Typography>
-                  </Box>
-                )}
-
-                {contractDialog.contract.status === "NEED_RESIGNED" && (
-                  <Box
-                    sx={{
-                      background:
-                        "linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%)",
-                      borderRadius: 3,
-                      p: 3,
-                      border: "1px solid rgba(245, 158, 11, 0.2)",
-                      position: "relative",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 2,
-                      }}
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          fontSize: "1.5rem",
-                          mt: 0.5,
-                          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
-                        }}
-                      >
-                        🔄
-                      </Box>
-                      <Box>
-                        <Typography
-                          variant="h6"
-                          fontWeight={600}
-                          color="#d97706"
-                          sx={{ mb: 1 }}
-                        >
-                          Yêu cầu gửi lại hợp đồng
-                        </Typography>
-                        <Box
-                          component="ul"
-                          sx={{ pl: 2, m: 0, color: "#92400e" }}
-                        >
-                          <Typography
-                            component="li"
-                            variant="body2"
-                            sx={{ mb: 0.5 }}
-                          >
-                            🔄 Chúng tôi cần bạn ký lại hợp đồng
-                          </Typography>
-                          <Typography
-                            component="li"
-                            variant="body2"
-                            sx={{ mb: 0.5 }}
-                          >
-                            📋 Vui lòng xem lại hợp đồng gốc, ký lại và upload
-                            file mới
-                          </Typography>
-                          <Typography component="li" variant="body2">
-                            ⏰ Sau khi upload thành công, chúng tôi sẽ xem xét
-                            và xác nhận hợp đồng
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
                   </Box>
                 )}
 
