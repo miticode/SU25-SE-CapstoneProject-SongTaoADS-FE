@@ -242,9 +242,9 @@ export const updateOrderAddress = createAsyncThunk(
 );
 export const updateOrderEstimatedDeliveryDate = createAsyncThunk(
   "order/updateOrderEstimatedDeliveryDate",
-  async ({ orderId, estimatedDeliveryDate }, { rejectWithValue }) => {
+  async ({ orderId, estimatedDeliveryDate, contractorId }, { rejectWithValue }) => {
     try {
-      const response = await updateOrderEstimatedDeliveryDateApi(orderId, estimatedDeliveryDate);
+      const response = await updateOrderEstimatedDeliveryDateApi(orderId, estimatedDeliveryDate, contractorId);
       if (response.success) {
         return response.data;
       }

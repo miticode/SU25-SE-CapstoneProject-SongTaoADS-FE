@@ -2,9 +2,10 @@ import React, { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { getOrderDetailsApi } from "../../api/orderService";
 import { getImageFromS3, openFileInNewTab } from "../../api/s3Service";
 import { getOrderContractApi } from "../../api/contractService";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { uploadContract, uploadRevisedContract } from "../../store/features/contract/contractSlice";
-import { contractResignOrder, contractSignedOrder } from "../../store/features/order/orderSlice";
+import { contractResignOrder, contractSignedOrder, updateOrderEstimatedDeliveryDate } from "../../store/features/order/orderSlice";
+import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
 import {
   Box,
   Typography,
@@ -35,7 +36,15 @@ import {
   DialogActions,
   Alert,
   Snackbar,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
 } from "@mui/material";
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
 import {
   ShoppingCart as OrderIcon,
   PendingActions as PendingIcon,
@@ -500,6 +509,241 @@ const UploadRevisedContractDialog = memo(({ open, onClose, orderId, onUploadSucc
 
 UploadRevisedContractDialog.displayName = "UploadRevisedContractDialog";
 
+// Component ContractorListDialog
+const ContractorListDialog = memo(({ open, onClose, contractors, order, generateOrderCode, onReportDelivery }) => {
+  const [selectedContractorId, setSelectedContractorId] = useState(null);
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      setSelectedContractorId(null);
+      setEstimatedDeliveryDate(null);
+    }
+  }, [open]);
+
+  // Set Vietnamese locale for dayjs
+  useEffect(() => {
+    dayjs.locale('vi');
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!selectedContractorId || !estimatedDeliveryDate) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Format the date as LocalDateTime in ISO format
+      // Set time to 09:00:00 for delivery date
+      const deliveryDateTime = estimatedDeliveryDate.hour(9).minute(0).second(0);
+      const formattedDateTime = deliveryDateTime.format('YYYY-MM-DDTHH:mm:ss');
+      
+      console.log('Formatted delivery date:', formattedDateTime);
+      await onReportDelivery(order.id, formattedDateTime, selectedContractorId);
+      onClose();
+    } catch (error) {
+      console.error('Error reporting delivery date:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isFormValid = selectedContractorId && estimatedDeliveryDate;
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <ShippingIcon color="info" />
+            <Typography variant="h6">
+              Báo ngày giao dự kiến - Đơn hàng {order ? generateOrderCode(order, 0) : '#N/A'}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ py: 2 }}>
+            {contractors && contractors.length > 0 ? (
+              <>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Chọn nhà thầu và báo ngày giao dự kiến cho đơn hàng {order ? generateOrderCode(order, 0) : '#N/A'} ({contractors.length} nhà thầu có sẵn)
+                </Typography>
+                
+                {/* Date Picker */}
+                <Box sx={{ mt: 3, mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                    Ngày giao dự kiến
+                  </Typography>
+                  <DatePicker
+                    label="Chọn ngày giao hàng"
+                    value={estimatedDeliveryDate}
+                    onChange={(newValue) => setEstimatedDeliveryDate(newValue)}
+                    minDate={dayjs().add(1, 'day')}
+                    format="DD/MM/YYYY"
+                    sx={{ width: '100%' }}
+                    slotProps={{
+                      textField: {
+                        helperText: 'Vui lòng chọn ngày giao hàng dự kiến (định dạng: Ngày/Tháng/Năm)'
+                      }
+                    }}
+                  />
+                </Box>
+
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom sx={{ mt: 3 }}>
+                  Chọn nhà thầu thực hiện
+                </Typography>
+                
+                <RadioGroup
+                  value={selectedContractorId}
+                  onChange={(e) => setSelectedContractorId(e.target.value)}
+                >
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {contractors.map((contractor) => (
+                      <Grid item xs={12} md={6} key={contractor.id}>
+                        <Card
+                          elevation={selectedContractorId === contractor.id ? 4 : 2}
+                          sx={{
+                            borderRadius: 3,
+                            border: "2px solid",
+                            borderColor: selectedContractorId === contractor.id ? "info.main" : "divider",
+                            transition: "all 0.3s ease",
+                            cursor: "pointer",
+                            "&:hover": {
+                              boxShadow: 4,
+                              transform: "translateY(-2px)",
+                              borderColor: selectedContractorId === contractor.id ? "info.main" : "warning.main",
+                            },
+                          }}
+                          onClick={() => setSelectedContractorId(contractor.id)}
+                        >
+                          <CardContent sx={{ p: 3 }}>
+                            {/* Radio button và header */}
+                            <Box
+                              sx={{
+                                background: selectedContractorId === contractor.id 
+                                  ? "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)"
+                                  : "linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)",
+                                borderRadius: 2,
+                                p: 2,
+                                mb: 2,
+                                position: 'relative'
+                              }}
+                            >
+                              <FormControlLabel
+                                value={contractor.id}
+                                control={<Radio />}
+                                label={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                                    <Box
+                                      sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: "50%",
+                                        backgroundColor: contractor.isInternal ? "success.main" : "info.main",
+                                      }}
+                                    />
+                                    <Typography variant="h6" color="text.primary" fontWeight="bold">
+                                      {contractor.name}
+                                    </Typography>
+                                    <Chip
+                                      label={contractor.isInternal ? "Nội bộ" : "Bên ngoài"}
+                                      size="small"
+                                      color={contractor.isInternal ? "success" : "info"}
+                                      sx={{ ml: "auto", fontWeight: "medium" }}
+                                    />
+                                  </Box>
+                                }
+                                sx={{ width: '100%', m: 0 }}
+                              />
+                            </Box>
+
+                            {/* Thông tin chi tiết */}
+                            <Grid container spacing={2}>
+                              <Grid item xs={12}>
+                                <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2, mb: 2 }}>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Địa chỉ
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {contractor.address}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              
+                              <Grid item xs={12} sm={6}>
+                                <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Số điện thoại
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium" color="primary.main">
+                                    {contractor.phone}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              
+                              <Grid item xs={12} sm={6}>
+                                <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Email
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium" color="primary.main">
+                                    {contractor.email}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            </Grid>
+
+                            {/* Trạng thái availability */}
+                            <Box sx={{ mt: 2, textAlign: "center" }}>
+                              <Chip
+                                label={contractor.isAvailable ? "Có sẵn" : "Không có sẵn"}
+                                color={contractor.isAvailable ? "success" : "error"}
+                                variant="filled"
+                                sx={{ fontWeight: "medium" }}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </RadioGroup>
+              </>
+            ) : (
+              <Box sx={{ textAlign: "center", py: 4 }}>
+                <ShippingIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Chưa có nhà thầu nào để báo ngày giao
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Hiện tại chưa có nhà thầu nào có sẵn để báo ngày giao dự kiến cho đơn hàng này
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button onClick={onClose} variant="outlined" disabled={isSubmitting}>
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            disabled={!isFormValid || isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : <ShippingIcon />}
+          >
+            {isSubmitting ? 'Đang xử lý...' : 'Báo ngày giao dự kiến'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </LocalizationProvider>
+  );
+});
+
+ContractorListDialog.displayName = "ContractorListDialog";
+
 // Memoized OrderRow component for better performance
 const OrderRow = memo(
   ({
@@ -648,9 +892,10 @@ const OrderRow = memo(
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
               <Button
                 variant="contained"
-                color="primary"
+                color={order.status === "DEPOSITED" ? "info" : "primary"}
                 size="small"
                 onClick={() => onViewDetail(order.id || order.orderId)}
+                startIcon={order.status === "DEPOSITED" ? <ShippingIcon /> : undefined}
                 sx={{
                   borderRadius: 2,
                   textTransform: "none",
@@ -662,7 +907,7 @@ const OrderRow = memo(
                   },
                 }}
               >
-                Xem chi tiết
+                {order.status === "DEPOSITED" ? "Báo ngày giao dự kiến" : "Xem chi tiết"}
               </Button>
 
               {/* Nút tải lên hợp đồng cho trạng thái PENDING_CONTRACT */}
@@ -1226,6 +1471,9 @@ const DashboardContent = ({
 }) => {
   const dispatch = useDispatch();
   
+  // Lấy danh sách contractors từ Redux store
+  const { contractors } = useSelector((state) => state.contractor);
+  
   // State lưu orderDetails cho từng đơn hàng
   const [orderDetailsMap, setOrderDetailsMap] = useState({});
   const [search, setSearch] = useState("");
@@ -1253,6 +1501,12 @@ const DashboardContent = ({
     open: false,
     message: "",
     severity: "success",
+  });
+
+  // State cho contractor list dialog
+  const [contractorDialog, setContractorDialog] = useState({
+    open: false,
+    order: null,
   });
 
   // Debounce search input for better performance
@@ -1350,29 +1604,25 @@ const DashboardContent = ({
   }, []);
 
   const getTotalAmount = useCallback((order) => {
-    const designAmount = order.totalDesignAmount || 0;
-    const constructionAmount = order.totalConstructionAmount || 0;
-    return designAmount + constructionAmount;
+    // Sử dụng totalOrderAmount từ API response
+    return order.totalOrderAmount || 0;
   }, []);
 
   const getDepositAmount = useCallback((order) => {
-    const designDeposit = order.depositDesignAmount || 0;
-    const constructionDeposit = order.depositConstructionAmount || 0;
-    return designDeposit + constructionDeposit;
+    // Sử dụng totalOrderDepositAmount từ API response
+    return order.totalOrderDepositAmount || 0;
   }, []);
 
   const getRemainingAmount = useCallback((order) => {
-    const designRemaining = order.remainingDesignAmount || 0;
-    const constructionRemaining = order.remainingConstructionAmount || 0;
-    return designRemaining + constructionRemaining;
+    // Sử dụng totalOrderRemainingAmount từ API response
+    return order.totalOrderRemainingAmount || 0;
   }, []);
 
   const getCreatedDate = useCallback((order) => {
-    // Dựa trên API response, ưu tiên users.createdAt
+    // Lấy ngày tạo từ đơn hàng, ưu tiên createdAt của order
     return (
-      order?.users?.createdAt ||
-      order?.users?.updatedAt ||
       order?.createdAt ||
+      order?.updatedAt ||
       order?.orderDate ||
       order?.deliveryDate ||
       new Date().toISOString()
@@ -1380,6 +1630,12 @@ const DashboardContent = ({
   }, []);
 
   const generateOrderCode = useCallback((order, index) => {
+    // Sử dụng orderCode từ API response nếu có
+    if (order?.orderCode) {
+      return order.orderCode;
+    }
+    
+    // Fallback logic nếu không có orderCode
     try {
       const date = new Date(
         order.deliveryDate || order.orderDate || order?.users?.createdAt
@@ -1577,6 +1833,80 @@ const DashboardContent = ({
   const handleCloseSnackbar = useCallback(() => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   }, []);
+
+  // Handler wrapper cho xem chi tiết - lấy contractors nếu cần
+  const handleViewDetail = useCallback(async (orderId) => {
+    // Tìm order để kiểm tra trạng thái
+    const order = orders.find(o => o.id === orderId);
+    
+    // Nếu đơn hàng ở trạng thái DEPOSITED, lấy danh sách contractors và mở dialog
+    if (order && order.status === 'DEPOSITED') {
+      try {
+        await dispatch(fetchAllContractors()).unwrap();
+        console.log('Đã lấy danh sách contractors cho đơn hàng DEPOSITED');
+        
+        // Mở dialog hiển thị danh sách nhà thầu
+        setContractorDialog({
+          open: true,
+          order: order,
+        });
+        
+        return; // Không gọi onViewDetail gốc cho trạng thái DEPOSITED
+      } catch (error) {
+        console.error('Lỗi khi lấy danh sách contractors:', error);
+        setSnackbar({
+          open: true,
+          message: "Có lỗi khi tải danh sách nhà thầu",
+          severity: "warning",
+        });
+      }
+    }
+    
+    // Gọi hàm onViewDetail gốc cho các trạng thái khác
+    if (onViewDetail) {
+      onViewDetail(orderId);
+    }
+  }, [dispatch, orders, onViewDetail]);
+
+  // Handler đóng contractor dialog
+  const handleCloseContractorDialog = useCallback(() => {
+    setContractorDialog({
+      open: false,
+      order: null,
+    });
+  }, []);
+
+  // Handler báo ngày giao dự kiến
+  const handleReportDelivery = useCallback(async (orderId, estimatedDeliveryDate, contractorId) => {
+    try {
+      console.log('Báo ngày giao dự kiến:', { orderId, estimatedDeliveryDate, contractorId });
+      
+      await dispatch(updateOrderEstimatedDeliveryDate({
+        orderId,
+        estimatedDeliveryDate,
+        contractorId
+      })).unwrap();
+
+      setSnackbar({
+        open: true,
+        message: "Báo ngày giao dự kiến thành công!",
+        severity: "success",
+      });
+
+      // Refresh danh sách orders để cập nhật thông tin mới
+      if (onRefreshOrders) {
+        onRefreshOrders();
+      }
+
+    } catch (error) {
+      console.error('Lỗi khi báo ngày giao dự kiến:', error);
+      setSnackbar({
+        open: true,
+        message: error || "Có lỗi khi báo ngày giao dự kiến",
+        severity: "error",
+      });
+    }
+  }, [dispatch, onRefreshOrders]);
 
   // Hàm tạo thông báo cho từng trạng thái
   const getEmptyStateMessage = useCallback((statusFilter) => {
@@ -1982,7 +2312,7 @@ const DashboardContent = ({
                       getRemainingAmount={getRemainingAmount}
                       getCreatedDate={getCreatedDate}
                       generateOrderCode={generateOrderCode}
-                      onViewDetail={onViewDetail}
+                      onViewDetail={handleViewDetail}
                       onUploadContract={handleUploadContract}
                       onUploadRevisedContract={handleUploadRevisedContract}
                       onViewContract={handleViewContract}
@@ -2145,6 +2475,16 @@ const DashboardContent = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Contractor List Dialog */}
+      <ContractorListDialog
+        open={contractorDialog.open}
+        onClose={handleCloseContractorDialog}
+        contractors={contractors}
+        order={contractorDialog.order}
+        generateOrderCode={generateOrderCode}
+        onReportDelivery={handleReportDelivery}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar
