@@ -23,6 +23,12 @@ import {
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
 export const ORDER_STATUS_MAP = {
+  PENDING_DESIGN: { label: "Chờ thiết kế", color: "warning" },
+  NEED_DEPOSIT_DESIGN: { label: "Cần đặt cọc thiết kế", color: "warning" },
+  DEPOSITED_DESIGN: { label: "Đã đặt cọc thiết kế", color: "info" },
+  NEED_FULLY_PAID_DESIGN: { label: "Cần thanh toán đủ thiết kế", color: "warning" },
+  WAITING_FINAL_DESIGN: { label: "Chờ thiết kế cuối", color: "info" },
+  DESIGN_COMPLETED: { label: "Hoàn thành thiết kế", color: "success" },
   PENDING_CONTRACT: { label: "Chờ hợp đồng", color: "warning" },
   CONTRACT_SENT: { label: "Đã gửi hợp đồng", color: "info" },
   CONTRACT_SIGNED: { label: "Đã ký hợp đồng", color: "primary" },
@@ -36,8 +42,7 @@ export const ORDER_STATUS_MAP = {
   DELIVERING: { label: "Đang giao hàng", color: "info" },
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
   ORDER_COMPLETED: { label: "Hoàn tất đơn hàng", color: "success" },
-  CANCELLED: { label: "Đã hủy", color: "error" },
-  PENDING_DESIGN: { label: "Chờ thiết kế", color: "warning" }
+  CANCELLED: { label: "Đã hủy", color: "error" }
 };
 
 // Định nghĩa mapping loại đơn hàng
@@ -98,18 +103,20 @@ export const fetchOrders = createAsyncThunk(
   "order/fetchOrders",
   async (params, { rejectWithValue }) => {
     // Kiểm tra nếu params là object hoặc string
-    let orderStatus, page, size;
+    let orderStatus, page, size, orderType;
 
     if (typeof params === "object" && params !== null) {
       // Nếu là object, trích xuất tham số
       orderStatus = params.orderStatus;
       page = params.page || 1;
       size = params.size || 10;
+      orderType = params.orderType || null;
     } else {
       // Nếu là string, xem như orderStatus
       orderStatus = params;
       page = 1;
       size = 10;
+      orderType = null;
     }
 
     // Nếu orderStatus là mảng, gọi api cho từng trạng thái
@@ -118,7 +125,7 @@ export const fetchOrders = createAsyncThunk(
       let pagination = null;
 
       for (const status of orderStatus) {
-        const response = await getOrdersApi(status, page, size);
+        const response = await getOrdersApi(status, page, size, orderType);
         if (response.success) {
           allOrders = allOrders.concat(response.data);
           // Lấy pagination của lần gọi cuối cùng
@@ -132,8 +139,8 @@ export const fetchOrders = createAsyncThunk(
       };
     } else {
       // Nếu orderStatus là string
-      const response = await getOrdersApi(orderStatus, page, size);
-      
+      const response = await getOrdersApi(orderStatus, page, size, orderType);
+
       if (response.success) {
         return {
           orders: response.data,
@@ -273,7 +280,7 @@ export const updateOrderToProductionCompleted = createAsyncThunk(
   async ({ orderId, productImageFile }, { rejectWithValue }) => {
     try {
       const response = await updateOrderToProductionCompletedApi(orderId, productImageFile);
-      
+
       if (response.success) {
         return response.data;
       } else {
@@ -289,7 +296,7 @@ export const updateOrderToDelivering = createAsyncThunk(
   async ({ orderId, deliveryImageFile }, { rejectWithValue }) => {
     try {
       const response = await updateOrderToDeliveringApi(orderId, deliveryImageFile);
-      
+
       if (response.success) {
         return response.data;
       } else {
@@ -305,7 +312,7 @@ export const updateOrderToInstalled = createAsyncThunk(
   async ({ orderId, installedImageFile }, { rejectWithValue }) => {
     try {
       const response = await updateOrderToInstalledApi(orderId, installedImageFile);
-      
+
       if (response.success) {
         return response.data;
       } else {
@@ -322,7 +329,7 @@ export const deleteOrder = createAsyncThunk(
   async (orderId, { rejectWithValue }) => {
     try {
       const response = await deleteOrderApi(orderId);
-      
+
       if (response.success) {
         return { orderId, ...response.data, message: response.message, timestamp: response.timestamp };
       } else {
@@ -535,7 +542,7 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(contractSignedOrder.pending, (state) => {
+      .addCase(contractSignedOrder.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -583,7 +590,7 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(updateOrderEstimatedDeliveryDate.pending, (state) => {
+      .addCase(updateOrderEstimatedDeliveryDate.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -607,7 +614,7 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(updateOrderToProducing.pending, (state) => {
+      .addCase(updateOrderToProducing.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -631,14 +638,14 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(updateOrderToProductionCompleted.pending, (state) => {
+      .addCase(updateOrderToProductionCompleted.pending, (state) => {
         state.status = 'loading';
         state.error = null;
       })
       .addCase(updateOrderToProductionCompleted.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.error = null;
-        
+
         // Cập nhật order trong danh sách
         const updatedOrder = action.payload;
         const index = state.orders.findIndex(order => order.id === updatedOrder.id);
@@ -650,14 +657,14 @@ const orderSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-       .addCase(updateOrderToDelivering.pending, (state) => {
+      .addCase(updateOrderToDelivering.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateOrderToDelivering.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        
+
         // Cập nhật order trong danh sách
         const updatedOrder = action.payload;
         const index = state.orders.findIndex(order => order.id === updatedOrder.id);
@@ -674,14 +681,14 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(updateOrderToInstalled.pending, (state) => {
+      .addCase(updateOrderToInstalled.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateOrderToInstalled.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        
+
         // Cập nhật order trong danh sách
         const updatedOrder = action.payload;
         const index = state.orders.findIndex(order => order.id === updatedOrder.id);
@@ -706,11 +713,11 @@ const orderSlice = createSlice({
       .addCase(deleteOrder.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        
+
         // Xóa order khỏi danh sách
         const orderId = action.payload.orderId;
         state.orders = state.orders.filter(order => order.id !== orderId);
-        
+
         // Xóa currentOrder nếu đó là order đang được chọn
         if (state.currentOrder && state.currentOrder.id === orderId) {
           state.currentOrder = null;
@@ -738,3 +745,14 @@ export const selectOrderPagination = (state) => state.order.pagination;
 export const selectOrderDetails = (state) => state.order.orderDetails;
 export const selectOrderDetailsStatus = (state) => state.order.orderDetailsStatus;
 export const selectOrderDetailsError = (state) => state.order.orderDetailsError;
+
+// Selector để filter orders theo orderType
+export const selectOrdersByType = (state, orderTypes) => {
+  if (!orderTypes || orderTypes.length === 0) {
+    return state.order.orders;
+  }
+
+  return state.order.orders.filter(order =>
+    orderTypes.includes(order.orderType)
+  );
+};
