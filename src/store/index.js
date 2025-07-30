@@ -24,6 +24,7 @@ import ticketReducer from "./features/ticket/ticketSlice";
 import iconReducer from "./features/icon/iconSlice";
 import costypeReducer from "./features/costype/costypeSlice";
 import contractorReducer from "./features/contractor/contractorSlice";
+import progressLogReducer from "./features/progressLog/progressLogSlice";
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -50,6 +51,7 @@ export const store = configureStore({
     icon: iconReducer,
     costype: costypeReducer,
     contractor: contractorReducer,
+    progressLog: progressLogReducer,
   },
 });
 
