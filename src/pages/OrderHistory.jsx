@@ -132,6 +132,7 @@ const statusMap = {
   PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
   DELIVERING: { label: "Đang giao hàng", color: "info" },
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
+  ORDER_COMPLETED: { label: "Đơn hàng đã hoàn tất", color: "success" },
 };
 
 // Component để hiển thị ảnh thiết kế đã chỉnh sửa
@@ -2338,10 +2339,12 @@ const OrderHistory = () => {
                           left: 0,
                           width: 4,
                           height: "100%",
-                          background: order.aiDesigns
+                          background: order.orderType === "AI_DESIGN"
                             ? "linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)"
-                            : order.customDesignRequests
+                            : order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
                             ? "linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)"
+                            : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                            ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)"
                             : "linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)",
                         },
                       }}
@@ -2361,10 +2364,10 @@ const OrderHistory = () => {
                               mb={2}
                               flexWrap="wrap"
                             >
-                              {order.aiDesigns ? (
+                              {order.orderType === "AI_DESIGN" ? (
                                 <Chip
                                   icon={<SmartToyIcon />}
-                                  label="AI Design"
+                                  label="🤖 Đơn hàng AI"
                                   size="small"
                                   sx={{
                                     background:
@@ -2374,10 +2377,10 @@ const OrderHistory = () => {
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
-                              ) : order.customDesignRequests ? (
+                              ) : order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
                                 <Chip
                                   icon={<BrushIcon />}
-                                  label="Custom Design"
+                                  label="🏗️ Thiết kế thủ công (có thi công)"
                                   size="small"
                                   sx={{
                                     background:
@@ -2387,10 +2390,23 @@ const OrderHistory = () => {
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
+                              ) : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
+                                <Chip
+                                  icon={<BrushIcon />}
+                                  label="🎨 Thiết kế thủ công (không thi công)"
+                                  size="small"
+                                  sx={{
+                                    background:
+                                      "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    "& .MuiChip-icon": { color: "white" },
+                                  }}
+                                />
                               ) : (
                                 <Chip
                                   icon={<ShoppingBagIcon />}
-                                  label="Đơn hàng thường"
+                                  label="🛍️ Đơn hàng thường"
                                   size="small"
                                   sx={{
                                     background:
@@ -2437,19 +2453,26 @@ const OrderHistory = () => {
                                 Mã đơn: #{order.orderCode || order.id}
                               </Typography>
 
-                              {order.customDesignRequests && (
+                              {(order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") && order.customDesignRequests && (
                                 <Typography
                                   color="text.secondary"
                                   fontSize={14}
                                   sx={{
-                                    background: "rgba(102, 126, 234, 0.04)",
+                                    background: order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+                                      ? "rgba(33, 150, 243, 0.04)" 
+                                      : "rgba(255, 152, 0, 0.04)",
                                     p: 1.5,
                                     borderRadius: 2,
-                                    border:
-                                      "1px solid rgba(102, 126, 234, 0.1)",
+                                    border: order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                      ? "1px solid rgba(33, 150, 243, 0.1)"
+                                      : "1px solid rgba(255, 152, 0, 0.1)",
                                   }}
                                 >
-                                  <b>Yêu cầu thiết kế:</b>{" "}
+                                  <b>
+                                    {order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+                                      ? "🏗️ Yêu cầu thiết kế (có thi công):" 
+                                      : "🎨 Yêu cầu thiết kế (không thi công):"}
+                                  </b>{" "}
                                   {order.customDesignRequests.requirements?.substring(
                                     0,
                                     50
@@ -2461,12 +2484,18 @@ const OrderHistory = () => {
                                 </Typography>
                               )}
 
-                              {order.aiDesigns && (
+                              {order.orderType === "AI_DESIGN" && order.aiDesigns && (
                                 <Typography
                                   color="text.secondary"
                                   fontSize={14}
+                                  sx={{
+                                    background: "rgba(156, 39, 176, 0.04)",
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    border: "1px solid rgba(156, 39, 176, 0.1)",
+                                  }}
                                 >
-                                  <b>Ghi chú:</b>{" "}
+                                  <b>🤖 Ghi chú AI Design:</b>{" "}
                                   {order.aiDesigns.customerNote?.substring(
                                     0,
                                     50
