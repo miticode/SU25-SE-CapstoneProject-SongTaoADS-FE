@@ -4,8 +4,8 @@ import {
   confirmWebhookUrl,
   payOrderRemaining,
   payOrderDeposit,
-  payCustomDesignRemaining,
-  payCustomDesignDeposit
+  payDesignRemaining,
+  payDesignDeposit
 } from '../../../api/paymentService';
 
 // ================== PAYMENT THUNKS ==================
@@ -37,14 +37,14 @@ export const payOrderRemainingThunk = createAsyncThunk(
     try {
       const response = await payOrderRemaining(orderId);
       console.log("PayOrderRemaining response:", response); // Debug log
-      
+
       if (response.success) {
         return response;
       }
       return rejectWithValue(response.error);
     } catch (error) {
       console.error("PayOrderRemainingThunk error:", error);
-      return rejectWithValue(error.message || 'Failed to process remaining payment');
+      return rejectWithValue(error.message || 'Không thể xử lý thanh toán số tiền còn lại');
     }
   }
 );
@@ -56,35 +56,53 @@ export const payOrderDepositThunk = createAsyncThunk(
     try {
       const response = await payOrderDeposit(orderId);
       console.log("PayOrderDeposit response:", response); // Debug log
-      
+
       if (response.success) {
         return response;
       }
       return rejectWithValue(response.error);
     } catch (error) {
       console.error("PayOrderDepositThunk error:", error);
-      return rejectWithValue(error.message || 'Failed to process deposit payment');
+      return rejectWithValue(error.message || 'Không thể xử lý đặt cọc đơn hàng');
     }
   }
 );
 
-// 5. Thanh toán hết thiết kế custom
-export const payCustomDesignRemainingThunk = createAsyncThunk(
-  'payment/payCustomDesignRemaining',
-  async (customDesignRequestId, { rejectWithValue }) => {
-    const response = await payCustomDesignRemaining(customDesignRequestId);
-    if (response.success) return response;
-    return rejectWithValue(response.error);
+// 5. Thanh toán hết thiết kế
+export const payDesignRemainingThunk = createAsyncThunk(
+  'payment/payDesignRemaining',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await payDesignRemaining(orderId);
+      console.log("PayDesignRemaining response:", response); // Debug log
+
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("PayDesignRemainingThunk error:", error);
+      return rejectWithValue(error.message || 'Không thể xử lý thanh toán hết thiết kế');
+    }
   }
 );
 
-// 6. Đặt cọc yêu cầu thiết kế custom
-export const payCustomDesignDepositThunk = createAsyncThunk(
-  'payment/payCustomDesignDeposit',
-  async (customDesignRequestId, { rejectWithValue }) => {
-    const response = await payCustomDesignDeposit(customDesignRequestId);
-    if (response.success) return response;
-    return rejectWithValue(response.error);
+// 6. Đặt cọc theo thiết kế
+export const payDesignDepositThunk = createAsyncThunk(
+  'payment/payDesignDeposit',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await payDesignDeposit(orderId);
+      console.log("PayDesignDeposit response:", response); // Debug log
+
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("PayDesignDepositThunk error:", error);
+      return rejectWithValue(error.message || 'Không thể xử lý đặt cọc thiết kế');
+    }
   }
 );
 
@@ -96,8 +114,8 @@ const initialState = {
   confirmWebhookResult: null,
   orderRemainingResult: null,
   orderDepositResult: null,
-  customDesignRemainingResult: null,
-  customDesignDepositResult: null,
+  designRemainingResult: null,
+  designDepositResult: null,
 };
 
 const paymentSlice = createSlice({
@@ -112,8 +130,8 @@ const paymentSlice = createSlice({
       state.confirmWebhookResult = null;
       state.orderRemainingResult = null;
       state.orderDepositResult = null;
-      state.customDesignRemainingResult = null;
-      state.customDesignDepositResult = null;
+      state.designRemainingResult = null;
+      state.designDepositResult = null;
     },
   },
   extraReducers: (builder) => {
@@ -182,34 +200,34 @@ const paymentSlice = createSlice({
         state.error = action.payload;
         state.success = false;
       })
-      // Pay Custom Design Remaining
-      .addCase(payCustomDesignRemainingThunk.pending, (state) => {
+      // Pay Design Remaining
+      .addCase(payDesignRemainingThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
         state.success = null;
       })
-      .addCase(payCustomDesignRemainingThunk.fulfilled, (state, action) => {
+      .addCase(payDesignRemainingThunk.fulfilled, (state, action) => {
         state.loading = false;
         state.success = true;
-        state.customDesignRemainingResult = action.payload;
+        state.designRemainingResult = action.payload;
       })
-      .addCase(payCustomDesignRemainingThunk.rejected, (state, action) => {
+      .addCase(payDesignRemainingThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
         state.success = false;
       })
-      // Pay Custom Design Deposit
-      .addCase(payCustomDesignDepositThunk.pending, (state) => {
+      // Pay Design Deposit
+      .addCase(payDesignDepositThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
         state.success = null;
       })
-      .addCase(payCustomDesignDepositThunk.fulfilled, (state, action) => {
+      .addCase(payDesignDepositThunk.fulfilled, (state, action) => {
         state.loading = false;
         state.success = true;
-        state.customDesignDepositResult = action.payload;
+        state.designDepositResult = action.payload;
       })
-      .addCase(payCustomDesignDepositThunk.rejected, (state, action) => {
+      .addCase(payDesignDepositThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
         state.success = false;
@@ -227,7 +245,7 @@ export const selectWebhookResult = (state) => state.payment.webhookResult;
 export const selectConfirmWebhookResult = (state) => state.payment.confirmWebhookResult;
 export const selectOrderRemainingResult = (state) => state.payment.orderRemainingResult;
 export const selectOrderDepositResult = (state) => state.payment.orderDepositResult;
-export const selectCustomDesignRemainingResult = (state) => state.payment.customDesignRemainingResult;
-export const selectCustomDesignDepositResult = (state) => state.payment.customDesignDepositResult;
+export const selectDesignRemainingResult = (state) => state.payment.designRemainingResult;
+export const selectDesignDepositResult = (state) => state.payment.designDepositResult;
 
 export default paymentSlice.reducer; 
