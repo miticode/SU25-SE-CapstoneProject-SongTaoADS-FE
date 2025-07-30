@@ -621,18 +621,21 @@ export const updateOrderAddressApi = async (orderId, addressData) => {
 };
 export const updateOrderEstimatedDeliveryDateApi = async (
   orderId,
-  estimatedDeliveryDate
+  estimatedDeliveryDate,
+  contractorId
 ) => {
   try {
     console.log("Gọi API cập nhật ngày giao hàng dự kiến với:", {
       orderId,
       estimatedDeliveryDate,
+      contractorId,
     });
 
     const response = await orderService.patch(
       `/api/orders/${orderId}/estimate-delivery-date`,
       {
         estimatedDeliveryDate: estimatedDeliveryDate,
+        contractorId: contractorId,
       }
     );
 
