@@ -78,7 +78,7 @@ import {
   selectContractLoading,
   uploadSignedContract,
 } from "../store/features/contract/contractSlice";
-import { getPresignedUrl, openFileInNewTab } from "../api/s3Service";
+import { getPresignedUrl, openFileInNewTab, getImageFromS3 } from "../api/s3Service";
 import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
 import {
   createImpression,
@@ -96,6 +96,17 @@ import {
   selectCreateError,
   resetCreateStatus,
 } from "../store/features/ticket/ticketSlice";
+import {
+  fetchProgressLogsByOrderId,
+  fetchProgressLogImages,
+  selectProgressLogs,
+  selectProgressLogLoading,
+  selectProgressLogError,
+  selectProgressLogImages,
+  selectImagesLoading,
+  selectImagesError,
+  selectImagesByProgressLogId,
+} from "../store/features/progressLog/progressLogSlice";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
@@ -121,6 +132,7 @@ const statusMap = {
   PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
   DELIVERING: { label: "Đang giao hàng", color: "info" },
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
+  ORDER_COMPLETED: { label: "Đơn hàng đã hoàn tất", color: "success" },
 };
 
 // Component để hiển thị ảnh thiết kế đã chỉnh sửa
@@ -290,6 +302,14 @@ const OrderHistory = () => {
   const [orderDetailsMap, setOrderDetailsMap] = useState({}); // { orderId: orderDetails }
   const [loadingOrderDetails, setLoadingOrderDetails] = useState({}); // { orderId: boolean }
 
+  // State để lưu progress logs cho mỗi đơn hàng
+  const [progressLogsMap, setProgressLogsMap] = useState({}); // { orderId: progressLogs[] }
+  const [loadingProgressLogs, setLoadingProgressLogs] = useState({}); // { orderId: boolean }
+
+  // State để lưu ảnh progress logs cho mỗi progress log
+  const [progressLogImagesMap, setProgressLogImagesMap] = useState({}); // { progressLogId: images[] }
+  const [loadingProgressLogImages, setLoadingProgressLogImages] = useState({}); // { progressLogId: boolean }
+
   const [customerDetailId, setCustomerDetailId] = useState(undefined);
   const currentDesignRequest = useSelector(selectCurrentDesignRequest);
   const [openDetail, setOpenDetail] = useState(false);
@@ -310,6 +330,7 @@ const OrderHistory = () => {
     imageUrl: null,
     loading: false,
     title: "",
+    description: "",
   });
   const [offerDialog, setOfferDialog] = useState({
     open: false,
@@ -348,6 +369,37 @@ const OrderHistory = () => {
     return loadingOrderDetails[orderId] || false;
   };
 
+  // Helper function để lấy progress logs
+  const getProgressLogs = (orderId) => {
+    return progressLogsMap[orderId] || [];
+  };
+
+  // Helper function để kiểm tra loading state của progress logs
+  const isLoadingProgressLogs = (orderId) => {
+    return loadingProgressLogs[orderId] || false;
+  };
+
+  // Helper function để lấy progress log theo status - ưu tiên log có ảnh
+  const getProgressLogByStatus = (orderId, status) => {
+    const logs = getProgressLogs(orderId);
+    const logsWithStatus = logs.filter(log => log.status === status);
+    
+    if (logsWithStatus.length === 0) return null;
+    
+    // Ưu tiên log có ảnh
+    for (const log of logsWithStatus) {
+      const images = getProgressLogImages(log.id);
+      if (images && images.length > 0) {
+        console.log(`Found progress log with images: ${log.id}, images:`, images);
+        return log;
+      }
+    }
+    
+    // Nếu không có log nào có ảnh, lấy log đầu tiên
+    console.log(`No progress log with images found, using first log: ${logsWithStatus[0].id}`);
+    return logsWithStatus[0];
+  };
+
   // Hàm fetch order details cho một đơn hàng
   const fetchOrderDetailsForOrder = useCallback(
     async (orderId) => {
@@ -378,6 +430,86 @@ const OrderHistory = () => {
       }
     },
     [dispatch, orderDetailsMap, loadingOrderDetails]
+  );
+
+  // Hàm fetch progress logs cho một đơn hàng
+  const fetchProgressLogsForOrder = useCallback(
+    async (orderId) => {
+      if (progressLogsMap[orderId] || loadingProgressLogs[orderId]) {
+        return; // Đã có data hoặc đang loading
+      }
+
+      setLoadingProgressLogs((prev) => ({ ...prev, [orderId]: true }));
+
+      try {
+        const result = await dispatch(
+          fetchProgressLogsByOrderId({ orderId, page: 1, size: 50 })
+        );
+
+        if (fetchProgressLogsByOrderId.fulfilled.match(result)) {
+          setProgressLogsMap((prev) => ({
+            ...prev,
+            [orderId]: result.payload.data,
+          }));
+          console.log(`Progress logs for ${orderId}:`, result.payload.data);
+        } else {
+          console.error(
+            `Failed to fetch progress logs for ${orderId}:`,
+            result.payload
+          );
+        }
+      } catch (error) {
+        console.error(`Error fetching progress logs for ${orderId}:`, error);
+      } finally {
+        setLoadingProgressLogs((prev) => ({ ...prev, [orderId]: false }));
+      }
+    },
+    [dispatch, progressLogsMap, loadingProgressLogs]
+  );
+
+  // Helper function để lấy ảnh progress log
+  const getProgressLogImages = (progressLogId) => {
+    const images = progressLogImagesMap[progressLogId] || [];
+    console.log(`getProgressLogImages for ${progressLogId}:`, images);
+    return images;
+  };
+
+  // Helper function để kiểm tra loading state của ảnh progress log
+  const isLoadingProgressLogImages = (progressLogId) => {
+    return loadingProgressLogImages[progressLogId] || false;
+  };
+
+  // Hàm fetch ảnh progress log cho một progress log
+  const fetchProgressLogImagesForLog = useCallback(
+    async (progressLogId) => {
+      if (progressLogImagesMap[progressLogId] || loadingProgressLogImages[progressLogId]) {
+        return; // Đã có data hoặc đang loading
+      }
+
+      setLoadingProgressLogImages((prev) => ({ ...prev, [progressLogId]: true }));
+
+      try {
+        const result = await dispatch(fetchProgressLogImages(progressLogId));
+
+        if (fetchProgressLogImages.fulfilled.match(result)) {
+          setProgressLogImagesMap((prev) => ({
+            ...prev,
+            [progressLogId]: result.payload.images,
+          }));
+          console.log(`Progress log images for ${progressLogId}:`, result.payload.images);
+        } else {
+          console.error(
+            `Failed to fetch progress log images for ${progressLogId}:`,
+            result.payload
+          );
+        }
+      } catch (error) {
+        console.error(`Error fetching progress log images for ${progressLogId}:`, error);
+      } finally {
+        setLoadingProgressLogImages((prev) => ({ ...prev, [progressLogId]: false }));
+      }
+    },
+    [dispatch, progressLogImagesMap, loadingProgressLogImages]
   );
   const handlePayRemaining = async (order) => {
     if (!order?.id) {
@@ -477,68 +609,234 @@ const OrderHistory = () => {
 
     if (currentStepIndex === -1) return null;
 
-    // Cập nhật hàm handleStepClick để hỗ trợ cả draftImageUrl và productImageUrl
+    // Lấy progress logs cho đơn hàng này
+    const progressLogs = getProgressLogs(order.id);
+    const producingLog = getProgressLogByStatus(order.id, "PRODUCING");
+
+    // Cập nhật hàm handleStepClick để hỗ trợ ảnh từ progress log
     const handleStepClick = async (step) => {
+      console.log("handleStepClick called with step:", step.key);
+      console.log("Current order:", order);
+      console.log("Current producingLog:", producingLog);
+      
       let imageUrl = null;
       let title = "";
+      let description = "";
+      let allImages = []; // Để lưu tất cả ảnh trong trường hợp có nhiều ảnh
 
-      // Xử lý cho step "Đang thi công" với draftImageUrl
-      if (step.key === "PRODUCING" && order?.draftImageUrl) {
-        imageUrl = order.draftImageUrl;
-        title = "Ảnh thiết kế - Đang thi công";
+      // Xử lý cho step "Đang thi công" - ưu tiên ảnh từ progress log
+      if (step.key === "PRODUCING") {
+        // Lấy tất cả progress logs có status PRODUCING
+        const allProgressLogs = getProgressLogs(order.id);
+        const producingLogs = allProgressLogs.filter(log => log.status === "PRODUCING");
+        console.log("All PRODUCING logs:", producingLogs);
+        
+        // Lấy tất cả ảnh từ các progress logs PRODUCING
+        let allProductionImages = [];
+        for (const log of producingLogs) {
+          const images = getProgressLogImages(log.id);
+          if (images && images.length > 0) {
+            allProductionImages.push(...images);
+          }
+        }
+        
+        console.log("All production images found:", allProductionImages);
+        
+        if (allProductionImages.length > 0) {
+          // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
+          imageUrl = allProductionImages[0].imageUrl;
+          allImages = allProductionImages.map(img => img.imageUrl);
+          title = `Ảnh tiến độ - Đang sản xuất (${allProductionImages.length} ảnh)`;
+          description = producingLogs.find(log => log.description)?.description || "Đang sản xuất";
+          console.log("Using production images:", { imageUrl, allImages, title });
+        } else if (order?.draftImageUrl) {
+          // Fallback về draftImageUrl cũ nếu chưa có ảnh progress log
+          imageUrl = order.draftImageUrl;
+          allImages = [order.draftImageUrl];
+          title = "Ảnh thiết kế - Đang thi công";
+          console.log("Fallback to draftImageUrl:", imageUrl);
+        }
       }
-      // Xử lý cho step "Đã thi công" với productImageUrl
-      else if (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) {
-        imageUrl = order.productImageUrl;
-        title = "Ảnh sản phẩm đã hoàn thành";
-      } else if (step.key === "DELIVERING" && order?.deliveryImageUrl) {
-        imageUrl = order.deliveryImageUrl;
-        title = "Ảnh vận chuyển - Đang vận chuyển";
-      } else if (step.key === "INSTALLED" && order?.installationImageUrl) {
-        imageUrl = order.installationImageUrl;
+      // Xử lý cho step "Đã thi công" - ưu tiên ảnh từ progress log
+      else if (step.key === "PRODUCTION_COMPLETED") {
+        // Lấy tất cả progress logs có status PRODUCTION_COMPLETED
+        const allProgressLogs = getProgressLogs(order.id);
+        const completedLogs = allProgressLogs.filter(log => log.status === "PRODUCTION_COMPLETED");
+        console.log("All PRODUCTION_COMPLETED logs:", completedLogs);
+        
+        // Lấy tất cả ảnh từ các progress logs PRODUCTION_COMPLETED
+        let allCompletedImages = [];
+        for (const log of completedLogs) {
+          const images = getProgressLogImages(log.id);
+          if (images && images.length > 0) {
+            allCompletedImages.push(...images);
+          }
+        }
+        
+        console.log("All production completed images found:", allCompletedImages);
+        
+        if (allCompletedImages.length > 0) {
+          // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
+          imageUrl = allCompletedImages[0].imageUrl;
+          allImages = allCompletedImages.map(img => img.imageUrl);
+          title = `Ảnh sản phẩm hoàn thành (${allCompletedImages.length} ảnh)`;
+          description = completedLogs.find(log => log.description)?.description || "Sản phẩm đã hoàn thành";
+          console.log("Using production completed images:", { imageUrl, allImages, title });
+        } else if (order?.productImageUrl) {
+          // Fallback về productImageUrl cũ nếu chưa có ảnh progress log
+          imageUrl = order.productImageUrl;
+          allImages = [order.productImageUrl];
+          title = "Ảnh sản phẩm đã hoàn thành";
+          console.log("Fallback to productImageUrl:", imageUrl);
+        }
+      }
+      // Xử lý cho step "Đang vận chuyển" - ưu tiên ảnh từ progress log
+      else if (step.key === "DELIVERING") {
+        // Lấy tất cả progress logs có status DELIVERING
+        const allProgressLogs = getProgressLogs(order.id);
+        const deliveringLogs = allProgressLogs.filter(log => log.status === "DELIVERING");
+        console.log("All DELIVERING logs:", deliveringLogs);
+        
+        // Lấy tất cả ảnh từ các progress logs DELIVERING
+        let allDeliveringImages = [];
+        for (const log of deliveringLogs) {
+          const images = getProgressLogImages(log.id);
+          if (images && images.length > 0) {
+            allDeliveringImages.push(...images);
+          }
+        }
+        
+        console.log("All delivering images found:", allDeliveringImages);
+        
+        if (allDeliveringImages.length > 0) {
+          // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
+          imageUrl = allDeliveringImages[0].imageUrl;
+          allImages = allDeliveringImages.map(img => img.imageUrl);
+          title = `Ảnh vận chuyển (${allDeliveringImages.length} ảnh)`;
+          description = deliveringLogs.find(log => log.description)?.description || "Đang vận chuyển";
+          console.log("Using delivering images:", { imageUrl, allImages, title });
+        } else if (order?.deliveryImageUrl) {
+          // Fallback về deliveryImageUrl cũ nếu chưa có ảnh progress log
+          imageUrl = order.deliveryImageUrl;
+          allImages = [order.deliveryImageUrl];
+          title = "Ảnh vận chuyển - Đang vận chuyển";
+          console.log("Fallback to deliveryImageUrl:", imageUrl);
+        }
+      }
+      // Xử lý cho step "Đã lắp đặt" - ưu tiên ảnh từ progress log
+      else if (step.key === "INSTALLED") {
+        // Lấy tất cả progress logs có status INSTALLED
+        const allProgressLogs = getProgressLogs(order.id);
+        const installedLogs = allProgressLogs.filter(log => log.status === "INSTALLED");
+        console.log("All INSTALLED logs:", installedLogs);
+        
+        // Lấy tất cả ảnh từ các progress logs INSTALLED
+        let allInstalledImages = [];
+        for (const log of installedLogs) {
+          const images = getProgressLogImages(log.id);
+          if (images && images.length > 0) {
+            allInstalledImages.push(...images);
+          }
+        }
+        
+        console.log("All installed images found:", allInstalledImages);
+        
+        if (allInstalledImages.length > 0) {
+          // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
+          imageUrl = allInstalledImages[0].imageUrl;
+          allImages = allInstalledImages.map(img => img.imageUrl);
+          title = `Ảnh lắp đặt hoàn thành (${allInstalledImages.length} ảnh)`;
+          description = installedLogs.find(log => log.description)?.description || "Đã lắp đặt hoàn thành";
+          console.log("Using installed images:", { imageUrl, allImages, title });
+        } else if (order?.installationImageUrl) {
+          // Fallback về installationImageUrl cũ nếu chưa có ảnh progress log
+          imageUrl = order.installationImageUrl;
+          allImages = [order.installationImageUrl];
+          title = "Ảnh lắp đặt hoàn thành - Đã lắp đặt";
+          console.log("Fallback to installationImageUrl:", imageUrl);
+        }
         title = "Ảnh lắp đặt hoàn thành - Đã lắp đặt";
       }
+      
       // Nếu không có ảnh thì không làm gì
-      if (!imageUrl) return;
+      if (!imageUrl || allImages.length === 0) return;
 
-      setImageDialog({
-        open: true,
-        imageUrl: null,
-        loading: true,
-        title: title,
-      });
+      // Nếu chỉ có 1 ảnh, hiển thị bằng dialog cũ
+      if (allImages.length === 1) {
+        setImageDialog({
+          open: true,
+          imageUrl: null,
+          loading: true,
+          title: title,
+          description: description,
+        });
 
-      try {
-        const result = await getPresignedUrl(imageUrl, 30);
-        if (result.success) {
-          setImageDialog((prev) => ({
-            ...prev,
-            imageUrl: result.url,
-            loading: false,
-          }));
-        } else {
+        try {
+          const result = await getImageFromS3(imageUrl);
+          if (result.success) {
+            setImageDialog((prev) => ({
+              ...prev,
+              imageUrl: result.imageUrl,
+              loading: false,
+            }));
+          } else {
+            setImageDialog((prev) => ({
+              ...prev,
+              loading: false,
+            }));
+            setNotification({
+              open: true,
+              message:
+                "Không thể tải ảnh: " + (result.message || "Lỗi không xác định"),
+              severity: "error",
+            });
+          }
+        } catch (error) {
+          console.error("Error getting image from S3:", error);
           setImageDialog((prev) => ({
             ...prev,
             loading: false,
           }));
           setNotification({
             open: true,
-            message:
-              "Không thể tải ảnh: " + (result.message || "Lỗi không xác định"),
+            message: "Có lỗi xảy ra khi tải ảnh",
             severity: "error",
           });
         }
-      } catch (error) {
-        console.error("Error getting presigned URL:", error);
-        setImageDialog((prev) => ({
-          ...prev,
-          loading: false,
-        }));
-        setNotification({
-          open: true,
-          message: "Có lỗi xảy ra khi tải ảnh",
-          severity: "error",
-        });
+      } else {
+        // Nếu có nhiều ảnh, hiển thị gallery
+        const loadAllImages = async () => {
+          try {
+            const imagePromises = allImages.map(async (img) => {
+              const result = await getImageFromS3(img);
+              return result.success ? result.imageUrl : null;
+            });
+
+            const resolvedImages = await Promise.all(imagePromises);
+            const validImages = resolvedImages.filter(img => img !== null);
+
+            if (validImages.length > 0) {
+              setGalleryImages(validImages);
+              setGalleryIndex(0);
+              setGalleryOpen(true);
+            } else {
+              setNotification({
+                open: true,
+                message: "Không thể tải ảnh",
+                severity: "error",
+              });
+            }
+          } catch (error) {
+            console.error("Error loading gallery images:", error);
+            setNotification({
+              open: true,
+              message: "Có lỗi xảy ra khi tải ảnh",
+              severity: "error",
+            });
+          }
+        };
+
+        loadAllImages();
       }
     };
 
@@ -589,7 +887,41 @@ const OrderHistory = () => {
         >
           {steps.map((step, index) => {
             // Kiểm tra xem step có thể click được không
+            let hasProgressLogImage = false;
+            const allProgressLogs = getProgressLogs(order.id);
+            
+            if (step.key === "PRODUCING") {
+              // Kiểm tra tất cả progress logs có status PRODUCING
+              const producingLogs = allProgressLogs.filter(log => log.status === "PRODUCING");
+              hasProgressLogImage = producingLogs.some(log => {
+                const images = getProgressLogImages(log.id);
+                return images && images.length > 0;
+              });
+            } else if (step.key === "PRODUCTION_COMPLETED") {
+              // Kiểm tra tất cả progress logs có status PRODUCTION_COMPLETED
+              const completedLogs = allProgressLogs.filter(log => log.status === "PRODUCTION_COMPLETED");
+              hasProgressLogImage = completedLogs.some(log => {
+                const images = getProgressLogImages(log.id);
+                return images && images.length > 0;
+              });
+            } else if (step.key === "DELIVERING") {
+              // Kiểm tra tất cả progress logs có status DELIVERING
+              const deliveringLogs = allProgressLogs.filter(log => log.status === "DELIVERING");
+              hasProgressLogImage = deliveringLogs.some(log => {
+                const images = getProgressLogImages(log.id);
+                return images && images.length > 0;
+              });
+            } else if (step.key === "INSTALLED") {
+              // Kiểm tra tất cả progress logs có status INSTALLED
+              const installedLogs = allProgressLogs.filter(log => log.status === "INSTALLED");
+              hasProgressLogImage = installedLogs.some(log => {
+                const images = getProgressLogImages(log.id);
+                return images && images.length > 0;
+              });
+            }
+            
             const isClickable =
+              hasProgressLogImage ||
               (step.key === "PRODUCING" && order?.draftImageUrl) ||
               (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) ||
               (step.key === "DELIVERING" && order?.deliveryImageUrl) ||
@@ -697,6 +1029,24 @@ const OrderHistory = () => {
                   {isClickable && " 📷"}
                 </Typography>
 
+                {/* Progress log description for PRODUCING step */}
+                {step.key === "PRODUCING" && producingLog && producingLog.description && (
+                  <Typography
+                    variant="caption"
+                    color="primary.main"
+                    textAlign="center"
+                    sx={{
+                      fontSize: "0.6rem",
+                      lineHeight: 1.1,
+                      maxWidth: 80,
+                      fontStyle: "italic",
+                      mt: 0.5,
+                    }}
+                  >
+                    "{producingLog.description}"
+                  </Typography>
+                )}
+
                 {/* Connecting line */}
                 {index < steps.length - 1 && (
                   <Box
@@ -732,43 +1082,124 @@ const OrderHistory = () => {
             {status === "PRODUCING" && (
               <>
                 🔨 Đơn hàng đang được thi công
-                {order?.draftImageUrl && (
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5, fontStyle: "italic" }}
-                  >
-                    💡 Click vào "Đang thi công" để xem ảnh thiết kế
-                  </Typography>
-                )}
+                {(() => {
+                  // Kiểm tra có ảnh progress log không từ tất cả progress logs PRODUCING
+                  const allProgressLogs = getProgressLogs(order.id);
+                  const producingLogs = allProgressLogs.filter(log => log.status === "PRODUCING");
+                  let totalProgressLogImages = 0;
+                  
+                  for (const log of producingLogs) {
+                    const images = getProgressLogImages(log.id);
+                    if (images && images.length > 0) {
+                      totalProgressLogImages += images.length;
+                    }
+                  }
+                  
+                  if (totalProgressLogImages > 0) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đang thi công" để xem ảnh tiến độ ({totalProgressLogImages} ảnh)
+                      </Typography>
+                    );
+                  } else if (order?.draftImageUrl) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đang thi công" để xem ảnh thiết kế
+                      </Typography>
+                    );
+                  }
+                  return null;
+                })()}
               </>
             )}
             {status === "PRODUCTION_COMPLETED" && (
               <>
                 ✅ Thi công hoàn tất, chuẩn bị vận chuyển
-                {order?.productImageUrl && (
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5, fontStyle: "italic" }}
-                  >
-                    💡 Click vào "Đã thi công" để xem ảnh sản phẩm hoàn thành
-                  </Typography>
-                )}
+                {(() => {
+                  // Kiểm tra có ảnh progress log không từ tất cả progress logs PRODUCTION_COMPLETED
+                  const allProgressLogs = getProgressLogs(order.id);
+                  const completedLogs = allProgressLogs.filter(log => log.status === "PRODUCTION_COMPLETED");
+                  let totalCompletedImages = 0;
+                  
+                  for (const log of completedLogs) {
+                    const images = getProgressLogImages(log.id);
+                    if (images && images.length > 0) {
+                      totalCompletedImages += images.length;
+                    }
+                  }
+                  
+                  if (totalCompletedImages > 0) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đã thi công" để xem ảnh sản phẩm hoàn thành ({totalCompletedImages} ảnh)
+                      </Typography>
+                    );
+                  } else if (order?.productImageUrl) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đã thi công" để xem ảnh sản phẩm hoàn thành
+                      </Typography>
+                    );
+                  }
+                  return null;
+                })()}
               </>
             )}
             {status === "DELIVERING" && (
               <>
                 🚛 Đang vận chuyển đến địa chỉ của bạn
-                {order?.deliveryImageUrl && (
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5, fontStyle: "italic" }}
-                  >
-                    💡 Click vào "Đang vận chuyển" để xem ảnh vận chuyển
-                  </Typography>
-                )}
+                {(() => {
+                  // Kiểm tra có ảnh progress log không từ tất cả progress logs DELIVERING
+                  const allProgressLogs = getProgressLogs(order.id);
+                  const deliveringLogs = allProgressLogs.filter(log => log.status === "DELIVERING");
+                  let totalDeliveringImages = 0;
+                  
+                  for (const log of deliveringLogs) {
+                    const images = getProgressLogImages(log.id);
+                    if (images && images.length > 0) {
+                      totalDeliveringImages += images.length;
+                    }
+                  }
+                  
+                  if (totalDeliveringImages > 0) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đang vận chuyển" để xem ảnh vận chuyển ({totalDeliveringImages} ảnh)
+                      </Typography>
+                    );
+                  } else if (order?.deliveryImageUrl) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đang vận chuyển" để xem ảnh vận chuyển
+                      </Typography>
+                    );
+                  }
+                  return null;
+                })()}
                 {/* Hiển thị hint cho các ảnh có thể xem từ các bước trước */}
                 {(order?.draftImageUrl || order?.productImageUrl) && (
                   <Typography
@@ -784,15 +1215,42 @@ const OrderHistory = () => {
             {status === "INSTALLED" && (
               <>
                 🎉 Đã lắp đặt hoàn tất!
-                {order?.installationImageUrl && (
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5, fontStyle: "italic" }}
-                  >
-                    💡 Click vào "Đã lắp đặt" để xem ảnh lắp đặt hoàn thành
-                  </Typography>
-                )}
+                {(() => {
+                  // Kiểm tra có ảnh progress log không từ tất cả progress logs INSTALLED
+                  const allProgressLogs = getProgressLogs(order.id);
+                  const installedLogs = allProgressLogs.filter(log => log.status === "INSTALLED");
+                  let totalInstalledImages = 0;
+                  
+                  for (const log of installedLogs) {
+                    const images = getProgressLogImages(log.id);
+                    if (images && images.length > 0) {
+                      totalInstalledImages += images.length;
+                    }
+                  }
+                  
+                  if (totalInstalledImages > 0) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đã lắp đặt" để xem ảnh lắp đặt hoàn thành ({totalInstalledImages} ảnh)
+                      </Typography>
+                    );
+                  } else if (order?.installationImageUrl) {
+                    return (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ mt: 0.5, fontStyle: "italic" }}
+                      >
+                        💡 Click vào "Đã lắp đặt" để xem ảnh lắp đặt hoàn thành
+                      </Typography>
+                    );
+                  }
+                  return null;
+                })()}
                 {/* Hiển thị hint cho tất cả các ảnh có thể xem từ các bước trước */}
                 {(order?.draftImageUrl ||
                   order?.productImageUrl ||
@@ -818,6 +1276,7 @@ const OrderHistory = () => {
       imageUrl: null,
       loading: false,
       title: "",
+      description: "",
     });
   };
   const handleUploadSignedContract = async (contractId, file) => {
@@ -1233,6 +1692,34 @@ const OrderHistory = () => {
       });
     }
   }, [tab, orders, fetchOrderDetailsForOrder]);
+
+  // useEffect để fetch progress logs cho tất cả đơn hàng ở tab 0 (Lịch sử đơn hàng)
+  useEffect(() => {
+    if (tab === 0 && orders.length > 0) {
+      console.log("Fetching progress logs for all orders in tab 0");
+      orders.forEach((order) => {
+        if (order.id && ["PRODUCING", "PRODUCTION_COMPLETED", "DELIVERING", "INSTALLED"].includes(order.status)) {
+          fetchProgressLogsForOrder(order.id);
+        }
+      });
+    }
+  }, [tab, orders, fetchProgressLogsForOrder]);
+
+  // useEffect để fetch ảnh progress logs cho các progress logs có status PRODUCING, PRODUCTION_COMPLETED, DELIVERING, INSTALLED
+  useEffect(() => {
+    if (tab === 0 && Object.keys(progressLogsMap).length > 0) {
+      console.log("Fetching progress log images for all relevant logs");
+      Object.entries(progressLogsMap).forEach(([orderId, progressLogs]) => {
+        if (progressLogs && progressLogs.length > 0) {
+          progressLogs.forEach((log) => {
+            if (["PRODUCING", "PRODUCTION_COMPLETED", "DELIVERING", "INSTALLED"].includes(log.status) && log.id) {
+              fetchProgressLogImagesForLog(log.id);
+            }
+          });
+        }
+      });
+    }
+  }, [tab, progressLogsMap, fetchProgressLogImagesForLog]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -1852,10 +2339,12 @@ const OrderHistory = () => {
                           left: 0,
                           width: 4,
                           height: "100%",
-                          background: order.aiDesigns
+                          background: order.orderType === "AI_DESIGN"
                             ? "linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)"
-                            : order.customDesignRequests
+                            : order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
                             ? "linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)"
+                            : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                            ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)"
                             : "linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)",
                         },
                       }}
@@ -1875,10 +2364,10 @@ const OrderHistory = () => {
                               mb={2}
                               flexWrap="wrap"
                             >
-                              {order.aiDesigns ? (
+                              {order.orderType === "AI_DESIGN" ? (
                                 <Chip
                                   icon={<SmartToyIcon />}
-                                  label="AI Design"
+                                  label="🤖 Đơn hàng AI"
                                   size="small"
                                   sx={{
                                     background:
@@ -1888,10 +2377,10 @@ const OrderHistory = () => {
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
-                              ) : order.customDesignRequests ? (
+                              ) : order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
                                 <Chip
                                   icon={<BrushIcon />}
-                                  label="Custom Design"
+                                  label="🏗️ Thiết kế thủ công (có thi công)"
                                   size="small"
                                   sx={{
                                     background:
@@ -1901,10 +2390,23 @@ const OrderHistory = () => {
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
+                              ) : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
+                                <Chip
+                                  icon={<BrushIcon />}
+                                  label="🎨 Thiết kế thủ công (không thi công)"
+                                  size="small"
+                                  sx={{
+                                    background:
+                                      "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    "& .MuiChip-icon": { color: "white" },
+                                  }}
+                                />
                               ) : (
                                 <Chip
                                   icon={<ShoppingBagIcon />}
-                                  label="Đơn hàng thường"
+                                  label="🛍️ Đơn hàng thường"
                                   size="small"
                                   sx={{
                                     background:
@@ -1948,22 +2450,29 @@ const OrderHistory = () => {
                                   mb: 1,
                                 }}
                               >
-                                Mã đơn: #{order.id}
+                                Mã đơn: #{order.orderCode || order.id}
                               </Typography>
 
-                              {order.customDesignRequests && (
+                              {(order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") && order.customDesignRequests && (
                                 <Typography
                                   color="text.secondary"
                                   fontSize={14}
                                   sx={{
-                                    background: "rgba(102, 126, 234, 0.04)",
+                                    background: order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+                                      ? "rgba(33, 150, 243, 0.04)" 
+                                      : "rgba(255, 152, 0, 0.04)",
                                     p: 1.5,
                                     borderRadius: 2,
-                                    border:
-                                      "1px solid rgba(102, 126, 234, 0.1)",
+                                    border: order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                      ? "1px solid rgba(33, 150, 243, 0.1)"
+                                      : "1px solid rgba(255, 152, 0, 0.1)",
                                   }}
                                 >
-                                  <b>Yêu cầu thiết kế:</b>{" "}
+                                  <b>
+                                    {order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+                                      ? "🏗️ Yêu cầu thiết kế (có thi công):" 
+                                      : "🎨 Yêu cầu thiết kế (không thi công):"}
+                                  </b>{" "}
                                   {order.customDesignRequests.requirements?.substring(
                                     0,
                                     50
@@ -1975,12 +2484,18 @@ const OrderHistory = () => {
                                 </Typography>
                               )}
 
-                              {order.aiDesigns && (
+                              {order.orderType === "AI_DESIGN" && order.aiDesigns && (
                                 <Typography
                                   color="text.secondary"
                                   fontSize={14}
+                                  sx={{
+                                    background: "rgba(156, 39, 176, 0.04)",
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    border: "1px solid rgba(156, 39, 176, 0.1)",
+                                  }}
                                 >
-                                  <b>Ghi chú:</b>{" "}
+                                  <b>🤖 Ghi chú AI Design:</b>{" "}
                                   {order.aiDesigns.customerNote?.substring(
                                     0,
                                     50
@@ -2036,7 +2551,7 @@ const OrderHistory = () => {
                                     {order.totalConstructionAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || "Chưa xác định"}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography
                                     color="text.secondary"
@@ -2046,7 +2561,7 @@ const OrderHistory = () => {
                                     {order.depositConstructionAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || "Chưa xác định"}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography
                                     color="text.secondary"
@@ -2056,7 +2571,7 @@ const OrderHistory = () => {
                                     {order.remainingConstructionAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || "Chưa xác định"}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   {order.totalDesignAmount && (
                                     <>
@@ -2068,7 +2583,7 @@ const OrderHistory = () => {
                                         {order.totalDesignAmount?.toLocaleString(
                                           "vi-VN"
                                         )}
-                                        ₫
+                                        VNĐ
                                       </Typography>
                                       {order.depositDesignAmount && (
                                         <Typography
@@ -2079,7 +2594,7 @@ const OrderHistory = () => {
                                           {order.depositDesignAmount?.toLocaleString(
                                             "vi-VN"
                                           )}
-                                          ₫
+                                          VNĐ
                                         </Typography>
                                       )}
                                       {order.remainingDesignAmount && (
@@ -2091,7 +2606,7 @@ const OrderHistory = () => {
                                           {order.remainingDesignAmount?.toLocaleString(
                                             "vi-VN"
                                           )}
-                                          ₫
+                                          VNĐ
                                         </Typography>
                                       )}
                                     </>
@@ -2110,9 +2625,10 @@ const OrderHistory = () => {
 
                               <Typography color="text.secondary" fontSize={14}>
                                 Tổng tiền:{" "}
-                                {order.totalAmount?.toLocaleString("vi-VN") ||
+                                {order.totalOrderAmount?.toLocaleString("vi-VN") ||
+                                  order.totalAmount?.toLocaleString("vi-VN") ||
                                   0}
-                                ₫
+                                VNĐ
                               </Typography>
                               {order.status === "DEPOSITED" && (
                                 <>
@@ -2121,17 +2637,21 @@ const OrderHistory = () => {
                                     fontSize={14}
                                   >
                                     Đã đặt cọc:{" "}
-                                    {order.depositAmount?.toLocaleString(
+                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.depositAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography color="info.main" fontSize={14}>
                                     Còn lại:{" "}
-                                    {order.remainingAmount?.toLocaleString(
+                                    {order.totalOrderRemainingAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.remainingAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                 </>
                               )}
@@ -2142,22 +2662,26 @@ const OrderHistory = () => {
                                     fontSize={14}
                                   >
                                     Đã đặt cọc:{" "}
-                                    {order.depositAmount?.toLocaleString(
+                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.depositAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
-                                  {order.remainingAmount > 0 ? (
+                                  {(order.totalOrderRemainingAmount || order.remainingAmount) > 0 ? (
                                     <Typography
                                       color="warning.main"
                                       fontSize={14}
                                       fontWeight={600}
                                     >
                                       🔔 Còn lại cần thanh toán:{" "}
-                                      {order.remainingAmount?.toLocaleString(
+                                      {order.totalOrderRemainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) || order.remainingAmount?.toLocaleString(
                                         "vi-VN"
                                       ) || 0}
-                                      ₫
+                                      VNĐ
                                     </Typography>
                                   ) : (
                                     <Typography
@@ -2179,7 +2703,7 @@ const OrderHistory = () => {
                                     {order.remainingAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                 )}
                               {order.status === "IN_PROGRESS" &&
@@ -2312,7 +2836,7 @@ const OrderHistory = () => {
                                                 {detail.detailConstructionAmount?.toLocaleString(
                                                   "vi-VN"
                                                 ) || 0}
-                                                ₫
+                                                VNĐ
                                               </Typography>
                                               {detail.detailDesignAmount && (
                                                 <Typography
@@ -2324,7 +2848,7 @@ const OrderHistory = () => {
                                                   {detail.detailDesignAmount.toLocaleString(
                                                     "vi-VN"
                                                   )}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               )}
                                               {detail.detailDepositDesignAmount && (
@@ -2337,7 +2861,7 @@ const OrderHistory = () => {
                                                   {detail.detailDepositDesignAmount.toLocaleString(
                                                     "vi-VN"
                                                   )}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               )}
                                               {detail.detailRemainingDesignAmount && (
@@ -2349,7 +2873,7 @@ const OrderHistory = () => {
                                                   {detail.detailRemainingDesignAmount.toLocaleString(
                                                     "vi-VN"
                                                   )}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               )}
                                             </Box>
@@ -2395,7 +2919,7 @@ const OrderHistory = () => {
                                                   {detail.customerChoiceHistories.totalAmount?.toLocaleString(
                                                     "vi-VN"
                                                   ) || 0}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               </Box>
                                             </Box>
@@ -2954,7 +3478,7 @@ const OrderHistory = () => {
                           </>
                         )}
                         {order.status === "INSTALLED" &&
-                          order.remainingAmount > 0 && (
+                          (order.totalOrderRemainingAmount || order.remainingAmount) > 0 && (
                             <Box
                               sx={{
                                 mt: 3,
@@ -2976,10 +3500,12 @@ const OrderHistory = () => {
                                     fontWeight={600}
                                   >
                                     🔔 Còn lại cần thanh toán:{" "}
-                                    {order.remainingAmount?.toLocaleString(
+                                    {order.totalOrderRemainingAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.remainingAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography
                                     variant="caption"
@@ -5489,6 +6015,36 @@ const OrderHistory = () => {
                     });
                   }}
                 />
+                {imageDialog.description && (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 2,
+                      backgroundColor: "primary.50",
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "primary.200",
+                      width: "100%",
+                      maxWidth: 600,
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      color="primary.dark"
+                      fontWeight={600}
+                      sx={{ mb: 1 }}
+                    >
+                      📝 Mô tả tiến độ:
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.primary"
+                      sx={{ fontStyle: "italic" }}
+                    >
+                      "{imageDialog.description}"
+                    </Typography>
+                  </Box>
+                )}
 
                 {/* Thông tin bổ sung */}
                 <Box
@@ -5750,7 +6306,7 @@ const OrderHistory = () => {
         <PhotoProvider
           visible={galleryOpen}
           onVisibleChange={(v) => setGalleryOpen(v)}
-          images={galleryImages.map((url) => ({ src: url }))}
+          images={galleryImages.map((url, index) => ({ src: url, key: index }))}
           defaultIndex={galleryIndex}
         >
           <PhotoView src={galleryImages[galleryIndex] || ""}>

@@ -33,6 +33,7 @@ import {
   CircularProgress,
   Alert,
   Avatar,
+  Snackbar,
 } from "@mui/material";
 import {
   Assignment as AssignmentIcon,
@@ -46,22 +47,22 @@ import {
   Refresh as RefreshIcon,
   CloudUpload as CloudUploadIcon,
   LocalShipping as LocalShippingIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 
 // Import Redux actions và selectors
 import {
   fetchOrders,
-  updateOrderStatus,
   ORDER_STATUS_MAP,
   selectOrders,
   selectOrderStatus,
   selectOrderError,
   selectOrderPagination,
-  updateOrderToProducing,
-  updateOrderToProductionCompleted,
-  updateOrderToDelivering,
-  updateOrderToInstalled,
 } from "../../store/features/order/orderSlice";
+import {
+  createProgressLog,
+  resetCreateStatus,
+} from "../../store/features/progressLog/progressLogSlice";
 import { getOrdersApi } from "../../api/orderService";
 
 const OrderManager = () => {
@@ -78,176 +79,59 @@ const OrderManager = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false); // Dialog upload file
-  const [selectedFile, setSelectedFile] = useState(null); // File được chọn
-  const [filePreview, setFilePreview] = useState(null); // Preview ảnh
   const [uploading, setUploading] = useState(false); // Trạng thái upload
+  const [description, setDescription] = useState(""); // Description cho progress log
+  const [selectedFiles, setSelectedFiles] = useState([]); // Multiple files
+  const [filePreviews, setFilePreviews] = useState([]); // Multiple file previews
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [statsLoading, setStatsLoading] = useState(false);
   const [productUploadDialogOpen, setProductUploadDialogOpen] = useState(false);
-  const [selectedProductFile, setSelectedProductFile] = useState(null);
-  const [productFilePreview, setProductFilePreview] = useState(null);
-  const [productUploading, setProductUploading] = useState(false);
   const [deliveryUploadDialogOpen, setDeliveryUploadDialogOpen] =
     useState(false);
-  const [selectedDeliveryFile, setSelectedDeliveryFile] = useState(null);
-  const [deliveryFilePreview, setDeliveryFilePreview] = useState(null);
-  const [deliveryUploading, setDeliveryUploading] = useState(false);
   const [installedUploadDialogOpen, setInstalledUploadDialogOpen] =
     useState(false);
-  const [selectedInstalledFile, setSelectedInstalledFile] = useState(null);
-  const [installedFilePreview, setInstalledFilePreview] = useState(null);
-  const [installedUploading, setInstalledUploading] = useState(false);
+  
+  // Snackbar state cho thông báo
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success", // success, error, warning, info
+  });
+
+  // Function để hiển thị thông báo
+  const showNotification = (message, severity = "success") => {
+    setSnackbar({
+      open: true,
+      message,
+      severity,
+    });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
   const openInstalledUploadDialog = (order) => {
     setSelectedOrder(order);
     setInstalledUploadDialogOpen(true);
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    setDescription("");
   };
-  const handleInstalledFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedInstalledFile(file);
 
-      // Tạo preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setInstalledFilePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  const handleUploadInstalledImage = async () => {
-    if (!selectedInstalledFile || !selectedOrder) {
-      alert("Vui lòng chọn file ảnh lắp đặt!");
-      return;
-    }
-
-    setInstalledUploading(true);
-    try {
-      await dispatch(
-        updateOrderToInstalled({
-          orderId: selectedOrder.id,
-          installedImageFile: selectedInstalledFile,
-        })
-      ).unwrap();
-
-      // Đóng dialog và reset state
-      setInstalledUploadDialogOpen(false);
-      setSelectedInstalledFile(null);
-      setInstalledFilePreview(null);
-      setSelectedOrder(null);
-
-      // Reload dữ liệu
-      loadOverviewStatsWithApi();
-      loadOrdersByTab(currentTab);
-
-      alert("Hoàn thành lắp đặt thành công!");
-    } catch (error) {
-      console.error("Error uploading installed image:", error);
-      alert("Có lỗi xảy ra khi upload ảnh lắp đặt: " + error);
-    } finally {
-      setInstalledUploading(false);
-    }
-  };
   const openDeliveryUploadDialog = (order) => {
     setSelectedOrder(order);
     setDeliveryUploadDialogOpen(true);
-  };
-
-  const handleDeliveryFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedDeliveryFile(file);
-
-      // Tạo preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setDeliveryFilePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  const handleUploadDeliveryImage = async () => {
-    if (!selectedDeliveryFile || !selectedOrder) {
-      alert("Vui lòng chọn file ảnh vận chuyển!");
-      return;
-    }
-
-    setDeliveryUploading(true);
-    try {
-      await dispatch(
-        updateOrderToDelivering({
-          orderId: selectedOrder.id,
-          deliveryImageFile: selectedDeliveryFile,
-        })
-      ).unwrap();
-
-      // Đóng dialog và reset state
-      setDeliveryUploadDialogOpen(false);
-      setSelectedDeliveryFile(null);
-      setDeliveryFilePreview(null);
-      setSelectedOrder(null);
-
-      // Reload dữ liệu
-      loadOverviewStatsWithApi();
-      loadOrdersByTab(currentTab);
-
-      alert("Bắt đầu vận chuyển thành công!");
-    } catch (error) {
-      console.error("Error uploading delivery image:", error);
-      alert("Có lỗi xảy ra khi upload ảnh vận chuyển: " + error);
-    } finally {
-      setDeliveryUploading(false);
-    }
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    setDescription("");
   };
   const openProductUploadDialog = (order) => {
     setSelectedOrder(order);
     setProductUploadDialogOpen(true);
-  };
-  const handleProductFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedProductFile(file);
-
-      // Tạo preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setProductFilePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  const handleUploadProductImage = async () => {
-    if (!selectedProductFile || !selectedOrder) {
-      alert("Vui lòng chọn file ảnh sản phẩm!");
-      return;
-    }
-
-    setProductUploading(true);
-    try {
-      await dispatch(
-        updateOrderToProductionCompleted({
-          orderId: selectedOrder.id,
-          productImageFile: selectedProductFile,
-        })
-      ).unwrap();
-
-      // Đóng dialog và reset state
-      setProductUploadDialogOpen(false);
-      setSelectedProductFile(null);
-      setProductFilePreview(null);
-      setSelectedOrder(null);
-
-      // Reload dữ liệu
-      loadOverviewStatsWithApi();
-      loadOrdersByTab(currentTab);
-
-      alert("Hoàn thành sản xuất thành công!");
-    } catch (error) {
-      console.error("Error uploading product image:", error);
-      alert("Có lỗi xảy ra khi upload ảnh sản phẩm: " + error);
-    } finally {
-      setProductUploading(false);
-    }
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    setDescription("");
   };
   const [overviewStats, setOverviewStats] = useState({
     inProgress: 0,
@@ -343,24 +227,6 @@ const OrderManager = () => {
     loadOrdersByTab(currentTab); // Refresh tab hiện tại
   };
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
-    try {
-      await dispatch(
-        updateOrderStatus({ orderId, status: newStatus })
-      ).unwrap();
-
-      // Reload thống kê và tab hiện tại
-      loadOverviewStats();
-      loadOrdersByTab(currentTab);
-
-      // Thông báo thành công
-      console.log("Cập nhật trạng thái thành công");
-    } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Có lỗi xảy ra khi cập nhật trạng thái");
-    }
-  };
-
   const getStatusChip = (status) => {
     const statusInfo = ORDER_STATUS_MAP[status] || {
       label: status,
@@ -370,21 +236,6 @@ const OrderManager = () => {
       <Chip label={statusInfo.label} color={statusInfo.color} size="small" />
     );
   };
-
-  const getPriorityChip = (priority) => (
-    <Chip
-      label={priority}
-      color={
-        priority === "HIGH"
-          ? "error"
-          : priority === "MEDIUM"
-          ? "warning"
-          : "default"
-      }
-      size="small"
-      variant="outlined"
-    />
-  );
 
   // Tính toán progress dựa trên status
  const calculateProgress = (status) => {
@@ -399,7 +250,7 @@ const OrderManager = () => {
       return 80;
     case "INSTALLED":
       return 100; // ✅ Sửa từ 90 thành 100
-    case "COMPLETED":
+    case "ORDER_COMPLETED":
       return 100;
     default:
       return 0;
@@ -439,60 +290,257 @@ const OrderManager = () => {
       </Box>
     );
   }
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Kiểm tra định dạng file
-      if (!file.type.startsWith("image/")) {
-        alert("Vui lòng chọn file ảnh!");
+
+  const handleMultipleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
+      // Kiểm tra định dạng và kích thước files
+      const validFiles = [];
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          showNotification(`File ${file.name} không phải là ảnh!`, "warning");
+          continue;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+          showNotification(`File ${file.name} quá lớn! Vui lòng chọn file nhỏ hơn 5MB.`, "warning");
+          continue;
+        }
+        
+        validFiles.push(file);
+      }
+      
+      if (validFiles.length === 0) {
         return;
       }
+      
+      setSelectedFiles(validFiles);
 
-      // Kiểm tra kích thước file (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert("File quá lớn! Vui lòng chọn file nhỏ hơn 5MB.");
-        return;
-      }
-
-      setSelectedFile(file);
-
-      // Tạo preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFilePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
+      // Tạo preview cho từng file
+      const previews = [];
+      let loadedCount = 0;
+      
+      validFiles.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previews[index] = {
+            id: index,
+            file: file,
+            preview: e.target.result,
+            name: file.name,
+            size: file.size
+          };
+          
+          loadedCount++;
+          if (loadedCount === validFiles.length) {
+            setFilePreviews(previews);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
+
+  const removeFile = (indexToRemove) => {
+    const updatedFiles = selectedFiles.filter((_, index) => index !== indexToRemove);
+    const updatedPreviews = filePreviews.filter((_, index) => index !== indexToRemove);
+    
+    // Cập nhật lại id cho các preview còn lại
+    const reindexedPreviews = updatedPreviews.map((preview, newIndex) => ({
+      ...preview,
+      id: newIndex
+    }));
+    
+    setSelectedFiles(updatedFiles);
+    setFilePreviews(reindexedPreviews);
+  };
   const handleUploadDraftImage = async () => {
-    if (!selectedFile || !selectedOrder) {
-      alert("Vui lòng chọn file ảnh!");
+    if (selectedFiles.length === 0 || !selectedOrder) {
+      showNotification("Vui lòng chọn ít nhất một file ảnh!", "warning");
+      return;
+    }
+
+    if (!description.trim()) {
+      showNotification("Vui lòng nhập mô tả!", "warning");
       return;
     }
 
     setUploading(true);
     try {
+      // Gọi API createProgressLog thay vì updateOrderToProducing
       await dispatch(
-        updateOrderToProducing({
+        createProgressLog({
           orderId: selectedOrder.id,
-          draftImageFile: selectedFile,
+          progressLogData: {
+            description: description.trim(),
+            status: "PRODUCING",
+            progressLogImages: selectedFiles,
+          },
         })
       ).unwrap();
 
       // Đóng dialog và reset state
       setUploadDialogOpen(false);
-      setSelectedFile(null);
-      setFilePreview(null);
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      setDescription("");
       setSelectedOrder(null);
+      
+      // Reset create status
+      dispatch(resetCreateStatus());
 
       // Reload dữ liệu
-      loadOverviewStats();
+      loadOverviewStatsWithApi();
       loadOrdersByTab(currentTab);
 
-      alert("Cập nhật trạng thái sản xuất thành công!");
+      showNotification("Bắt đầu thi công thành công! 🔨", "success");
     } catch (error) {
-      console.error("Error uploading draft image:", error);
-      alert("Có lỗi xảy ra khi upload ảnh: " + error);
+      console.error("Error creating progress log:", error);
+      showNotification("Có lỗi xảy ra khi tạo progress log: " + error, "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUploadProductionCompletedImage = async () => {
+    if (selectedFiles.length === 0 || !selectedOrder) {
+      showNotification("Vui lòng chọn ít nhất một file ảnh!", "warning");
+      return;
+    }
+
+    if (!description.trim()) {
+      showNotification("Vui lòng nhập mô tả!", "warning");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Gọi API createProgressLog cho PRODUCTION_COMPLETED
+      await dispatch(
+        createProgressLog({
+          orderId: selectedOrder.id,
+          progressLogData: {
+            description: description.trim(),
+            status: "PRODUCTION_COMPLETED",
+            progressLogImages: selectedFiles,
+          },
+        })
+      ).unwrap();
+
+      // Đóng dialog và reset state
+      setProductUploadDialogOpen(false);
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      setDescription("");
+      setSelectedOrder(null);
+      
+      // Reset create status
+      dispatch(resetCreateStatus());
+
+      // Reload dữ liệu
+      loadOverviewStatsWithApi();
+      loadOrdersByTab(currentTab);
+
+      showNotification("Hoàn thành sản xuất thành công! 🎉", "success");
+    } catch (error) {
+      console.error("Error creating progress log for production completed:", error);
+      showNotification("Có lỗi xảy ra khi tạo progress log: " + error, "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUploadDeliveryProgressImage = async () => {
+    if (selectedFiles.length === 0 || !selectedOrder) {
+      showNotification("Vui lòng chọn ít nhất một file ảnh!", "warning");
+      return;
+    }
+
+    if (!description.trim()) {
+      showNotification("Vui lòng nhập mô tả!", "warning");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Gọi API createProgressLog cho DELIVERING
+      await dispatch(
+        createProgressLog({
+          orderId: selectedOrder.id,
+          progressLogData: {
+            description: description.trim(),
+            status: "DELIVERING",
+            progressLogImages: selectedFiles,
+          },
+        })
+      ).unwrap();
+
+      // Đóng dialog và reset state
+      setDeliveryUploadDialogOpen(false);
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      setDescription("");
+      setSelectedOrder(null);
+      
+      // Reset create status
+      dispatch(resetCreateStatus());
+
+      // Reload dữ liệu
+      loadOverviewStatsWithApi();
+      loadOrdersByTab(currentTab);
+
+      showNotification("Bắt đầu vận chuyển thành công! 🚚", "success");
+    } catch (error) {
+      console.error("Error creating progress log for delivery:", error);
+      showNotification("Có lỗi xảy ra khi tạo progress log: " + error, "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUploadInstalledProgressImage = async () => {
+    if (selectedFiles.length === 0 || !selectedOrder) {
+      showNotification("Vui lòng chọn ít nhất một file ảnh!", "warning");
+      return;
+    }
+
+    if (!description.trim()) {
+      showNotification("Vui lòng nhập mô tả!", "warning");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Gọi API createProgressLog cho INSTALLED
+      await dispatch(
+        createProgressLog({
+          orderId: selectedOrder.id,
+          progressLogData: {
+            description: description.trim(),
+            status: "INSTALLED",
+            progressLogImages: selectedFiles,
+          },
+        })
+      ).unwrap();
+
+      // Đóng dialog và reset state
+      setInstalledUploadDialogOpen(false);
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      setDescription("");
+      setSelectedOrder(null);
+      
+      // Reset create status
+      dispatch(resetCreateStatus());
+
+      // Reload dữ liệu
+      loadOverviewStatsWithApi();
+      loadOrdersByTab(currentTab);
+
+      showNotification("Hoàn thành lắp đặt thành công! 🎊", "success");
+    } catch (error) {
+      console.error("Error creating progress log for installed:", error);
+      showNotification("Có lỗi xảy ra khi tạo progress log: " + error, "error");
     } finally {
       setUploading(false);
     }
@@ -500,8 +548,9 @@ const OrderManager = () => {
   const openUploadDialog = (order) => {
     setSelectedOrder(order);
     setUploadDialogOpen(true);
-    setSelectedFile(null);
-    setFilePreview(null);
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    setDescription("");
   };
   return (
     <Box sx={{ p: 3 }}>
@@ -682,7 +731,7 @@ const OrderManager = () => {
               ) : (
                 orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell>{order.id}</TableCell>
+                    <TableCell>{order.orderCode || order.id}</TableCell>
                     <TableCell>
                       {order.users?.fullName ||
                         order.user?.name ||
@@ -779,7 +828,7 @@ const OrderManager = () => {
                     <Dialog
                       open={installedUploadDialogOpen}
                       onClose={() => setInstalledUploadDialogOpen(false)}
-                      maxWidth="sm"
+                      maxWidth="md"
                       fullWidth
                     >
                       <DialogTitle>
@@ -787,13 +836,13 @@ const OrderManager = () => {
                           sx={{ display: "flex", alignItems: "center", gap: 1 }}
                         >
                           <CheckCircleIcon color="success" />
-                          Hoàn thành lắp đặt - Upload ảnh lắp đặt
+                          Hoàn thành lắp đặt
                         </Box>
                       </DialogTitle>
                       <DialogContent>
                         <Box sx={{ mb: 2 }}>
                           <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.id}
+                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Khách hàng:{" "}
@@ -809,45 +858,73 @@ const OrderManager = () => {
                             fullWidth
                             sx={{ mb: 2 }}
                           >
-                            Chọn ảnh lắp đặt hoàn thành
+                            Chọn nhiều ảnh lắp đặt
                             <input
                               type="file"
                               accept="image/*"
+                              multiple
                               hidden
-                              onChange={handleInstalledFileSelect}
+                              onChange={handleMultipleFileSelect}
                             />
                           </Button>
 
-                          {selectedInstalledFile && (
-                            <Typography variant="body2" color="text.secondary">
-                              File đã chọn: {selectedInstalledFile.name} (
-                              {(
-                                selectedInstalledFile.size /
-                                1024 /
-                                1024
-                              ).toFixed(2)}
-                              MB)
+                          {selectedFiles.length > 0 && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Đã chọn {selectedFiles.length} file
                             </Typography>
+                          )}
+
+                          {filePreviews.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="subtitle2" gutterBottom>
+                                Xem trước ({filePreviews.length} ảnh):
+                              </Typography>
+                              <Grid container spacing={2}>
+                                {filePreviews.map((preview, index) => (
+                                  <Grid item xs={6} sm={4} key={index}>
+                                    <Box sx={{ position: "relative" }}>
+                                      <Avatar
+                                        src={preview.preview || preview}
+                                        variant="rounded"
+                                        sx={{
+                                          width: "100%",
+                                          height: 120,
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                      <IconButton
+                                        size="small"
+                                        sx={{
+                                          position: "absolute",
+                                          top: 4,
+                                          right: 4,
+                                          backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                          "&:hover": {
+                                            backgroundColor: "rgba(255, 255, 255, 0.9)",
+                                          },
+                                        }}
+                                        onClick={() => removeFile(index)}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+                                  </Grid>
+                                ))}
+                              </Grid>
+                            </Box>
                           )}
                         </Box>
 
-                        {installedFilePreview && (
-                          <Box sx={{ mb: 2, textAlign: "center" }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              Xem trước:
-                            </Typography>
-                            <Avatar
-                              src={installedFilePreview}
-                              variant="rounded"
-                              sx={{
-                                width: "100%",
-                                height: 200,
-                                margin: "0 auto",
-                                objectFit: "contain",
-                              }}
-                            />
-                          </Box>
-                        )}
+                        <TextField
+                          fullWidth
+                          label="Mô tả hoàn thành lắp đặt"
+                          multiline
+                          rows={3}
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Nhập mô tả về tình trạng lắp đặt hoàn thành..."
+                          sx={{ mb: 2 }}
+                        />
 
                         <Alert severity="success" sx={{ mt: 2 }}>
                           Sau khi upload, trạng thái đơn hàng sẽ chuyển thành
@@ -857,26 +934,24 @@ const OrderManager = () => {
                       <DialogActions>
                         <Button
                           onClick={() => setInstalledUploadDialogOpen(false)}
-                          disabled={installedUploading}
+                          disabled={uploading}
                         >
                           Hủy
                         </Button>
                         <Button
                           variant="contained"
                           color="success"
-                          onClick={handleUploadInstalledImage}
-                          disabled={
-                            !selectedInstalledFile || installedUploading
-                          }
+                          onClick={handleUploadInstalledProgressImage}
+                          disabled={selectedFiles.length === 0 || uploading || !description.trim()}
                           startIcon={
-                            installedUploading ? (
+                            uploading ? (
                               <CircularProgress size={16} />
                             ) : (
                               <CheckCircleIcon />
                             )
                           }
                         >
-                          {installedUploading
+                          {uploading
                             ? "Đang xử lý..."
                             : "Hoàn thành lắp đặt"}
                         </Button>
@@ -899,7 +974,7 @@ const OrderManager = () => {
                       <DialogContent>
                         <Box sx={{ mb: 2 }}>
                           <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.id}
+                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Khách hàng:{" "}
@@ -907,6 +982,21 @@ const OrderManager = () => {
                           </Typography>
                         </Box>
 
+                        {/* Description Input */}
+                        <Box sx={{ mb: 3 }}>
+                          <TextField
+                            label="Mô tả tiến độ"
+                            multiline
+                            rows={3}
+                            fullWidth
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Nhập mô tả về quá trình vận chuyển..."
+                            variant="outlined"
+                          />
+                        </Box>
+
+                        {/* Multiple File Input */}
                         <Box sx={{ mb: 3 }}>
                           <Button
                             variant="outlined"
@@ -915,72 +1005,96 @@ const OrderManager = () => {
                             fullWidth
                             sx={{ mb: 2 }}
                           >
-                            Chọn ảnh vận chuyển
+                            Chọn ảnh vận chuyển (có thể chọn nhiều file)
                             <input
                               type="file"
                               accept="image/*"
+                              multiple
                               hidden
-                              onChange={handleDeliveryFileSelect}
+                              onChange={handleMultipleFileSelect}
                             />
                           </Button>
 
-                          {selectedDeliveryFile && (
-                            <Typography variant="body2" color="text.secondary">
-                              File đã chọn: {selectedDeliveryFile.name} (
-                              {(
-                                selectedDeliveryFile.size /
-                                1024 /
-                                1024
-                              ).toFixed(2)}
-                              MB)
+                          {selectedFiles.length > 0 && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Đã chọn {selectedFiles.length} file
                             </Typography>
                           )}
                         </Box>
 
-                        {deliveryFilePreview && (
-                          <Box sx={{ mb: 2, textAlign: "center" }}>
+                        {/* Preview multiple images */}
+                        {filePreviews.length > 0 && (
+                          <Box sx={{ mb: 2 }}>
                             <Typography variant="subtitle2" gutterBottom>
                               Xem trước:
                             </Typography>
-                            <Avatar
-                              src={deliveryFilePreview}
-                              variant="rounded"
-                              sx={{
-                                width: "100%",
-                                height: 200,
-                                margin: "0 auto",
-                                objectFit: "contain",
-                              }}
-                            />
+                            <Grid container spacing={2}>
+                              {filePreviews.map((preview, index) => (
+                                <Grid item xs={6} sm={4} key={index}>
+                                  <Box sx={{ position: 'relative' }}>
+                                    <Avatar
+                                      src={preview.preview}
+                                      variant="rounded"
+                                      sx={{
+                                        width: "100%",
+                                        height: 120,
+                                        objectFit: "contain",
+                                      }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      sx={{
+                                        position: 'absolute',
+                                        top: -8,
+                                        right: -8,
+                                        backgroundColor: 'error.main',
+                                        color: 'white',
+                                        '&:hover': {
+                                          backgroundColor: 'error.dark',
+                                        },
+                                      }}
+                                      onClick={() => removeFile(index)}
+                                    >
+                                      <CancelIcon fontSize="small" />
+                                    </IconButton>
+                                    <Typography variant="caption" display="block" textAlign="center" sx={{ mt: 1 }}>
+                                      {preview.name}
+                                    </Typography>
+                                    <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
+                                      {(preview.size / 1024 / 1024).toFixed(2)}MB
+                                    </Typography>
+                                  </Box>
+                                </Grid>
+                              ))}
+                            </Grid>
                           </Box>
                         )}
 
                         <Alert severity="info" sx={{ mt: 2 }}>
-                          Sau khi upload, trạng thái đơn hàng sẽ chuyển thành
-                          "Đang vận chuyển"
+                          Sau khi upload, sẽ tạo progress log mới và trạng thái đơn hàng sẽ chuyển thành "Đang vận chuyển"
                         </Alert>
                       </DialogContent>
                       <DialogActions>
                         <Button
                           onClick={() => setDeliveryUploadDialogOpen(false)}
-                          disabled={deliveryUploading}
+                          disabled={uploading}
                         >
                           Hủy
                         </Button>
                         <Button
                           variant="contained"
                           color="info"
-                          onClick={handleUploadDeliveryImage}
-                          disabled={!selectedDeliveryFile || deliveryUploading}
+                          onClick={handleUploadDeliveryProgressImage}
+                          disabled={selectedFiles.length === 0 || !description.trim() || uploading}
                           startIcon={
-                            deliveryUploading ? (
+                            uploading ? (
                               <CircularProgress size={16} />
                             ) : (
                               <LocalShippingIcon />
                             )
                           }
                         >
-                          {deliveryUploading
+                          {uploading
                             ? "Đang xử lý..."
                             : "Bắt đầu vận chuyển"}
                         </Button>
@@ -1003,7 +1117,7 @@ const OrderManager = () => {
                       <DialogContent>
                         <Box sx={{ mb: 2 }}>
                           <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.id}
+                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Khách hàng:{" "}
@@ -1011,6 +1125,21 @@ const OrderManager = () => {
                           </Typography>
                         </Box>
 
+                        {/* Description Input */}
+                        <Box sx={{ mb: 3 }}>
+                          <TextField
+                            label="Mô tả tiến độ"
+                            multiline
+                            rows={3}
+                            fullWidth
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Nhập mô tả về sản phẩm hoàn thành..."
+                            variant="outlined"
+                          />
+                        </Box>
+
+                        {/* Multiple File Input */}
                         <Box sx={{ mb: 3 }}>
                           <Button
                             variant="outlined"
@@ -1019,70 +1148,96 @@ const OrderManager = () => {
                             fullWidth
                             sx={{ mb: 2 }}
                           >
-                            Chọn ảnh sản phẩm hoàn thành
+                            Chọn ảnh sản phẩm hoàn thành (có thể chọn nhiều file)
                             <input
                               type="file"
                               accept="image/*"
+                              multiple
                               hidden
-                              onChange={handleProductFileSelect}
+                              onChange={handleMultipleFileSelect}
                             />
                           </Button>
 
-                          {selectedProductFile && (
-                            <Typography variant="body2" color="text.secondary">
-                              File đã chọn: {selectedProductFile.name} (
-                              {(selectedProductFile.size / 1024 / 1024).toFixed(
-                                2
-                              )}
-                              MB)
+                          {selectedFiles.length > 0 && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Đã chọn {selectedFiles.length} file
                             </Typography>
                           )}
                         </Box>
 
-                        {productFilePreview && (
-                          <Box sx={{ mb: 2, textAlign: "center" }}>
+                        {/* Preview multiple images */}
+                        {filePreviews.length > 0 && (
+                          <Box sx={{ mb: 2 }}>
                             <Typography variant="subtitle2" gutterBottom>
                               Xem trước:
                             </Typography>
-                            <Avatar
-                              src={productFilePreview}
-                              variant="rounded"
-                              sx={{
-                                width: "100%",
-                                height: 200,
-                                margin: "0 auto",
-                                objectFit: "contain",
-                              }}
-                            />
+                            <Grid container spacing={2}>
+                              {filePreviews.map((preview, index) => (
+                                <Grid item xs={6} sm={4} key={index}>
+                                  <Box sx={{ position: 'relative' }}>
+                                    <Avatar
+                                      src={preview.preview}
+                                      variant="rounded"
+                                      sx={{
+                                        width: "100%",
+                                        height: 120,
+                                        objectFit: "contain",
+                                      }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      sx={{
+                                        position: 'absolute',
+                                        top: -8,
+                                        right: -8,
+                                        backgroundColor: 'error.main',
+                                        color: 'white',
+                                        '&:hover': {
+                                          backgroundColor: 'error.dark',
+                                        },
+                                      }}
+                                      onClick={() => removeFile(index)}
+                                    >
+                                      <CancelIcon fontSize="small" />
+                                    </IconButton>
+                                    <Typography variant="caption" display="block" textAlign="center" sx={{ mt: 1 }}>
+                                      {preview.name}
+                                    </Typography>
+                                    <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
+                                      {(preview.size / 1024 / 1024).toFixed(2)}MB
+                                    </Typography>
+                                  </Box>
+                                </Grid>
+                              ))}
+                            </Grid>
                           </Box>
                         )}
 
                         <Alert severity="success" sx={{ mt: 2 }}>
-                          Sau khi upload, trạng thái đơn hàng sẽ chuyển thành
-                          "Hoàn thành sản xuất"
+                          Sau khi upload, sẽ tạo progress log mới và trạng thái đơn hàng sẽ chuyển thành "Hoàn thành sản xuất"
                         </Alert>
                       </DialogContent>
                       <DialogActions>
                         <Button
                           onClick={() => setProductUploadDialogOpen(false)}
-                          disabled={productUploading}
+                          disabled={uploading}
                         >
                           Hủy
                         </Button>
                         <Button
                           variant="contained"
                           color="success"
-                          onClick={handleUploadProductImage}
-                          disabled={!selectedProductFile || productUploading}
+                          onClick={handleUploadProductionCompletedImage}
+                          disabled={selectedFiles.length === 0 || !description.trim() || uploading}
                           startIcon={
-                            productUploading ? (
+                            uploading ? (
                               <CircularProgress size={16} />
                             ) : (
                               <CheckCircleIcon />
                             )
                           }
                         >
-                          {productUploading
+                          {uploading
                             ? "Đang xử lý..."
                             : "Hoàn thành sản xuất"}
                         </Button>
@@ -1109,14 +1264,28 @@ const OrderManager = () => {
           <DialogContent>
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Đơn hàng: {selectedOrder?.id}
+                Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Khách hàng: {selectedOrder?.users?.fullName || "N/A"}
               </Typography>
             </Box>
 
-            {/* File Input */}
+            {/* Description Input */}
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                label="Mô tả tiến độ"
+                multiline
+                rows={3}
+                fullWidth
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Nhập mô tả về tiến độ công việc..."
+                variant="outlined"
+              />
+            </Box>
+
+            {/* Multiple File Input */}
             <Box sx={{ mb: 3 }}>
               <Button
                 variant="outlined"
@@ -1125,45 +1294,73 @@ const OrderManager = () => {
                 fullWidth
                 sx={{ mb: 2 }}
               >
-                Chọn ảnh thiết kế
+                Chọn ảnh thiết kế (có thể chọn nhiều file)
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   hidden
-                  onChange={handleFileSelect}
+                  onChange={handleMultipleFileSelect}
                 />
               </Button>
 
-              {selectedFile && (
-                <Typography variant="body2" color="text.secondary">
-                  File đã chọn: {selectedFile.name} (
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
+              {selectedFiles.length > 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Đã chọn {selectedFiles.length} file
                 </Typography>
               )}
             </Box>
 
-            {/* Preview ảnh */}
-            {filePreview && (
-              <Box sx={{ mb: 2, textAlign: "center" }}>
+            {/* Preview multiple images */}
+            {filePreviews.length > 0 && (
+              <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Xem trước:
                 </Typography>
-                <Avatar
-                  src={filePreview}
-                  variant="rounded"
-                  sx={{
-                    width: "100%",
-                    height: 200,
-                    margin: "0 auto",
-                    objectFit: "contain",
-                  }}
-                />
+                <Grid container spacing={2}>
+                  {filePreviews.map((preview, index) => (
+                    <Grid item xs={6} sm={4} key={index}>
+                      <Box sx={{ position: 'relative' }}>
+                        <Avatar
+                          src={preview.preview}
+                          variant="rounded"
+                          sx={{
+                            width: "100%",
+                            height: 120,
+                            objectFit: "contain",
+                          }}
+                        />
+                        <IconButton
+                          size="small"
+                          sx={{
+                            position: 'absolute',
+                            top: -8,
+                            right: -8,
+                            backgroundColor: 'error.main',
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: 'error.dark',
+                            },
+                          }}
+                          onClick={() => removeFile(index)}
+                        >
+                          <CancelIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="caption" display="block" textAlign="center" sx={{ mt: 1 }}>
+                          {preview.name}
+                        </Typography>
+                        <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
+                          {(preview.size / 1024 / 1024).toFixed(2)}MB
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
               </Box>
             )}
 
             <Alert severity="info" sx={{ mt: 2 }}>
-              Sau khi upload, trạng thái đơn hàng sẽ chuyển thành "Đang thi
-              công"
+              Sau khi upload, sẽ tạo progress log mới và trạng thái đơn hàng sẽ chuyển thành "Đang sản xuất"
             </Alert>
           </DialogContent>
           <DialogActions>
@@ -1176,12 +1373,12 @@ const OrderManager = () => {
             <Button
               variant="contained"
               onClick={handleUploadDraftImage}
-              disabled={!selectedFile || uploading}
+              disabled={selectedFiles.length === 0 || !description.trim() || uploading}
               startIcon={
                 uploading ? <CircularProgress size={16} /> : <BuildIcon />
               }
             >
-              {uploading ? "Đang xử lý..." : "Bắt đầu thi công"}
+              {uploading ? "Đang xử lý..." : "Bắt đầu sản xuất"}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1203,7 +1400,7 @@ const OrderManager = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Chi tiết đơn hàng {selectedOrder?.id}</DialogTitle>
+        <DialogTitle>Chi tiết đơn hàng {selectedOrder?.orderCode || selectedOrder?.id}</DialogTitle>
         <DialogContent>
           {selectedOrder && (
             <Grid container spacing={2}>
@@ -1241,6 +1438,22 @@ const OrderManager = () => {
           <Button variant="contained">Cập nhật</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
