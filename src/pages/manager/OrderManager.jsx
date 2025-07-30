@@ -399,7 +399,7 @@ const OrderManager = () => {
       return 80;
     case "INSTALLED":
       return 100; // ✅ Sửa từ 90 thành 100
-    case "COMPLETED":
+    case "ORDER_COMPLETED":
       return 100;
     default:
       return 0;
@@ -682,7 +682,7 @@ const OrderManager = () => {
               ) : (
                 orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell>{order.id}</TableCell>
+                    <TableCell>{order.orderCode || order.id}</TableCell>
                     <TableCell>
                       {order.users?.fullName ||
                         order.user?.name ||
@@ -793,7 +793,7 @@ const OrderManager = () => {
                       <DialogContent>
                         <Box sx={{ mb: 2 }}>
                           <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.id}
+                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Khách hàng:{" "}
@@ -899,7 +899,7 @@ const OrderManager = () => {
                       <DialogContent>
                         <Box sx={{ mb: 2 }}>
                           <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.id}
+                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Khách hàng:{" "}
@@ -1003,7 +1003,7 @@ const OrderManager = () => {
                       <DialogContent>
                         <Box sx={{ mb: 2 }}>
                           <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.id}
+                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Khách hàng:{" "}
@@ -1109,7 +1109,7 @@ const OrderManager = () => {
           <DialogContent>
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Đơn hàng: {selectedOrder?.id}
+                Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Khách hàng: {selectedOrder?.users?.fullName || "N/A"}
@@ -1203,7 +1203,7 @@ const OrderManager = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Chi tiết đơn hàng {selectedOrder?.id}</DialogTitle>
+        <DialogTitle>Chi tiết đơn hàng {selectedOrder?.orderCode || selectedOrder?.id}</DialogTitle>
         <DialogContent>
           {selectedOrder && (
             <Grid container spacing={2}>

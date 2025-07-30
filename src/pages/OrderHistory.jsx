@@ -1948,7 +1948,7 @@ const OrderHistory = () => {
                                   mb: 1,
                                 }}
                               >
-                                Mã đơn: #{order.id}
+                                Mã đơn: #{order.orderCode || order.id}
                               </Typography>
 
                               {order.customDesignRequests && (
@@ -2036,7 +2036,7 @@ const OrderHistory = () => {
                                     {order.totalConstructionAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || "Chưa xác định"}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography
                                     color="text.secondary"
@@ -2046,7 +2046,7 @@ const OrderHistory = () => {
                                     {order.depositConstructionAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || "Chưa xác định"}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography
                                     color="text.secondary"
@@ -2056,7 +2056,7 @@ const OrderHistory = () => {
                                     {order.remainingConstructionAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || "Chưa xác định"}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   {order.totalDesignAmount && (
                                     <>
@@ -2068,7 +2068,7 @@ const OrderHistory = () => {
                                         {order.totalDesignAmount?.toLocaleString(
                                           "vi-VN"
                                         )}
-                                        ₫
+                                        VNĐ
                                       </Typography>
                                       {order.depositDesignAmount && (
                                         <Typography
@@ -2079,7 +2079,7 @@ const OrderHistory = () => {
                                           {order.depositDesignAmount?.toLocaleString(
                                             "vi-VN"
                                           )}
-                                          ₫
+                                          VNĐ
                                         </Typography>
                                       )}
                                       {order.remainingDesignAmount && (
@@ -2091,7 +2091,7 @@ const OrderHistory = () => {
                                           {order.remainingDesignAmount?.toLocaleString(
                                             "vi-VN"
                                           )}
-                                          ₫
+                                          VNĐ
                                         </Typography>
                                       )}
                                     </>
@@ -2110,9 +2110,10 @@ const OrderHistory = () => {
 
                               <Typography color="text.secondary" fontSize={14}>
                                 Tổng tiền:{" "}
-                                {order.totalAmount?.toLocaleString("vi-VN") ||
+                                {order.totalOrderAmount?.toLocaleString("vi-VN") ||
+                                  order.totalAmount?.toLocaleString("vi-VN") ||
                                   0}
-                                ₫
+                                VNĐ
                               </Typography>
                               {order.status === "DEPOSITED" && (
                                 <>
@@ -2121,17 +2122,21 @@ const OrderHistory = () => {
                                     fontSize={14}
                                   >
                                     Đã đặt cọc:{" "}
-                                    {order.depositAmount?.toLocaleString(
+                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.depositAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography color="info.main" fontSize={14}>
                                     Còn lại:{" "}
-                                    {order.remainingAmount?.toLocaleString(
+                                    {order.totalOrderRemainingAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.remainingAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                 </>
                               )}
@@ -2142,22 +2147,26 @@ const OrderHistory = () => {
                                     fontSize={14}
                                   >
                                     Đã đặt cọc:{" "}
-                                    {order.depositAmount?.toLocaleString(
+                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.depositAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
-                                  {order.remainingAmount > 0 ? (
+                                  {(order.totalOrderRemainingAmount || order.remainingAmount) > 0 ? (
                                     <Typography
                                       color="warning.main"
                                       fontSize={14}
                                       fontWeight={600}
                                     >
                                       🔔 Còn lại cần thanh toán:{" "}
-                                      {order.remainingAmount?.toLocaleString(
+                                      {order.totalOrderRemainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) || order.remainingAmount?.toLocaleString(
                                         "vi-VN"
                                       ) || 0}
-                                      ₫
+                                      VNĐ
                                     </Typography>
                                   ) : (
                                     <Typography
@@ -2179,7 +2188,7 @@ const OrderHistory = () => {
                                     {order.remainingAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                 )}
                               {order.status === "IN_PROGRESS" &&
@@ -2312,7 +2321,7 @@ const OrderHistory = () => {
                                                 {detail.detailConstructionAmount?.toLocaleString(
                                                   "vi-VN"
                                                 ) || 0}
-                                                ₫
+                                                VNĐ
                                               </Typography>
                                               {detail.detailDesignAmount && (
                                                 <Typography
@@ -2324,7 +2333,7 @@ const OrderHistory = () => {
                                                   {detail.detailDesignAmount.toLocaleString(
                                                     "vi-VN"
                                                   )}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               )}
                                               {detail.detailDepositDesignAmount && (
@@ -2337,7 +2346,7 @@ const OrderHistory = () => {
                                                   {detail.detailDepositDesignAmount.toLocaleString(
                                                     "vi-VN"
                                                   )}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               )}
                                               {detail.detailRemainingDesignAmount && (
@@ -2349,7 +2358,7 @@ const OrderHistory = () => {
                                                   {detail.detailRemainingDesignAmount.toLocaleString(
                                                     "vi-VN"
                                                   )}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               )}
                                             </Box>
@@ -2395,7 +2404,7 @@ const OrderHistory = () => {
                                                   {detail.customerChoiceHistories.totalAmount?.toLocaleString(
                                                     "vi-VN"
                                                   ) || 0}
-                                                  ₫
+                                                  VNĐ
                                                 </Typography>
                                               </Box>
                                             </Box>
@@ -2954,7 +2963,7 @@ const OrderHistory = () => {
                           </>
                         )}
                         {order.status === "INSTALLED" &&
-                          order.remainingAmount > 0 && (
+                          (order.totalOrderRemainingAmount || order.remainingAmount) > 0 && (
                             <Box
                               sx={{
                                 mt: 3,
@@ -2976,10 +2985,12 @@ const OrderHistory = () => {
                                     fontWeight={600}
                                   >
                                     🔔 Còn lại cần thanh toán:{" "}
-                                    {order.remainingAmount?.toLocaleString(
+                                    {order.totalOrderRemainingAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) || order.remainingAmount?.toLocaleString(
                                       "vi-VN"
                                     ) || 0}
-                                    ₫
+                                    VNĐ
                                   </Typography>
                                   <Typography
                                     variant="caption"
