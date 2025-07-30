@@ -53,7 +53,7 @@ import {
   updateRequestStatus,
   CUSTOM_DESIGN_STATUS_MAP,
 } from "../../store/features/customeDesign/customerDesignSlice";
-import { getCustomerDetailByIdApi } from "../../api/customerService";
+
 import { getUsersByRoleApi } from "../../api/userService";
 import { createProposal } from "../../store/features/price/priceSlice";
 import {
@@ -69,6 +69,7 @@ import {
   selectOrderError,
   selectOrderPagination,
   selectOrders,
+  selectOrdersByType,
   selectOrderStatus,
   updateOrderEstimatedDeliveryDate,
 } from "../../store/features/order/orderSlice";
@@ -89,8 +90,6 @@ const CustomerRequests = () => {
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [customerDetails, setCustomerDetails] = useState({});
-  const [loadingCustomers, setLoadingCustomers] = useState({});
 
   // Thêm state cho designer
   const [designers, setDesigners] = useState([]);
@@ -100,11 +99,16 @@ const CustomerRequests = () => {
   const [assignmentError, setAssignmentError] = useState(null);
   const [rejectingRequest, setRejectingRequest] = useState(false);
   const [currentTab, setCurrentTab] = useState(0); // 0: Design Requests, 1: Custom Design Orders
-  const [customOrders, setCustomOrders] = useState([]);
   const [orderLoading, setOrderLoading] = useState(false);
   const [contractId, setContractId] = useState(null);
   const [fetchingContract, setFetchingContract] = useState(false);
-  const orders = useSelector(selectOrders);
+  const allOrders = useSelector(selectOrders);
+  // Filter chỉ lấy custom design orders (không phải AI design)
+  const customDesignOrderTypes = [
+    'CUSTOM_DESIGN_WITH_CONSTRUCTION',
+    'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION'
+  ];
+  const orders = useSelector(state => selectOrdersByType(state, customDesignOrderTypes));
   const orderStatus = useSelector(selectOrderStatus);
   const orderError = useSelector(selectOrderError);
   const orderPagination = useSelector(selectOrderPagination);
@@ -157,6 +161,10 @@ const CustomerRequests = () => {
     depositAmount: "",
   });
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
   useEffect(() => {
     if (currentTab === 1) {
       // Thêm memoization để tránh fetch quá nhiều lần
@@ -531,12 +539,27 @@ const CustomerRequests = () => {
   const handleOrderStatusChange = (e) => {
     setSelectedOrderStatus(e.target.value);
   };
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
-  const handleViewOrderDetails = (order) => {
+  const handleViewOrderDetails = async (order) => {
     console.log("Order data structure:", order);
     setSelectedOrder(order);
     setOrderDetailOpen(true);
+    
+    // Fetch order details
+    setLoadingOrderDetails(true);
+    try {
+      const response = await orderService.get(`/api/orders/${order.id}/details`);
+      if (response.data.success) {
+        setOrderDetails(response.data.result);
+      } else {
+        console.error("Failed to fetch order details:", response.data.message);
+        setOrderDetails(null);
+      }
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      setOrderDetails(null);
+    } finally {
+      setLoadingOrderDetails(false);
+    }
   };
   const handleCloseOrderDetails = React.useCallback(() => {
     // Blur focused element
@@ -624,57 +647,8 @@ const CustomerRequests = () => {
     );
   }, [dispatch, selectedStatus]);
 
-  // Fetch customer details when design requests load
-  useEffect(() => {
-    if (designRequests.length > 0) {
-      const fetchCustomerDetails = async () => {
-        // Create a Set to store unique customerDetailIds
-        const uniqueCustomerDetailIds = new Set(
-          designRequests
-            .filter((request) => request.customerDetail)
-            .map((request) => request.customerDetail)
-        );
-
-        // Fetch customer details for each unique ID
-        for (const customerDetailId of uniqueCustomerDetailIds) {
-          if (
-            !customerDetails[customerDetailId] &&
-            !loadingCustomers[customerDetailId]
-          ) {
-            // Mark this customer as loading
-            setLoadingCustomers((prev) => ({
-              ...prev,
-              [customerDetailId]: true,
-            }));
-
-            try {
-              const response = await getCustomerDetailByIdApi(
-                customerDetailId.id
-              );
-              if (response.success) {
-                setCustomerDetails((prev) => ({
-                  ...prev,
-                  [customerDetailId]: response.result,
-                }));
-              }
-            } catch (error) {
-              console.error(
-                `Error fetching details for customer ${customerDetailId}:`,
-                error
-              );
-            } finally {
-              setLoadingCustomers((prev) => ({
-                ...prev,
-                [customerDetailId]: false,
-              }));
-            }
-          }
-        }
-      };
-
-      fetchCustomerDetails();
-    }
-  }, [designRequests]);
+  // Customer details are now included in the API response, so we don't need to fetch them separately
+  // The customerDetail object is already available in each design request
 
   // Fetch designers when dialog is opened
   const fetchDesigners = async () => {
@@ -869,16 +843,8 @@ const CustomerRequests = () => {
   };
 
   // Get customer name from customer details
-  const getCustomerName = (customerDetailId) => {
-    if (!customerDetailId) return "Unknown";
-
-    if (loadingCustomers[customerDetailId]) {
-      return <CircularProgress size={16} />;
-    }
-
-    const customerDetail = customerDetails[customerDetailId];
-
-    if (!customerDetail) return "Loading...";
+  const getCustomerName = (customerDetail) => {
+    if (!customerDetail) return "Unknown";
 
     // Return fullName from the users object if available
     if (customerDetail.users && customerDetail.users.fullName) {
@@ -1068,9 +1034,9 @@ const CustomerRequests = () => {
             label={
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <span>Custom Design Orders</span>
-                {!orderLoading && customOrders.length > 0 && (
+                {!orderLoading && orders.length > 0 && (
                   <Badge
-                    badgeContent={customOrders.length}
+                    badgeContent={orders.length}
                     color="warning"
                     sx={{ ml: 1 }}
                   />
@@ -1108,7 +1074,7 @@ const CustomerRequests = () => {
                 <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
                 <MenuItem value="PENDING_CONTRACT">Chờ gửi hợp đồng</MenuItem>
                 <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
-                <MenuItem value="CANCEL">Đã hủy</MenuItem>
+                <MenuItem value="CANCELLED">Đã hủy</MenuItem>
                 <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
               </Select>
             </FormControl>
@@ -1118,17 +1084,17 @@ const CustomerRequests = () => {
               <>
                 <TableContainer component={Paper} elevation={0}>
                   <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Customer Name</TableCell>
-                        <TableCell>Product Type</TableCell>
-                        <TableCell>Requirements</TableCell>
-                        <TableCell>Created At</TableCell>
-                        <TableCell>Total Amount</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
+                                            <TableHead>
+                          <TableRow>
+                            <TableCell>Customer Name</TableCell>
+                            <TableCell>Company</TableCell>
+                            <TableCell>Requirements</TableCell>
+                            <TableCell>Created At</TableCell>
+                            <TableCell>Total Price</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
                     <TableBody>
                       {designRequests.map((request) => (
                         <TableRow key={request.id}>
@@ -1136,14 +1102,12 @@ const CustomerRequests = () => {
                             {getCustomerName(request.customerDetail)}
                           </TableCell>
                           <TableCell>
-                            {request.customerChoiceHistories.productTypeName}
+                            {request.customerDetail?.companyName || "N/A"}
                           </TableCell>
                           <TableCell>{request.requirements}</TableCell>
                           <TableCell>{formatDate(request.createdAt)}</TableCell>
                           <TableCell>
-                            {formatCurrency(
-                              request.customerChoiceHistories.totalAmount
-                            )}
+                            {formatCurrency(request.totalPrice)}
                           </TableCell>
                           <TableCell>{getStatusChip(request.status)}</TableCell>
                           <TableCell>
@@ -1185,23 +1149,24 @@ const CustomerRequests = () => {
               >
                 <MenuItem value="">Tất cả</MenuItem>
                 <MenuItem value="PENDING_DESIGN">Chờ thiết kế</MenuItem>
-                <MenuItem value="PENDING_CONTRACT">Chờ gửi hợp đồng</MenuItem>
+                <MenuItem value="NEED_DEPOSIT_DESIGN">Cần đặt cọc thiết kế</MenuItem>
+                <MenuItem value="DEPOSITED_DESIGN">Đã đặt cọc thiết kế</MenuItem>
+                <MenuItem value="NEED_FULLY_PAID_DESIGN">Cần thanh toán đủ thiết kế</MenuItem>
+                <MenuItem value="WAITING_FINAL_DESIGN">Chờ thiết kế cuối</MenuItem>
+                <MenuItem value="DESIGN_COMPLETED">Hoàn thành thiết kế</MenuItem>
+                <MenuItem value="PENDING_CONTRACT">Chờ hợp đồng</MenuItem>
                 <MenuItem value="CONTRACT_SENT">Đã gửi hợp đồng</MenuItem>
                 <MenuItem value="CONTRACT_SIGNED">Đã ký hợp đồng</MenuItem>
                 <MenuItem value="CONTRACT_DISCUSS">Đàm phán hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_RESIGNED">Ký lại hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_CONFIRMED">
-                  Xác nhận hợp đồng
-                </MenuItem>
+                <MenuItem value="CONTRACT_RESIGNED">Từ chối hợp đồng</MenuItem>
+                <MenuItem value="CONTRACT_CONFIRMED">Xác nhận hợp đồng</MenuItem>
                 <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
                 <MenuItem value="IN_PROGRESS">Đang thực hiện</MenuItem>
                 <MenuItem value="PRODUCING">Đang sản xuất</MenuItem>
-                <MenuItem value="PRODUCTION_COMPLETED">
-                  Hoàn thành sản xuất
-                </MenuItem>
+                <MenuItem value="PRODUCTION_COMPLETED">Hoàn thành sản xuất</MenuItem>
                 <MenuItem value="DELIVERING">Đang giao hàng</MenuItem>
                 <MenuItem value="INSTALLED">Đã lắp đặt</MenuItem>
-                <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
+                <MenuItem value="ORDER_COMPLETED">Hoàn tất đơn hàng</MenuItem>
                 <MenuItem value="CANCELLED">Đã hủy</MenuItem>
               </Select>
             </FormControl>
@@ -1215,10 +1180,11 @@ const CustomerRequests = () => {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Mã đơn</TableCell>
+                        <TableCell>Mã đơn hàng</TableCell>
                         <TableCell>Khách hàng</TableCell>
-                        <TableCell>Yêu cầu thiết kế</TableCell>
-                        <TableCell>Ngày đặt</TableCell>
+                        <TableCell>Địa chỉ</TableCell>
+                        <TableCell>Loại đơn hàng</TableCell>
+                        <TableCell>Ngày tạo</TableCell>
                         <TableCell>Tổng tiền</TableCell>
                         <TableCell>Trạng thái</TableCell>
                         <TableCell>Thao tác</TableCell>
@@ -1227,23 +1193,37 @@ const CustomerRequests = () => {
                     <TableBody>
                       {orders.map((order) => (
                         <TableRow key={order.id}>
-                          <TableCell>{order.id}</TableCell>
+                          <TableCell>{order.orderCode || order.id}</TableCell>
                           <TableCell>
                             {order.users?.fullName || "Chưa có thông tin"}
                           </TableCell>
                           <TableCell>
-                            {order.customDesignRequests?.requirements?.substring(
-                              0,
-                              30
-                            )}
-                            {order.customDesignRequests?.requirements?.length >
-                            30
-                              ? "..."
-                              : ""}
+                            {order.address || "Chưa có địa chỉ"}
                           </TableCell>
-                          <TableCell>{formatDate(order.orderDate)}</TableCell>
                           <TableCell>
-                            {formatCurrency(order.totalAmount)}
+                            <Chip
+                              label={
+                                order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                  ? "Thiết kế tùy chỉnh có thi công"
+                                  : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                                  ? "Thiết kế tùy chỉnh không thi công"
+                                  : order.orderType === "AI_DESIGN"
+                                  ? "Thiết kế AI"
+                                  : order.orderType
+                              }
+                              color={
+                                order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                  ? "success"
+                                  : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                                  ? "info"
+                                  : "primary"
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
+                          <TableCell>
+                            {formatCurrency(order.totalOrderAmount || order.totalAmount)}
                           </TableCell>
                           <TableCell>
                             <Chip
@@ -1263,6 +1243,7 @@ const CustomerRequests = () => {
                             <IconButton
                               color="primary"
                               onClick={() => handleViewOrderDetails(order)}
+                              title="Xem chi tiết"
                             >
                               <VisibilityIcon />
                             </IconButton>
@@ -1309,112 +1290,36 @@ const CustomerRequests = () => {
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Product Type
+                      Company Name
                     </Typography>
                     <Typography variant="body1">
-                      {selectedRequest.customerChoiceHistories.productTypeName}
+                      {selectedRequest.customerDetail?.companyName || "N/A"}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Total Amount
+                      Total Price
                     </Typography>
                     <Typography variant="body1" fontWeight="bold">
-                      {formatCurrency(
-                        selectedRequest.customerChoiceHistories.totalAmount
-                      )}
+                      {formatCurrency(selectedRequest.totalPrice)}
                     </Typography>
                   </Grid>
 
-                  {/* Size Selections */}
-                  <Grid item xs={12}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      sx={{ mb: 1 }}
-                    >
-                      Size Specifications
-                    </Typography>
-                    <TableContainer component={Paper} variant="outlined">
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Size</TableCell>
-                            <TableCell align="right">Value</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedRequest.customerChoiceHistories.sizeSelections.map(
-                            (size) => (
-                              <TableRow key={size.size}>
-                                <TableCell>{size.size}</TableCell>
-                                <TableCell align="right">
-                                  {size.value}
-                                </TableCell>
-                              </TableRow>
-                            )
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Grid>
-
-                  {/* Material Specifications */}
-                  <Grid item xs={12}>
-                    <Typography
-                      variant="subtitle2"
-                      color="text.secondary"
-                      sx={{ mb: 1 }}
-                    >
-                      Material Specifications
-                    </Typography>
-                    <TableContainer component={Paper} variant="outlined">
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Attribute</TableCell>
-                            <TableCell>Value</TableCell>
-                            <TableCell>Unit</TableCell>
-                            <TableCell align="right">Unit Price</TableCell>
-                            <TableCell align="right">Subtotal</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedRequest.customerChoiceHistories.attributeSelections.map(
-                            (attr) => (
-                              <TableRow key={attr.attribute}>
-                                <TableCell>{attr.attribute}</TableCell>
-                                <TableCell>{attr.value}</TableCell>
-                                <TableCell>{attr.unit}</TableCell>
-                                <TableCell align="right">
-                                  {formatCurrency(attr.unitPrice)}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatCurrency(attr.subTotal)}
-                                </TableCell>
-                              </TableRow>
-                            )
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Grid>
-
-                  <Grid item xs={12}>
+                  {/* Pricing Information */}
+                  <Grid item xs={12} sm={6}>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Formula
+                      Deposit Amount
                     </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontFamily: "monospace",
-                        my: 1,
-                        p: 1,
-                        bgcolor: "grey.100",
-                        borderRadius: 1,
-                      }}
-                    >
-                      {selectedRequest.customerChoiceHistories.calculateFormula}
+                    <Typography variant="body1" color="success.main">
+                      {formatCurrency(selectedRequest.depositAmount)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Remaining Amount
+                    </Typography>
+                    <Typography variant="body1" color="info.main">
+                      {formatCurrency(selectedRequest.remainingAmount)}
                     </Typography>
                   </Grid>
 
@@ -2934,6 +2839,301 @@ const CustomerRequests = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseContractDialog}>Đóng</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Order Details Dialog */}
+        <Dialog
+          open={orderDetailOpen}
+          onClose={handleCloseOrderDetails}
+          maxWidth="lg"
+          fullWidth
+        >
+          <DialogTitle>
+            Chi tiết đơn hàng - {selectedOrder?.orderCode || selectedOrder?.id}
+            <IconButton
+              aria-label="close"
+              onClick={handleCloseOrderDetails}
+              sx={{ position: "absolute", right: 8, top: 8 }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            {loadingOrderDetails ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : selectedOrder ? (
+              <Box>
+                {/* Order Information */}
+                <Typography variant="h6" gutterBottom>
+                  Thông tin đơn hàng
+                </Typography>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Mã đơn hàng
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedOrder.orderCode || selectedOrder.id}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Loại đơn hàng
+                    </Typography>
+                    <Chip
+                      label={
+                        selectedOrder.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                          ? "Thiết kế tùy chỉnh có thi công"
+                          : selectedOrder.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                          ? "Thiết kế tùy chỉnh không thi công"
+                          : selectedOrder.orderType === "AI_DESIGN"
+                          ? "Thiết kế AI"
+                          : selectedOrder.orderType
+                      }
+                      color={
+                        selectedOrder.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                          ? "success"
+                          : selectedOrder.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                          ? "info"
+                          : "primary"
+                      }
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Trạng thái
+                    </Typography>
+                    <Chip
+                      label={
+                        ORDER_STATUS_MAP[selectedOrder.status]?.label ||
+                        selectedOrder.status
+                      }
+                      color={
+                        ORDER_STATUS_MAP[selectedOrder.status]?.color ||
+                        "default"
+                      }
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Ngày tạo
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatDate(selectedOrder.createdAt)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Địa chỉ
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedOrder.address || "Chưa có địa chỉ"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Ghi chú
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedOrder.note || "Không có ghi chú"}
+                    </Typography>
+                  </Grid>
+                </Grid>
+
+                {/* Customer Information */}
+                <Typography variant="h6" gutterBottom>
+                  Thông tin khách hàng
+                </Typography>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Họ tên
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedOrder.users?.fullName || "Chưa có thông tin"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Email
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedOrder.users?.email || "Chưa có thông tin"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Số điện thoại
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedOrder.users?.phone || "Chưa có thông tin"}
+                    </Typography>
+                  </Grid>
+                </Grid>
+
+                {/* Financial Information */}
+                <Typography variant="h6" gutterBottom>
+                  Thông tin tài chính
+                </Typography>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Tổng tiền đơn hàng
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      {formatCurrency(selectedOrder.totalOrderAmount || selectedOrder.totalAmount)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Tiền đặt cọc
+                    </Typography>
+                    <Typography variant="body1" color="success.main">
+                      {formatCurrency(selectedOrder.totalOrderDepositAmount || selectedOrder.depositAmount)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Tiền còn lại
+                    </Typography>
+                    <Typography variant="body1" color="info.main">
+                      {formatCurrency(selectedOrder.totalOrderRemainingAmount || selectedOrder.remainingAmount)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+
+                {/* Order Details */}
+                {orderDetails && orderDetails.length > 0 && (
+                  <>
+                    <Typography variant="h6" gutterBottom>
+                      Chi tiết đơn hàng
+                    </Typography>
+                    {orderDetails.map((detail, index) => (
+                      <Box key={detail.id || index} sx={{ mb: 3, p: 2, border: 1, borderColor: "grey.300", borderRadius: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                          Chi tiết #{index + 1}
+                        </Typography>
+                        
+                        {/* Custom Design Request Information */}
+                        {detail.customDesignRequests && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Yêu cầu thiết kế
+                            </Typography>
+                            <Typography variant="body2">
+                              {detail.customDesignRequests.requirements}
+                            </Typography>
+                            
+                            {/* Customer Detail */}
+                            {detail.customDesignRequests.customerDetail && (
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Thông tin khách hàng:
+                                </Typography>
+                                <Typography variant="body2">
+                                  Công ty: {detail.customDesignRequests.customerDetail.companyName}
+                                </Typography>
+                                <Typography variant="body2">
+                                  Địa chỉ: {detail.customDesignRequests.customerDetail.address}
+                                </Typography>
+                                <Typography variant="body2">
+                                  Liên hệ: {detail.customDesignRequests.customerDetail.contactInfo}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        )}
+
+                        {/* Customer Choice Histories */}
+                        {detail.customerChoiceHistories && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Lịch sử lựa chọn
+                            </Typography>
+                            <Typography variant="body2">
+                              Loại sản phẩm: {detail.customerChoiceHistories.productTypeName}
+                            </Typography>
+                            <Typography variant="body2">
+                              Công thức tính: {detail.customerChoiceHistories.calculateFormula}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">
+                              Tổng tiền: {formatCurrency(detail.customerChoiceHistories.totalAmount)}
+                            </Typography>
+                            
+                            {/* Attribute Selections */}
+                            {detail.customerChoiceHistories.attributeSelections && detail.customerChoiceHistories.attributeSelections.length > 0 && (
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                  Thuộc tính đã chọn:
+                                </Typography>
+                                {detail.customerChoiceHistories.attributeSelections.map((attr, attrIndex) => (
+                                  <Box key={attrIndex} sx={{ ml: 2, mb: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">
+                                      {attr.attribute}: {attr.value}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Đơn vị: {attr.unit} | Giá: {formatCurrency(attr.unitPrice)} | Tổng: {formatCurrency(attr.subTotal)}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
+
+                            {/* Size Selections */}
+                            {detail.customerChoiceHistories.sizeSelections && detail.customerChoiceHistories.sizeSelections.length > 0 && (
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                  Kích thước:
+                                </Typography>
+                                {detail.customerChoiceHistories.sizeSelections.map((size, sizeIndex) => (
+                                  <Typography key={sizeIndex} variant="body2" sx={{ ml: 2 }}>
+                                    {size.size}: {size.value}
+                                  </Typography>
+                                ))}
+                              </Box>
+                            )}
+                          </Box>
+                        )}
+
+                        {/* Financial Details */}
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Chi tiết tài chính
+                          </Typography>
+                          <Typography variant="body2">
+                            Số lượng: {detail.quantity}
+                          </Typography>
+                          {detail.detailConstructionAmount && (
+                            <Typography variant="body2">
+                              Tiền thi công: {formatCurrency(detail.detailConstructionAmount)}
+                            </Typography>
+                          )}
+                          {detail.detailDesignAmount && (
+                            <Typography variant="body2">
+                              Tiền thiết kế: {formatCurrency(detail.detailDesignAmount)}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    ))}
+                  </>
+                )}
+              </Box>
+            ) : (
+              <Box sx={{ textAlign: "center", py: 4 }}>
+                <Typography color="text.secondary">
+                  Không thể tải thông tin chi tiết đơn hàng
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseOrderDetails}>Đóng</Button>
           </DialogActions>
         </Dialog>
       </Box>

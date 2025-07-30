@@ -43,7 +43,7 @@ export const CUSTOM_DESIGN_STATUS_MAP = {
   WAITING_FULL_PAYMENT: { label: "Chờ thanh toán đủ", color: "warning" },
   FULLY_PAID: { label: "Đã thanh toán đủ", color: "success" },
   COMPLETED: { label: "Hoàn tất", color: "success" },
-  CANCEL: { label: "Đã hủy", color: "error" },
+  CANCELLED: { label: "Đã hủy", color: "error" },
   REJECTED_PRICING: { label: "Từ chối báo giá", color: "error" },
 };
 
@@ -53,11 +53,11 @@ export const fetchPendingDesignRequests = createAsyncThunk(
   async ({ page = 1, size = 10 }, { rejectWithValue }) => {
     try {
       const response = await fetchCustomDesignRequestsApi("PENDING", page, size);
-      
+
       if (!response.success) {
         return rejectWithValue(response.error || "Failed to fetch pending design requests");
       }
-      
+
       return response;
     } catch (error) {
       return rejectWithValue(error.message || "An error occurred while fetching requests");
@@ -69,11 +69,11 @@ export const assignDesignerToRequest = createAsyncThunk(
   async ({ customDesignRequestId, designerId }, { rejectWithValue }) => {
     try {
       const response = await assignDesignerToRequestApi(customDesignRequestId, designerId);
-      
+
       if (!response.success) {
         return rejectWithValue(response.error || "Failed to assign designer to request");
       }
-      
+
       return response.result;
     } catch (error) {
       return rejectWithValue(error.message || "An error occurred while assigning designer");
@@ -85,11 +85,11 @@ export const updateRequestStatus = createAsyncThunk(
   async ({ customDesignRequestId, status }, { rejectWithValue }) => {
     try {
       const response = await updateRequestStatusApi(customDesignRequestId, status);
-      
+
       if (!response.success) {
         return rejectWithValue(response.error || "Failed to update request status");
       }
-      
+
       return response.result;
     } catch (error) {
       return rejectWithValue(error.message || "An error occurred while updating request status");
@@ -263,30 +263,30 @@ const customerDesignSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
-       .addCase(assignDesignerToRequest.pending, (state) => {
-      state.status = "loading";
-      state.error = null;
-    })
-    .addCase(assignDesignerToRequest.fulfilled, (state, action) => {
-      state.status = "succeeded";
-      // Update the assigned request in the list
-      state.designRequests = state.designRequests.map(request => 
-        request.id === action.payload.id ? action.payload : request
-      );
-      state.error = null;
-    })
-    .addCase(assignDesignerToRequest.rejected, (state, action) => {
-      state.status = "failed";
-      state.error = action.payload;
-    })
-     .addCase(updateRequestStatus.pending, (state) => {
+      .addCase(assignDesignerToRequest.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(assignDesignerToRequest.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        // Update the assigned request in the list
+        state.designRequests = state.designRequests.map(request =>
+          request.id === action.payload.id ? action.payload : request
+        );
+        state.error = null;
+      })
+      .addCase(assignDesignerToRequest.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(updateRequestStatus.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
       .addCase(updateRequestStatus.fulfilled, (state, action) => {
         state.status = "succeeded";
         // Update the request with new status in the list
-        state.designRequests = state.designRequests.map(request => 
+        state.designRequests = state.designRequests.map(request =>
           request.id === action.payload.id ? action.payload : request
         );
         // If the updated status is not PENDING, you might want to remove it from the list
