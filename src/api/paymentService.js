@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL
 
 // Tạo instance axios với interceptors
 const paymentService = axios.create({
@@ -94,10 +94,10 @@ export const confirmWebhookUrl = async (payload) => {
 export const payOrderRemaining = async (orderId) => {
   try {
     const response = await paymentService.post(`/api/orders/${orderId}/remaining`);
-    
+
     // Xử lý response theo cấu trúc API trả về
     const { success, result, message } = response.data;
-    
+
     if (success && result) {
       // Trả về đúng cấu trúc để Redux thunk có thể xử lý
       return {
@@ -107,7 +107,7 @@ export const payOrderRemaining = async (orderId) => {
         message: message
       };
     }
-    
+
     return {
       success: false,
       error: message || 'Không thể thanh toán số tiền còn lại',
@@ -125,10 +125,10 @@ export const payOrderRemaining = async (orderId) => {
 export const payOrderDeposit = async (orderId) => {
   try {
     const response = await paymentService.post(`/api/orders/${orderId}/deposit`);
-    
+
     // Xử lý response theo cấu trúc API trả về
     const { success, result, message } = response.data;
-    
+
     if (success && result) {
       // Trả về đúng cấu trúc để Redux thunk có thể xử lý
       return {
@@ -138,7 +138,7 @@ export const payOrderDeposit = async (orderId) => {
         message: message
       };
     }
-    
+
     return {
       success: false,
       error: message || 'Không thể đặt cọc đơn hàng',
@@ -152,12 +152,30 @@ export const payOrderDeposit = async (orderId) => {
   }
 };
 
-// 5. Thanh toán hết thiết kế custom
-export const payCustomDesignRemaining = async (customDesignRequestId) => {
+// 5. Thanh toán hết thiết kế
+export const payDesignRemaining = async (orderId) => {
   try {
-    const response = await paymentService.post(`/api/custom-design-requests/${customDesignRequestId}/remaining`);
-    return response.data; // { checkoutUrl: ... }
+    const response = await paymentService.post(`/api/orders/${orderId}/design-remaining`);
+
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message } = response.data;
+
+    if (success && result) {
+      // Trả về đúng cấu trúc để Redux thunk có thể xử lý
+      return {
+        success: true,
+        checkoutUrl: result.checkoutUrl,
+        data: result,
+        message: message
+      };
+    }
+
+    return {
+      success: false,
+      error: message || 'Không thể thanh toán hết thiết kế',
+    };
   } catch (error) {
+    console.error("Error in payDesignRemaining:", error.response?.data || error);
     return {
       success: false,
       error: error.response?.data?.message || 'Không thể thanh toán hết thiết kế',
@@ -165,12 +183,30 @@ export const payCustomDesignRemaining = async (customDesignRequestId) => {
   }
 };
 
-// 6. Đặt cọc yêu cầu thiết kế custom
-export const payCustomDesignDeposit = async (customDesignRequestId) => {
+// 6. Đặt cọc theo thiết kế
+export const payDesignDeposit = async (orderId) => {
   try {
-    const response = await paymentService.post(`/api/custom-design-requests/${customDesignRequestId}/deposit`);
-    return response.data; // { checkoutUrl: ... }
+    const response = await paymentService.post(`/api/orders/${orderId}/design-deposit`);
+
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message } = response.data;
+
+    if (success && result) {
+      // Trả về đúng cấu trúc để Redux thunk có thể xử lý
+      return {
+        success: true,
+        checkoutUrl: result.checkoutUrl,
+        data: result,
+        message: message
+      };
+    }
+
+    return {
+      success: false,
+      error: message || 'Không thể đặt cọc thiết kế',
+    };
   } catch (error) {
+    console.error("Error in payDesignDeposit:", error.response?.data || error);
     return {
       success: false,
       error: error.response?.data?.message || 'Không thể đặt cọc thiết kế',
