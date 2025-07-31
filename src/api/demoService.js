@@ -115,13 +115,26 @@ export const uploadDemoSubImagesApi = async (customDesignId, files) => {
 };
 
 // Lấy danh sách hình ảnh phụ của bản demo
-export const getDemoSubImagesApi = async (customDesignId) => {
+export const getDemoSubImagesApi = async (demoDesignId) => {
   try {
-    const res = await demoService.get(`/api/demo-designs/${customDesignId}/sub-images`);
+    const res = await demoService.get(`/api/demo-designs/${demoDesignId}/sub-images`);
     return res.data;
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Failed to fetch demo sub images' };
   }
 };
 
+// Lấy danh sách hình ảnh phụ của bản thiết kế chính thức
+export const getCustomDesignRequestSubImagesApi = async (customDesignRequestId) => {
+  try {
+    const res = await demoService.get(`/api/custom-design-requests/${customDesignRequestId}/sub-images`);
+    return res.data;
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Failed to fetch custom design request sub images' };
+  }
+};
+
 export default demoService;
+
+// xem thông tin chi tiết kích thước, loại ảnh demo 
+

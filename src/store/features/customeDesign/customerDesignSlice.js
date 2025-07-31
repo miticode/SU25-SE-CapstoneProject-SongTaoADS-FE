@@ -9,7 +9,6 @@ import {
   createCustomDesignRequestApi,
   sendFinalDesignImageApi,
   fetchDesignRequestsByDesignerApi,
-  uploadFinalDesignSubImagesApi,
   getFinalDesignSubImagesApi
 } from "../../../api/customeDesignService";
 
@@ -175,13 +174,13 @@ export const createCustomDesignRequest = createAsyncThunk(
   }
 );
 
-// 2. Designer gửi bản thiết kế chính thức
+// 2. Designer gửi bản thiết kế chính thức (bao gồm cả sub-images)
 // PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
 export const sendFinalDesignImage = createAsyncThunk(
   "customDesign/sendFinalDesignImage",
-  async ({ customDesignRequestId, file }, { rejectWithValue }) => {
+  async ({ customDesignRequestId, finalDesignImage, subFinalDesignImages }, { rejectWithValue }) => {
     try {
-      const response = await sendFinalDesignImageApi(customDesignRequestId, file);
+      const response = await sendFinalDesignImageApi(customDesignRequestId, finalDesignImage, subFinalDesignImages);
       if (!response.success) {
         return rejectWithValue(response.error || "Failed to send final design image");
       }
@@ -209,15 +208,7 @@ export const fetchDesignRequestsByDesigner = createAsyncThunk(
   }
 );
 
-// Upload nhiều hình ảnh phụ cho bản thiết kế chính thức
-export const uploadFinalDesignSubImages = createAsyncThunk(
-  'customDesign/uploadFinalDesignSubImages',
-  async ({ customDesignRequestId, files }, { rejectWithValue }) => {
-    const res = await uploadFinalDesignSubImagesApi(customDesignRequestId, files);
-    if (!res.success) return rejectWithValue(res.error);
-    return res.result;
-  }
-);
+
 // Lấy danh sách hình ảnh phụ của bản thiết kế chính thức
 export const getFinalDesignSubImages = createAsyncThunk(
   'customDesign/getFinalDesignSubImages',
@@ -370,18 +361,7 @@ const customerDesignSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
-      .addCase(uploadFinalDesignSubImages.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(uploadFinalDesignSubImages.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        // Có thể lưu subImages vào state nếu cần
-      })
-      .addCase(uploadFinalDesignSubImages.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
-      })
+
       .addCase(getFinalDesignSubImages.pending, (state) => {
         state.status = 'loading';
         state.error = null;
