@@ -1674,9 +1674,9 @@ const OrderHistory = () => {
   }, [uploadImageError, dispatch]);
   useEffect(() => {
     if (orders.length > 0) {
-      // Load impression cho các đơn hàng COMPLETED
+      // Load impression cho các đơn hàng ORDER_COMPLETED
       orders.forEach((order) => {
-        if (order.status === "COMPLETED") {
+        if (order.status === "ORDER_COMPLETED") {
           dispatch(fetchImpressionsByOrderId(order.id));
         }
       });
@@ -1857,9 +1857,10 @@ const OrderHistory = () => {
 
       handleCloseImpressionDialog();
 
-      // Có thể reload lại orders để cập nhật trạng thái
+      // Reload lại orders và impressions để cập nhật trạng thái
       if (user?.id) {
         dispatch(fetchOrdersByUserId(user.id));
+        dispatch(fetchImpressionsByOrderId(impressionDialog.orderId));
       }
     } catch {
       setNotification({
@@ -3445,7 +3446,7 @@ const OrderHistory = () => {
                             </Box>
                           </Box>
                         </Box>
-                        {order.status === "COMPLETED" && (
+                        {order.status === "ORDER_COMPLETED" && (
                           <>
                             <Divider sx={{ my: 2 }} />
 
