@@ -271,6 +271,108 @@ const EditedDesignImage = ({
   );
 };
 
+// Component để hiển thị ảnh feedback
+const FeedbackImage = ({ feedbackImageKey, altText = "Ảnh feedback" }) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!feedbackImageKey) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(false);
+        console.log("Loading feedback image from S3:", feedbackImageKey);
+        
+        const result = await getImageFromS3(feedbackImageKey);
+
+        if (result.success) {
+          setImageUrl(result.imageUrl);
+          console.log("Feedback image loaded successfully");
+        } else {
+          setError(true);
+          console.error("Failed to load feedback image:", result.message);
+        }
+      } catch (err) {
+        setError(true);
+        console.error("Error loading feedback image:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+  }, [feedbackImageKey]);
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: 80,
+          p: 2,
+          border: "1px dashed #ccc",
+          borderRadius: 1,
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <CircularProgress size={20} />
+        <Typography variant="body2" sx={{ ml: 1 }}>
+          Đang tải ảnh...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (error || !imageUrl) {
+    return (
+      <Box
+        sx={{
+          p: 2,
+          border: "1px dashed #ccc",
+          borderRadius: 1,
+          textAlign: "center",
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          Không thể tải ảnh feedback
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      component="img"
+      src={imageUrl}
+      alt={altText}
+      sx={{
+        maxWidth: 200,
+        height: "auto",
+        borderRadius: 1,
+        cursor: "pointer",
+        border: "1px solid #e0e0e0",
+        "&:hover": {
+          opacity: 0.8,
+        },
+      }}
+      onClick={() => window.open(imageUrl, "_blank")}
+      onError={(e) => {
+        console.error("Error displaying feedback image");
+        e.target.style.display = "none";
+      }}
+    />
+  );
+};
+
 const OrderHistory = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [tab, setTab] = useState(0);
@@ -325,6 +427,9 @@ const OrderHistory = () => {
   // State để lưu ảnh progress logs cho mỗi progress log
   const [progressLogImagesMap, setProgressLogImagesMap] = useState({}); // { progressLogId: images[] }
   const [loadingProgressLogImages, setLoadingProgressLogImages] = useState({}); // { progressLogId: boolean }
+
+  // State để track những order đã fetch impression
+  const [fetchedImpressionsOrders, setFetchedImpressionsOrders] = useState(new Set());
 
   const [customerDetailId, setCustomerDetailId] = useState(undefined);
   const currentDesignRequest = useSelector(selectCurrentDesignRequest);
@@ -1613,8 +1718,36 @@ const OrderHistory = () => {
           setCustomerDetailId(undefined);
         }
       });
+    } else {
+      // Clear cache khi user logout
+      setFetchedImpressionsOrders(new Set());
     }
   }, [isAuthenticated, user, dispatch]);
+
+  // Fetch impressions khi user được authenticate (để đảm bảo load data ngay từ đầu)
+  useEffect(() => {
+    if (isAuthenticated && user?.id && orders.length > 0) {
+      console.log("Fetching impressions for all completed/installed orders on auth");
+      const ordersToFetch = orders.filter(order => 
+        (order.status === "ORDER_COMPLETED" || order.status === "INSTALLED") && 
+        !fetchedImpressionsOrders.has(order.id)
+      );
+      
+      if (ordersToFetch.length > 0) {
+        ordersToFetch.forEach((order) => {
+          console.log(`Fetching impressions for order ${order.id}`);
+          dispatch(fetchImpressionsByOrderId(order.id));
+        });
+        
+        // Update tracked orders
+        setFetchedImpressionsOrders(prev => {
+          const newSet = new Set(prev);
+          ordersToFetch.forEach(order => newSet.add(order.id));
+          return newSet;
+        });
+      }
+    }
+  }, [isAuthenticated, user?.id, orders, dispatch, fetchedImpressionsOrders]);
 
   // Gọi API lấy đơn thiết kế thủ công khi chuyển tab hoặc khi customerDetailId thay đổi
   useEffect(() => {
@@ -1834,14 +1967,28 @@ const OrderHistory = () => {
   }, [uploadImageError, dispatch]);
   useEffect(() => {
     if (orders.length > 0) {
-      // Load impression cho các đơn hàng COMPLETED
-      orders.forEach((order) => {
-        if (order.status === "COMPLETED") {
+      // Load impression cho các đơn hàng ORDER_COMPLETED và INSTALLED (chỉ những order chưa fetch)
+      const ordersToFetch = orders.filter(order => 
+        (order.status === "ORDER_COMPLETED" || order.status === "INSTALLED") && 
+        !fetchedImpressionsOrders.has(order.id)
+      );
+      
+      if (ordersToFetch.length > 0) {
+        console.log("Fetching impressions for orders:", ordersToFetch.map(o => o.id));
+        ordersToFetch.forEach((order) => {
+          console.log(`Fetching impressions for order ${order.id} with status ${order.status}`);
           dispatch(fetchImpressionsByOrderId(order.id));
-        }
-      });
+        });
+        
+        // Update tracked orders
+        setFetchedImpressionsOrders(prev => {
+          const newSet = new Set(prev);
+          ordersToFetch.forEach(order => newSet.add(order.id));
+          return newSet;
+        });
+      }
     }
-  }, [orders, dispatch]);
+  }, [orders, dispatch, fetchedImpressionsOrders]);
 
   // useEffect để fetch order details cho tất cả đơn hàng ở tab 0 (Lịch sử đơn hàng)
   useEffect(() => {
@@ -2017,9 +2164,10 @@ const OrderHistory = () => {
 
       handleCloseImpressionDialog();
 
-      // Có thể reload lại orders để cập nhật trạng thái
+      // Reload lại orders và impressions để cập nhật trạng thái
       if (user?.id) {
         dispatch(fetchOrdersByUserId(user.id));
+        dispatch(fetchImpressionsByOrderId(impressionDialog.orderId));
       }
     } catch {
       setNotification({
@@ -3618,7 +3766,7 @@ const OrderHistory = () => {
                             </Box>
                           </Box>
                         </Box>
-                        {order.status === "COMPLETED" && (
+                        {order.status === "ORDER_COMPLETED" && (
                           <>
                             <Divider sx={{ my: 2 }} />
 
@@ -3696,25 +3844,9 @@ const OrderHistory = () => {
                                     {/* Feedback Image */}
                                     {impression.feedbackImageUrl && (
                                       <Box sx={{ mb: 1 }}>
-                                        <Box
-                                          component="img"
-                                          src={impression.feedbackImageUrl}
-                                          alt="Ảnh feedback"
-                                          sx={{
-                                            maxWidth: 200,
-                                            height: "auto",
-                                            borderRadius: 1,
-                                            cursor: "pointer",
-                                            "&:hover": {
-                                              opacity: 0.8,
-                                            },
-                                          }}
-                                          onClick={() =>
-                                            window.open(
-                                              impression.feedbackImageUrl,
-                                              "_blank"
-                                            )
-                                          }
+                                        <FeedbackImage 
+                                          feedbackImageKey={impression.feedbackImageUrl}
+                                          altText="Ảnh feedback"
                                         />
                                       </Box>
                                     )}
