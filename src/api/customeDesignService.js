@@ -179,12 +179,23 @@ export const createCustomDesignRequestApi = async (customerDetailId, customerCho
   }
 };
 
-// 2. Designer gửi bản thiết kế chính thức
+// 2. Designer gửi bản thiết kế chính thức (bao gồm cả sub-images)
 // PATCH /api/custom-design-requests/{customDesignRequestId}/final-design-image
-export const sendFinalDesignImageApi = async (customDesignRequestId, file) => {
+export const sendFinalDesignImageApi = async (customDesignRequestId, finalDesignImage, subFinalDesignImages = []) => {
   try {
     const formData = new FormData();
-    formData.append('finalDesignImage', file);
+
+    // Thêm main final design image
+    if (finalDesignImage) {
+      formData.append('finalDesignImage', finalDesignImage);
+    }
+
+    // Thêm sub final design images
+    if (subFinalDesignImages && subFinalDesignImages.length > 0) {
+      subFinalDesignImages.forEach((file) => {
+        formData.append('subFinalDesignImages', file);
+      });
+    }
 
     const response = await customDesignService.patch(
       `/api/custom-design-requests/${customDesignRequestId}/final-design-image`,
@@ -200,20 +211,7 @@ export const sendFinalDesignImageApi = async (customDesignRequestId, file) => {
   }
 };
 
-// Upload nhiều hình ảnh phụ cho bản thiết kế chính thức
-export const uploadFinalDesignSubImagesApi = async (customDesignRequestId, files) => {
-  try {
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-    const response = await customDesignService.post(
-      `/api/custom-design-requests/${customDesignRequestId}/final-design-sub-images`,
-      formData
-    );
-    return response.data;
-  } catch (error) {
-    return { success: false, error: error.response?.data?.message || 'Failed to upload final design sub images' };
-  }
-};
+
 
 // Lấy danh sách hình ảnh phụ của bản thiết kế chính thức
 export const getFinalDesignSubImagesApi = async (customDesignRequestId) => {
