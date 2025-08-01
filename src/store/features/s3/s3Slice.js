@@ -1,19 +1,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getImageFromS3 } from '../../../api/s3Service';
 
-
 // Thunk to get image from S3
 export const fetchImageFromS3 = createAsyncThunk(
   's3/fetchImage',
   async (key, { rejectWithValue }) => {
     try {
       const response = await getImageFromS3(key);
-      
+
       if (!response.success) {
         return rejectWithValue(response.message || 'Failed to fetch image');
       }
-      
-      return { 
+
+      return {
         key,
         url: response.imageUrl
       };
@@ -47,6 +46,7 @@ const s3Slice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Xử lý fetchImageFromS3
       .addCase(fetchImageFromS3.pending, (state) => {
         state.status = 'loading';
       })
