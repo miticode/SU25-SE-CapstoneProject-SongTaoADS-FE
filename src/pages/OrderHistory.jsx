@@ -22,6 +22,16 @@ import {
   LinearProgress,
   Rating,
   Divider,
+  Grid,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Backdrop,
 } from "@mui/material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +49,8 @@ import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
   selectCurrentDesignRequest,
+  getFinalDesignSubImages,
+  selectFinalDesignSubImages,
 } from "../store/features/customeDesign/customerDesignSlice";
 import {
   createOrderFromDesignRequest,
@@ -67,6 +79,8 @@ import {
   approveDemoDesign,
   rejectDemoDesign,
   getDemoSubImages,
+  getCustomDesignRequestSubImages,
+  selectCustomDesignRequestSubImages,
 } from "../store/features/demo/demoSlice";
 import { fetchUserDetail } from "../store/features/user/userSlice";
 import { unwrapResult } from "@reduxjs/toolkit";
@@ -79,7 +93,7 @@ import {
   uploadSignedContract,
 } from "../store/features/contract/contractSlice";
 import { getPresignedUrl, openFileInNewTab, getImageFromS3 } from "../api/s3Service";
-import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
+import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 import {
   createImpression,
   uploadImpressionImage,
@@ -357,6 +371,9 @@ const OrderHistory = () => {
       ? state.s3.images[currentDesignRequest.finalDesignImage]
       : null
   );
+  
+  // S3 images selector
+  const s3Images = useSelector((state) => state.s3.images);
   const getOrderImpressions = (orderId) => {
     return allImpressionsByOrder[orderId] || [];
   };
@@ -1543,6 +1560,47 @@ const OrderHistory = () => {
 
   const handleTabChange = (event, newValue) => setTab(newValue);
 
+  // Helper function to format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  // Component for file info tooltip
+  const FileInfoTooltip = ({ fileInfo }) => (
+    <Box>
+      <Typography variant="body2" fontWeight={600}>
+        {fileInfo.name || "Image"}
+      </Typography>
+      <Typography variant="caption" display="block">
+        Type: {fileInfo.contentType || "N/A"}
+      </Typography>
+      <Typography variant="caption" display="block">
+        Size: {formatFileSize(fileInfo.fileSize || 0)}
+      </Typography>
+    </Box>
+  );
+
+  // Image viewer handlers
+  const handleOpenImageViewer = (imageUrl, title) => {
+    setImageViewer({
+      open: true,
+      imageUrl,
+      title
+    });
+  };
+
+  const handleCloseImageViewer = () => {
+    setImageViewer({
+      open: false,
+      imageUrl: null,
+      title: ""
+    });
+  };
+
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       dispatch(fetchOrdersByUserId(user.id));
@@ -1619,6 +1677,108 @@ const OrderHistory = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDesignRequest, dispatch]);
+
+  // Fetch sub-images when dialog opens and we have demo list
+  useEffect(() => {
+    const fetchSubImages = async () => {
+      if (!currentDesignRequest || !openDetail || demoList.length === 0) return;
+      
+      try {
+        // Fetch demo sub-images for each demo
+        for (const demo of demoList) {
+          try {
+            const subImagesResult = await dispatch(getDemoSubImages(demo.id)).unwrap();
+            if (subImagesResult && subImagesResult.length > 0) {
+              setDemoSubImagesMap(prev => ({
+                ...prev,
+                [demo.id]: subImagesResult
+              }));
+
+              // Fetch S3 URLs for sub-images
+              for (const img of subImagesResult) {
+                if (img.imageUrl) {
+                  try {
+                    const result = await dispatch(fetchImageFromS3(img.imageUrl)).unwrap();
+                    setSubDemoS3Urls(prev => ({
+                      ...prev,
+                      [img.id]: result.url
+                    }));
+                  } catch (error) {
+                    console.error("Error fetching S3 URL for sub-demo image:", error);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching demo sub-images for demo:", demo.id, error);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching demo sub-images:", error);
+      }
+    };
+
+    fetchSubImages();
+  }, [currentDesignRequest, openDetail, demoList, dispatch]);
+
+  // Fetch final design images when status is COMPLETED
+  useEffect(() => {
+    const fetchFinalDesignImages = async () => {
+      if (!currentDesignRequest || !openDetail || currentDesignRequest.status !== "COMPLETED") return;
+      
+      try {
+        // Fetch final design sub-images
+        try {
+          const finalSubImagesResult = await dispatch(getFinalDesignSubImages(currentDesignRequest.id)).unwrap();
+          if (finalSubImagesResult && finalSubImagesResult.length > 0) {
+            setFinalDesignSubImages(finalSubImagesResult);
+
+            // Fetch S3 URLs for final design sub-images
+            for (const img of finalSubImagesResult) {
+              if (img.imageUrl) {
+                try {
+                  const result = await dispatch(fetchImageFromS3(img.imageUrl)).unwrap();
+                  setFinalDesignS3Urls(prev => ({
+                    ...prev,
+                    [img.id]: result.url
+                  }));
+                } catch (error) {
+                  console.error("Error fetching S3 URL for final design sub-image:", error);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching final design sub-images:", error);
+        }
+
+        // Fetch main final design S3 URL
+        if (currentDesignRequest.finalDesignImage) {
+          try {
+            const result = await dispatch(fetchImageFromS3(currentDesignRequest.finalDesignImage)).unwrap();
+            setFinalDesignMainS3Url(result.url);
+          } catch (error) {
+            console.error("Error fetching final design main S3 URL:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching final design images:", error);
+      }
+    };
+
+    fetchFinalDesignImages();
+  }, [currentDesignRequest, openDetail, dispatch]);
+
+  // Reset states when dialog closes or currentDesignRequest changes
+  useEffect(() => {
+    if (!openDetail || !currentDesignRequest) {
+      setDemoSubImagesMap({});
+      setFinalDesignSubImages([]);
+      setSubDemoS3Urls({});
+      setFinalDesignS3Urls({});
+      setFinalDesignMainS3Url(null);
+    }
+  }, [openDetail, currentDesignRequest?.id]);
 
   // Fetch demo list khi dialog mở hoặc currentDesignRequest thay đổi
   useEffect(() => {
@@ -2121,12 +2281,25 @@ const OrderHistory = () => {
     }
   }, [createStatus]);
 
-  // Thêm selector lấy ảnh S3 cho demo
-  const s3Images = useSelector((state) => state.s3.images);
+
 
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // States for sub-images
+  const [demoSubImagesMap, setDemoSubImagesMap] = useState({}); // { demoId: subImages[] }
+  const [finalDesignSubImages, setFinalDesignSubImages] = useState([]);
+  const [subDemoS3Urls, setSubDemoS3Urls] = useState({}); // { imageId: S3URL }
+  const [finalDesignS3Urls, setFinalDesignS3Urls] = useState({}); // { imageId: S3URL }
+  const [finalDesignMainS3Url, setFinalDesignMainS3Url] = useState(null);
+
+  // Image viewer state
+  const [imageViewer, setImageViewer] = useState({
+    open: false,
+    imageUrl: null,
+    title: ""
+  });
 
   const demoSubImagesObj = useSelector((state) => state.demo.demoSubImages);
 
@@ -4516,217 +4689,663 @@ const OrderHistory = () => {
         <Dialog
           open={openDetail}
           onClose={() => setOpenDetail(false)}
-          maxWidth="md"
+          maxWidth="lg"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 0,
+              maxHeight: '95vh',
+              height: 'auto',
+              m: 0
+            }
+          }}
         >
-          <DialogTitle>
-            Chi tiết yêu cầu thiết kế
+          <DialogTitle
+            sx={{
+              bgcolor: '#0F172A',
+              color: 'white',
+              fontWeight: 700,
+              fontSize: '1.5rem',
+              py: 3,
+              px: 4,
+              position: 'relative',
+              letterSpacing: '-0.025em'
+            }}
+          >
+            Chi tiết yêu cầu thiết kế #{currentDesignRequest?.id}
             <IconButton
-              aria-label="close"
               onClick={() => setOpenDetail(false)}
-              sx={{ position: "absolute", right: 8, top: 8 }}
+              sx={{
+                position: 'absolute',
+                right: 16,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'white',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+              }}
             >
               <CloseIcon />
             </IconButton>
           </DialogTitle>
-          <DialogContent dividers>
+
+          <DialogContent sx={{ p: 0, bgcolor: '#f8fafc' }}>
             {currentDesignRequest ? (
               <Box>
-                <Typography>
-                  <b>ID:</b> {currentDesignRequest.id}
+                {/* Demo Thiết Kế Section */}
+                {demoList.length > 0 && (
+                  <Card sx={{ m: 0, borderRadius: 0, bgcolor: '#ecfdf5', border: 'none', boxShadow: 'none', borderBottom: '1px solid #e2e8f0' }}>
+                    <CardContent sx={{ p: 4 }}>
+                      <Box mb={3}>
+                        <Typography variant="h5" fontWeight={600} color="#0F172A" mb={1} letterSpacing="-0.015em">
+                          Demo Thiết Kế
                 </Typography>
-                <Typography>
-                  <b>Yêu cầu:</b> {currentDesignRequest.requirements}
+                        <Typography variant="body2" color="#64748b" fontSize="0.95rem">
+                          Các bản demo đã gửi từ designer
                 </Typography>
-                <Typography>
-                  <b>Tổng tiền:</b>{" "}
-                  {currentDesignRequest.totalPrice?.toLocaleString("vi-VN") ||
-                    "N/A"}
-                  ₫
+                      </Box>
+
+                      {demoList.map((demo, idx) => (
+                        <Box key={demo.id} mb={idx < demoList.length - 1 ? 4 : 0}>
+                          <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.01em">
+                            Demo #{idx + 1} - {new Date(demo.createAt).toLocaleDateString("vi-VN")}
                 </Typography>
-                <Typography>
-                  <b>Đặt cọc:</b>{" "}
-                  {currentDesignRequest.depositAmount?.toLocaleString(
-                    "vi-VN"
-                  ) || "N/A"}
-                  ₫
+                          
+                          {/* Main Demo Image */}
+                          <Box mb={3}>
+                            <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.01em">
+                              Hình ảnh demo chính
                 </Typography>
-                <Typography>
-                  <b>Còn lại:</b>{" "}
-                  {currentDesignRequest.remainingAmount?.toLocaleString(
-                    "vi-VN"
-                  ) || "N/A"}
-                  ₫
+                            <Paper elevation={0} sx={{ p: 2, display: 'inline-block', borderRadius: 3, bgcolor: 'white', border: '1px solid #10b981', boxShadow: '0 2px 4px -1px rgba(16, 185, 129, 0.2)', cursor: 'pointer', transition: 'all 0.2s ease-in-out', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 20px -3px rgba(16, 185, 129, 0.3)', borderColor: '#059669' } }}>
+                              {demo.demoImage && (
+                                (demo.demoImage.startsWith("http") || s3Images[demo.demoImage]) ? (
+                                  <img
+                                    src={demo.demoImage.startsWith("http") ? demo.demoImage : s3Images[demo.demoImage]}
+                                    alt={`Demo ${idx + 1}`}
+                                    style={{
+                                      maxWidth: '100%',
+                                      height: 'auto',
+                                      maxHeight: 300,
+                                      borderRadius: 6,
+                                      objectFit: 'contain',
+                                      display: 'block'
+                                    }}
+                                    onClick={() => {
+                                      const mainImageUrl = demo.demoImage.startsWith("http") ? demo.demoImage : s3Images[demo.demoImage];
+                                      if (mainImageUrl) {
+                                        handleOpenImageViewer(mainImageUrl, `Demo ${idx + 1}`);
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Box
+                                    sx={{
+                                      width: 400,
+                                      height: 200,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      bgcolor: "#ecfdf5",
+                                      borderRadius: 2,
+                                      border: "2px dashed #10b981",
+                                    }}
+                                  >
+                                    <CircularProgress 
+                                      size={32} 
+                                      sx={{ color: '#10b981' }}
+                                    />
+                                  </Box>
+                                )
+                              )}
+                            </Paper>
+                          </Box>
+
+                          {/* Sub Demo Images */}
+                          {demoSubImagesMap[demo.id] && demoSubImagesMap[demo.id].length > 0 && (
+                            <Box mb={3}>
+                              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.01em">
+                                Hình ảnh chi tiết demo
                 </Typography>
-                <Typography>
-                  <b>Trạng thái:</b>{" "}
-                  {statusMap[currentDesignRequest.status]?.label ||
-                    currentDesignRequest.status}
+                              <Box display="flex" flexWrap="wrap" gap={2} alignItems="center">
+                                {demoSubImagesMap[demo.id].map((img) => (
+                                  <Paper
+                                    key={img.id}
+                                    elevation={0}
+                                    sx={{
+                                      p: 1.5,
+                                      borderRadius: 2,
+                                      bgcolor: 'white',
+                                      border: '1px solid #10b981',
+                                      transition: 'all 0.2s ease-in-out',
+                                      cursor: 'pointer',
+                                      '&:hover': {
+                                        transform: 'translateY(-2px)',
+                                        boxShadow: '0 8px 20px -3px rgba(16, 185, 129, 0.3)',
+                                        borderColor: '#059669'
+                                      }
+                                    }}
+                                    onClick={() => subDemoS3Urls[img.id] && handleOpenImageViewer(subDemoS3Urls[img.id], img.name || 'Demo chi tiết')}
+                                  >
+                                    {subDemoS3Urls[img.id] ? (
+                                      <Tooltip 
+                                        title={<FileInfoTooltip fileInfo={img} />}
+                                        arrow
+                                        placement="top"
+                                      >
+                                        <img
+                                          src={subDemoS3Urls[img.id]}
+                                          alt={img.name || "Demo chi tiết"}
+                                          style={{
+                                            width: 100,
+                                            height: 100,
+                                            objectFit: "cover",
+                                            borderRadius: 6,
+                                          }}
+                                          onError={(e) => {
+                                            console.error("Error loading sub-demo S3 image:", img.imageUrl);
+                                            e.target.style.display = "none";
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    ) : (
+                                      <Box
+                                        sx={{
+                                          width: 100,
+                                          height: 100,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          bgcolor: "#ecfdf5",
+                                          borderRadius: 1.5,
+                                        }}
+                                      >
+                                        <CircularProgress 
+                                          size={24} 
+                                          sx={{ color: '#10b981' }}
+                                        />
+                                      </Box>
+                                    )}
+                                  </Paper>
+                                ))}
+                              </Box>
+                            </Box>
+                          )}
+
+                          <Grid container spacing={3}>
+                            <Grid item xs={12} md={6}>
+                              <Stack spacing={2}>
+                                <Box>
+                                  <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                    Mô tả từ designer
                 </Typography>
-                <Typography>
-                  <b>Ngày tạo:</b>{" "}
-                  {new Date(currentDesignRequest.createAt).toLocaleString(
-                    "vi-VN"
-                  )}
+                                  <Typography variant="body1" color="#374151">
+                                    {demo.designerDescription || "Không có mô tả"}
+                                  </Typography>
+                                </Box>
+                                <Box>
+                                  <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                    Trạng thái
+                                  </Typography>
+                                  <Chip
+                                    label={demo.status}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: demo.status === 'APPROVED' ? '#10b981' : demo.status === 'REJECTED' ? '#ef4444' : '#f59e0b',
+                                      color: 'white',
+                                      fontWeight: 600
+                                    }}
+                                  />
+                                </Box>
+                              </Stack>
+                            </Grid>
+                          </Grid>
+
+                          {/* Demo Action Buttons */}
+                          {idx === demoList.length - 1 &&
+                            (currentDesignRequest.status === "DEMO_SUBMITTED" ||
+                              currentDesignRequest.status === "REVISION_REQUESTED") && (
+                              <Box mt={3} p={3} borderRadius={3} bgcolor="rgba(16, 185, 129, 0.1)" border="1px solid rgba(16, 185, 129, 0.2)">
+                                <Stack direction="row" spacing={2}>
+                                  <Button
+                                    variant="contained"
+                                    onClick={handleApproveDemo}
+                                    disabled={demoActionLoading}
+                                    sx={{
+                                      bgcolor: '#10b981',
+                                      '&:hover': { bgcolor: '#059669' },
+                                      fontWeight: 600,
+                                      px: 3
+                                    }}
+                                  >
+                                    {demoActionLoading ? "Đang xử lý..." : "Chấp nhận demo"}
+                                  </Button>
+                                  <Button
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => setRejectDialogOpen(true)}
+                                    disabled={demoActionLoading}
+                                    sx={{ fontWeight: 600, px: 3 }}
+                                  >
+                                    Từ chối demo
+                                  </Button>
+                                </Stack>
+                              </Box>
+                            )}
+                        </Box>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Final Design Section */}
+                {(currentDesignRequest?.status === "COMPLETED" && (currentDesignRequest?.finalDesignImage || (finalDesignSubImages && finalDesignSubImages.length > 0))) && (
+                  <Card sx={{ m: 0, borderRadius: 0, bgcolor: '#fefce8', border: 'none', boxShadow: 'none', borderBottom: '1px solid #e2e8f0' }}>
+                    <CardContent sx={{ p: 4 }}>
+                      <Box mb={3}>
+                        <Typography variant="h5" fontWeight={600} color="#0F172A" mb={1} letterSpacing="-0.015em">
+                          Thiết Kế Chính Thức
                 </Typography>
-                <Typography>
-                  <b>Ngày cập nhật:</b>{" "}
-                  {new Date(currentDesignRequest.updateAt).toLocaleString(
-                    "vi-VN"
-                  )}
+                        <Typography variant="body2" color="#64748b" fontSize="0.95rem">
+                          Bản thiết kế chính thức đã hoàn thành
                 </Typography>
-                <Typography>
-                  <b>Hỗ trợ:</b>{" "}
-                  {currentDesignRequest.isNeedSupport === null
-                    ? "N/A"
-                    : currentDesignRequest.isNeedSupport
-                    ? "Có"
-                    : "Không"}
+                      </Box>
+
+                      {/* Final Design Main Image */}
+                      {currentDesignRequest?.finalDesignImage && (
+                        <Box mb={4}>
+                          <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.01em">
+                            Hình ảnh thiết kế chính thức
                 </Typography>
-                <Typography>
-                  <b>Designer phụ trách:</b>{" "}
-                  {designerMap[currentDesignRequest?.assignDesigner?.id]
-                    ?.fullName ||
-                    currentDesignRequest?.assignDesigner?.fullName ||
-                    currentDesignRequest?.assignDesigner?.email ||
-                    "Chưa có"}
-                </Typography>
-                {/* <Typography>
-                <b>Ảnh thiết kế cuối:</b>{" "}
-                {currentDesignRequest.finalDesignImage ? (
-                  <img
-                    src={currentDesignRequest.finalDesignImage}
-                    alt="final"
-                    style={{ maxWidth: 200 }}
+                          <Paper
+                            elevation={0}
+                            sx={{
+                              p: 2,
+                              display: 'inline-block',
+                              borderRadius: 3,
+                              bgcolor: 'white',
+                              border: '1px solid #fbbf24',
+                              boxShadow: '0 2px 4px -1px rgba(251, 191, 36, 0.2)',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease-in-out',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 20px -3px rgba(251, 191, 36, 0.3)',
+                                borderColor: '#f59e0b'
+                              }
+                            }}
+                            onClick={() => finalDesignMainS3Url && handleOpenImageViewer(finalDesignMainS3Url, 'Thiết kế chính thức')}
+                          >
+                            {finalDesignMainS3Url ? (
+                              <img
+                                src={finalDesignMainS3Url}
+                                alt="Thiết kế chính thức"
+                                style={{
+                                  maxWidth: '100%',
+                                  height: 'auto',
+                                  maxHeight: 300,
+                                  borderRadius: 6,
+                                  objectFit: 'contain',
+                                  display: 'block'
+                                }}
+                                onError={(e) => {
+                                  console.error("Error loading final design main S3 image:", currentDesignRequest.finalDesignImage);
+                                  e.target.style.display = "none";
+                                }}
                   />
                 ) : (
-                  "Chưa có"
-                )}
-              </Typography> */}
-                <Typography mt={2}>
-                  <b>Thông tin lựa chọn sản phẩm:</b>
+                              <Box
+                                sx={{
+                                  width: 400,
+                                  height: 200,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  bgcolor: "#fef3c7",
+                                  borderRadius: 2,
+                                  border: "2px dashed #fbbf24",
+                                }}
+                              >
+                                <CircularProgress 
+                                  size={32} 
+                                  sx={{ color: '#f59e0b' }}
+                                />
+                              </Box>
+                            )}
+                          </Paper>
+                        </Box>
+                      )}
+
+                      {/* Final Design Sub Images */}
+                      {finalDesignSubImages && finalDesignSubImages.length > 0 && (
+                        <Box>
+                          <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.01em">
+                            Hình ảnh chi tiết thiết kế
                 </Typography>
-                {currentDesignRequest.customerChoiceHistories && (
-                  <Box ml={2}>
-                    <Typography>
-                      <b>Loại sản phẩm:</b>{" "}
-                      {
-                        currentDesignRequest.customerChoiceHistories
-                          .productTypeName
-                      }
-                    </Typography>
-                    <Typography>
-                      <b>Công thức tính:</b>{" "}
-                      {
-                        currentDesignRequest.customerChoiceHistories
-                          .calculateFormula
-                      }
-                    </Typography>
-                    <Typography>
-                      <b>Tổng tiền:</b>{" "}
-                      {currentDesignRequest.customerChoiceHistories.totalAmount?.toLocaleString(
-                        "vi-VN"
-                      ) || "N/A"}
-                      ₫
-                    </Typography>
-                    <Typography mt={1}>
-                      <b>Thuộc tính đã chọn:</b>
-                    </Typography>
-                    <ul>
-                      {currentDesignRequest.customerChoiceHistories.attributeSelections?.map(
-                        (attr, idx) => (
-                          <li key={idx}>
-                            <Typography>
-                              <b>{attr.attribute}:</b> {attr.value} | Đơn vị:{" "}
-                              {attr.unit} | Giá vật liệu:{" "}
-                              {attr.materialPrice?.toLocaleString("vi-VN") || 0}
-                              ₫ | Đơn giá:{" "}
-                              {attr.unitPrice?.toLocaleString("vi-VN") || 0}₫ |
-                              Công thức: {attr.calculateFormula} | Thành tiền:{" "}
-                              {attr.subTotal?.toLocaleString("vi-VN") || 0}₫
-                            </Typography>
-                          </li>
-                        )
+                          
+                          <Box display="flex" flexWrap="wrap" gap={2} alignItems="center">
+                            {finalDesignSubImages.map((img) => (
+                              <Paper
+                                key={img.id}
+                                elevation={0}
+                                sx={{
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  bgcolor: 'white',
+                                  border: '1px solid #fbbf24',
+                                  transition: 'all 0.2s ease-in-out',
+                                  cursor: 'pointer',
+                                  '&:hover': {
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: '0 8px 20px -3px rgba(251, 191, 36, 0.3)',
+                                    borderColor: '#f59e0b'
+                                  }
+                                }}
+                                onClick={() => finalDesignS3Urls[img.id] && handleOpenImageViewer(finalDesignS3Urls[img.id], img.name || 'Thiết kế chi tiết')}
+                              >
+                                {finalDesignS3Urls[img.id] ? (
+                                  <Tooltip 
+                                    title={<FileInfoTooltip fileInfo={img} />}
+                                    arrow
+                                    placement="top"
+                                  >
+                                    <img
+                                      src={finalDesignS3Urls[img.id]}
+                                      alt={img.name || "Thiết kế chi tiết"}
+                                      style={{
+                                        width: 100,
+                                        height: 100,
+                                        objectFit: "cover",
+                                        borderRadius: 6,
+                                      }}
+                                      onError={(e) => {
+                                        console.error("Error loading final design S3 image:", img.imageUrl);
+                                        e.target.style.display = "none";
+                                      }}
+                                    />
+                                  </Tooltip>
+                                ) : (
+                                  <Box
+                                    sx={{
+                                      width: 100,
+                                      height: 100,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      bgcolor: "#fef3c7",
+                                      borderRadius: 1.5,
+                                    }}
+                                  >
+                                    <CircularProgress 
+                                      size={24} 
+                                      sx={{ color: '#f59e0b' }}
+                                    />
+                                  </Box>
+                                )}
+                              </Paper>
+                            ))}
+                          </Box>
+                        </Box>
                       )}
-                    </ul>
-                    <Typography mt={1}>
-                      <b>Kích thước đã chọn:</b>
-                    </Typography>
-                    <ul>
-                      {currentDesignRequest.customerChoiceHistories.sizeSelections?.map(
-                        (size, idx) => (
-                          <li key={idx}>
-                            <Typography>
-                              <b>{size.size}:</b> {size.value}
-                            </Typography>
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  </Box>
+                    </CardContent>
+                  </Card>
                 )}
-                {/* Lịch sử báo giá */}
-                <Typography mt={2} variant="h6">
+
+                {/* Customer Information */}
+                <Card sx={{ m: 0, borderRadius: 0, borderTop: '1px solid #e0e0e0' }}>
+                  <CardContent sx={{ p: 4 }}>
+                    <Grid container spacing={4}>
+                      <Grid item xs={12} md={6}>
+                        <Card elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                          <Typography variant="h6" fontWeight={600} color="#0F172A" mb={3} letterSpacing="-0.015em">
+                            Thông Tin Yêu Cầu
+                    </Typography>
+                          <Stack spacing={2}>
+                            <Box>
+                              <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                Mô tả yêu cầu
+                    </Typography>
+                              <Typography variant="body1" color="#374151">
+                                {currentDesignRequest.requirements}
+                    </Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                Trạng thái
+                    </Typography>
+                              <Chip
+                                label={statusMap[currentDesignRequest.status]?.label || currentDesignRequest.status}
+                                sx={{
+                                  bgcolor: currentDesignRequest.status === "COMPLETED" ? '#10b981' : 
+                                           currentDesignRequest.status === "CANCELLED" ? '#ef4444' : '#f59e0b',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            </Box>
+                            <Box>
+                              <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                Designer phụ trách
+                            </Typography>
+                              <Typography variant="body1" color="#374151">
+                                {designerMap[currentDesignRequest?.assignDesigner?.id]?.fullName ||
+                                  currentDesignRequest?.assignDesigner?.fullName ||
+                                  currentDesignRequest?.assignDesigner?.email ||
+                                  "Chưa có"}
+                    </Typography>
+                            </Box>
+                          </Stack>
+                        </Card>
+                      </Grid>
+
+                      <Grid item xs={12} md={6}>
+                        <Card elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                          <Typography variant="h6" fontWeight={600} color="#0F172A" mb={3} letterSpacing="-0.015em">
+                            Thông Tin Báo Giá
+                            </Typography>
+                          <Stack spacing={3}>
+                            <Grid container spacing={3}>
+                              <Grid item xs={6}>
+                                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                                  <Typography variant="body2" color="#16a34a" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                    Tổng tiền
+                                  </Typography>
+                                  <Typography variant="h6" color="#15803d" fontWeight={700}>
+                                    {currentDesignRequest.totalPrice?.toLocaleString("vi-VN") || 0}₫
+                                  </Typography>
+                                </Paper>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                  <Typography variant="body2" color="#2563eb" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                    Đặt cọc
+                                  </Typography>
+                                  <Typography variant="h6" color="#1d4ed8" fontWeight={700}>
+                                    {currentDesignRequest.depositAmount?.toLocaleString("vi-VN") || 0}₫
+                                  </Typography>
+                                </Paper>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                                  <Typography variant="body2" color="#d97706" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                    Còn lại
+                                  </Typography>
+                                  <Typography variant="h6" color="#ca8a04" fontWeight={700}>
+                                    {currentDesignRequest.remainingAmount?.toLocaleString("vi-VN") || 0}₫
+                                  </Typography>
+                                </Paper>
+                              </Grid>
+                            </Grid>
+                          </Stack>
+                        </Card>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Product Details Section */}
+                {currentDesignRequest.customerChoiceHistories && (
+                  <Card sx={{ borderRadius: 0, borderTop: '1px solid #e0e0e0' }}>
+                    <CardContent sx={{ p: 4 }}>
+                      <Box mb={3}>
+                        <Typography variant="h5" fontWeight={600} color="#0F172A" mb={1} letterSpacing="-0.015em">
+                          Chi Tiết Sản Phẩm
+                        </Typography>
+                        <Typography variant="body2" color="#64748b" fontSize="0.95rem">
+                          Thông tin kỹ thuật và lựa chọn của khách hàng
+                        </Typography>
+                  </Box>
+
+                      <Grid container spacing={4}>
+                        <Grid item xs={12} md={4}>
+                          <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                            <Typography variant="h6" fontWeight={600} color="#0F172A" mb={3} letterSpacing="-0.015em">
+                              Thông Tin Sản Phẩm
+                            </Typography>
+                            <Stack spacing={2}>
+                              <Box>
+                                <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                  Loại sản phẩm
+                                </Typography>
+                                <Typography variant="h6" fontWeight={700} color="#0F172A">
+                                  {currentDesignRequest.customerChoiceHistories.productTypeName}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                  Công thức tính
+                                </Typography>
+                                <Typography variant="body1" color="#374151">
+                                  {currentDesignRequest.customerChoiceHistories.calculateFormula}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" color="#64748b" fontWeight={600} mb={1} textTransform="uppercase" letterSpacing="0.05em">
+                                  Tổng tiền
+                                </Typography>
+                                <Typography variant="h6" fontWeight={700} color="#0F172A">
+                                  {currentDesignRequest.customerChoiceHistories.totalAmount?.toLocaleString("vi-VN") || "N/A"}₫
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Paper>
+                        </Grid>
+
+                        <Grid item xs={12} md={8}>
+                          <Stack spacing={3}>
+                            {/* Attributes Table */}
+                            <Box>
+                              <Typography variant="h6" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.015em">
+                                Thuộc Tính Đã Chọn
+                              </Typography>
+                              <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                                <Table>
+                                  <TableHead sx={{ bgcolor: '#0F172A' }}>
+                                    <TableRow>
+                                      <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Thuộc tính</TableCell>
+                                      <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Giá trị</TableCell>
+                                      <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Đơn vị</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Đơn giá</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Thành tiền</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {currentDesignRequest.customerChoiceHistories.attributeSelections?.map((attr, idx) => (
+                                      <TableRow key={idx} sx={{ '&:nth-of-type(odd)': { bgcolor: '#f8fafc' }, '&:hover': { bgcolor: '#f1f5f9' }, borderBottom: '1px solid #e2e8f0' }}>
+                                        <TableCell sx={{ py: 2, fontSize: '0.95rem', color: '#374151' }}>{attr.attribute}</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, py: 2, fontSize: '0.95rem', color: '#0F172A' }}>{attr.value}</TableCell>
+                                        <TableCell sx={{ py: 2, fontSize: '0.95rem', color: '#64748b' }}>{attr.unit}</TableCell>
+                                        <TableCell align="right" sx={{ py: 2, fontSize: '0.95rem', color: '#374151' }}>{attr.unitPrice?.toLocaleString("vi-VN") || 0}₫</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 600, py: 2, fontSize: '0.95rem', color: '#0F172A' }}>{attr.subTotal?.toLocaleString("vi-VN") || 0}₫</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            </Box>
+
+                            {/* Sizes Table */}
+                            <Box>
+                              <Typography variant="h6" fontWeight={600} mb={2} color="#0F172A" letterSpacing="-0.015em">
+                                Kích Thước Đã Chọn
+                              </Typography>
+                              <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                                <Table>
+                                  <TableHead sx={{ bgcolor: '#0F172A' }}>
+                                    <TableRow>
+                                      <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Kích thước</TableCell>
+                                      <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>Giá trị</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {currentDesignRequest.customerChoiceHistories.sizeSelections?.map((size, idx) => (
+                                      <TableRow key={idx} sx={{ '&:nth-of-type(odd)': { bgcolor: '#f8fafc' }, '&:hover': { bgcolor: '#f1f5f9' }, borderBottom: '1px solid #e2e8f0' }}>
+                                        <TableCell sx={{ py: 2, fontSize: '0.95rem', color: '#374151' }}>{size.size}</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, py: 2, fontSize: '0.95rem', color: '#0F172A' }}>{size.value}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            </Box>
+                          </Stack>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Price Proposals Section */}
+                <Card sx={{ borderRadius: 0, borderTop: '1px solid #e0e0e0' }}>
+                  <CardContent sx={{ p: 4 }}>
+                    <Typography variant="h5" fontWeight={600} color="#0F172A" mb={3} letterSpacing="-0.015em">
                   Lịch sử báo giá
                 </Typography>
+                    
                 {loadingProposals ? (
-                  <Box display="flex" justifyContent="center" py={2}>
+                      <Box display="flex" justifyContent="center" py={4}>
                     <CircularProgress />
                   </Box>
                 ) : priceProposals.length === 0 ? (
-                  <Typography>Chưa có báo giá nào.</Typography>
+                      <Typography color="#64748b">Chưa có báo giá nào.</Typography>
                 ) : (
-                  <Box>
+                      <Stack spacing={3}>
                     {priceProposals.map((proposal) => (
-                      <Box
-                        key={proposal.id}
-                        mb={2}
-                        p={2}
-                        border={1}
-                        borderRadius={2}
-                        borderColor="grey.300"
-                      >
-                        <Typography>
-                          <b>Giá báo:</b>{" "}
-                          {proposal.totalPrice?.toLocaleString("vi-VN")}₫
-                        </Typography>
-                        <Typography>
-                          <b>Tiền cọc:</b>{" "}
-                          {proposal.depositAmount?.toLocaleString("vi-VN")}₫
-                        </Typography>
+                          <Paper key={proposal.id} elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                            <Grid container spacing={2}>
+                              <Grid item xs={12} md={6}>
+                                <Stack spacing={1}>
+                                  <Typography variant="body2" color="#64748b" fontWeight={600}>Giá báo: <strong>{proposal.totalPrice?.toLocaleString("vi-VN")}₫</strong></Typography>
+                                  <Typography variant="body2" color="#64748b" fontWeight={600}>Tiền cọc: <strong>{proposal.depositAmount?.toLocaleString("vi-VN")}₫</strong></Typography>
                         {proposal.totalPriceOffer && (
-                          <Typography>
-                            <b>Giá offer:</b>{" "}
-                            {proposal.totalPriceOffer?.toLocaleString("vi-VN")}₫
-                          </Typography>
+                                    <Typography variant="body2" color="#64748b" fontWeight={600}>Giá offer: <strong>{proposal.totalPriceOffer?.toLocaleString("vi-VN")}₫</strong></Typography>
                         )}
                         {proposal.depositAmountOffer && (
-                          <Typography>
-                            <b>Cọc offer:</b>{" "}
-                            {proposal.depositAmountOffer?.toLocaleString(
-                              "vi-VN"
-                            )}
-                            ₫
-                          </Typography>
-                        )}
-                        <Typography>
-                          <b>Trạng thái:</b> {proposal.status}
+                                    <Typography variant="body2" color="#64748b" fontWeight={600}>Cọc offer: <strong>{proposal.depositAmountOffer?.toLocaleString("vi-VN")}₫</strong></Typography>
+                                  )}
+                                </Stack>
+                              </Grid>
+                              <Grid item xs={12} md={6}>
+                                <Stack spacing={1}>
+                                  <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="body2" color="#64748b" fontWeight={600}>
+                                      Trạng thái:
+                                    </Typography>
+                                    <Chip label={proposal.status} size="small" />
+                                  </Box>
+                                  <Typography variant="body2" color="#64748b" fontWeight={600}>
+                                    Ngày báo giá: <strong>{new Date(proposal.createAt).toLocaleDateString("vi-VN")}</strong>
                         </Typography>
-                        <Typography>
-                          <b>Ngày báo giá:</b>{" "}
-                          {new Date(proposal.createAt).toLocaleString("vi-VN")}
-                        </Typography>
-                        {/* Nút thao tác nếu trạng thái phù hợp */}
-                        {["PENDING", "NEGOTIATING"].includes(
-                          proposal.status
-                        ) && (
-                          <Box mt={1} display="flex" gap={2}>
+                                </Stack>
+                              </Grid>
+                            </Grid>
+                            
+                            {["PENDING", "NEGOTIATING"].includes(proposal.status) && (
+                              <Box mt={2} display="flex" gap={2}>
                             <Button
                               variant="contained"
-                              color="success"
                               size="small"
                               disabled={actionLoading}
                               onClick={() => handleApproveProposal(proposal.id)}
+                                  sx={{ bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
                             >
                               Chấp nhận
                             </Button>
@@ -4741,15 +5360,42 @@ const OrderHistory = () => {
                             </Button>
                           </Box>
                         )}
-                      </Box>
-                    ))}
-                  </Box>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Construction Choice Section */}
+                {currentDesignRequest && currentDesignRequest.status === "COMPLETED" && (
+                  <Card sx={{ borderRadius: 0, borderTop: '1px solid #e0e0e0' }}>
+                    <CardContent sx={{ p: 4 }}>
+                      <Typography variant="h5" fontWeight={600} color="#0F172A" mb={3} letterSpacing="-0.015em">
+                        Lựa chọn thi công
+                      </Typography>
+                      
+                      {currentDesignRequest.isNeedSupport === true && orders.some((order) => order.customDesignRequests?.id === currentDesignRequest.id) ? (
+                        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#e1f5fe', border: '1px solid #2196f3' }}>
+                          <Typography variant="body1" color="#1976d2" fontWeight={600}>
+                            ✅ Đã chọn thi công: Đơn hàng đã được tạo, vui lòng kiểm tra ở tab "Lịch sử đơn hàng"
+                          </Typography>
+                        </Paper>
+                      ) : currentDesignRequest.isNeedSupport !== null ? (
+                        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: '#e8f5e9', border: '1px solid #4caf50' }}>
+                          <Typography variant="body1" color="#388e3c" fontWeight={600}>
+                            ✅ Đã chọn: {currentDesignRequest.isNeedSupport ? "Có thi công" : "Không thi công"}
+                          </Typography>
+                        </Paper>
+                      ) : (
+                        <Typography color="#64748b">Chưa có lựa chọn thi công</Typography>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
+
                 {/* Dialog offer giá khác */}
-                <Dialog
-                  open={offerDialog.open}
-                  onClose={handleCloseOfferDialog}
-                >
+                <Dialog open={offerDialog.open} onClose={handleCloseOfferDialog} maxWidth="sm" fullWidth>
                   <DialogTitle>Offer giá khác</DialogTitle>
                   <DialogContent>
                     <TextField
@@ -4757,12 +5403,7 @@ const OrderHistory = () => {
                       fullWidth
                       margin="normal"
                       value={offerForm.rejectionReason}
-                      onChange={(e) =>
-                        setOfferForm((f) => ({
-                          ...f,
-                          rejectionReason: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => setOfferForm((f) => ({ ...f, rejectionReason: e.target.value }))}
                       required
                     />
                     <TextField
@@ -4771,12 +5412,7 @@ const OrderHistory = () => {
                       fullWidth
                       margin="normal"
                       value={offerForm.totalPriceOffer}
-                      onChange={(e) =>
-                        setOfferForm((f) => ({
-                          ...f,
-                          totalPriceOffer: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => setOfferForm((f) => ({ ...f, totalPriceOffer: e.target.value }))}
                     />
                     <TextField
                       label="Tiền cọc offer (VND)"
@@ -4784,345 +5420,20 @@ const OrderHistory = () => {
                       fullWidth
                       margin="normal"
                       value={offerForm.depositAmountOffer}
-                      onChange={(e) =>
-                        setOfferForm((f) => ({
-                          ...f,
-                          depositAmountOffer: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => setOfferForm((f) => ({ ...f, depositAmountOffer: e.target.value }))}
                     />
                   </DialogContent>
                   <DialogActions>
                     <Button onClick={handleCloseOfferDialog}>Hủy</Button>
-                    <Button
-                      onClick={handleOfferSubmit}
-                      variant="contained"
-                      color="primary"
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? (
-                        <CircularProgress size={20} color="inherit" />
-                      ) : (
-                        "Gửi offer"
-                      )}
+                    <Button onClick={handleOfferSubmit} variant="contained" color="primary" disabled={actionLoading}>
+                      {actionLoading ? <CircularProgress size={20} color="inherit" /> : "Gửi offer"}
                     </Button>
                   </DialogActions>
                 </Dialog>
-                {/* Hiển thị lịch sử các bản demo */}
-                {demoList.length > 0 && (
-                  <Box mt={2}>
-                    <Typography variant="h6" gutterBottom>
-                      Lịch sử các bản demo
-                    </Typography>
-                    {demoList.map((demo, idx) => (
-                      <Box
-                        key={demo.id}
-                        mb={2}
-                        p={2}
-                        border={1}
-                        borderRadius={2}
-                        borderColor="grey.300"
-                      >
-                        <Typography fontWeight={600}>
-                          Lần gửi #{idx + 1} -{" "}
-                          {new Date(demo.createAt).toLocaleString("vi-VN")}
-                        </Typography>
-                        <Typography>
-                          <b>Mô tả:</b>{" "}
-                          {demo.designerDescription || "(Không có)"}
-                        </Typography>
-                        {demo.demoImage && (
-                          <Box
-                            mt={1}
-                            sx={{
-                              position: "relative",
-                              display: "inline-block",
-                            }}
-                          >
-                            <img
-                              src={
-                                demo.demoImage.startsWith("http")
-                                  ? demo.demoImage
-                                  : s3Images[demo.demoImage] || ""
-                              }
-                              alt={`Demo ${idx + 1}`}
-                              style={{
-                                maxWidth: 300,
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                display: "block",
-                              }}
-                            />
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                top: 12,
-                                right: 12,
-                                bgcolor: "rgba(255,255,255,0.85)",
-                                borderRadius: "50%",
-                                p: 1,
-                                boxShadow: 2,
-                                cursor: "pointer",
-                                zIndex: 2,
-                                "&:hover": { bgcolor: "primary.light" },
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                              onClick={async () => {
-                                let subImages = demoSubImagesObj[demo.id] || [];
-                                if (subImages.length === 0) {
-                                  const res = await dispatch(
-                                    getDemoSubImages(demo.id)
-                                  ).unwrap();
-                                  subImages = res || [];
-                                }
-                                const mainKey = demo.demoImage;
-                                const subKeys = subImages.map(
-                                  (img) => img.imageUrl
-                                );
-                                const allKeys = [mainKey, ...subKeys];
-                                await Promise.all(
-                                  allKeys.map(async (key) => {
-                                    if (
-                                      key &&
-                                      !key.startsWith("http") &&
-                                      !s3Images[key]
-                                    ) {
-                                      await dispatch(fetchImageFromS3(key));
-                                    }
-                                  })
-                                );
-                                const galleryArr = allKeys.map((key) =>
-                                  key.startsWith("http")
-                                    ? key
-                                    : s3Images[key] || ""
-                                );
-                                setGalleryImages(galleryArr);
-                                setGalleryIndex(0);
-                                setGalleryOpen(true);
-                              }}
-                            >
-                              <VisibilityIcon
-                                sx={{ fontSize: 28, color: "primary.main" }}
-                              />
-                            </Box>
-                          </Box>
-                        )}
-                        <Typography>
-                          <b>Trạng thái:</b> {demo.status}
-                        </Typography>
-                        {/* Nếu là bản demo cuối cùng và status phù hợp thì hiển thị nút thao tác */}
-                        {idx === demoList.length - 1 &&
-                          (currentDesignRequest.status === "DEMO_SUBMITTED" ||
-                            currentDesignRequest.status ===
-                              "REVISION_REQUESTED") && (
-                            <Stack direction="row" spacing={2} mt={2}>
-                              <Button
-                                variant="contained"
-                                color="success"
-                                onClick={handleApproveDemo}
-                                disabled={demoActionLoading}
-                              >
-                                {demoActionLoading
-                                  ? "Đang xử lý..."
-                                  : "Chấp nhận demo"}
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                onClick={() => setRejectDialogOpen(true)}
-                                disabled={demoActionLoading}
-                              >
-                                Từ chối demo
-                              </Button>
-                            </Stack>
-                          )}
-                      </Box>
-                    ))}
-                  </Box>
-                )}
-                {/* Hiển thị demo nếu có và status là DEMO_SUBMITTED hoặc WAITING_FULL_PAYMENT */}
-                {latestDemo && (
-                  <Box mt={2} mb={2}>
-                    <Typography variant="subtitle2" color="primary">
-                      Demo designer đã gửi:
-                    </Typography>
-                    <Typography>
-                      <b>Mô tả demo:</b>{" "}
-                      {latestDemo.designerDescription || "(Không có)"}
-                    </Typography>
-                    {latestDemo.demoImage && (
-                      <Box mt={1}>
-                        <img
-                          src={
-                            latestDemo.demoImage.startsWith("http")
-                              ? latestDemo.demoImage
-                              : s3Images[latestDemo.demoImage] || ""
-                          }
-                          alt="Demo đã gửi"
-                          style={{ maxWidth: 300, borderRadius: 8 }}
-                        />
-                      </Box>
-                    )}
-                    {/* Hiển thị bản thiết kế chính thức nếu đã hoàn thành */}
-                    {currentDesignRequest.status === "COMPLETED" &&
-                      currentDesignRequest.finalDesignImage && (
-                        <Box mt={2}>
-                          <Typography variant="subtitle2" color="success.main">
-                            Bản thiết kế chính thức:
-                          </Typography>
-                          {s3FinalImageUrl ? (
-                            <img
-                              src={s3FinalImageUrl}
-                              alt="Thiết kế chính thức"
-                              style={{ maxWidth: 300, borderRadius: 8 }}
-                            />
-                          ) : (
-                            <Typography color="text.secondary">
-                              Đang tải ảnh...
-                            </Typography>
-                          )}
-                        </Box>
-                      )}
-                    {/* Nếu status là DEMO_SUBMITTED hoặc REVISION_REQUESTED thì hiển thị nút Chấp nhận/Từ chối demo */}
-                    {/* {(currentDesignRequest.status === "DEMO_SUBMITTED" ||
-                    currentDesignRequest.status === "REVISION_REQUESTED") && (
-                    <Stack direction="row" spacing={2} mt={2}>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        onClick={handleApproveDemo}
-                        disabled={demoActionLoading}
-                      >
-                        {demoActionLoading ? "Đang xử lý..." : "Chấp nhận demo"}
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => setRejectDialogOpen(true)}
-                        disabled={demoActionLoading}
-                      >
-                        Từ chối demo
-                      </Button>
-                    </Stack>
-                  )} */}
-                    {/* Xóa nút thanh toán - chuyển sang tab Lịch sử đơn hàng */}
-                  </Box>
-                )}
-                {/* Xóa nút thanh toán ở cuối dialog - chuyển sang tab Lịch sử đơn hàng */}
-              </Box>
-            ) : (
-              <Typography>Không có dữ liệu.</Typography>
-            )}
-            {/* {currentDesignRequest &&
-            currentDesignRequest.status === "COMPLETED" && // Thay "FULLY_PAID" thành "COMPLETED"
-            currentDesignRequest.isNeedSupport === null &&
-            !orders.some(
-              (order) => order.customDesignRequests?.id === currentDesignRequest.id
-            ) && (
-              <Box
-                mt={2}
-                p={2}
-                border={1}
-                borderRadius={2}
-                borderColor="primary.light"
-                bgcolor="#e3f2fd"
-              >
-                <Typography variant="subtitle1" fontWeight="bold" mb={1}>
-                  Bạn có muốn chọn dịch vụ thi công không?
-                </Typography>
-                <Stack direction="row" spacing={2} mt={1}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    disabled={constructionLoading}
-                    onClick={() =>
-                      handleConstructionChoice(currentDesignRequest.id, true)
-                    }
-                    startIcon={
-                      constructionLoading ? (
-                        <CircularProgress size={20} />
-                      ) : null
-                    }
-                  >
-                    Có thi công
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    disabled={constructionLoading}
-                    onClick={() =>
-                      handleConstructionChoice(currentDesignRequest.id, false)
-                    }
-                    startIcon={
-                      constructionLoading ? (
-                        <CircularProgress size={20} />
-                      ) : null
-                    }
-                  >
-                    Không thi công
-                  </Button>
-                </Stack>
-              </Box>
-            )} */}
-            {/* Hiển thị lựa chọn thi công đã chọn */}
-            {currentDesignRequest &&
-              currentDesignRequest.status === "COMPLETED" && ( // Thay "FULLY_PAID" thành "COMPLETED"
-                <>
-                  {currentDesignRequest.isNeedSupport === true &&
-                  orders.some(
-                    (order) =>
-                      order.customDesignRequests?.id === currentDesignRequest.id
-                  ) ? (
-                    <Box
-                      mt={2}
-                      p={2}
-                      border={1}
-                      borderRadius={2}
-                      borderColor="info.light"
-                      bgcolor="#e1f5fe"
-                    >
-                      <Typography variant="body2">
-                        <b>Đã chọn thi công:</b> Đơn hàng đã được tạo, vui lòng
-                        kiểm tra ở tab "Lịch sử đơn hàng"
-                      </Typography>
-                    </Box>
-                  ) : currentDesignRequest.isNeedSupport !== null ? (
-                    <Box
-                      mt={2}
-                      p={2}
-                      border={1}
-                      borderRadius={2}
-                      borderColor="success.light"
-                      bgcolor="#e8f5e9"
-                    >
-                      <Typography variant="body2">
-                        <b>Đã chọn:</b>{" "}
-                        {currentDesignRequest.isNeedSupport
-                          ? "Có thi công"
-                          : "Không thi công"}
-                      </Typography>
-                    </Box>
-                  ) : null}
-                </>
-              )}
+
             {/* Dialog nhập lý do từ chối demo */}
-            <Dialog
-              open={rejectDialogOpen}
-              onClose={() => setRejectDialogOpen(false)}
-              PaperProps={{
-                sx: { borderRadius: 3, minWidth: 350, p: 0 },
-              }}
-            >
-              <DialogTitle
-                sx={{
-                  textAlign: "center",
-                  fontWeight: 700,
-                  fontSize: 22,
-                  pb: 0,
-                }}
-              >
+                <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} PaperProps={{ sx: { borderRadius: 3, minWidth: 350, p: 0 } }}>
+                  <DialogTitle sx={{ textAlign: "center", fontWeight: 700, fontSize: 22, pb: 0 }}>
                 Lý do từ chối demo
               </DialogTitle>
               <DialogContent sx={{ p: 3, pt: 2 }}>
@@ -5138,13 +5449,7 @@ const OrderHistory = () => {
                 />
               </DialogContent>
               <DialogActions sx={{ justifyContent: "center", pb: 2, pt: 0 }}>
-                <Button
-                  onClick={() => setRejectDialogOpen(false)}
-                  disabled={demoActionLoading}
-                  variant="text"
-                  color="inherit"
-                  sx={{ minWidth: 90, fontWeight: 500 }}
-                >
+                    <Button onClick={() => setRejectDialogOpen(false)} disabled={demoActionLoading} variant="text" color="inherit" sx={{ minWidth: 90, fontWeight: 500 }}>
                   Hủy
                 </Button>
                 <Button
@@ -5152,21 +5457,80 @@ const OrderHistory = () => {
                   variant="contained"
                   color="error"
                   disabled={demoActionLoading || !rejectReason.trim()}
-                  sx={{
-                    minWidth: 160,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    height: 48,
-                    fontSize: 16,
-                    boxShadow: 2,
-                    ml: 2,
-                  }}
+                      sx={{ minWidth: 160, fontWeight: 700, textTransform: "uppercase", height: 48, fontSize: 16, boxShadow: 2, ml: 2 }}
                   startIcon={<CloseIcon />}
                 >
                   {demoActionLoading ? "Đang gửi..." : "Xác nhận từ chối"}
                 </Button>
               </DialogActions>
             </Dialog>
+
+                {/* Image Viewer Dialog */}
+                <Dialog
+                  open={imageViewer.open}
+                  onClose={handleCloseImageViewer}
+                  maxWidth="lg"
+                  fullWidth
+                  PaperProps={{
+                    sx: {
+                      bgcolor: 'rgba(0, 0, 0, 0.9)',
+                      borderRadius: 0,
+                      height: '100vh',
+                      m: 0,
+                      maxWidth: '100vw',
+                      maxHeight: '100vh'
+                    }
+                  }}
+                >
+                  <DialogTitle
+                    sx={{
+                      bgcolor: 'transparent',
+                      color: 'white',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      py: 2
+                    }}
+                  >
+                    <Typography variant="h6" fontWeight={600}>
+                      {imageViewer.title}
+                    </Typography>
+                    <IconButton
+                      onClick={handleCloseImageViewer}
+                      sx={{
+                        color: 'white',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                      }}
+                    >
+                      <CloseIcon />
+                    </IconButton>
+                  </DialogTitle>
+                  <DialogContent
+                    sx={{
+                      p: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'transparent'
+                    }}
+                  >
+                    {imageViewer.imageUrl && (
+                      <img
+                        src={imageViewer.imageUrl}
+                        alt={imageViewer.title}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '80vh',
+                          objectFit: 'contain'
+                        }}
+                      />
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </Box>
+            ) : (
+              <Typography p={4}>Không có dữ liệu.</Typography>
+            )}
           </DialogContent>
         </Dialog>
         <Dialog
