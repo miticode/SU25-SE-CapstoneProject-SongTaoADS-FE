@@ -48,9 +48,124 @@ import {
   IMPRESSION_STATUS_MAP,
 } from '../../store/features/impression/impressionSlice';
 import S3Avatar from '../../components/S3Avatar';
+import { getImageFromS3 } from '../../api/s3Service';
+
+// Component để hiển thị ảnh feedback từ S3
+const FeedbackImage = ({ s3Key, alt = "Feedback Image", style = {}, onClick }) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let currentImageUrl = null;
+
+    const loadImage = async () => {
+      if (!s3Key) {
+        setLoading(false);
+        setError(true);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(false);
+        console.log('Loading feedback image from S3:', s3Key);
+        
+        const result = await getImageFromS3(s3Key);
+        
+        if (result.success) {
+          currentImageUrl = result.imageUrl;
+          setImageUrl(result.imageUrl);
+          console.log('Feedback image loaded successfully');
+        } else {
+          console.error('Failed to load feedback image:', result.message);
+          setError(true);
+        }
+      } catch (error) {
+        console.error('Error loading feedback image:', error);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+
+    // Cleanup function để giải phóng URL
+    return () => {
+      if (currentImageUrl) {
+        URL.revokeObjectURL(currentImageUrl);
+      }
+    };
+  }, [s3Key]);
+
+  const handleImageClick = () => {
+    if (imageUrl && onClick) {
+      // Mở ảnh trong tab mới sử dụng blob URL
+      window.open(imageUrl, '_blank');
+    } else if (onClick) {
+      onClick();
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          width: '200px',
+          height: '150px',
+          border: '1px dashed #ccc',
+          borderRadius: '8px',
+          ...style 
+        }}
+      >
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  if (error || !imageUrl) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          width: '200px',
+          height: '150px',
+          border: '1px dashed #ccc',
+          borderRadius: '8px',
+          backgroundColor: '#f5f5f5',
+          color: 'text.secondary',
+          ...style 
+        }}
+      >
+        <Typography variant="caption">Không thể tải ảnh</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <img 
+      src={imageUrl}
+      alt={alt}
+      style={{
+        maxWidth: '200px',
+        height: 'auto',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        ...style
+      }}
+      onClick={handleImageClick}
+    />
+  );
+};
 
 // Component FeedbackList
-const FeedbackList = ({ feedbacks, onView, onDelete, onRefresh }) => {
+const FeedbackList = ({ feedbacks, onView, onRefresh }) => {
   return (
     <Box sx={{ p: 2 }}>
       {/* Header với nút refresh */}
@@ -119,16 +234,9 @@ const FeedbackList = ({ feedbacks, onView, onDelete, onRefresh }) => {
                 {/* Feedback Image */}
                 {feedback.feedbackImageUrl && (
                   <Box>
-                    <img 
-                      src={feedback.feedbackImageUrl}
+                    <FeedbackImage 
+                      s3Key={feedback.feedbackImageUrl}
                       alt="Feedback"
-                      style={{
-                        maxWidth: '200px',
-                        height: 'auto',
-                        borderRadius: '8px',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => window.open(feedback.feedbackImageUrl, '_blank')}
                     />
                   </Box>
                 )}
@@ -325,16 +433,10 @@ const FeedbackDetailDialog = ({ open, feedback, onClose, onRespond }) => {
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">Hình ảnh:</Typography>
                 <Box sx={{ mt: 1 }}>
-                  <img 
-                    src={feedback.feedbackImageUrl}
+                  <FeedbackImage 
+                    s3Key={feedback.feedbackImageUrl}
                     alt="Feedback"
-                    style={{
-                      maxWidth: '100%',
-                      height: 'auto',
-                      borderRadius: '8px',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => window.open(feedback.feedbackImageUrl, '_blank')}
+                    style={{ maxWidth: '100%' }}
                   />
                 </Box>
               </Box>
@@ -649,7 +751,6 @@ const FeedBack = () => {
           <FeedbackList
             feedbacks={filteredFeedbacks}
             onView={handleViewFeedback}
-           
             onRefresh={handleRefresh}
           />
         )}
