@@ -606,7 +606,7 @@ const ContractorManagement = () => {
                  <ContractorLogo
                    logoKey={detailDialog.data.logo}
                    contractorName={detailDialog.data.name}
-                   size={100}
+                   size={160}
                  />
                </Box>
               
