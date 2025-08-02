@@ -2,7 +2,7 @@ import axios from "axios";
 
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL
 // Tạo instance axios với interceptors
 const ticketService = axios.create({
   baseURL: API_URL,
@@ -131,11 +131,11 @@ export const getUserTickets = async (userId, page = 1, size = 10) => {
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
     if (success) {
-      return { 
-        success, 
-        data: result, 
+      return {
+        success,
+        data: result,
         pagination: { currentPage, totalPages, pageSize, totalElements },
-        message 
+        message
       };
     }
 
@@ -158,11 +158,11 @@ export const getAllTickets = async (page = 1, size = 10) => {
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
     if (success) {
-      return { 
-        success, 
-        data: result, 
+      return {
+        success,
+        data: result,
         pagination: { currentPage, totalPages, pageSize, totalElements },
-        message 
+        message
       };
     }
 
@@ -205,11 +205,11 @@ export const getStaffTickets = async (page = 1, size = 10) => {
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
     if (success) {
-      return { 
-        success, 
-        data: result, 
+      return {
+        success,
+        data: result,
         pagination: { currentPage, totalPages, pageSize, totalElements },
-        message 
+        message
       };
     }
 
@@ -222,7 +222,7 @@ export const getStaffTickets = async (page = 1, size = 10) => {
   }
 };
 
-// Xem tất cả ticket theo trạng thái
+// Xem tất cả ticket theo trạng thái (cho sale)
 export const getTicketsByStatus = async (status, page = 1, size = 10) => {
   try {
     const response = await ticketService.get('/api/tickets/customer', {
@@ -232,11 +232,38 @@ export const getTicketsByStatus = async (status, page = 1, size = 10) => {
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
 
     if (success) {
-      return { 
-        success, 
-        data: result, 
+      return {
+        success,
+        data: result,
         pagination: { currentPage, totalPages, pageSize, totalElements },
-        message 
+        message
+      };
+    }
+
+    return { success: false, error: message || "Lấy danh sách ticket thất bại" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Lấy danh sách ticket thất bại",
+    };
+  }
+};
+
+// Staff xem ticket theo trạng thái
+export const getStaffTicketsByStatus = async (status, page = 1, size = 10) => {
+  try {
+    const response = await ticketService.get('/api/tickets/staff', {
+      params: { status, page, size }
+    });
+
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+
+    if (success) {
+      return {
+        success,
+        data: result,
+        pagination: { currentPage, totalPages, pageSize, totalElements },
+        message
       };
     }
 

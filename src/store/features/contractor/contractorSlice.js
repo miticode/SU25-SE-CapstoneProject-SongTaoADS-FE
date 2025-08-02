@@ -4,16 +4,20 @@ import {
   getContractorById,
   createContractor,
   updateContractor,
+  updateContractorLogo,
   deleteContractor
 } from '../../../api/contractorService';
 
-// Lấy tất cả đơn vị thi công
+// Lấy tất cả đơn vị thi công với phân trang và filter
 export const fetchAllContractors = createAsyncThunk(
   'contractor/fetchAll',
-  async (_, { rejectWithValue }) => {
-    const response = await getAllContractors();
+  async (params = {}, { rejectWithValue }) => {
+    const response = await getAllContractors(params);
     if (response.success) {
-      return response.data;
+      return {
+        data: response.data,
+        pagination: response.pagination
+      };
     } else {
       return rejectWithValue(response.error);
     }
@@ -59,7 +63,20 @@ export const updateContractorThunk = createAsyncThunk(
   }
 );
 
-// Xóa đơn vị thi công
+// Cập nhật hình ảnh đơn vị thi công
+export const updateContractorLogoThunk = createAsyncThunk(
+  'contractor/updateLogo',
+  async ({ contractorId, logoFile }, { rejectWithValue }) => {
+    const response = await updateContractorLogo(contractorId, logoFile);
+    if (response.success) {
+      return response.data;
+    } else {
+      return rejectWithValue(response.error);
+    }
+  }
+);
+
+// Xóa đơn vị thi công (không dùng - theo API doc)
 export const deleteContractorThunk = createAsyncThunk(
   'contractor/delete',
   async (contractorId, { rejectWithValue }) => {
@@ -79,8 +96,23 @@ const contractorSlice = createSlice({
     contractorDetail: null, // Thông tin chi tiết 1 đơn vị thi công
     loading: false, // Trạng thái loading chung
     error: null, // Lỗi chung
+    pagination: {
+      currentPage: 1,
+      totalPages: 0,
+      pageSize: 10,
+      totalElements: 0
+    }
   },
-  reducers: {},
+  reducers: {
+    // Reset error
+    clearError: (state) => {
+      state.error = null;
+    },
+    // Reset contractor detail
+    clearContractorDetail: (state) => {
+      state.contractorDetail = null;
+    }
+  },
   extraReducers: (builder) => {
     // Xử lý lấy tất cả đơn vị thi công
     builder
@@ -90,7 +122,8 @@ const contractorSlice = createSlice({
       })
       .addCase(fetchAllContractors.fulfilled, (state, action) => {
         state.loading = false;
-        state.contractors = action.payload;
+        state.contractors = action.payload.data;
+        state.pagination = action.payload.pagination;
       })
       .addCase(fetchAllContractors.rejected, (state, action) => {
         state.loading = false;
@@ -143,6 +176,27 @@ const contractorSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      // Xử lý cập nhật logo đơn vị thi công
+      .addCase(updateContractorLogoThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateContractorLogoThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        // Cập nhật contractor trong mảng nếu tồn tại
+        const idx = state.contractors.findIndex(c => c.id === action.payload.id);
+        if (idx !== -1) {
+          state.contractors[idx] = action.payload;
+        }
+        // Nếu contractorDetail đang xem trùng thì cũng cập nhật
+        if (state.contractorDetail && state.contractorDetail.id === action.payload.id) {
+          state.contractorDetail = action.payload;
+        }
+      })
+      .addCase(updateContractorLogoThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Xử lý xóa đơn vị thi công
       .addCase(deleteContractorThunk.pending, (state) => {
         state.loading = true;
@@ -159,4 +213,5 @@ const contractorSlice = createSlice({
   },
 });
 
+export const { clearError, clearContractorDetail } = contractorSlice.actions;
 export default contractorSlice.reducer;

@@ -26,8 +26,54 @@ const DesignPreview = ({
   setShowSuccess,
   containerVariants,
   itemVariants,
+  pixelValueData,
 }) => {
   const navigate = useNavigate();
+
+  // Tính toán kích thước hiển thị ảnh dựa trên pixel value
+  const getImageDisplaySize = () => {
+    if (pixelValueData && pixelValueData.width && pixelValueData.height) {
+      // Giới hạn kích thước tối đa để hiển thị đẹp trên màn hình
+      const maxWidth = 600;
+      const maxHeight = 500;
+      
+      const { width, height } = pixelValueData;
+      const aspectRatio = width / height;
+      
+      let displayWidth = width;
+      let displayHeight = height;
+      
+      // Scale down nếu vượt quá kích thước tối đa
+      if (displayWidth > maxWidth || displayHeight > maxHeight) {
+        if (aspectRatio > 1) {
+          // Landscape - chiều rộng lớn hơn
+          displayWidth = Math.min(maxWidth, width);
+          displayHeight = displayWidth / aspectRatio;
+        } else {
+          // Portrait - chiều cao lớn hơn
+          displayHeight = Math.min(maxHeight, height);
+          displayWidth = displayHeight * aspectRatio;
+        }
+      }
+      
+      return {
+        width: Math.round(displayWidth),
+        height: Math.round(displayHeight),
+        originalWidth: width,
+        originalHeight: height
+      };
+    }
+    
+    // Fallback nếu không có pixel data
+    return {
+      width: 512,
+      height: 512,
+      originalWidth: 512,
+      originalHeight: 512
+    };
+  };
+
+  const imageSize = getImageDisplaySize();
 
   const handleConfirmDesign = () => {
     if (!generatedImage) {
@@ -84,14 +130,26 @@ const DesignPreview = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="rounded-xl overflow-hidden shadow-lg w-full mx-auto max-w-2xl"
+            className="rounded-xl overflow-hidden shadow-lg mx-auto relative"
+            style={{
+              width: `${imageSize.width}px`,
+              height: `${imageSize.height}px`,
+            }}
           >
             <img
               src={generatedImage}
               alt="AI Generated Design"
-              className="w-full object-cover"
+              className="w-full h-full object-contain"
+              style={{
+                width: `${imageSize.width}px`,
+                height: `${imageSize.height}px`,
+              }}
               onClick={() => setSelectedImage(1)}
             />
+            {/* Hiển thị thông tin kích thước pixel gốc */}
+            <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+              {imageSize.originalWidth} × {imageSize.originalHeight} px
+            </div>
           </motion.div>
         ) : (
           <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">

@@ -9,6 +9,7 @@ import {
   getTicketDetail,
   getStaffTickets,
   getTicketsByStatus,
+  getStaffTicketsByStatus,
 } from "../../../api/ticketService";
 
 // Initial state
@@ -154,11 +155,28 @@ export const fetchStaffTickets = createAsyncThunk(
   }
 );
 
-// Xem tất cả ticket theo trạng thái
+// Xem tất cả ticket theo trạng thái (cho sale)
 export const fetchTicketsByStatus = createAsyncThunk(
   "ticket/fetchTicketsByStatus",
   async ({ status, page = 1, size = 10 }, { rejectWithValue }) => {
     const response = await getTicketsByStatus(status, page, size);
+
+    if (!response.success) {
+      return rejectWithValue(response.error || "Lấy danh sách ticket thất bại");
+    }
+
+    return {
+      tickets: response.data,
+      pagination: response.pagination,
+    };
+  }
+);
+
+// Staff xem ticket theo trạng thái
+export const fetchStaffTicketsByStatus = createAsyncThunk(
+  "ticket/fetchStaffTicketsByStatus",
+  async ({ status, page = 1, size = 10 }, { rejectWithValue }) => {
+    const response = await getStaffTicketsByStatus(status, page, size);
 
     if (!response.success) {
       return rejectWithValue(response.error || "Lấy danh sách ticket thất bại");
@@ -366,6 +384,22 @@ const ticketSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchTicketsByStatus.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+
+      // Fetch staff tickets by status cases
+      .addCase(fetchStaffTicketsByStatus.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchStaffTicketsByStatus.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.tickets = action.payload.tickets;
+        state.pagination = action.payload.pagination;
+        state.error = null;
+      })
+      .addCase(fetchStaffTicketsByStatus.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       });

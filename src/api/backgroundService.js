@@ -290,4 +290,55 @@ export const deleteBackgroundByIdApi = async (backgroundId) => {
   }
 };
 
+// Tạo background extras
+export const createBackgroundExtrasApi = async (backgroundId, width = 512, height = 512) => {
+  try {
+    console.log(`Creating background extras for background ID: ${backgroundId} with size: ${width}x${height}`);
+    
+    const response = await backgroundService.post(`/api/backgrounds/${backgroundId}/extras`, null, {
+      params: {
+        width,
+        height
+      },
+      responseType: 'blob' // Khai báo rõ response type để xử lý binary data
+    });
+    
+    console.log('Create background extras API Response type:', typeof response.data);
+    console.log('Create background extras API Response size:', response.data.size);
+    
+    // Nếu response là binary data (PNG), tạo blob URL
+    if (response.data instanceof Blob) {
+      const blobUrl = URL.createObjectURL(response.data);
+      console.log('✅ Background extras blob URL created:', blobUrl);
+      
+      const result = {
+        imageUrl: blobUrl,
+        imageType: 'blob',
+        backgroundId: backgroundId,
+        width: width,
+        height: height
+      };
+      
+      console.log('Background extras created successfully:', result);
+      return { success: true, data: result };
+    }
+    
+    // Fallback: nếu response là JSON (không nên xảy ra với API hiện tại)
+    const { success, result, message } = response.data;
+    
+    if (success && result) {
+      console.log('Background extras created successfully (JSON):', result);
+      return { success: true, data: result };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error creating background extras:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to create background extras'
+    };
+  }
+};
+
 export default backgroundService;

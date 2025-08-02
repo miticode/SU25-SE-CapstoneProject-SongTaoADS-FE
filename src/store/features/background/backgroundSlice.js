@@ -8,7 +8,8 @@ import {
   updateBackgroundImageApi,
   fetchAllBackgroundsApi,
   deleteBackgroundByIdApi,
-  fetchEditedDesignByIdApi
+  fetchEditedDesignByIdApi,
+  createBackgroundExtrasApi
 } from "../../../api/backgroundService";
 
 // Initial state
@@ -25,6 +26,10 @@ const initialState = {
   editedDesignDetail: null,
   editedDesignDetailStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   editedDesignDetailError: null,
+  // Thêm state cho background extras
+  backgroundExtras: null,
+  backgroundExtrasStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  backgroundExtrasError: null,
 };
 
 // Async thunk for fetching background suggestions by customer choice ID
@@ -181,6 +186,28 @@ export const deleteBackgroundById = createAsyncThunk(
     return { id: backgroundId };
   }
 );
+
+// Thunk tạo background extras
+export const createBackgroundExtras = createAsyncThunk(
+  "background/createBackgroundExtras",
+  async ({ backgroundId, width = 512, height = 512 }, { rejectWithValue }) => {
+    try {
+      console.log("Creating background extras:", { backgroundId, width, height });
+
+      const response = await createBackgroundExtrasApi(backgroundId, width, height);
+
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to create background extras");
+      }
+
+      console.log("Background extras created successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error in create background extras thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
 // Background slice
 const backgroundSlice = createSlice({
   name: "background",
@@ -226,6 +253,16 @@ const backgroundSlice = createSlice({
       state.editedDesignDetail = null;
       state.editedDesignDetailStatus = "idle";
       state.editedDesignDetailError = null;
+    },
+    // Reset và clear background extras
+    resetBackgroundExtrasStatus: (state) => {
+      state.backgroundExtrasStatus = "idle";
+      state.backgroundExtrasError = null;
+    },
+    clearBackgroundExtras: (state) => {
+      state.backgroundExtras = null;
+      state.backgroundExtrasStatus = "idle";
+      state.backgroundExtrasError = null;
     },
   },
   extraReducers: (builder) => {
@@ -383,6 +420,23 @@ const backgroundSlice = createSlice({
       .addCase(deleteBackgroundById.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      // Tạo background extras
+      .addCase(createBackgroundExtras.pending, (state) => {
+        state.backgroundExtrasStatus = 'loading';
+        state.backgroundExtrasError = null;
+        console.log("Creating background extras...");
+      })
+      .addCase(createBackgroundExtras.fulfilled, (state, action) => {
+        state.backgroundExtrasStatus = 'succeeded';
+        state.backgroundExtras = action.payload;
+        state.backgroundExtrasError = null;
+        console.log("Background extras created successfully:", action.payload);
+      })
+      .addCase(createBackgroundExtras.rejected, (state, action) => {
+        state.backgroundExtrasStatus = 'failed';
+        state.backgroundExtrasError = action.payload;
+        console.error("Failed to create background extras:", action.payload);
       });
   },
 });
@@ -397,6 +451,8 @@ export const {
   clearEditedDesign,
   resetEditedDesignDetailStatus,
   clearEditedDesignDetail,
+  resetBackgroundExtrasStatus,
+  clearBackgroundExtras,
 } = backgroundSlice.actions;
 
 // Export selectors
@@ -425,5 +481,12 @@ export const selectEditedDesignDetailStatus = (state) =>
   state.background.editedDesignDetailStatus;
 export const selectEditedDesignDetailError = (state) =>
   state.background.editedDesignDetailError;
+
+// Selectors cho background extras
+export const selectBackgroundExtras = (state) => state.background.backgroundExtras;
+export const selectBackgroundExtrasStatus = (state) =>
+  state.background.backgroundExtrasStatus;
+export const selectBackgroundExtrasError = (state) =>
+  state.background.backgroundExtrasError;
 
 export default backgroundSlice.reducer;

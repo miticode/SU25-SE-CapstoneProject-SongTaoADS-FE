@@ -18,6 +18,7 @@ import {
   fetchCustomerChoiceDetailsByCustomerChoiceIdApi,
   postCustomDesignRequirementApi,
   getCustomerDetailByIdApi,
+  getCustomerChoicePixelValueApi,
 } from "../../../api/customerService";
 
 const initialState = {
@@ -34,6 +35,9 @@ const initialState = {
   customerChoiceDetailsList: [],
   customDesignOrderStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   customDesignOrderError: null,
+  pixelValue: null, // { width: number, height: number }
+  pixelValueStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  pixelValueError: null,
 };
 
 export const createCustomer = createAsyncThunk(
@@ -447,6 +451,26 @@ export const fetchCustomerDetailById = createAsyncThunk(
     }
   }
 );
+
+// Thunk để lấy pixel value cho customer choice
+export const fetchCustomerChoicePixelValue = createAsyncThunk(
+  "customers/fetchPixelValue",
+  async (customerChoiceId, { rejectWithValue }) => {
+    try {
+      const response = await getCustomerChoicePixelValueApi(customerChoiceId);
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.error || "Failed to fetch pixel value"
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
+  }
+);
 // Slice
 const customerSlice = createSlice({
   name: "customers",
@@ -796,6 +820,21 @@ const customerSlice = createSlice({
       .addCase(fetchCustomerDetailById.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+      })
+      // Fetch pixel value
+      .addCase(fetchCustomerChoicePixelValue.pending, (state) => {
+        state.pixelValueStatus = "loading";
+        state.pixelValueError = null;
+      })
+      .addCase(fetchCustomerChoicePixelValue.fulfilled, (state, action) => {
+        state.pixelValueStatus = "succeeded";
+        state.pixelValue = action.payload;
+        state.pixelValueError = null;
+      })
+      .addCase(fetchCustomerChoicePixelValue.rejected, (state, action) => {
+        state.pixelValueStatus = "failed";
+        state.pixelValueError = action.payload;
+        state.pixelValue = null;
       });
   },
 });
@@ -833,4 +872,9 @@ export const selectCustomDesignOrderStatus = (state) =>
   state.customers?.customDesignOrderStatus || "idle";
 export const selectCustomDesignOrderError = (state) =>
   state.customers?.customDesignOrderError;
+export const selectPixelValue = (state) => state.customers?.pixelValue;
+export const selectPixelValueStatus = (state) =>
+  state.customers?.pixelValueStatus || "idle";
+export const selectPixelValueError = (state) =>
+  state.customers?.pixelValueError;
 export default customerSlice.reducer;
