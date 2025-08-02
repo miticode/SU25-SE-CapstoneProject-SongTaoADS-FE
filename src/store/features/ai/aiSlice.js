@@ -42,9 +42,9 @@ export const createAIDesign = createAsyncThunk(
 );
 export const generateImageFromText = createAsyncThunk(
   "ai/generateImageFromText",
-  async ({ designTemplateId, prompt }, { rejectWithValue }) => {
+  async ({ designTemplateId, prompt, width = 512, height = 512 }, { rejectWithValue }) => {
     try {
-      const response = await generateImageFromTextApi(designTemplateId, prompt);
+      const response = await generateImageFromTextApi(designTemplateId, prompt, width, height);
 
       if (!response.success) {
         return rejectWithValue(

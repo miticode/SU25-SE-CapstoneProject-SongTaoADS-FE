@@ -21,6 +21,12 @@ import {
   setSelectedBackground,
   fetchBackgroundSuggestionsByCustomerChoiceId,
 } from "../../store/features/background/backgroundSlice";
+import {
+  fetchCustomerChoicePixelValue,
+} from "../../store/features/customer/customerSlice";
+import {
+  createBackgroundExtras,
+} from "../../store/features/background/backgroundSlice";
 
 const TemplateBackgroundSelection = ({
   billboardType,
@@ -89,7 +95,7 @@ const TemplateBackgroundSelection = ({
     productTypes.find((pt) => pt.id === billboardType) || currentProductType;
   const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (isAiGenerated) {
       // Logic cho Design Template
       if (!selectedSampleProduct) {
@@ -111,7 +117,7 @@ const TemplateBackgroundSelection = ({
       // Proceed với AI generation
       handleContinueToPreview();
     } else {
-      // Logic cho Background
+      // Logic cho Background - Thêm pixel value API integration
       if (!selectedBackgroundId) {
         setSnackbar({
           open: true,
@@ -129,28 +135,115 @@ const TemplateBackgroundSelection = ({
         return;
       }
 
-      // Lưu thông tin background đã chọn để sử dụng trong canvas
-      const selectedBg = backgroundSuggestions.find(
-        (bg) => bg.id === selectedBackgroundId
-      );
-      const backgroundUrl =
-        backgroundPresignedUrls[selectedBackgroundId] ||
-        selectedBg?.backgroundUrl;
+      console.log("🔵 [Background Selection] Starting background continue process");
+      console.log("🔵 [Background Selection] Selected Background ID:", selectedBackgroundId);
+      console.log("🔵 [Background Selection] Customer Choice ID:", currentOrder?.id);
 
-      setSelectedBackgroundForCanvas({
-        ...selectedBg,
-        presignedUrl: backgroundUrl,
-      });
+      try {
+        // Lấy pixel values từ API
+        console.log("🔵 [Background Selection] Fetching pixel values for customer choice:", currentOrder?.id);
+        const pixelResult = await dispatch(fetchCustomerChoicePixelValue(currentOrder?.id));
+        
+        if (fetchCustomerChoicePixelValue.fulfilled.match(pixelResult)) {
+          const pixelData = pixelResult.payload;
+          console.log("✅ [Background Selection] Pixel values retrieved successfully:", pixelData);
+          console.log("📐 [Background Selection] Canvas dimensions will be:", {
+            width: pixelData.width,
+            height: pixelData.height,
+            ratio: pixelData.width / pixelData.height
+          });
 
-      // Chuyển thẳng đến case 6 thay vì navigate đến custom-design
-      setCurrentStep(7);
-      navigate("/ai-design?step=edit");
+          // 🎨 Gọi API createBackgroundExtras với pixel dimensions
+          console.log("🎨 [Background Selection] Creating background extras with pixel dimensions...");
+          const extrasResult = await dispatch(createBackgroundExtras({
+            backgroundId: selectedBackgroundId,
+            width: pixelData.width,
+            height: pixelData.height
+          }));
 
-      setSnackbar({
-        open: true,
-        message: "Đang tải editor với background đã chọn...",
-        severity: "info",
-      });
+          if (createBackgroundExtras.fulfilled.match(extrasResult)) {
+            const extrasData = extrasResult.payload;
+            console.log("✅ [Background Selection] Background extras created successfully:", extrasData);
+            console.log("🖼️ [Background Selection] Generated image URL:", extrasData.imageUrl);
+            console.log("🔍 [Background Selection] Extras data keys:", Object.keys(extrasData));
+            console.log("🔍 [Background Selection] Full extras response:", JSON.stringify(extrasData, null, 2));
+            
+            // Lưu thông tin background đã chọn cùng với extras data
+            const selectedBg = backgroundSuggestions.find(
+              (bg) => bg.id === selectedBackgroundId
+            );
+            const backgroundUrl =
+              backgroundPresignedUrls[selectedBackgroundId] ||
+              selectedBg?.backgroundUrl;
+
+            console.log("🔵 [Background Selection] Selected background info:", selectedBg);
+            console.log("🔵 [Background Selection] Original background URL:", backgroundUrl);
+
+            const backgroundForCanvas = {
+              ...selectedBg,
+              presignedUrl: backgroundUrl,
+              extrasImageUrl: extrasData.imageUrl, // Thêm URL ảnh được tạo từ extras
+              pixelData: pixelData, // Thêm pixel data
+            };
+
+            console.log("🎨 [Background Selection] Setting background for canvas:", backgroundForCanvas);
+            console.log("🔍 [Background Selection] extrasImageUrl value:", backgroundForCanvas.extrasImageUrl);
+
+            setSelectedBackgroundForCanvas(backgroundForCanvas);
+
+            console.log("🎨 [Background Selection] Background with extras set for canvas");
+          } else {
+            console.warn("⚠️ [Background Selection] Background extras creation failed:", extrasResult.error);
+            // Vẫn tiếp tục với background gốc nếu extras fail
+            const selectedBg = backgroundSuggestions.find(
+              (bg) => bg.id === selectedBackgroundId
+            );
+            const backgroundUrl =
+              backgroundPresignedUrls[selectedBackgroundId] ||
+              selectedBg?.backgroundUrl;
+
+            setSelectedBackgroundForCanvas({
+              ...selectedBg,
+              presignedUrl: backgroundUrl,
+              pixelData: pixelData,
+            });
+          }
+        } else {
+          console.warn("⚠️ [Background Selection] Pixel value fetch failed, using fallback");
+          console.warn("⚠️ [Background Selection] Error:", pixelResult.error);
+          
+          // Fallback: sử dụng background gốc
+          const selectedBg = backgroundSuggestions.find(
+            (bg) => bg.id === selectedBackgroundId
+          );
+          const backgroundUrl =
+            backgroundPresignedUrls[selectedBackgroundId] ||
+            selectedBg?.backgroundUrl;
+
+          setSelectedBackgroundForCanvas({
+            ...selectedBg,
+            presignedUrl: backgroundUrl,
+          });
+        }
+
+        // Chuyển thẳng đến case 7 (canvas editor)
+        console.log("🔵 [Background Selection] Navigating to canvas editor (step 7)");
+        setCurrentStep(7);
+        navigate("/ai-design?step=edit");
+
+        setSnackbar({
+          open: true,
+          message: "Đang tải editor với background đã chọn...",
+          severity: "info",
+        });
+      } catch (error) {
+        console.error("❌ [Background Selection] Error in background continue process:", error);
+        setSnackbar({
+          open: true,
+          message: "Có lỗi xảy ra khi xử lý background. Vui lòng thử lại.",
+          severity: "error",
+        });
+      }
     }
   };
 

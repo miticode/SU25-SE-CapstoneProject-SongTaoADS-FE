@@ -667,4 +667,36 @@ export const getCustomerDetailByIdApi = async (customerDetailId) => {
     };
   }
 };
+
+// Lấy thông tin pixel value cho customer choice
+export const getCustomerChoicePixelValueApi = async (customerChoiceId) => {
+  try {
+    if (!customerChoiceId) {
+      console.error("Invalid customer choice ID provided");
+      return {
+        success: false,
+        error: "Customer choice ID is required",
+      };
+    }
+
+    console.log("Fetching pixel value for customer choice ID:", customerChoiceId);
+
+    const response = await customerService.get(
+      `/api/customer-choices/${customerChoiceId}/pixel-value`
+    );
+
+    console.log("Pixel value API response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error fetching pixel value:",
+      error.response?.data || error.message
+    );
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch pixel value",
+    };
+  }
+};
+
 export default customerService;
