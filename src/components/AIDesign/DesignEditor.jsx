@@ -41,6 +41,7 @@ const DesignEditor = ({
   isOrdering,
   containerVariants,
   itemVariants,
+  pixelValueData,
 }) => {
   return (
     <motion.div
@@ -198,7 +199,15 @@ const DesignEditor = ({
         <div className="lg:col-span-7">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">Thiết kế</h3>
+              <div>
+                <h3 className="text-xl font-semibold">Thiết kế</h3>
+                {/* Hiển thị thông tin kích thước pixel */}
+                {pixelValueData && pixelValueData.width && pixelValueData.height && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Kích thước gốc: {pixelValueData.width} × {pixelValueData.height} pixel
+                  </p>
+                )}
+              </div>
               <div className="flex space-x-2">
                 <button
                   onClick={addText}
@@ -244,27 +253,29 @@ const DesignEditor = ({
             </div>
 
             <div
-              className="border-2 border-gray-200 rounded-lg overflow-hidden"
+              className="border-2 border-gray-200 rounded-lg"
               style={{
                 position: "relative",
                 width: "100%",
-                paddingTop: "50%", // Giữ tỷ lệ 2:1
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "400px",
+                backgroundColor: "#f8f9fa",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
+              <canvas
+                ref={canvasRef}
+                style={{ 
+                  display: "block",
                 }}
-              >
-                <canvas
-                  ref={canvasRef}
-                  style={{ width: "100%", height: "100%" }}
-                />
-              </div>
+              />
+              {/* Hiển thị thông tin kích thước canvas */}
+              {pixelValueData && pixelValueData.width && pixelValueData.height && (
+                <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                  Gốc: {pixelValueData.width} × {pixelValueData.height} px (Auto Scale)
+                </div>
+              )}
             </div>
           </div>
         </div>

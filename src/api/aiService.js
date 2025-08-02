@@ -50,7 +50,7 @@ export const createAIDesignApi = async (customerDetailId, designTemplateId, cust
     throw error;
   }
 };
-export const generateImageFromTextApi = async (designTemplateId, prompt) => {
+export const generateImageFromTextApi = async (designTemplateId, prompt, width = 512, height = 512) => {
   try {
     const formData = new FormData();
     formData.append('prompt', prompt);
@@ -61,9 +61,16 @@ export const generateImageFromTextApi = async (designTemplateId, prompt) => {
     console.log('Sending text-to-image request:');
     console.log('Design Template ID:', designTemplateId);
     console.log('Prompt:', prompt);
+    console.log('Width:', width);
+    console.log('Height:', height);
+    
+    // Tạo URL với query parameters
+    const url = new URL(`${API_URL}/api/design-templates/${designTemplateId}/txt2img`);
+    url.searchParams.append('width', width.toString());
+    url.searchParams.append('height', height.toString());
     
     const response = await axios.post(
-      `${API_URL}/api/design-templates/${designTemplateId}/txt2img`,
+      url.toString(),
       formData,
       {
         headers: {

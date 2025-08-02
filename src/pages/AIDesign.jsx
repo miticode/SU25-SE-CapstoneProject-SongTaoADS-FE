@@ -69,6 +69,9 @@ import {
   fetchCustomerChoice,
   fetchCustomerChoices,
   fetchCustomerChoiceSizes,
+  fetchCustomerChoicePixelValue,
+  selectPixelValue,
+  selectPixelValueStatus,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -1594,6 +1597,8 @@ const AIDesign = () => {
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const totalAmount = useSelector(selectTotalAmount);
+  const pixelValueData = useSelector(selectPixelValue);
+  const pixelValueStatus = useSelector(selectPixelValueStatus);
   const canvasRef = useRef(null);
   const [fabricCanvas, setFabricCanvas] = useState(null);
   const [selectedText, setSelectedText] = useState(null);
@@ -2889,16 +2894,73 @@ const AIDesign = () => {
       (generatedImage || selectedBackgroundForCanvas)
     ) {
       console.log("INITIALIZING CANVAS");
+      console.log("🎯 [CANVAS] pixelValueData:", pixelValueData);
 
       const canvasContainer = canvasRef.current.parentElement;
       const containerWidth = canvasContainer.clientWidth;
 
-      const canvasWidth = containerWidth;
-      const canvasHeight = Math.round(containerWidth / 2);
+      // 🎯 Tính toán kích thước canvas để vừa với viewport VÀ GIỮ ĐÚNG ASPECT RATIO
+      let canvasWidth, canvasHeight;
+      let originalWidth, originalHeight;
+
+      if (pixelValueData && pixelValueData.width && pixelValueData.height) {
+        // Sử dụng pixel value từ API
+        originalWidth = pixelValueData.width;
+        originalHeight = pixelValueData.height;
+        console.log(
+          "🎯 [CANVAS] Pixel value từ API:",
+          originalWidth,
+          "x",
+          originalHeight
+        );
+
+        // Tính toán scale để ảnh vừa với container NHƯNG GIỮ ĐÚNG TỶ LỆ
+        const maxCanvasWidth = containerWidth - 40; // Trừ padding
+        const maxCanvasHeight = window.innerHeight * 0.6; // 60% viewport height
+
+        const scaleX = maxCanvasWidth / originalWidth;
+        const scaleY = maxCanvasHeight / originalHeight;
+        const scale = Math.min(scaleX, scaleY, 1); // Không scale lên quá kích thước gốc
+
+        // Canvas PHẢI giữ đúng aspect ratio của ảnh gốc
+        canvasWidth = Math.round(originalWidth * scale);
+        canvasHeight = Math.round(originalHeight * scale);
+
+        console.log("🎯 [CANVAS] Scale tính toán:", scale);
+        console.log(
+          "🎯 [CANVAS] Canvas hiển thị:",
+          canvasWidth,
+          "x",
+          canvasHeight
+        );
+        console.log(
+          "🎯 [CANVAS] Kích thước gốc:",
+          originalWidth,
+          "x",
+          originalHeight
+        );
+        console.log(
+          "🎯 [CANVAS] Aspect ratio gốc:",
+          (originalWidth / originalHeight).toFixed(2)
+        );
+        console.log(
+          "🎯 [CANVAS] Aspect ratio canvas:",
+          (canvasWidth / canvasHeight).toFixed(2)
+        );
+      } else {
+        // Fallback về kích thước mặc định
+        console.log(
+          "🎯 [CANVAS] Không có pixel value, sử dụng kích thước mặc định"
+        );
+        canvasWidth = containerWidth;
+        canvasHeight = Math.round(containerWidth / 2);
+        originalWidth = canvasWidth;
+        originalHeight = canvasHeight;
+      }
 
       const canvas = new fabric.Canvas(canvasRef.current, {
-        width: canvasWidth,
-        height: canvasHeight,
+        width: Math.round(canvasWidth),
+        height: Math.round(canvasHeight),
         backgroundColor: "#f8f9fa",
         preserveObjectStacking: true,
       });
@@ -2912,12 +2974,58 @@ const AIDesign = () => {
         imageSource = "ai-generated";
         console.log("Using AI-generated image URL:", imageUrl);
       } else if (selectedBackgroundForCanvas) {
-        imageSource = "background";
-        console.log("Using selected background:", selectedBackgroundForCanvas);
+        console.log(
+          "🔍 [CANVAS DEBUG] selectedBackgroundForCanvas:",
+          selectedBackgroundForCanvas
+        );
+        console.log(
+          "🔍 [CANVAS DEBUG] extrasImageUrl:",
+          selectedBackgroundForCanvas.extrasImageUrl
+        );
+        console.log(
+          "🔍 [CANVAS DEBUG] backgroundUrl:",
+          selectedBackgroundForCanvas.backgroundUrl
+        );
+        console.log(
+          "🔍 [CANVAS DEBUG] presignedUrl:",
+          selectedBackgroundForCanvas.presignedUrl
+        );
+
+        // 🎨 CHỈ SỬ DỤNG extrasImageUrl - TEMPORARY FALLBACK cho debugging
+        if (selectedBackgroundForCanvas.extrasImageUrl) {
+          imageUrl = selectedBackgroundForCanvas.extrasImageUrl;
+          imageSource = "background-extras";
+          console.log("🎨 Using background extras image ONLY:", imageUrl);
+        } else {
+          console.warn(
+            "⚠️ [CANVAS] No extrasImageUrl available, using TEMPORARY fallback"
+          );
+          console.warn(
+            "⚠️ [CANVAS] Available properties:",
+            Object.keys(selectedBackgroundForCanvas)
+          );
+
+          // TEMPORARY: Fallback to presignedUrl for debugging
+          if (selectedBackgroundForCanvas.presignedUrl) {
+            imageUrl = selectedBackgroundForCanvas.presignedUrl;
+            imageSource = "background-fallback";
+            console.log(
+              "🔧 [CANVAS TEMP] Using fallback presignedUrl:",
+              imageUrl
+            );
+          } else {
+            imageSource = "no-extras";
+          }
+        }
       }
 
-      // ✅ SỬA CHÍNH TẠI ĐÂY - Xử lý khác nhau cho AI image và background
-      if (imageUrl || selectedBackgroundForCanvas) {
+      // ✅ CHỈ LOAD IMAGE KHI CÓ VALID IMAGE URL
+      if (
+        imageUrl &&
+        (imageSource === "ai-generated" ||
+          imageSource === "background-extras" ||
+          imageSource === "background-fallback")
+      ) {
         console.log(`LOADING IMAGE: Loading ${imageSource} image`);
 
         // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
@@ -2930,27 +3038,20 @@ const AIDesign = () => {
             if (imageSource === "ai-generated") {
               // AI Generated Image - sử dụng trực tiếp URL
               finalImageUrl = imageUrl;
-            } else if (imageSource === "background") {
-              // Background Image - sử dụng getImageFromS3
+            } else if (imageSource === "background-extras") {
+              // Background Extras Image - sử dụng trực tiếp URL từ extras API
+              finalImageUrl = imageUrl;
               console.log(
-                "Fetching background via getImageFromS3:",
-                selectedBackgroundForCanvas.backgroundUrl
+                "🎨 Using background extras image URL directly:",
+                finalImageUrl
               );
-
-              const s3Result = await getImageFromS3(
-                selectedBackgroundForCanvas.backgroundUrl
+            } else if (imageSource === "background-fallback") {
+              // TEMPORARY: Background fallback - sử dụng presigned URL
+              finalImageUrl = imageUrl;
+              console.log(
+                "🔧 Using background fallback URL directly:",
+                finalImageUrl
               );
-
-              if (s3Result.success) {
-                finalImageUrl = s3Result.imageUrl;
-                console.log("Background fetched successfully via S3 API");
-              } else {
-                console.error(
-                  "Failed to fetch background via S3 API:",
-                  s3Result.message
-                );
-                throw new Error(s3Result.message);
-              }
             }
 
             if (!finalImageUrl) {
@@ -2960,17 +3061,35 @@ const AIDesign = () => {
             // Tạo HTML Image element
             const img = new Image();
 
-            // ✅ CHỈ SET crossOrigin cho AI-generated images
-            if (imageSource === "ai-generated") {
-              img.crossOrigin = "anonymous";
+            // ✅ Thử không dùng crossOrigin trước, nếu lỗi sẽ thử lại với crossOrigin
+            if (
+              imageSource === "ai-generated" ||
+              imageSource === "background-extras" ||
+              imageSource === "background-fallback"
+            ) {
+              // Không set crossOrigin ban đầu để tránh CORS issues
+              console.log(
+                `🎯 [CANVAS] Loading ${imageSource} image without crossOrigin first`
+              );
             }
-            // Không cần crossOrigin cho S3 blob URLs
 
             img.onload = function () {
               console.log(
                 `${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`
               );
-              console.log("Image dimensions:", img.width, "x", img.height);
+              console.log("🎯 [CANVAS] Image URL:", finalImageUrl);
+              console.log(
+                "🎯 [CANVAS] Image dimensions:",
+                img.width,
+                "x",
+                img.height
+              );
+              console.log(
+                "🎯 [CANVAS] Canvas dimensions:",
+                canvasWidth,
+                "x",
+                canvasHeight
+              );
 
               try {
                 const fabricImg = new fabric.Image(img, {
@@ -2981,26 +3100,95 @@ const AIDesign = () => {
                   name: `backgroundImage-${imageSource}`,
                 });
 
-                console.log("Fabric image created:", fabricImg);
+                console.log("🎯 [CANVAS] Fabric image created:", fabricImg);
 
-                const scaleX = canvasWidth / fabricImg.width;
-                const scaleY = canvasHeight / fabricImg.height;
-                const scale = Math.max(scaleX, scaleY);
+                // 🎯 Hiển thị ảnh FILL HẾT canvas với đúng aspect ratio
+                if (
+                  pixelValueData &&
+                  pixelValueData.width &&
+                  pixelValueData.height
+                ) {
+                  console.log("🎯 [CANVAS] Hiển thị ảnh fill hết canvas");
+                  console.log(
+                    "🎯 [CANVAS] Canvas size:",
+                    canvasWidth,
+                    "x",
+                    canvasHeight
+                  );
+                  console.log(
+                    "🎯 [CANVAS] Canvas aspect ratio:",
+                    (canvasWidth / canvasHeight).toFixed(2)
+                  );
+                  console.log(
+                    "🎯 [CANVAS] Image size:",
+                    fabricImg.width,
+                    "x",
+                    fabricImg.height
+                  );
+                  console.log(
+                    "🎯 [CANVAS] Image aspect ratio:",
+                    (fabricImg.width / fabricImg.height).toFixed(2)
+                  );
 
-                fabricImg.set({
-                  scaleX: scale,
-                  scaleY: scale,
-                  left: (canvasWidth - fabricImg.width * scale) / 2,
-                  top: (canvasHeight - fabricImg.height * scale) / 2,
-                });
+                  // Vì canvas đã được tính với đúng aspect ratio của ảnh,
+                  // ta chỉ cần scale ảnh để fill hết canvas
+                  const imageScaleX = canvasWidth / fabricImg.width;
+                  const imageScaleY = canvasHeight / fabricImg.height;
+
+                  // Dùng scale đồng đều để giữ aspect ratio
+                  const imageScale = Math.min(imageScaleX, imageScaleY);
+
+                  fabricImg.set({
+                    scaleX: imageScale,
+                    scaleY: imageScale,
+                    left: (canvasWidth - fabricImg.width * imageScale) / 2,
+                    top: (canvasHeight - fabricImg.height * imageScale) / 2,
+                  });
+
+                  console.log(
+                    "🎯 [CANVAS] Image scale X:",
+                    imageScaleX.toFixed(3)
+                  );
+                  console.log(
+                    "🎯 [CANVAS] Image scale Y:",
+                    imageScaleY.toFixed(3)
+                  );
+                  console.log(
+                    "🎯 [CANVAS] Final scale:",
+                    imageScale.toFixed(3)
+                  );
+                  console.log(
+                    "🎯 [CANVAS] Ảnh hiển thị trong canvas, không có khoảng trống"
+                  );
+                } else {
+                  // Với background hoặc khi không có pixel value, vẫn scale để fit canvas
+                  console.log("🎯 [CANVAS] Scale ảnh để fit canvas");
+
+                  const scaleX = canvasWidth / fabricImg.width;
+                  const scaleY = canvasHeight / fabricImg.height;
+                  const scale = Math.max(scaleX, scaleY);
+
+                  fabricImg.set({
+                    scaleX: scale,
+                    scaleY: scale,
+                    left: (canvasWidth - fabricImg.width * scale) / 2,
+                    top: (canvasHeight - fabricImg.height * scale) / 2,
+                  });
+                }
 
                 canvas.add(fabricImg);
                 canvas.sendToBack(fabricImg);
                 canvas.renderAll();
 
                 console.log(
-                  `${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
+                  `🎯 [CANVAS] ${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
                 );
+
+                // Force refresh canvas
+                setTimeout(() => {
+                  canvas.renderAll();
+                  console.log("🎯 [CANVAS] Force refresh canvas");
+                }, 100);
 
                 setSnackbar({
                   open: true,
@@ -3024,10 +3212,21 @@ const AIDesign = () => {
 
               hasErrored = true;
               console.error(
-                `ERROR loading ${imageSource} image:`,
+                `🎯 [CANVAS] ERROR loading ${imageSource} image:`,
                 finalImageUrl,
                 error
               );
+
+              // Thử lại với crossOrigin nếu là AI image và chưa set
+              if (imageSource === "ai-generated" && !img.crossOrigin) {
+                console.log("🎯 [CANVAS] Retrying with crossOrigin=anonymous");
+                hasErrored = false; // Reset flag để thử lại
+                img.crossOrigin = "anonymous";
+                img.src = finalImageUrl; // Load lại
+                return;
+              }
+
+              console.error(`🎯 [CANVAS] Final error - creating placeholder`);
 
               // ✅ TẠO PLACEHOLDER THAY VÌ THỬ LẠI
               try {
@@ -3070,6 +3269,7 @@ const AIDesign = () => {
               }
             };
 
+            console.log("🎯 [CANVAS] Setting image src:", finalImageUrl);
             img.src = finalImageUrl;
           } catch (error) {
             console.error(`Error loading ${imageSource} image:`, error);
@@ -3127,7 +3327,65 @@ const AIDesign = () => {
         // Gọi hàm load image
         loadImageToCanvas();
       } else {
-        console.error("ERROR: No image URL available");
+        // Không có image hợp lệ để hiển thị
+        console.warn("⚠️ [CANVAS] No valid image to display");
+
+        if (imageSource === "no-extras") {
+          // Tạo placeholder thông báo cần chờ extras API
+          const placeholderRect = new fabric.Rect({
+            left: 0,
+            top: 0,
+            width: canvasWidth,
+            height: canvasHeight,
+            fill: "#f8f9fa",
+            stroke: "#ddd",
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            name: "waiting-extras-placeholder",
+          });
+
+          const placeholderText = new fabric.Text(
+            "Đang xử lý ảnh background...",
+            {
+              left: canvasWidth / 2,
+              top: canvasHeight / 2 - 20,
+              fontSize: 24,
+              fill: "#666",
+              textAlign: "center",
+              originX: "center",
+              originY: "center",
+              selectable: false,
+              evented: false,
+              name: "waiting-extras-text",
+            }
+          );
+
+          const subText = new fabric.Text(
+            "Vui lòng quay lại Case 5 để tạo lại background",
+            {
+              left: canvasWidth / 2,
+              top: canvasHeight / 2 + 20,
+              fontSize: 16,
+              fill: "#999",
+              textAlign: "center",
+              originX: "center",
+              originY: "center",
+              selectable: false,
+              evented: false,
+              name: "waiting-extras-subtext",
+            }
+          );
+
+          canvas.add(placeholderRect);
+          canvas.add(placeholderText);
+          canvas.add(subText);
+          canvas.renderAll();
+
+          console.log("🎨 [CANVAS] Waiting for extras placeholder added");
+        } else {
+          console.error("ERROR: No image URL available");
+        }
       }
 
       // Canvas event handlers (giữ nguyên)
@@ -3176,7 +3434,13 @@ const AIDesign = () => {
         setFabricCanvas(null);
       }
     };
-  }, [currentStep, generatedImage, selectedBackgroundForCanvas]);
+  }, [
+    currentStep,
+    generatedImage,
+    selectedBackgroundForCanvas,
+    fabricCanvas,
+    pixelValueData,
+  ]);
 
   // Thêm useEffect riêng để handle khi selectedImage thay đổi trong step 6
 
@@ -3193,14 +3457,23 @@ const AIDesign = () => {
           generatedImage
         );
       } else if (selectedBackgroundForCanvas) {
-        imageSource = "background";
-        console.log(
-          "BACKGROUND CHANGED: Updating canvas with selected background:",
-          selectedBackgroundForCanvas
-        );
+        // 🎨 CHỈ SỬ DỤNG extrasImageUrl - không fallback về background gốc
+        if (selectedBackgroundForCanvas.extrasImageUrl) {
+          imageToLoad = selectedBackgroundForCanvas.extrasImageUrl;
+          imageSource = "background-extras";
+          console.log("🎨 Using background extras image ONLY:", imageToLoad);
+        } else {
+          console.warn(
+            "⚠️ [CANVAS UPDATE] No extrasImageUrl available, cannot update background"
+          );
+          imageSource = "no-extras";
+        }
       }
 
-      if (imageToLoad || selectedBackgroundForCanvas) {
+      if (
+        imageToLoad &&
+        (imageSource === "ai-generated" || imageSource === "background-extras")
+      ) {
         // Xóa ảnh cũ
         const objects = fabricCanvas.getObjects();
         const oldImages = objects.filter(
@@ -3208,10 +3481,16 @@ const AIDesign = () => {
             obj.name === "backgroundImage" ||
             obj.name === "backgroundImage-ai-generated" ||
             obj.name === "backgroundImage-background" ||
+            obj.name === "backgroundImage-background-extras" ||
             obj.name === "placeholder-ai-generated" ||
             obj.name === "placeholder-background" ||
+            obj.name === "placeholder-background-extras" ||
             obj.name === "placeholder-text-ai-generated" ||
-            obj.name === "placeholder-text-background"
+            obj.name === "placeholder-text-background" ||
+            obj.name === "placeholder-text-background-extras" ||
+            obj.name === "waiting-extras-placeholder" ||
+            obj.name === "waiting-extras-text" ||
+            obj.name === "waiting-extras-subtext"
         );
 
         oldImages.forEach((img) => fabricCanvas.remove(img));
@@ -3225,26 +3504,13 @@ const AIDesign = () => {
 
             if (imageSource === "ai-generated") {
               finalImageUrl = imageToLoad;
-            } else if (imageSource === "background") {
+            } else if (imageSource === "background-extras") {
+              // Background Extras Image - sử dụng trực tiếp URL từ extras API
+              finalImageUrl = imageToLoad;
               console.log(
-                "Updating background via getImageFromS3:",
-                selectedBackgroundForCanvas.backgroundUrl
+                "🎨 Updating with background extras image URL directly:",
+                finalImageUrl
               );
-
-              const s3Result = await getImageFromS3(
-                selectedBackgroundForCanvas.backgroundUrl
-              );
-
-              if (s3Result.success) {
-                finalImageUrl = s3Result.imageUrl;
-                console.log("Background updated successfully via S3 API");
-              } else {
-                console.error(
-                  "Failed to update background via S3 API:",
-                  s3Result.message
-                );
-                throw new Error(s3Result.message);
-              }
             }
 
             if (!finalImageUrl) {
@@ -3334,6 +3600,83 @@ const AIDesign = () => {
         };
 
         updateCanvasImage();
+      } else if (imageSource === "no-extras") {
+        // Xóa ảnh cũ và hiển thị placeholder
+        const objects = fabricCanvas.getObjects();
+        const oldImages = objects.filter(
+          (obj) =>
+            obj.name === "backgroundImage" ||
+            obj.name === "backgroundImage-ai-generated" ||
+            obj.name === "backgroundImage-background" ||
+            obj.name === "backgroundImage-background-extras" ||
+            obj.name === "placeholder-ai-generated" ||
+            obj.name === "placeholder-background" ||
+            obj.name === "placeholder-background-extras" ||
+            obj.name === "placeholder-text-ai-generated" ||
+            obj.name === "placeholder-text-background" ||
+            obj.name === "placeholder-text-background-extras" ||
+            obj.name === "waiting-extras-placeholder" ||
+            obj.name === "waiting-extras-text" ||
+            obj.name === "waiting-extras-subtext"
+        );
+
+        oldImages.forEach((img) => fabricCanvas.remove(img));
+
+        // Tạo placeholder chờ extras
+        const canvasWidth = fabricCanvas.width;
+        const canvasHeight = fabricCanvas.height;
+
+        const placeholderRect = new fabric.Rect({
+          left: 0,
+          top: 0,
+          width: canvasWidth,
+          height: canvasHeight,
+          fill: "#f8f9fa",
+          stroke: "#ddd",
+          strokeWidth: 2,
+          selectable: false,
+          evented: false,
+          name: "waiting-extras-placeholder",
+        });
+
+        const placeholderText = new fabric.Text(
+          "Không có ảnh background extras",
+          {
+            left: canvasWidth / 2,
+            top: canvasHeight / 2 - 20,
+            fontSize: 20,
+            fill: "#666",
+            textAlign: "center",
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: "waiting-extras-text",
+          }
+        );
+
+        const subText = new fabric.Text(
+          "Vui lòng quay lại Case 5 để tạo lại background",
+          {
+            left: canvasWidth / 2,
+            top: canvasHeight / 2 + 20,
+            fontSize: 14,
+            fill: "#999",
+            textAlign: "center",
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: "waiting-extras-subtext",
+          }
+        );
+
+        fabricCanvas.add(placeholderRect);
+        fabricCanvas.add(placeholderText);
+        fabricCanvas.add(subText);
+        fabricCanvas.renderAll();
+
+        console.log("🎨 [CANVAS UPDATE] No extras placeholder added");
       }
     }
   }, [generatedImage, selectedBackgroundForCanvas, fabricCanvas, currentStep]);
@@ -3401,12 +3744,38 @@ const AIDesign = () => {
     setIsExporting(true);
 
     try {
-      // 1. Export canvas to high quality PNG
+      // 🎯 EXPORT VỚI KÍCH THƯỚC PIXEL GỐC
+      let exportMultiplier = 1;
+
+      if (pixelValueData && pixelValueData.width && pixelValueData.height) {
+        // Tính multiplier để export về kích thước gốc
+        const currentCanvasWidth = fabricCanvas.width;
+        const originalWidth = pixelValueData.width;
+        exportMultiplier = originalWidth / currentCanvasWidth;
+
+        console.log(
+          "🎯 [EXPORT] Canvas hiện tại:",
+          currentCanvasWidth,
+          "x",
+          fabricCanvas.height
+        );
+        console.log(
+          "🎯 [EXPORT] Kích thước gốc:",
+          originalWidth,
+          "x",
+          pixelValueData.height
+        );
+        console.log("🎯 [EXPORT] Export multiplier:", exportMultiplier);
+      }
+
+      // 1. Export canvas với multiplier để có kích thước gốc
       const dataURL = fabricCanvas.toDataURL({
         format: "png",
         quality: 1,
-        multiplier: 2, // Higher quality
+        multiplier: exportMultiplier, // Scale về kích thước gốc
       });
+
+      console.log("🎯 [EXPORT] Đã export với multiplier:", exportMultiplier);
 
       // 2. Convert dataURL to File object
       const response = await fetch(dataURL);
@@ -3435,19 +3804,32 @@ const AIDesign = () => {
 
       console.log("Edited design saved successfully:", result);
 
-      // 4. Create PDF
-      const canvasWidth = fabricCanvas.width;
-      const canvasHeight = fabricCanvas.height;
+      // 4. Create PDF với kích thước gốc
+      let pdfCanvasWidth = fabricCanvas.width;
+      let pdfCanvasHeight = fabricCanvas.height;
+
+      // 🎯 Sử dụng kích thước gốc cho PDF nếu có
+      if (pixelValueData && pixelValueData.width && pixelValueData.height) {
+        pdfCanvasWidth = pixelValueData.width;
+        pdfCanvasHeight = pixelValueData.height;
+        console.log(
+          "🎯 [PDF] Sử dụng kích thước gốc cho PDF:",
+          pdfCanvasWidth,
+          "x",
+          pdfCanvasHeight
+        );
+      }
 
       const pdf = new jsPDF({
-        orientation: canvasWidth > canvasHeight ? "landscape" : "portrait",
+        orientation:
+          pdfCanvasWidth > pdfCanvasHeight ? "landscape" : "portrait",
         unit: "mm",
       });
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      const ratio = canvasWidth / canvasHeight;
+      const ratio = pdfCanvasWidth / pdfCanvasHeight;
       let imgWidth = pdfWidth - 10;
       let imgHeight = imgWidth / ratio;
 
@@ -3510,12 +3892,38 @@ const AIDesign = () => {
     try {
       setIsExporting(true);
 
-      // Export logic cho AI design (giữ nguyên logic cũ)
+      // 🎯 EXPORT VỚI KÍCH THƯỚC PIXEL GỐC
+      let exportMultiplier = 1;
+
+      if (pixelValueData && pixelValueData.width && pixelValueData.height) {
+        // Tính multiplier để export về kích thước gốc
+        const currentCanvasWidth = fabricCanvas.width;
+        const originalWidth = pixelValueData.width;
+        exportMultiplier = originalWidth / currentCanvasWidth;
+
+        console.log(
+          "🎯 [EXPORT AI] Canvas hiện tại:",
+          currentCanvasWidth,
+          "x",
+          fabricCanvas.height
+        );
+        console.log(
+          "🎯 [EXPORT AI] Kích thước gốc:",
+          originalWidth,
+          "x",
+          pixelValueData.height
+        );
+        console.log("🎯 [EXPORT AI] Export multiplier:", exportMultiplier);
+      }
+
+      // Export canvas với multiplier để có kích thước gốc
       const dataURL = fabricCanvas.toDataURL({
         format: "png",
         quality: 1,
-        multiplier: 2,
+        multiplier: exportMultiplier, // Scale về kích thước gốc
       });
+
+      console.log("🎯 [EXPORT AI] Đã export với multiplier:", exportMultiplier);
 
       const blobBin = atob(dataURL.split(",")[1]);
       const array = [];
@@ -3527,19 +3935,32 @@ const AIDesign = () => {
         type: "image/png",
       });
 
-      // Create PDF
-      const canvasWidth = fabricCanvas.width;
-      const canvasHeight = fabricCanvas.height;
+      // Create PDF với kích thước gốc
+      let pdfCanvasWidth = fabricCanvas.width;
+      let pdfCanvasHeight = fabricCanvas.height;
+
+      // 🎯 Sử dụng kích thước gốc cho PDF nếu có
+      if (pixelValueData && pixelValueData.width && pixelValueData.height) {
+        pdfCanvasWidth = pixelValueData.width;
+        pdfCanvasHeight = pixelValueData.height;
+        console.log(
+          "🎯 [PDF AI] Sử dụng kích thước gốc cho PDF:",
+          pdfCanvasWidth,
+          "x",
+          pdfCanvasHeight
+        );
+      }
 
       const pdf = new jsPDF({
-        orientation: canvasWidth > canvasHeight ? "landscape" : "portrait",
+        orientation:
+          pdfCanvasWidth > pdfCanvasHeight ? "landscape" : "portrait",
         unit: "mm",
       });
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      const ratio = canvasWidth / canvasHeight;
+      const ratio = pdfCanvasWidth / pdfCanvasHeight;
       let imgWidth = pdfWidth - 10;
       let imgHeight = imgWidth / ratio;
 
@@ -4242,7 +4663,8 @@ const AIDesign = () => {
   const handleSelectSampleProduct = (productId) => {
     setSelectedSampleProduct(productId);
   };
-  const handleContinueToPreview = () => {
+
+  const handleContinueToPreview = async () => {
     if (!selectedSampleProduct) {
       setSnackbar({
         open: true,
@@ -4264,30 +4686,142 @@ const AIDesign = () => {
     // Show the loading animation for AI generating images
     setIsGenerating(true);
 
-    // Make the API call to generate image from text
-    dispatch(
-      generateImageFromText({
-        designTemplateId: selectedSampleProduct,
-        prompt: customerNote.trim(),
-      })
-    )
-      .unwrap()
-      .then(() => {
-        console.log("Image generation started successfully");
-        // Move to step 7 after successful generation start
-        setCurrentStep(6);
-        setIsGenerating(false);
-        navigate("/ai-design");
-      })
-      .catch((error) => {
-        console.error("Error generating image:", error);
-        setIsGenerating(false);
-        setSnackbar({
-          open: true,
-          message: `Lỗi khi tạo hình ảnh: ${error || "Vui lòng thử lại sau"}`,
-          severity: "error",
+    try {
+      // Lấy pixel values trước khi generate image
+      let width = 512; // default value
+      let height = 512; // default value
+
+      console.log("🎯 [PIXEL API] Bắt đầu lấy pixel values...");
+      console.log("🎯 [PIXEL API] currentOrder object:", currentOrder);
+      console.log("🎯 [PIXEL API] currentOrder?.id:", currentOrder?.id);
+      console.log(
+        "🎯 [PIXEL API] Type of currentOrder?.id:",
+        typeof currentOrder?.id
+      );
+      console.log("🎯 [PIXEL API] pixelValueData từ Redux:", pixelValueData);
+      console.log(
+        "🎯 [PIXEL API] pixelValueStatus từ Redux:",
+        pixelValueStatus
+      );
+
+      if (currentOrder?.id) {
+        console.log(
+          "🎯 [PIXEL API] Gọi fetchCustomerChoicePixelValue với customerChoiceId:",
+          currentOrder.id
+        );
+
+        try {
+          const pixelResult = await dispatch(
+            fetchCustomerChoicePixelValue(currentOrder.id)
+          ).unwrap();
+          console.log("🎯 [PIXEL API] Kết quả API trả về:", pixelResult);
+
+          if (pixelResult && pixelResult.width && pixelResult.height) {
+            width = pixelResult.width;
+            height = pixelResult.height;
+            console.log("✅ [PIXEL API] Đã lấy được pixel values từ API:");
+            console.log("✅ [PIXEL API] Width:", width, "pixels");
+            console.log("✅ [PIXEL API] Height:", height, "pixels");
+          } else {
+            console.log(
+              "⚠️ [PIXEL API] API trả về nhưng không có width/height hợp lệ"
+            );
+            console.log(
+              "⚠️ [PIXEL API] Sử dụng giá trị mặc định: width=512, height=512"
+            );
+          }
+        } catch (pixelApiError) {
+          console.error("❌ [PIXEL API] Lỗi khi gọi API:", pixelApiError);
+          console.log(
+            "❌ [PIXEL API] Sử dụng giá trị mặc định: width=512, height=512"
+          );
+        }
+      } else {
+        console.log(
+          "⚠️ [PIXEL API] Không có currentOrder.id, sử dụng giá trị mặc định"
+        );
+      }
+
+      console.log("🎯 [PIXEL API] Giá trị cuối cùng sẽ sử dụng:");
+      console.log("🎯 [PIXEL API] Final Width:", width);
+      console.log("🎯 [PIXEL API] Final Height:", height);
+
+      // Make the API call to generate image from text with pixel values
+      console.log(
+        "🚀 [IMAGE GENERATION] Bắt đầu gọi generateImageFromText API với:"
+      );
+      console.log(
+        "🚀 [IMAGE GENERATION] designTemplateId:",
+        selectedSampleProduct
+      );
+      console.log("🚀 [IMAGE GENERATION] prompt:", customerNote.trim());
+      console.log("🚀 [IMAGE GENERATION] width:", width);
+      console.log("🚀 [IMAGE GENERATION] height:", height);
+
+      dispatch(
+        generateImageFromText({
+          designTemplateId: selectedSampleProduct,
+          prompt: customerNote.trim(),
+          width: width,
+          height: height,
+        })
+      )
+        .unwrap()
+        .then(() => {
+          console.log(
+            "✅ [IMAGE GENERATION] Image generation started successfully"
+          );
+          // Move to step 7 after successful generation start
+          setCurrentStep(6);
+          setIsGenerating(false);
+          navigate("/ai-design");
+        })
+        .catch((error) => {
+          console.error("❌ [IMAGE GENERATION] Error generating image:", error);
+          setIsGenerating(false);
+          setSnackbar({
+            open: true,
+            message: `Lỗi khi tạo hình ảnh: ${error || "Vui lòng thử lại sau"}`,
+            severity: "error",
+          });
         });
-      });
+    } catch (pixelError) {
+      console.error("❌ [PIXEL API] Error fetching pixel values:", pixelError);
+      console.log(
+        "🔄 [FALLBACK] Tiếp tục với giá trị mặc định width=512, height=512"
+      );
+
+      // Nếu không lấy được pixel values, vẫn tiếp tục với default values
+      dispatch(
+        generateImageFromText({
+          designTemplateId: selectedSampleProduct,
+          prompt: customerNote.trim(),
+          width: 512,
+          height: 512,
+        })
+      )
+        .unwrap()
+        .then(() => {
+          console.log(
+            "✅ [FALLBACK] Image generation started successfully with default values"
+          );
+          setCurrentStep(6);
+          setIsGenerating(false);
+          navigate("/ai-design");
+        })
+        .catch((error) => {
+          console.error(
+            "❌ [FALLBACK] Error generating image with default values:",
+            error
+          );
+          setIsGenerating(false);
+          setSnackbar({
+            open: true,
+            message: `Lỗi khi tạo hình ảnh: ${error || "Vui lòng thử lại sau"}`,
+            severity: "error",
+          });
+        });
+    }
   };
 
   const handleRegenerate = () => {
@@ -4317,12 +4851,15 @@ const AIDesign = () => {
     }
 
     // Kiểm tra localStorage để xem có orderId từ trang Order không
-    const orderIdFromStorage = localStorage.getItem('orderIdForNewOrder');
-    const orderTypeFromStorage = localStorage.getItem('orderTypeForNewOrder');
-    
-    if (orderIdFromStorage && orderTypeFromStorage === 'AI_DESIGN') {
-      console.log("AIDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:", orderIdFromStorage);
-      
+    const orderIdFromStorage = localStorage.getItem("orderIdForNewOrder");
+    const orderTypeFromStorage = localStorage.getItem("orderTypeForNewOrder");
+
+    if (orderIdFromStorage && orderTypeFromStorage === "AI_DESIGN") {
+      console.log(
+        "AIDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:",
+        orderIdFromStorage
+      );
+
       // Lưu thông tin AI Design để sử dụng trong Order page
       const aiDesignInfo = {
         isFromAIDesign: true,
@@ -4330,8 +4867,8 @@ const AIDesign = () => {
         customerChoiceId: currentOrder?.id,
         orderIdFromStorage: orderIdFromStorage, // Lưu orderId để tạo order detail
       };
-      localStorage.setItem('orderAIDesignInfo', JSON.stringify(aiDesignInfo));
-      
+      localStorage.setItem("orderAIDesignInfo", JSON.stringify(aiDesignInfo));
+
       // Chuyển đến step 2 của trang Order với orderId trong localStorage
       navigate("/order", {
         state: {
@@ -4348,7 +4885,7 @@ const AIDesign = () => {
     } else {
       // Logic cũ: tạo order mới
       console.log("AIDesign - Không có orderIdFromStorage, tạo order mới");
-      
+
       navigate("/order", {
         state: {
           fromAIDesign: true,
@@ -4828,6 +5365,7 @@ const AIDesign = () => {
             setShowSuccess={setShowSuccess}
             containerVariants={containerVariants}
             itemVariants={itemVariants}
+            pixelValueData={pixelValueData}
           />
         );
       case 7:
@@ -4861,6 +5399,7 @@ const AIDesign = () => {
             isOrdering={isOrdering}
             containerVariants={containerVariants}
             itemVariants={itemVariants}
+            pixelValueData={pixelValueData}
           />
         );
       default:
