@@ -5,6 +5,7 @@ import {
   saleReportTicket,
   deliveryTicketToStaff,
   getUserTickets,
+  getUserTicketsByStatus,
   getAllTickets,
   getTicketDetail,
   getStaffTickets,
@@ -104,6 +105,54 @@ export const fetchUserTickets = createAsyncThunk(
       tickets: response.data,
       pagination: response.pagination,
     };
+  }
+);
+
+// Customer xem tickets của mình theo trạng thái
+export const fetchUserTicketsByStatus = createAsyncThunk(
+  "ticket/fetchUserTicketsByStatus",
+  async ({ userId, status, page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      // Thử gọi API với status filter
+      const response = await getUserTicketsByStatus(userId, status, page, size);
+
+      if (response.success) {
+        return {
+          tickets: response.data,
+          pagination: response.pagination,
+        };
+      }
+
+      // Nếu API không hỗ trợ status filter, lấy tất cả và filter ở frontend
+      const allTicketsResponse = await getUserTickets(userId, 1, 1000); // Lấy tất cả tickets
+
+      if (!allTicketsResponse.success) {
+        return rejectWithValue(allTicketsResponse.error || "Lấy danh sách ticket thất bại");
+      }
+
+      // Filter theo status ở frontend
+      const filteredTickets = allTicketsResponse.data.filter(ticket => ticket.status === status);
+
+      // Tính toán pagination cho filtered data
+      const startIndex = (page - 1) * size;
+      const endIndex = startIndex + size;
+      const paginatedTickets = filteredTickets.slice(startIndex, endIndex);
+
+      const totalElements = filteredTickets.length;
+      const totalPages = Math.ceil(totalElements / size);
+
+      return {
+        tickets: paginatedTickets,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          pageSize: size,
+          totalElements,
+        },
+      };
+    } catch (error) {
+      return rejectWithValue(error.message || "Lấy danh sách ticket thất bại");
+    }
   }
 );
 
@@ -321,6 +370,22 @@ const ticketSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchUserTickets.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+
+      // Fetch user tickets by status cases
+      .addCase(fetchUserTicketsByStatus.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchUserTicketsByStatus.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.tickets = action.payload.tickets;
+        state.pagination = action.payload.pagination;
+        state.error = null;
+      })
+      .addCase(fetchUserTicketsByStatus.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       })
