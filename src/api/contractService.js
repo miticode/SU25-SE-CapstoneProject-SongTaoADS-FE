@@ -43,6 +43,12 @@ export const uploadOrderContractApi = async (orderId, formData) => {
     };
 
     console.log("Gọi API tải lên hợp đồng với:", { orderId });
+    console.log("FormData contents:", {
+      depositPercentChanged: formData.get('depositPercentChanged'),
+      contractNumber: formData.get('contractNumber'),
+      contactFile: formData.get('contactFile')
+    });
+
     const response = await contractService.post(`/api/orders/${orderId}/contract`, formData, config);
 
     const { success, result, message } = response.data;
@@ -77,12 +83,12 @@ export const getOrderContractApi = async (orderId) => {
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error("Error getting contract:", error.response?.data || error);
-    
+
     // Nếu lỗi 404 có nghĩa là chưa có hợp đồng
     if (error.response?.status === 404) {
       return { success: false, error: 'Chưa có hợp đồng cho đơn hàng này', notFound: true };
     }
-    
+
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to get contract'
@@ -104,7 +110,7 @@ export const discussContractApi = async (contractId) => {
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error("Error discussing contract:", error.response?.data || error);
-    
+
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to discuss contract'
@@ -114,7 +120,11 @@ export const discussContractApi = async (contractId) => {
 export const uploadRevisedContractApi = async (contractId, formData) => {
   try {
     console.log("Gọi API upload hợp đồng chỉnh sửa với contractId:", contractId);
-    
+    console.log("FormData contents:", {
+      depositPercentChanged: formData.get('depositPercentChanged'),
+      contactFile: formData.get('contactFile')
+    });
+
     // FormData với Content-Type tự động được set là multipart/form-data
     const config = {
       headers: {
@@ -123,8 +133,8 @@ export const uploadRevisedContractApi = async (contractId, formData) => {
     };
 
     const response = await contractService.patch(
-      `/api/contracts/${contractId}/revised-contract`, 
-      formData, 
+      `/api/contracts/${contractId}/revised-contract`,
+      formData,
       config
     );
 
@@ -138,7 +148,7 @@ export const uploadRevisedContractApi = async (contractId, formData) => {
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error("Error uploading revised contract:", error.response?.data || error);
-    
+
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to upload revised contract'
@@ -148,11 +158,11 @@ export const uploadRevisedContractApi = async (contractId, formData) => {
 export const uploadSignedContractApi = async (contractId, signedContractFile) => {
   try {
     console.log("Gọi API upload hợp đồng đã ký với contractId:", contractId);
-    
+
     // Tạo FormData để upload file
     const formData = new FormData();
     formData.append('signedContractFile', signedContractFile);
-    
+
     // FormData với Content-Type tự động được set là multipart/form-data
     const config = {
       headers: {
@@ -161,8 +171,8 @@ export const uploadSignedContractApi = async (contractId, signedContractFile) =>
     };
 
     const response = await contractService.patch(
-      `/api/contracts/${contractId}/signed-contract`, 
-      formData, 
+      `/api/contracts/${contractId}/signed-contract`,
+      formData,
       config
     );
 
@@ -176,11 +186,60 @@ export const uploadSignedContractApi = async (contractId, signedContractFile) =>
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error("Error uploading signed contract:", error.response?.data || error);
-    
+
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to upload signed contract'
     };
   }
 };
+
+// Sale xác nhận đơn hàng đã ký
+export const confirmContractSignedApi = async (orderId) => {
+  try {
+    console.log("Gọi API xác nhận đơn hàng đã ký với orderId:", orderId);
+    const response = await contractService.patch(`/api/orders/${orderId}/contract-signed`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API xác nhận đơn hàng đã ký:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error confirming contract signed:", error.response?.data || error);
+
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to confirm contract signed'
+    };
+  }
+};
+
+// Sale yêu cầu khách hàng gửi lại bản hợp đồng đã ký
+export const requestContractResignApi = async (orderId) => {
+  try {
+    console.log("Gọi API yêu cầu gửi lại hợp đồng đã ký với orderId:", orderId);
+    const response = await contractService.patch(`/api/orders/${orderId}/contract-resign`);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API yêu cầu gửi lại hợp đồng:", { success, result });
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error("Error requesting contract resign:", error.response?.data || error);
+
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to request contract resign'
+    };
+  }
+};
+
 export default contractService;
