@@ -32,6 +32,11 @@ import {
   Tab,
   Badge,
   Autocomplete,
+  Card,
+  CardContent,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -42,6 +47,11 @@ import {
   SmartToy as SmartToyIcon,
   Close as CloseIcon,
   CloudUpload as CloudUploadIcon,
+  LocalShipping as ShippingIcon,
+  Upload as UploadIcon,
+  Description as DescriptionIcon,
+  People as PeopleIcon,
+  MonetizationOn as MoneyIcon,
 } from "@mui/icons-material";
 import {
   fetchAllDesignRequests,
@@ -74,6 +84,8 @@ import {
   updateOrderEstimatedDeliveryDate,
 } from "../../store/features/order/orderSlice";
 
+import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
+
 import ContractUploadForm from "../../components/ContractUploadForm";
 import UploadRevisedContract from "../../components/UploadRevisedContract";
 import { getOrderContractApi } from "../../api/contractService";
@@ -81,6 +93,231 @@ import { getPresignedUrl } from "../../api/s3Service";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+
+// Component ContractorListDialog
+const ContractorListDialog = ({ open, onClose, contractors, order, generateOrderCode, onReportDelivery }) => {
+  const [selectedContractorId, setSelectedContractorId] = useState(null);
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      setSelectedContractorId(null);
+      setEstimatedDeliveryDate(null);
+    }
+  }, [open]);
+
+  // Set Vietnamese locale for dayjs
+  useEffect(() => {
+    dayjs.locale('vi');
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!selectedContractorId || !estimatedDeliveryDate) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Format the date as LocalDateTime in ISO format
+      // Set time to 09:00:00 for delivery date
+      const deliveryDateTime = estimatedDeliveryDate.hour(9).minute(0).second(0);
+      const formattedDateTime = deliveryDateTime.format('YYYY-MM-DDTHH:mm:ss');
+      
+      console.log('Formatted delivery date:', formattedDateTime);
+      await onReportDelivery(order.id, formattedDateTime, selectedContractorId);
+      onClose();
+    } catch (error) {
+      console.error('Error reporting delivery date:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isFormValid = selectedContractorId && estimatedDeliveryDate;
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <ShippingIcon color="info" />
+            <Typography variant="h6">
+              Báo ngày giao dự kiến - Đơn hàng {order ? (order.orderCode || order.id) : '#N/A'}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ py: 2 }}>
+            {contractors && contractors.length > 0 ? (
+              <>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Chọn nhà thầu và báo ngày giao dự kiến cho đơn hàng {order ? (order.orderCode || order.id) : '#N/A'} ({contractors.length} nhà thầu có sẵn)
+                </Typography>
+                
+                {/* Date Picker */}
+                <Box sx={{ mt: 3, mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                    Ngày giao dự kiến
+                  </Typography>
+                  <DatePicker
+                    label="Chọn ngày giao hàng"
+                    value={estimatedDeliveryDate}
+                    onChange={(newValue) => setEstimatedDeliveryDate(newValue)}
+                    minDate={dayjs().add(1, 'day')}
+                    format="DD/MM/YYYY"
+                    sx={{ width: '100%' }}
+                    slotProps={{
+                      textField: {
+                        helperText: 'Vui lòng chọn ngày giao hàng dự kiến (định dạng: Ngày/Tháng/Năm)'
+                      }
+                    }}
+                  />
+                </Box>
+
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom sx={{ mt: 3 }}>
+                  Chọn nhà thầu thực hiện
+                </Typography>
+                
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  {contractors.map((contractor) => (
+                    <Grid item xs={12} md={6} key={contractor.id}>
+                      <Card
+                        elevation={selectedContractorId === contractor.id ? 4 : 2}
+                        sx={{
+                          borderRadius: 3,
+                          border: "2px solid",
+                          borderColor: selectedContractorId === contractor.id ? "info.main" : "divider",
+                          transition: "all 0.3s ease",
+                          cursor: "pointer",
+                          "&:hover": {
+                            boxShadow: 4,
+                            transform: "translateY(-2px)",
+                            borderColor: selectedContractorId === contractor.id ? "info.main" : "warning.main",
+                          },
+                        }}
+                        onClick={() => setSelectedContractorId(contractor.id)}
+                      >
+                        <CardContent sx={{ p: 3 }}>
+                          {/* Header */}
+                          <Box
+                            sx={{
+                              background: selectedContractorId === contractor.id 
+                                ? "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)"
+                                : "linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)",
+                              borderRadius: 2,
+                              p: 2,
+                              mb: 2,
+                              position: 'relative'
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                              <Box
+                                sx={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  backgroundColor: contractor.isInternal ? "success.main" : "info.main",
+                                }}
+                              />
+                              <Typography variant="h6" color="text.primary" fontWeight="bold">
+                                {contractor.name}
+                              </Typography>
+                              <Chip
+                                label={contractor.isInternal ? "Nội bộ" : "Bên ngoài"}
+                                size="small"
+                                color={contractor.isInternal ? "success" : "info"}
+                                sx={{ ml: "auto", fontWeight: "medium" }}
+                              />
+                            </Box>
+                          </Box>
+
+                          {/* Thông tin chi tiết */}
+                          <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                              <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2, mb: 2 }}>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  Địa chỉ
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {contractor.address}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  Số điện thoại
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium" color="primary.main">
+                                  {contractor.phone}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  Email
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium" color="primary.main">
+                                  {contractor.email}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          </Grid>
+
+                          {/* Trạng thái availability */}
+                          <Box sx={{ mt: 2, textAlign: "center" }}>
+                            <Chip
+                              label={contractor.isAvailable ? "Có sẵn" : "Không có sẵn"}
+                              color={contractor.isAvailable ? "success" : "error"}
+                              variant="filled"
+                              sx={{ fontWeight: "medium" }}
+                            />
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </>
+            ) : (
+              <Box sx={{ textAlign: "center", py: 4 }}>
+                <ShippingIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Chưa có nhà thầu nào để báo ngày giao
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Hiện tại chưa có nhà thầu nào có sẵn để báo ngày giao dự kiến cho đơn hàng này
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button onClick={onClose} variant="outlined" disabled={isSubmitting}>
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            disabled={!isFormValid || isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : <ShippingIcon />}
+          >
+            {isSubmitting ? 'Đang xử lý...' : 'Báo ngày giao dự kiến'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </LocalizationProvider>
+  );
+};
+
 const CustomerRequests = () => {
   const dispatch = useDispatch();
   const designRequests = useSelector(selectAllDesignRequests);
@@ -112,6 +349,9 @@ const CustomerRequests = () => {
   const orderStatus = useSelector(selectOrderStatus);
   const orderError = useSelector(selectOrderError);
   const orderPagination = useSelector(selectOrderPagination);
+  
+  // Lấy danh sách contractors từ Redux store
+  const { contractors } = useSelector((state) => state.contractor);
   const [orderPage, setOrderPage] = useState(1);
   const [orderPageSize, setOrderPageSize] = useState(10);
   const [contractViewLoading, setContractViewLoading] = useState(false);
@@ -166,6 +406,12 @@ const CustomerRequests = () => {
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
   const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+  
+  // State cho flow báo ngày giao dự kiến
+  const [contractorDialog, setContractorDialog] = useState({
+    open: false,
+    order: null,
+  });
   useEffect(() => {
     if (currentTab === 1) {
       // Thêm memoization để tránh fetch quá nhiều lần
@@ -639,6 +885,84 @@ const CustomerRequests = () => {
   };
   const handleCloseNotification = () => {
     setNotification((prev) => ({ ...prev, open: false }));
+  };
+
+  // Handler wrapper cho xem chi tiết - lấy contractors nếu cần
+  const handleViewDetail = async (orderId) => {
+    // Tìm order để kiểm tra trạng thái
+    const order = orders.find(o => o.id === orderId);
+    
+    // Nếu đơn hàng ở trạng thái DEPOSITED, lấy danh sách contractors và mở dialog
+    if (order && order.status === 'DEPOSITED') {
+      try {
+        await dispatch(fetchAllContractors()).unwrap();
+        console.log('Đã lấy danh sách contractors cho đơn hàng DEPOSITED');
+        
+        // Mở dialog hiển thị danh sách nhà thầu
+        setContractorDialog({
+          open: true,
+          order: order,
+        });
+        
+        return; // Không gọi handleViewOrderDetails gốc cho trạng thái DEPOSITED
+      } catch (error) {
+        console.error('Lỗi khi lấy danh sách contractors:', error);
+        setNotification({
+          open: true,
+          message: "Có lỗi khi tải danh sách nhà thầu",
+          severity: "warning",
+        });
+      }
+    }
+    
+    // Gọi hàm handleViewOrderDetails gốc cho các trạng thái khác
+    if (order) {
+      handleViewOrderDetails(order);
+    }
+  };
+
+  // Handler đóng contractor dialog
+  const handleCloseContractorDialog = () => {
+    setContractorDialog({
+      open: false,
+      order: null,
+    });
+  };
+
+  // Handler báo ngày giao dự kiến
+  const handleReportDelivery = async (orderId, estimatedDeliveryDate, contractorId) => {
+    try {
+      console.log('Báo ngày giao dự kiến:', { orderId, estimatedDeliveryDate, contractorId });
+      
+      await dispatch(updateOrderEstimatedDeliveryDate({
+        orderId,
+        estimatedDeliveryDate,
+        contractorId
+      })).unwrap();
+
+      setNotification({
+        open: true,
+        message: "Báo ngày giao dự kiến thành công!",
+        severity: "success",
+      });
+
+      // Refresh danh sách orders để cập nhật thông tin mới
+      dispatch(
+        fetchOrders({
+          orderStatus: selectedOrderStatus,
+          page: orderPage,
+          size: orderPageSize,
+        })
+      );
+
+    } catch (error) {
+      console.error('Lỗi khi báo ngày giao dự kiến:', error);
+      setNotification({
+        open: true,
+        message: error || "Có lỗi khi báo ngày giao dự kiến",
+        severity: "error",
+      });
+    }
   };
 
   useEffect(() => {
@@ -1243,10 +1567,10 @@ const CustomerRequests = () => {
                           <TableCell>
                             <IconButton
                               color="primary"
-                              onClick={() => handleViewOrderDetails(order)}
-                              title="Xem chi tiết"
+                              onClick={() => handleViewDetail(order.id)}
+                              title={order.status === "DEPOSITED" ? "Báo ngày giao dự kiến" : "Xem chi tiết"}
                             >
-                              <VisibilityIcon />
+                              {order.status === "DEPOSITED" ? <ShippingIcon /> : <VisibilityIcon />}
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -1710,844 +2034,7 @@ const CustomerRequests = () => {
             </>
           )}
         </Dialog>
-        <Dialog
-          open={orderDetailOpen}
-          onClose={handleCloseOrderDetails}
-          maxWidth="md"
-          fullWidth
-          disableRestoreFocus
-          keepMounted={false}
-        >
-          {selectedOrder && (
-            <>
-              <DialogTitle>
-                Chi tiết đơn hàng #{selectedOrder.id}
-                <IconButton
-                  aria-label="close"
-                  onClick={handleCloseOrderDetails}
-                  sx={{ position: "absolute", right: 8, top: 8 }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent dividers>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Khách hàng
-                    </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {selectedOrder.users?.fullName || "Chưa có thông tin"}
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Ngày đặt đơn
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatDate(selectedOrder.orderDate)}
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Tổng tiền
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {formatCurrency(selectedOrder.totalAmount)}
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Đã đặt cọc
-                    </Typography>
-                    <Typography variant="body1" color="success.main">
-                      {formatCurrency(selectedOrder.depositAmount)}
-                    </Typography>
-                  </Grid>
-
-                  {selectedOrder.remainingAmount > 0 && (
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Còn lại
-                      </Typography>
-                      <Typography variant="body1" color="info.main">
-                        {formatCurrency(selectedOrder.remainingAmount)}
-                      </Typography>
-                    </Grid>
-                  )}
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Ngày giao dự kiến
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedOrder.estimatedDeliveryDate
-                        ? formatDate(selectedOrder.estimatedDeliveryDate)
-                        : "Chưa có thông tin"}
-                    </Typography>
-                  </Grid>
-                  {selectedOrder.status === "DEPOSITED" && (
-                    <Grid item xs={12}>
-                      <Typography variant="h6" mt={2} mb={1}>
-                        Cập nhật ngày giao hàng dự kiến
-                      </Typography>
-                      <Paper variant="outlined" sx={{ p: 2 }}>
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={12} sm={6}>
-                            <DatePicker
-                              label="Ngày giao hàng dự kiến"
-                              value={estimatedDeliveryDate}
-                              onChange={(newDate) =>
-                                setEstimatedDeliveryDate(newDate)
-                              }
-                              format="dd/MM/yyyy"
-                              minDate={new Date()} // Không cho chọn ngày trong quá khứ
-                              slotProps={{
-                                textField: {
-                                  fullWidth: true,
-                                  helperText:
-                                    "Chọn ngày giao hàng dự kiến cho đơn hàng",
-                                  required: true,
-                                },
-                              }}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Button
-                              variant="contained"
-                              color="primary"
-                              onClick={() =>
-                                handleUpdateEstimatedDeliveryDate(
-                                  selectedOrder.id,
-                                  estimatedDeliveryDate
-                                )
-                              }
-                              disabled={
-                                updatingDeliveryDate || !estimatedDeliveryDate
-                              }
-                              startIcon={
-                                updatingDeliveryDate ? (
-                                  <CircularProgress size={20} />
-                                ) : null
-                              }
-                              sx={{ minWidth: 200 }}
-                            >
-                              {updatingDeliveryDate
-                                ? "Đang cập nhật..."
-                                : "Cập nhật ngày giao hàng"}
-                            </Button>
-                          </Grid>
-                        </Grid>
-
-                        {/* Hiển thị ngày hiện tại nếu có */}
-                        {selectedOrder.estimatedDeliveryDate && (
-                          <Box
-                            sx={{
-                              mt: 2,
-                              p: 1,
-                              bgcolor: "info.light",
-                              borderRadius: 1,
-                            }}
-                          >
-                            <Typography variant="body2" color="info.dark">
-                              <strong>Ngày giao hàng hiện tại:</strong>{" "}
-                              {new Date(
-                                selectedOrder.estimatedDeliveryDate
-                              ).toLocaleDateString("vi-VN")}
-                            </Typography>
-                          </Box>
-                        )}
-                      </Paper>
-                    </Grid>
-                  )}
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Trạng thái hiện tại
-                    </Typography>
-                    <Box sx={{ mt: 1 }}>
-                      <Chip
-                        label={
-                          ORDER_STATUS_MAP[selectedOrder.status]?.label ||
-                          selectedOrder.status
-                        }
-                        color={
-                          ORDER_STATUS_MAP[selectedOrder.status]?.color ||
-                          "default"
-                        }
-                        sx={{ fontWeight: 500 }}
-                      />
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Nguồn gốc đơn hàng
-                    </Typography>
-                    <Box sx={{ mt: 1 }}>
-                      {selectedOrder.aiDesigns ? (
-                        <Chip
-                          icon={<SmartToyIcon />}
-                          label="AI Design"
-                          color="secondary"
-                          sx={{ fontWeight: 500 }}
-                        />
-                      ) : selectedOrder.customDesignRequests ? (
-                        <Chip
-                          icon={<BrushIcon />}
-                          label="Custom Design"
-                          color="primary"
-                          sx={{ fontWeight: 500 }}
-                        />
-                      ) : (
-                        <Chip
-                          label="Đơn thường"
-                          color="default"
-                          sx={{ fontWeight: 500 }}
-                        />
-                      )}
-                    </Box>
-                  </Grid>
-                  {selectedOrder.customerChoiceHistories && (
-                    <>
-                      <Grid item xs={12}>
-                        <Typography variant="h6" mt={2}>
-                          Thông tin kỹ thuật
-                        </Typography>
-                        <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
-                          <Typography variant="body2" gutterBottom>
-                            <b>Loại sản phẩm:</b>{" "}
-                            {
-                              selectedOrder.customerChoiceHistories
-                                .productTypeName
-                            }
-                          </Typography>
-
-                          {selectedOrder.customerChoiceHistories.sizeSelections
-                            ?.length > 0 && (
-                            <>
-                              <Typography variant="subtitle2" mt={2} mb={1}>
-                                Kích thước:
-                              </Typography>
-                              <TableContainer
-                                component={Paper}
-                                variant="outlined"
-                              >
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow>
-                                      <TableCell>Loại</TableCell>
-                                      <TableCell align="right">
-                                        Giá trị
-                                      </TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {selectedOrder.customerChoiceHistories.sizeSelections.map(
-                                      (size) => (
-                                        <TableRow key={size.size}>
-                                          <TableCell>{size.size}</TableCell>
-                                          <TableCell align="right">
-                                            {size.value}
-                                          </TableCell>
-                                        </TableRow>
-                                      )
-                                    )}
-                                  </TableBody>
-                                </Table>
-                              </TableContainer>
-                            </>
-                          )}
-
-                          {selectedOrder.customerChoiceHistories
-                            .attributeSelections?.length > 0 && (
-                            <>
-                              <Typography variant="subtitle2" mt={2} mb={1}>
-                                Vật liệu:
-                              </Typography>
-                              <TableContainer
-                                component={Paper}
-                                variant="outlined"
-                              >
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow>
-                                      <TableCell>Thuộc tính</TableCell>
-                                      <TableCell>Giá trị</TableCell>
-                                      <TableCell align="right">
-                                        Đơn giá
-                                      </TableCell>
-                                      <TableCell align="right">
-                                        Thành tiền
-                                      </TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {selectedOrder.customerChoiceHistories.attributeSelections.map(
-                                      (attr) => (
-                                        <TableRow key={attr.attribute}>
-                                          <TableCell>
-                                            {attr.attribute}
-                                          </TableCell>
-                                          <TableCell>{attr.value}</TableCell>
-                                          <TableCell align="right">
-                                            {formatCurrency(attr.unitPrice)}
-                                          </TableCell>
-                                          <TableCell align="right">
-                                            {formatCurrency(attr.subTotal)}
-                                          </TableCell>
-                                        </TableRow>
-                                      )
-                                    )}
-                                  </TableBody>
-                                </Table>
-                              </TableContainer>
-                            </>
-                          )}
-                        </Paper>
-                      </Grid>
-                    </>
-                  )}
-                  {/* Custom Design Request Information */}
-                  {selectedOrder.customDesignRequests && (
-                    <Grid item xs={12}>
-                      <Typography variant="h6" mt={2}>
-                        Thông tin yêu cầu thiết kế
-                      </Typography>
-                      <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
-                        <Typography variant="body2" gutterBottom>
-                          <b>Yêu cầu:</b>{" "}
-                          {selectedOrder.customDesignRequests.requirements}
-                        </Typography>
-                        <Typography variant="body2" gutterBottom>
-                          <b>Trạng thái thiết kế:</b>{" "}
-                          {CUSTOM_DESIGN_STATUS_MAP[
-                            selectedOrder.customDesignRequests.status
-                          ]?.label || selectedOrder.customDesignRequests.status}
-                        </Typography>
-                        {selectedOrder.customDesignRequests
-                          .finalDesignImage && (
-                          <Box mt={2}>
-                            <Typography variant="body2" fontWeight="medium">
-                              Thiết kế cuối:
-                            </Typography>
-                            <Box sx={{ mt: 1, maxWidth: 300 }}>
-                              <img
-                                src={
-                                  selectedOrder.customDesignRequests
-                                    .finalDesignImage
-                                }
-                                alt="Final design"
-                                style={{ width: "100%", borderRadius: 4 }}
-                              />
-                            </Box>
-                          </Box>
-                        )}
-                      </Paper>
-                    </Grid>
-                  )}
-
-                  {/* Update Status Section */}
-                  <Grid item xs={12}>
-                    <Typography variant="h6" mt={2} mb={1}>
-                      Cập nhật trạng thái
-                    </Typography>
-
-                    <Paper variant="outlined" sx={{ p: 2 }}>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        gutterBottom
-                      >
-                        Chuyển đến trạng thái:
-                      </Typography>
-
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 1,
-                          mt: 2,
-                        }}
-                      >
-                        {/* Contract Phase */}
-                        {[
-                          "PENDING_CONTRACT",
-                          "CONTRACT_SENT",
-                          "CONTRACT_DISCUSS",
-                          "CONTRACT_SIGNED",
-                          "CONTRACT_RESIGNED",
-                        ].includes(selectedOrder.status) && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                              width: "100%",
-                            }}
-                          >
-                            <Typography variant="subtitle2" color="primary">
-                              Giai đoạn hợp đồng:
-                            </Typography>
-                            <Box
-                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
-                            >
-                              {selectedOrder.status === "PENDING_CONTRACT" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    startIcon={<CloudUploadIcon />}
-                                    disabled={actionLoading}
-                                    onClick={() => setOpenContractUpload(true)}
-                                    sx={{ mr: 1 }}
-                                  >
-                                    Tải lên hợp đồng
-                                  </Button>
-
-                                  {/* Chỉ hiển thị nút này khi cần cập nhật trạng thái thủ công */}
-                                  {/* Ví dụ: khi hợp đồng được gửi qua email hoặc phương thức khác */}
-                                  <Button
-                                    variant="outlined"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() => {
-                                      // Hiện thông báo xác nhận trước khi thay đổi trạng thái
-                                      if (
-                                        window.confirm(
-                                          "Xác nhận đã gửi hợp đồng cho khách hàng (không tải file)?"
-                                        )
-                                      ) {
-                                        handleUpdateOrderStatus(
-                                          selectedOrder.id,
-                                          "CONTRACT_SENT"
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    Đánh dấu đã gửi hợp đồng
-                                  </Button>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "CONTRACT_SENT" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_SIGNED"
-                                      )
-                                    }
-                                  >
-                                    Đã ký hợp đồng
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_DISCUSS"
-                                      )
-                                    }
-                                  >
-                                    Đàm phán hợp đồng
-                                  </Button>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "CONTRACT_DISCUSS" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    startIcon={
-                                      fetchingContract ? (
-                                        <CircularProgress size={16} />
-                                      ) : (
-                                        <CloudUploadIcon />
-                                      )
-                                    }
-                                    disabled={actionLoading || fetchingContract}
-                                    onClick={() =>
-                                      getContractIdForOrder(selectedOrder.id)
-                                    } // SỬA LẠI
-                                    sx={{ mr: 1 }}
-                                  >
-                                    {fetchingContract
-                                      ? "Đang tải..."
-                                      : "Upload hợp đồng chỉnh sửa"}
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_RESIGNED"
-                                      )
-                                    }
-                                  >
-                                    Ký lại hợp đồng
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    color="success"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_CONFIRMED"
-                                      )
-                                    }
-                                  >
-                                    Xác nhận hợp đồng
-                                  </Button>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "CONTRACT_SIGNED" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="success"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleContractSigned(selectedOrder.id)
-                                    } // Thay đổi từ handleUpdateOrderStatus
-                                  >
-                                    {actionLoading ? (
-                                      <CircularProgress
-                                        size={16}
-                                        color="inherit"
-                                      />
-                                    ) : (
-                                      "Xác nhận hợp đồng"
-                                    )}
-                                  </Button>
-
-                                  {/* Nút xem hợp đồng */}
-                                  <Button
-                                    variant="outlined"
-                                    color="info"
-                                    size="small"
-                                    disabled={contractViewLoading}
-                                    onClick={() =>
-                                      handleViewContract(selectedOrder.id)
-                                    }
-                                    startIcon={
-                                      contractViewLoading ? (
-                                        <CircularProgress size={16} />
-                                      ) : (
-                                        <VisibilityIcon />
-                                      )
-                                    }
-                                    sx={{ ml: 1 }}
-                                  >
-                                    {contractViewLoading
-                                      ? "Đang tải..."
-                                      : "Xem hợp đồng"}
-                                  </Button>
-
-                                  {/* Nút yêu cầu gửi lại hợp đồng */}
-                                  <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleContractResign(selectedOrder.id)
-                                    }
-                                    sx={{ ml: 1 }}
-                                  >
-                                    {actionLoading ? (
-                                      <CircularProgress
-                                        size={16}
-                                        color="inherit"
-                                      />
-                                    ) : (
-                                      "Yêu cầu gửi lại hợp đồng"
-                                    )}
-                                  </Button>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "CONTRACT_RESIGNED" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "CONTRACT_CONFIRMED"
-                                    )
-                                  }
-                                >
-                                  Xác nhận hợp đồng
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Production Phase */}
-                        {[
-                          "CONTRACT_CONFIRMED",
-                          "DEPOSITED",
-                          "IN_PROGRESS",
-                          "PRODUCING",
-                        ].includes(selectedOrder.status) && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                              width: "100%",
-                            }}
-                          >
-                            <Typography variant="subtitle2" color="primary">
-                              Giai đoạn sản xuất:
-                            </Typography>
-                            <Box
-                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
-                            >
-                              {selectedOrder.status ===
-                                "CONTRACT_CONFIRMED" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="warning"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "DEPOSITED"
-                                      )
-                                    }
-                                  >
-                                    Đã đặt cọc
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "IN_PROGRESS"
-                                      )
-                                    }
-                                  >
-                                    Bắt đầu thực hiện
-                                  </Button>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "DEPOSITED" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "IN_PROGRESS"
-                                      )
-                                    }
-                                  >
-                                    Bắt đầu thực hiện
-                                  </Button>
-
-                                  {/* Thêm thông báo nhắc nhở */}
-                                  <Box sx={{ width: "100%", mt: 1 }}>
-                                    <Typography
-                                      variant="body2"
-                                      color="info.main"
-                                      sx={{ fontStyle: "italic" }}
-                                    >
-                                      💡 Đừng quên cập nhật ngày giao hàng dự
-                                      kiến trước khi chuyển trạng thái
-                                    </Typography>
-                                  </Box>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "IN_PROGRESS" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "PRODUCING"
-                                    )
-                                  }
-                                >
-                                  Đang sản xuất
-                                </Button>
-                              )}
-
-                              {selectedOrder.status === "PRODUCING" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "PRODUCTION_COMPLETED"
-                                    )
-                                  }
-                                >
-                                  Hoàn thành sản xuất
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Delivery Phase */}
-                        {[
-                          "PRODUCTION_COMPLETED",
-                          "DELIVERING",
-                          "INSTALLED",
-                        ].includes(selectedOrder.status) && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                              width: "100%",
-                            }}
-                          >
-                            <Typography variant="subtitle2" color="primary">
-                              Giai đoạn giao hàng:
-                            </Typography>
-                            <Box
-                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
-                            >
-                              {selectedOrder.status ===
-                                "PRODUCTION_COMPLETED" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "DELIVERING"
-                                    )
-                                  }
-                                >
-                                  Đang giao hàng
-                                </Button>
-                              )}
-
-                              {selectedOrder.status === "DELIVERING" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "INSTALLED"
-                                    )
-                                  }
-                                >
-                                  Đã lắp đặt
-                                </Button>
-                              )}
-
-                              {selectedOrder.status === "INSTALLED" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "COMPLETED"
-                                    )
-                                  }
-                                >
-                                  Hoàn tất
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Cancel option - available in most states except COMPLETED */}
-                        {selectedOrder.status !== "COMPLETED" &&
-                          selectedOrder.status !== "CANCELLED" && (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                                width: "100%",
-                                mt: 2,
-                              }}
-                            >
-                              <Typography variant="subtitle2" color="error">
-                                Hủy đơn hàng:
-                              </Typography>
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                size="small"
-                                disabled={actionLoading}
-                                onClick={() =>
-                                  handleUpdateOrderStatus(
-                                    selectedOrder.id,
-                                    "CANCELLED"
-                                  )
-                                }
-                                startIcon={<CancelIcon />}
-                              >
-                                Hủy đơn hàng
-                              </Button>
-                            </Box>
-                          )}
-                      </Box>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleCloseOrderDetails}>Đóng</Button>
-              </DialogActions>
-            </>
-          )}
-        </Dialog>
+        {/* Dialog này đã được xóa vì trùng lặp với dialog bên dưới */}
         <Dialog
           open={confirmDialog.open}
           onClose={handleCloseConfirmDialog}
@@ -3124,6 +2611,486 @@ const CustomerRequests = () => {
                     ))}
                   </>
                 )}
+
+                {/* Update Status Section */}
+                {selectedOrder && (
+                  <Box sx={{ mt: 4 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Cập nhật trạng thái
+                    </Typography>
+
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Chuyển đến trạng thái:
+                      </Typography>
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 1,
+                          mt: 2,
+                        }}
+                      >
+                        {/* Contract Phase */}
+                        {[
+                          "PENDING_CONTRACT",
+                          "CONTRACT_SENT",
+                          "CONTRACT_DISCUSS",
+                          "CONTRACT_SIGNED",
+                          "CONTRACT_RESIGNED",
+                        ].includes(selectedOrder.status) && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                              width: "100%",
+                            }}
+                          >
+                            <Typography variant="subtitle2" color="primary">
+                              Giai đoạn hợp đồng:
+                            </Typography>
+                            <Box
+                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                            >
+                              {selectedOrder.status === "PENDING_CONTRACT" && (
+                                <>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    startIcon={<CloudUploadIcon />}
+                                    disabled={actionLoading}
+                                    onClick={() => setOpenContractUpload(true)}
+                                    sx={{ mr: 1 }}
+                                  >
+                                    Tải lên hợp đồng
+                                  </Button>
+
+                                  {/* Chỉ hiển thị nút này khi cần cập nhật trạng thái thủ công */}
+                                  <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() => {
+                                      // Hiện thông báo xác nhận trước khi thay đổi trạng thái
+                                      if (
+                                        window.confirm(
+                                          "Xác nhận đã gửi hợp đồng cho khách hàng (không tải file)?"
+                                        )
+                                      ) {
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "CONTRACT_SENT"
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    Đánh dấu đã gửi hợp đồng
+                                  </Button>
+                                </>
+                              )}
+
+                              {selectedOrder.status === "CONTRACT_SENT" && (
+                                <>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "CONTRACT_SIGNED"
+                                      )
+                                    }
+                                  >
+                                    Đã ký hợp đồng
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "CONTRACT_DISCUSS"
+                                      )
+                                    }
+                                  >
+                                    Đàm phán hợp đồng
+                                  </Button>
+                                </>
+                              )}
+
+                              {selectedOrder.status === "CONTRACT_DISCUSS" && (
+                                <>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    startIcon={
+                                      fetchingContract ? (
+                                        <CircularProgress size={16} />
+                                      ) : (
+                                        <CloudUploadIcon />
+                                      )
+                                    }
+                                    disabled={actionLoading || fetchingContract}
+                                    onClick={() =>
+                                      getContractIdForOrder(selectedOrder.id)
+                                    }
+                                    sx={{ mr: 1 }}
+                                  >
+                                    {fetchingContract
+                                      ? "Đang tải..."
+                                      : "Upload hợp đồng chỉnh sửa"}
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "CONTRACT_RESIGNED"
+                                      )
+                                    }
+                                  >
+                                    Ký lại hợp đồng
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="success"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "CONTRACT_CONFIRMED"
+                                      )
+                                    }
+                                  >
+                                    Xác nhận hợp đồng
+                                  </Button>
+                                </>
+                              )}
+
+                              {selectedOrder.status === "CONTRACT_SIGNED" && (
+                                <>
+                                  <Button
+                                    variant="contained"
+                                    color="success"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleContractSigned(selectedOrder.id)
+                                    }
+                                  >
+                                    {actionLoading ? (
+                                      <CircularProgress
+                                        size={16}
+                                        color="inherit"
+                                      />
+                                    ) : (
+                                      "Xác nhận hợp đồng"
+                                    )}
+                                  </Button>
+
+                                  {/* Nút xem hợp đồng */}
+                                  <Button
+                                    variant="outlined"
+                                    color="info"
+                                    size="small"
+                                    disabled={contractViewLoading}
+                                    onClick={() =>
+                                      handleViewContract(selectedOrder.id)
+                                    }
+                                    startIcon={
+                                      contractViewLoading ? (
+                                        <CircularProgress size={16} />
+                                      ) : (
+                                        <VisibilityIcon />
+                                      )
+                                    }
+                                    sx={{ ml: 1 }}
+                                  >
+                                    {contractViewLoading
+                                      ? "Đang tải..."
+                                      : "Xem hợp đồng"}
+                                  </Button>
+
+                                  {/* Nút yêu cầu gửi lại hợp đồng */}
+                                  <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleContractResign(selectedOrder.id)
+                                    }
+                                    sx={{ ml: 1 }}
+                                  >
+                                    {actionLoading ? (
+                                      <CircularProgress
+                                        size={16}
+                                        color="inherit"
+                                      />
+                                    ) : (
+                                      "Yêu cầu gửi lại hợp đồng"
+                                    )}
+                                  </Button>
+                                </>
+                              )}
+
+                              {selectedOrder.status === "CONTRACT_RESIGNED" && (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleUpdateOrderStatus(
+                                      selectedOrder.id,
+                                      "CONTRACT_CONFIRMED"
+                                    )
+                                  }
+                                >
+                                  Xác nhận hợp đồng
+                                </Button>
+                              )}
+                            </Box>
+                          </Box>
+                        )}
+
+                        {/* Production Phase */}
+                        {[
+                          "CONTRACT_CONFIRMED",
+                          "DEPOSITED",
+                          "IN_PROGRESS",
+                          "PRODUCING",
+                        ].includes(selectedOrder.status) && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                              width: "100%",
+                            }}
+                          >
+                            <Typography variant="subtitle2" color="primary">
+                              Giai đoạn sản xuất:
+                            </Typography>
+                            <Box
+                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                            >
+                              {selectedOrder.status === "CONTRACT_CONFIRMED" && (
+                                <>
+                                  <Button
+                                    variant="contained"
+                                    color="warning"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "DEPOSITED"
+                                      )
+                                    }
+                                  >
+                                    Đã đặt cọc
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "IN_PROGRESS"
+                                      )
+                                    }
+                                  >
+                                    Bắt đầu thực hiện
+                                  </Button>
+                                </>
+                              )}
+
+                              {selectedOrder.status === "DEPOSITED" && (
+                                <>
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "IN_PROGRESS"
+                                      )
+                                    }
+                                  >
+                                    Bắt đầu thực hiện
+                                  </Button>
+                                </>
+                              )}
+
+                              {selectedOrder.status === "IN_PROGRESS" && (
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleUpdateOrderStatus(
+                                      selectedOrder.id,
+                                      "PRODUCING"
+                                    )
+                                  }
+                                >
+                                  Đang sản xuất
+                                </Button>
+                              )}
+
+                              {selectedOrder.status === "PRODUCING" && (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleUpdateOrderStatus(
+                                      selectedOrder.id,
+                                      "PRODUCTION_COMPLETED"
+                                    )
+                                  }
+                                >
+                                  Hoàn thành sản xuất
+                                </Button>
+                              )}
+                            </Box>
+                          </Box>
+                        )}
+
+                        {/* Delivery Phase */}
+                        {[
+                          "PRODUCTION_COMPLETED",
+                          "DELIVERING",
+                          "INSTALLED",
+                        ].includes(selectedOrder.status) && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                              width: "100%",
+                            }}
+                          >
+                            <Typography variant="subtitle2" color="primary">
+                              Giai đoạn giao hàng:
+                            </Typography>
+                            <Box
+                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                            >
+                              {selectedOrder.status === "PRODUCTION_COMPLETED" && (
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleUpdateOrderStatus(
+                                      selectedOrder.id,
+                                      "DELIVERING"
+                                    )
+                                  }
+                                >
+                                  Đang giao hàng
+                                </Button>
+                              )}
+
+                              {selectedOrder.status === "DELIVERING" && (
+                                <Button
+                                  variant="contained"
+                                  color="primary"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleUpdateOrderStatus(
+                                      selectedOrder.id,
+                                      "INSTALLED"
+                                    )
+                                  }
+                                >
+                                  Đã lắp đặt
+                                </Button>
+                              )}
+
+                              {selectedOrder.status === "INSTALLED" && (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleUpdateOrderStatus(
+                                      selectedOrder.id,
+                                      "COMPLETED"
+                                    )
+                                  }
+                                >
+                                  Hoàn tất
+                                </Button>
+                              )}
+                            </Box>
+                          </Box>
+                        )}
+
+                        {/* Cancel option - available in most states except COMPLETED */}
+                        {selectedOrder.status !== "COMPLETED" &&
+                          selectedOrder.status !== "CANCELLED" && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                                width: "100%",
+                                mt: 2,
+                              }}
+                            >
+                              <Typography variant="subtitle2" color="error">
+                                Hủy đơn hàng:
+                              </Typography>
+                              <Button
+                                variant="outlined"
+                                color="error"
+                                size="small"
+                                disabled={actionLoading}
+                                onClick={() =>
+                                  handleUpdateOrderStatus(
+                                    selectedOrder.id,
+                                    "CANCELLED"
+                                  )
+                                }
+                                startIcon={<CancelIcon />}
+                              >
+                                Hủy đơn hàng
+                              </Button>
+                            </Box>
+                          )}
+                      </Box>
+                    </Paper>
+                  </Box>
+                )}
               </Box>
             ) : (
               <Box sx={{ textAlign: "center", py: 4 }}>
@@ -3137,6 +3104,15 @@ const CustomerRequests = () => {
             <Button onClick={handleCloseOrderDetails}>Đóng</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Contractor List Dialog */}
+        <ContractorListDialog
+          open={contractorDialog.open}
+          onClose={handleCloseContractorDialog}
+          contractors={contractors}
+          order={contractorDialog.order}
+          onReportDelivery={handleReportDelivery}
+        />
       </Box>
     </LocalizationProvider>
   );

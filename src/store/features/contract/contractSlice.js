@@ -5,7 +5,8 @@ import {
   uploadOrderContractApi,
   uploadRevisedContractApi,
   uploadSignedContractApi,
- 
+  confirmContractSignedApi,
+  requestContractResignApi,
 } from "../../../api/contractService";
 
 // Contract status mapping
@@ -14,9 +15,9 @@ export const CONTRACT_STATUS_MAP = {
   SIGNED: { label: "Đã ký", color: "success" },
   REJECTED: { label: "Từ chối", color: "error" },
   PENDING_REVIEW: { label: "Chờ xem xét", color: "warning" },
-   DISCUSSING: { label: "Đang thảo luận", color: "warning" },
-   NEED_RESIGNED: { label: "Yêu cầu ký lại", color: "warning" },
-   CONFIRMED: { label: "Đã xác nhận", color: "success" },
+  DISCUSSING: { label: "Đang thảo luận", color: "warning" },
+  NEED_RESIGNED: { label: "Yêu cầu ký lại", color: "warning" },
+  CONFIRMED: { label: "Đã xác nhận", color: "success" },
 };
 
 // Async thunk for uploading contract
@@ -90,6 +91,39 @@ export const uploadSignedContract = createAsyncThunk(
     }
   }
 );
+
+// Sale xác nhận đơn hàng đã ký
+export const confirmContractSigned = createAsyncThunk(
+  "contract/confirmContractSigned",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await confirmContractSignedApi(orderId);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể xác nhận đơn hàng đã ký");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể xác nhận đơn hàng đã ký");
+    }
+  }
+);
+
+// Sale yêu cầu khách hàng gửi lại bản hợp đồng đã ký
+export const requestContractResign = createAsyncThunk(
+  "contract/requestContractResign",
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await requestContractResignApi(orderId);
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error || "Không thể yêu cầu gửi lại hợp đồng");
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể yêu cầu gửi lại hợp đồng");
+    }
+  }
+);
+
 const initialState = {
   contracts: [],
   currentContract: null,
@@ -122,12 +156,12 @@ const contractSlice = createSlice({
         state.loading = false;
         state.success = true;
         state.currentContract = action.payload;
-        
+
         // Thêm hoặc cập nhật hợp đồng trong danh sách
         const existingContractIndex = state.contracts.findIndex(
           (contract) => contract.id === action.payload.id
         );
-        
+
         if (existingContractIndex !== -1) {
           state.contracts[existingContractIndex] = action.payload;
         } else {
@@ -139,19 +173,19 @@ const contractSlice = createSlice({
         state.error = action.payload;
         state.success = false;
       })
-       .addCase(getOrderContract.pending, (state) => {
+      .addCase(getOrderContract.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getOrderContract.fulfilled, (state, action) => {
         state.loading = false;
         state.currentContract = action.payload;
-        
+
         // Thêm hoặc cập nhật hợp đồng trong danh sách
         const existingContractIndex = state.contracts.findIndex(
           (contract) => contract.id === action.payload.id
         );
-        
+
         if (existingContractIndex !== -1) {
           state.contracts[existingContractIndex] = action.payload;
         } else {
@@ -169,12 +203,12 @@ const contractSlice = createSlice({
       .addCase(discussContract.fulfilled, (state, action) => {
         state.loading = false;
         state.currentContract = action.payload;
-        
+
         // Cập nhật hợp đồng trong danh sách
         const existingContractIndex = state.contracts.findIndex(
           (contract) => contract.id === action.payload.id
         );
-        
+
         if (existingContractIndex !== -1) {
           state.contracts[existingContractIndex] = action.payload;
         } else {
@@ -185,7 +219,7 @@ const contractSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(uploadRevisedContract.pending, (state) => {
+      .addCase(uploadRevisedContract.pending, (state) => {
         state.loading = true;
         state.error = null;
         state.success = false;
@@ -194,12 +228,12 @@ const contractSlice = createSlice({
         state.loading = false;
         state.success = true;
         state.currentContract = action.payload;
-        
+
         // Cập nhật hợp đồng trong danh sách
         const existingContractIndex = state.contracts.findIndex(
           (contract) => contract.id === action.payload.id
         );
-        
+
         if (existingContractIndex !== -1) {
           state.contracts[existingContractIndex] = action.payload;
         } else {
@@ -211,7 +245,7 @@ const contractSlice = createSlice({
         state.error = action.payload;
         state.success = false;
       })
-       .addCase(uploadSignedContract.pending, (state) => {
+      .addCase(uploadSignedContract.pending, (state) => {
         state.loading = true;
         state.error = null;
         state.success = false;
@@ -220,12 +254,12 @@ const contractSlice = createSlice({
         state.loading = false;
         state.success = true;
         state.currentContract = action.payload;
-        
+
         // Cập nhật hợp đồng trong danh sách
         const existingContractIndex = state.contracts.findIndex(
           (contract) => contract.id === action.payload.id
         );
-        
+
         if (existingContractIndex !== -1) {
           state.contracts[existingContractIndex] = action.payload;
         } else {
@@ -236,8 +270,42 @@ const contractSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.success = false;
+      })
+      // Sale xác nhận đơn hàng đã ký
+      .addCase(confirmContractSigned.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(confirmContractSigned.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        // Cập nhật thông tin đơn hàng nếu cần
+        // Note: API này trả về thông tin order, không phải contract
+      })
+      .addCase(confirmContractSigned.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.success = false;
+      })
+      // Sale yêu cầu khách hàng gửi lại bản hợp đồng đã ký
+      .addCase(requestContractResign.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(requestContractResign.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        // Cập nhật thông tin đơn hàng nếu cần
+        // Note: API này trả về thông tin order, không phải contract
+      })
+      .addCase(requestContractResign.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.success = false;
       });
-     
+
   },
 });
 
