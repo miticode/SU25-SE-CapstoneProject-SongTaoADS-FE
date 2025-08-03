@@ -1683,9 +1683,12 @@ const DesignRequests = () => {
           {selectedRequest &&
             ![
               "PROCESSING",
-              "DEMO_SUBMITTED",
+              "DEMO_SUBMITTED", 
               "FULLY_PAID",
               "REVISION_REQUESTED",
+              "COMPLETED", // Thêm COMPLETED vào danh sách ẩn
+              "CANCELLED", // Thêm CANCELLED vào danh sách ẩn
+              "REJECTED_PRICING", // Thêm REJECTED_PRICING vào danh sách ẩn
             ].includes(selectedRequest.status) && (
               <>
                 <Button

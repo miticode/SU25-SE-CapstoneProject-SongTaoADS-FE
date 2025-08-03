@@ -23,6 +23,7 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
   const [success, setSuccess] = useState(false);
 
   const [contractNumber, setContractNumber] = useState("");
+  const [depositPercentChanged, setDepositPercentChanged] = useState("");
   const [contractFile, setContractFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [preview, setPreview] = useState("");
@@ -31,6 +32,7 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
   React.useEffect(() => {
     if (open) {
       setContractNumber("");
+      setDepositPercentChanged("");
       setContractFile(null);
       setFileError("");
       setPreview("");
@@ -152,9 +154,7 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
       // Rename key from 'contractFile' to 'contactFile' to match API requirement
       formData.append("contactFile", contractFile);
       formData.append("contractNumber", contractNumber);
-
-      // Add optional deposit percent if needed
-      // formData.append('depositPercentChanged', 30); // Example: 30%
+      formData.append("depositPercentChanged", depositPercentChanged);
 
       // Call API directly
       const result = await uploadContract(orderId, formData);
@@ -205,6 +205,18 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
             margin="normal"
             value={contractNumber}
             onChange={(e) => setContractNumber(e.target.value)}
+            required
+          />
+
+          <TextField
+            label="Phần trăm đặt cọc (%)"
+            type="number"
+            fullWidth
+            margin="normal"
+            value={depositPercentChanged}
+            onChange={(e) => setDepositPercentChanged(e.target.value)}
+            inputProps={{ min: 0, max: 100 }}
+            helperText="Nhập phần trăm đặt cọc (0-100)"
             required
           />
 
@@ -274,7 +286,7 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
             type="submit"
             variant="contained"
             color="primary"
-            disabled={loading || !contractFile}
+            disabled={loading || !contractFile || !contractNumber || !depositPercentChanged}
           >
             {loading ? <CircularProgress size={24} /> : "Tải lên"}
           </Button>
