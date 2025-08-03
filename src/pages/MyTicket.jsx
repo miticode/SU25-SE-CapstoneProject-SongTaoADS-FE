@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchUserTickets,
-  fetchTicketsByStatus,
+  fetchUserTicketsByStatus,
   selectTickets,
   selectTicketPagination,
   selectTicketStatus,
@@ -72,13 +72,14 @@ export default function MyTicket() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [openDetail, setOpenDetail] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("OPEN");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   useEffect(() => {
     if (user?.id) {
-      if (statusFilter) {
+      if (statusFilter && statusFilter !== "ALL") {
         dispatch(
-          fetchTicketsByStatus({
+          fetchUserTicketsByStatus({
+            userId: user.id,
             status: statusFilter,
             page: page + 1,
             size: rowsPerPage,
@@ -174,6 +175,7 @@ export default function MyTicket() {
             label="Trạng Thái"
             onChange={handleStatusFilterChange}
           >
+            <MenuItem value="ALL">Tất cả</MenuItem>
             <MenuItem value="OPEN">ĐÃ GỬI</MenuItem>
             <MenuItem value="IN_PROGRESS">ĐANG XỬ LÍ</MenuItem>
             <MenuItem value="CLOSED">ĐÃ XỬ LÍ</MenuItem>

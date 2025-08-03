@@ -148,6 +148,33 @@ export const getUserTickets = async (userId, page = 1, size = 10) => {
   }
 };
 
+// Customer xem tickets của mình theo trạng thái
+export const getUserTicketsByStatus = async (userId, status, page = 1, size = 10) => {
+  try {
+    const response = await ticketService.get(`/api/users/${userId}/tickets`, {
+      params: { status, page, size }
+    });
+
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+
+    if (success) {
+      return {
+        success,
+        data: result,
+        pagination: { currentPage, totalPages, pageSize, totalElements },
+        message
+      };
+    }
+
+    return { success: false, error: message || "Lấy danh sách ticket thất bại" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Lấy danh sách ticket thất bại",
+    };
+  }
+};
+
 // Sale xem tất cả ticket
 export const getAllTickets = async (page = 1, size = 10) => {
   try {
