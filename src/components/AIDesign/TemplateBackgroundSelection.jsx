@@ -5,9 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { CircularProgress } from "@mui/material";
 import { FaCheck, FaCheckCircle, FaPalette } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
-import { 
-  selectAllProductTypes,
-} from "../../store/features/productType/productTypeSlice";
+import { selectAllProductTypes } from "../../store/features/productType/productTypeSlice";
 import {
   selectAllDesignTemplates,
   selectDesignTemplateStatus,
@@ -21,12 +19,8 @@ import {
   setSelectedBackground,
   fetchBackgroundSuggestionsByCustomerChoiceId,
 } from "../../store/features/background/backgroundSlice";
-import {
-  fetchCustomerChoicePixelValue,
-} from "../../store/features/customer/customerSlice";
-import {
-  createBackgroundExtras,
-} from "../../store/features/background/backgroundSlice";
+import { fetchCustomerChoicePixelValue } from "../../store/features/customer/customerSlice";
+import { createBackgroundExtras } from "../../store/features/background/backgroundSlice";
 
 const TemplateBackgroundSelection = ({
   billboardType,
@@ -54,7 +48,7 @@ const TemplateBackgroundSelection = ({
 }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
+
   const productTypes = useSelector(selectAllProductTypes);
   const designTemplates = useSelector(selectAllDesignTemplates);
   const designTemplateStatus = useSelector(selectDesignTemplateStatus);
@@ -135,39 +129,71 @@ const TemplateBackgroundSelection = ({
         return;
       }
 
-      console.log("🔵 [Background Selection] Starting background continue process");
-      console.log("🔵 [Background Selection] Selected Background ID:", selectedBackgroundId);
-      console.log("🔵 [Background Selection] Customer Choice ID:", currentOrder?.id);
+      console.log(
+        "🔵 [Background Selection] Starting background continue process"
+      );
+      console.log(
+        "🔵 [Background Selection] Selected Background ID:",
+        selectedBackgroundId
+      );
+      console.log(
+        "🔵 [Background Selection] Customer Choice ID:",
+        currentOrder?.id
+      );
 
       try {
         // Lấy pixel values từ API
-        console.log("🔵 [Background Selection] Fetching pixel values for customer choice:", currentOrder?.id);
-        const pixelResult = await dispatch(fetchCustomerChoicePixelValue(currentOrder?.id));
-        
+        console.log(
+          "🔵 [Background Selection] Fetching pixel values for customer choice:",
+          currentOrder?.id
+        );
+        const pixelResult = await dispatch(
+          fetchCustomerChoicePixelValue(currentOrder?.id)
+        );
+
         if (fetchCustomerChoicePixelValue.fulfilled.match(pixelResult)) {
           const pixelData = pixelResult.payload;
-          console.log("✅ [Background Selection] Pixel values retrieved successfully:", pixelData);
+          console.log(
+            "✅ [Background Selection] Pixel values retrieved successfully:",
+            pixelData
+          );
           console.log("📐 [Background Selection] Canvas dimensions will be:", {
             width: pixelData.width,
             height: pixelData.height,
-            ratio: pixelData.width / pixelData.height
+            ratio: pixelData.width / pixelData.height,
           });
 
           // 🎨 Gọi API createBackgroundExtras với pixel dimensions
-          console.log("🎨 [Background Selection] Creating background extras with pixel dimensions...");
-          const extrasResult = await dispatch(createBackgroundExtras({
-            backgroundId: selectedBackgroundId,
-            width: pixelData.width,
-            height: pixelData.height
-          }));
+          console.log(
+            "🎨 [Background Selection] Creating background extras with pixel dimensions..."
+          );
+          const extrasResult = await dispatch(
+            createBackgroundExtras({
+              backgroundId: selectedBackgroundId,
+              width: pixelData.width,
+              height: pixelData.height,
+            })
+          );
 
           if (createBackgroundExtras.fulfilled.match(extrasResult)) {
             const extrasData = extrasResult.payload;
-            console.log("✅ [Background Selection] Background extras created successfully:", extrasData);
-            console.log("🖼️ [Background Selection] Generated image URL:", extrasData.imageUrl);
-            console.log("🔍 [Background Selection] Extras data keys:", Object.keys(extrasData));
-            console.log("🔍 [Background Selection] Full extras response:", JSON.stringify(extrasData, null, 2));
-            
+            console.log(
+              "✅ [Background Selection] Background extras created successfully:",
+              extrasData
+            );
+            console.log(
+              "🖼️ [Background Selection] Generated image URL:",
+              extrasData.imageUrl
+            );
+            console.log(
+              "🔍 [Background Selection] Extras data keys:",
+              Object.keys(extrasData)
+            );
+            console.log(
+              "🔍 [Background Selection] Full extras response:",
+              JSON.stringify(extrasData, null, 2)
+            );
+
             // Lưu thông tin background đã chọn cùng với extras data
             const selectedBg = backgroundSuggestions.find(
               (bg) => bg.id === selectedBackgroundId
@@ -176,8 +202,14 @@ const TemplateBackgroundSelection = ({
               backgroundPresignedUrls[selectedBackgroundId] ||
               selectedBg?.backgroundUrl;
 
-            console.log("🔵 [Background Selection] Selected background info:", selectedBg);
-            console.log("🔵 [Background Selection] Original background URL:", backgroundUrl);
+            console.log(
+              "🔵 [Background Selection] Selected background info:",
+              selectedBg
+            );
+            console.log(
+              "🔵 [Background Selection] Original background URL:",
+              backgroundUrl
+            );
 
             const backgroundForCanvas = {
               ...selectedBg,
@@ -186,14 +218,25 @@ const TemplateBackgroundSelection = ({
               pixelData: pixelData, // Thêm pixel data
             };
 
-            console.log("🎨 [Background Selection] Setting background for canvas:", backgroundForCanvas);
-            console.log("🔍 [Background Selection] extrasImageUrl value:", backgroundForCanvas.extrasImageUrl);
+            console.log(
+              "🎨 [Background Selection] Setting background for canvas:",
+              backgroundForCanvas
+            );
+            console.log(
+              "🔍 [Background Selection] extrasImageUrl value:",
+              backgroundForCanvas.extrasImageUrl
+            );
 
             setSelectedBackgroundForCanvas(backgroundForCanvas);
 
-            console.log("🎨 [Background Selection] Background with extras set for canvas");
+            console.log(
+              "🎨 [Background Selection] Background with extras set for canvas"
+            );
           } else {
-            console.warn("⚠️ [Background Selection] Background extras creation failed:", extrasResult.error);
+            console.warn(
+              "⚠️ [Background Selection] Background extras creation failed:",
+              extrasResult.error
+            );
             // Vẫn tiếp tục với background gốc nếu extras fail
             const selectedBg = backgroundSuggestions.find(
               (bg) => bg.id === selectedBackgroundId
@@ -209,9 +252,11 @@ const TemplateBackgroundSelection = ({
             });
           }
         } else {
-          console.warn("⚠️ [Background Selection] Pixel value fetch failed, using fallback");
+          console.warn(
+            "⚠️ [Background Selection] Pixel value fetch failed, using fallback"
+          );
           console.warn("⚠️ [Background Selection] Error:", pixelResult.error);
-          
+
           // Fallback: sử dụng background gốc
           const selectedBg = backgroundSuggestions.find(
             (bg) => bg.id === selectedBackgroundId
@@ -227,7 +272,9 @@ const TemplateBackgroundSelection = ({
         }
 
         // Chuyển thẳng đến case 7 (canvas editor)
-        console.log("🔵 [Background Selection] Navigating to canvas editor (step 7)");
+        console.log(
+          "🔵 [Background Selection] Navigating to canvas editor (step 7)"
+        );
         setCurrentStep(7);
         navigate("/ai-design?step=edit");
 
@@ -237,7 +284,10 @@ const TemplateBackgroundSelection = ({
           severity: "info",
         });
       } catch (error) {
-        console.error("❌ [Background Selection] Error in background continue process:", error);
+        console.error(
+          "❌ [Background Selection] Error in background continue process:",
+          error
+        );
         setSnackbar({
           open: true,
           message: "Có lỗi xảy ra khi xử lý background. Vui lòng thử lại.",
@@ -247,7 +297,7 @@ const TemplateBackgroundSelection = ({
     }
   };
 
-  const isButtonEnabled = 
+  const isButtonEnabled =
     (isAiGenerated && selectedSampleProduct && customerNote.trim()) ||
     (!isAiGenerated && selectedBackgroundId && customerNote.trim());
 
@@ -261,9 +311,7 @@ const TemplateBackgroundSelection = ({
       {/* Header */}
       <motion.div className="text-center mb-6" variants={itemVariants}>
         <h2 className="text-3xl font-bold text-custom-dark mb-4">
-          {isAiGenerated
-            ? "Chọn mẫu thiết kế"
-            : "Chọn background phù hợp"}
+          {isAiGenerated ? "Chọn mẫu thiết kế" : "Chọn background phù hợp"}
         </h2>
 
         <p className="text-gray-600">
@@ -283,9 +331,7 @@ const TemplateBackgroundSelection = ({
           {designTemplateStatus === "loading" ? (
             <div className="flex justify-center items-center py-12">
               <CircularProgress size={60} color="primary" />
-              <p className="ml-4 text-gray-600">
-                Đang tải mẫu thiết kế...
-              </p>
+              <p className="ml-4 text-gray-600">Đang tải mẫu thiết kế...</p>
             </div>
           ) : designTemplateStatus === "failed" ? (
             <div className="text-center py-8 bg-red-50 rounded-lg">
@@ -295,9 +341,7 @@ const TemplateBackgroundSelection = ({
               </p>
               <button
                 onClick={() =>
-                  dispatch(
-                    fetchDesignTemplatesByProductTypeId(billboardType)
-                  )
+                  dispatch(fetchDesignTemplatesByProductTypeId(billboardType))
                 }
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
@@ -309,7 +353,8 @@ const TemplateBackgroundSelection = ({
               {designTemplates && designTemplates.length > 0 ? (
                 designTemplates.map((template) => {
                   const templateImageUrl = designTemplateImageUrls[template.id];
-                  const isLoadingTemplateImage = loadingDesignTemplateUrls[template.id];
+                  const isLoadingTemplateImage =
+                    loadingDesignTemplateUrls[template.id];
 
                   return (
                     <motion.div
@@ -358,7 +403,9 @@ const TemplateBackgroundSelection = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log(`Manual retry for template ${template.id}`);
+                                console.log(
+                                  `Manual retry for template ${template.id}`
+                                );
                                 fetchDesignTemplateImage(template);
                               }}
                               className="text-xs text-blue-500 hover:text-blue-700 mt-1 px-2 py-1 bg-white rounded border"
@@ -402,9 +449,7 @@ const TemplateBackgroundSelection = ({
 
                       {/* Template info */}
                       <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white p-3">
-                        <h3 className="font-medium text-lg">
-                          {template.name}
-                        </h3>
+                        <h3 className="font-medium text-lg">{template.name}</h3>
                         <p className="text-sm text-gray-300 truncate">
                           {template.description}
                         </p>
@@ -433,8 +478,7 @@ const TemplateBackgroundSelection = ({
               <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
                 <h3 className="text-xl font-semibold mb-4 flex items-center">
                   <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
-                  Ghi chú thiết kế{" "}
-                  <span className="text-red-500 ml-1">*</span>
+                  Ghi chú thiết kế <span className="text-red-500 ml-1">*</span>
                 </h3>
                 <textarea
                   className={`w-full px-4 py-3 border ${
@@ -450,8 +494,8 @@ const TemplateBackgroundSelection = ({
                 ></textarea>
                 <div className="flex justify-between mt-2">
                   <p className="text-gray-500 text-sm italic">
-                    Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu
-                    cầu của bạn
+                    Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của
+                    bạn
                   </p>
                   <p className="text-red-500 text-sm">
                     {selectedSampleProduct && !customerNote.trim()
@@ -506,7 +550,8 @@ const TemplateBackgroundSelection = ({
                 backgroundSuggestions.map((background) => {
                   const presignedUrl = backgroundPresignedUrls[background.id];
                   const isLoadingUrl = loadingBackgroundUrls[background.id];
-                  const retryCount = backgroundRetryAttempts[background.id] || 0;
+                  const retryCount =
+                    backgroundRetryAttempts[background.id] || 0;
                   const hasFailed = presignedUrl === null;
 
                   return (
@@ -750,8 +795,8 @@ const TemplateBackgroundSelection = ({
                 ></textarea>
                 <div className="flex justify-between mt-2">
                   <p className="text-gray-500 text-sm italic">
-                    Mô tả chi tiết sẽ giúp chúng tôi thiết kế phù hợp hơn
-                    với background đã chọn
+                    Mô tả chi tiết sẽ giúp chúng tôi thiết kế phù hợp hơn với
+                    background đã chọn
                   </p>
                   <p className="text-red-500 text-sm">
                     {selectedBackgroundId && !customerNote.trim()
@@ -766,10 +811,7 @@ const TemplateBackgroundSelection = ({
       )}
 
       {/* Navigation Buttons */}
-      <motion.div
-        className="flex justify-between mt-8"
-        variants={itemVariants}
-      >
+      <motion.div className="flex justify-between mt-8" variants={itemVariants}>
         <motion.button
           type="button"
           onClick={() => setCurrentStep(4)}
