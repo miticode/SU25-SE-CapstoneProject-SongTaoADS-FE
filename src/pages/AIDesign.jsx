@@ -10,6 +10,7 @@ import ProductTypeSelection from "../components/AIDesign/ProductTypeSelection";
 import BillboardInfoForm from "../components/AIDesign/BillboardInfoForm";
 import TemplateBackgroundSelection from "../components/AIDesign/TemplateBackgroundSelection";
 import DesignPreview from "../components/AIDesign/DesignPreview";
+
 import DesignEditor from "../components/AIDesign/DesignEditor";
 import {
   TextField,
@@ -103,12 +104,17 @@ import {
 import {
   createAIDesign,
   generateImageFromText,
+  checkStableDiffusionProgress,
   selectAIError,
   selectAIStatus,
   selectCurrentAIDesign,
   selectGeneratedImage,
   selectImageGenerationError,
   selectImageGenerationStatus,
+  selectStableDiffusionProgress,
+  selectProgressCheckStatus,
+  selectProgressCheckError,
+  resetProgressCheck,
   setCurrentAIDesign,
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
@@ -1526,6 +1532,11 @@ const AIDesign = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPollingProgress, setIsPollingProgress] = useState(false);
+  const [showingLivePreview, setShowingLivePreview] = useState(false); // State để track khi đang hiển thị live preview
+  const progressPollingIntervalRef = useRef(null);
+  const isPollingProgressRef = useRef(false);
+  const lastGeneratedImageRef = useRef(null); // Track last generated image to avoid false positives
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [selectedSampleProduct, setSelectedSampleProduct] = useState(null);
@@ -1544,8 +1555,19 @@ const AIDesign = () => {
   const generatedImage = useSelector(selectGeneratedImage);
   const imageGenerationStatus = useSelector(selectImageGenerationStatus);
   const imageGenerationError = useSelector(selectImageGenerationError);
+
+  // Progress checking selectors
+  const stableDiffusionProgress = useSelector(selectStableDiffusionProgress);
+  const progressCheckStatus = useSelector(selectProgressCheckStatus);
+  const progressCheckError = useSelector(selectProgressCheckError);
+
   const [isConfirming, setIsConfirming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // State để track progress history để hiển thị chi tiết
+  const [progressHistory, setProgressHistory] = useState([]);
+  const [progressDelta, setProgressDelta] = useState(0);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState(null);
   const [isOrdering, setIsOrdering] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadImagePreview, setUploadImagePreview] = useState("");
@@ -4758,6 +4780,15 @@ const AIDesign = () => {
       console.log("🚀 [IMAGE GENERATION] width:", width);
       console.log("🚀 [IMAGE GENERATION] height:", height);
 
+      // Bắt đầu polling ngay khi gọi API tạo ảnh
+      console.log(
+        "🔄 [PROGRESS] Bắt đầu polling progress ngay khi gọi API tạo ảnh"
+      );
+      startProgressPolling();
+
+      console.log(
+        "🚀 [API CALL] Đang gửi request tạo ảnh AI với Stable Diffusion..."
+      );
       dispatch(
         generateImageFromText({
           designTemplateId: selectedSampleProduct,
@@ -4771,13 +4802,19 @@ const AIDesign = () => {
           console.log(
             "✅ [IMAGE GENERATION] Image generation started successfully"
           );
-          // Move to step 7 after successful generation start
+
+          // Move to step 6 after successful generation start
           setCurrentStep(6);
           setIsGenerating(false);
           navigate("/ai-design");
         })
         .catch((error) => {
           console.error("❌ [IMAGE GENERATION] Error generating image:", error);
+
+          // Dừng polling nếu API tạo ảnh thất bại
+          console.log("❌ [PROGRESS] Dừng polling do API tạo ảnh thất bại");
+          stopProgressPolling();
+
           setIsGenerating(false);
           setSnackbar({
             open: true,
@@ -4791,6 +4828,15 @@ const AIDesign = () => {
         "🔄 [FALLBACK] Tiếp tục với giá trị mặc định width=512, height=512"
       );
 
+      // Bắt đầu polling ngay cho fallback case
+      console.log(
+        "🔄 [PROGRESS FALLBACK] Bắt đầu polling progress cho fallback case"
+      );
+      startProgressPolling();
+
+      console.log(
+        "🚀 [API CALL FALLBACK] Đang gửi request tạo ảnh AI với default size..."
+      );
       // Nếu không lấy được pixel values, vẫn tiếp tục với default values
       dispatch(
         generateImageFromText({
@@ -4805,6 +4851,7 @@ const AIDesign = () => {
           console.log(
             "✅ [FALLBACK] Image generation started successfully with default values"
           );
+
           setCurrentStep(6);
           setIsGenerating(false);
           navigate("/ai-design");
@@ -4814,6 +4861,13 @@ const AIDesign = () => {
             "❌ [FALLBACK] Error generating image with default values:",
             error
           );
+
+          // Dừng polling nếu API fallback thất bại
+          console.log(
+            "❌ [PROGRESS FALLBACK] Dừng polling do API fallback thất bại"
+          );
+          stopProgressPolling();
+
           setIsGenerating(false);
           setSnackbar({
             open: true,
@@ -5117,6 +5171,279 @@ const AIDesign = () => {
     }
   };
 
+  // Hàm bắt đầu polling tiến trình Stable Diffusion
+  const startProgressPolling = () => {
+    console.log("🔄 Bắt đầu polling tiến trình Stable Diffusion...");
+
+    // Dừng polling hiện tại nếu có
+    if (progressPollingIntervalRef.current) {
+      console.log("⏹️ Dừng polling hiện tại trước khi bắt đầu mới");
+      clearInterval(progressPollingIntervalRef.current);
+      progressPollingIntervalRef.current = null;
+    }
+
+    setIsPollingProgress(true);
+    isPollingProgressRef.current = true;
+
+    // Reset trạng thái live preview khi bắt đầu polling mới
+    setShowingLivePreview(false);
+    console.log("🔄 Reset showingLivePreview = false");
+
+    // Lưu ảnh hiện tại để không bị dừng polling bởi ảnh cũ
+    lastGeneratedImageRef.current = generatedImage;
+    console.log(
+      "💾 Lưu ảnh hiện tại để tránh false positive:",
+      lastGeneratedImageRef.current ? "Có ảnh cũ" : "Không có ảnh cũ"
+    );
+
+    // Reset progress state trước khi bắt đầu
+    dispatch(resetProgressCheck());
+
+    let pollCount = 0;
+    const maxPolls = 150; // Tăng từ 100 lên 150 (5 phút) để đảm bảo đủ thời gian
+
+    console.log("⏳ Chờ 3 giây để đảm bảo API tạo ảnh đã được submit...");
+    console.log(
+      `⏰ Timeout setting: ${maxPolls} polls x 2s = ${maxPolls * 2} giây`
+    );
+
+    // Delay 3 giây đầu tiên để đảm bảo API tạo ảnh đã được submit
+    setTimeout(() => {
+      console.log("✅ Bắt đầu polling sau 3 giây delay");
+      console.log("🎯 Polling sẽ chạy liên tục và chỉ dừng khi:");
+      console.log("   1️⃣ Có live_preview trong response");
+      console.log("   2️⃣ Có generatedImage trong Redux store");
+      console.log("   3️⃣ Có lỗi thực sự (!active && !completed && !queued)");
+      console.log(`   4️⃣ Timeout sau ${maxPolls * 2} giây`);
+
+      // Hàm thực hiện progress check
+      const performProgressCheck = async () => {
+        try {
+          pollCount++;
+          console.log(
+            `📊 Polling lần ${pollCount}/${maxPolls} - Tiếp tục kiểm tra progress...`
+          );
+
+          // Kiểm tra timeout
+          if (pollCount >= maxPolls) {
+            console.log(
+              `⏰ Timeout sau ${maxPolls * 2} giây (${Math.round(
+                (maxPolls * 2) / 60
+              )} phút), dừng polling`
+            );
+            stopProgressPolling();
+            setSnackbar({
+              open: true,
+              message: `Quá trình tạo ảnh mất nhiều thời gian (>${Math.round(
+                (maxPolls * 2) / 60
+              )} phút). Vui lòng kiểm tra lại sau.`,
+              severity: "warning",
+            });
+            return;
+          }
+
+          const result = await dispatch(
+            checkStableDiffusionProgress()
+          ).unwrap();
+          console.log("📊 Progress result:", result);
+          console.log("🔍 Detailed field check:");
+          console.log("   - active:", result.active);
+          console.log("   - completed:", result.completed);
+          console.log("   - queued:", result.queued);
+          console.log("   - progress:", result.progress);
+          console.log("🖼️ Live preview available:", !!result.live_preview);
+          console.log(
+            "   - live_preview length:",
+            result.live_preview ? result.live_preview.length : 0
+          );
+          console.log(
+            "🎯 Progress percentage:",
+            (result.progress * 100).toFixed(4) + "%"
+          );
+          console.log(
+            "🎯 Detailed progress:",
+            (result.progress * 100).toFixed(8) + "%"
+          );
+          console.log("🎯 Raw progress value:", result.progress);
+
+          // Nếu có live_preview và chưa hiển thị, chuyển sang step 5.5 để hiển thị live preview
+          if (result.live_preview && !showingLivePreview) {
+            console.log(
+              "� Có live_preview! Chuyển sang step 5.5 để hiển thị live preview cho user"
+            );
+            setShowingLivePreview(true);
+
+            setSnackbar({
+              open: true,
+              message:
+                "🎨 Live preview đã sẵn sàng! Đang hoàn thiện ảnh cuối cùng...",
+              severity: "info",
+            });
+
+            // KHÔNG dừng polling - tiếp tục để chờ ảnh cuối cùng
+            console.log("🔄 Tiếp tục polling để chờ ảnh cuối cùng...");
+          }
+
+          // Log trạng thái nhưng KHÔNG dừng polling khi completed (vẫn chờ ảnh cuối)
+          if (result.completed && !result.active) {
+            console.log(
+              "✅ Progress API báo completed, tiếp tục chờ ảnh cuối cùng..."
+            );
+          }
+
+          // Chỉ dừng polling khi có lỗi thực sự
+          if (!result.active && !result.completed && !result.queued) {
+            console.log("❌ Có lỗi trong quá trình tạo ảnh - dừng polling");
+            stopProgressPolling();
+
+            setSnackbar({
+              open: true,
+              message:
+                "Có lỗi xảy ra trong quá trình tạo ảnh. Vui lòng thử lại.",
+              severity: "error",
+            });
+            return;
+          }
+
+          console.log("🔄 Tiếp tục polling sau 2 giây...");
+        } catch (error) {
+          console.error("❌ Lỗi khi check progress:", error);
+          console.log(
+            "🔄 Có lỗi nhưng tiếp tục polling (có thể là lỗi tạm thời)"
+          );
+          // Không dừng polling ngay, có thể là lỗi tạm thời
+        }
+      };
+
+      // Chạy check đầu tiên ngay lập tức
+      performProgressCheck();
+
+      // Thiết lập interval để polling mỗi 2 giây
+      const intervalId = setInterval(() => {
+        // Kiểm tra nếu polling vẫn đang active trước khi chạy
+        if (isPollingProgressRef.current) {
+          performProgressCheck();
+        } else {
+          console.log("🛑 isPollingProgressRef = false, dừng interval");
+          clearInterval(intervalId);
+        }
+      }, 2000);
+
+      progressPollingIntervalRef.current = intervalId;
+      console.log("⏰ Đã thiết lập interval ID:", intervalId);
+
+      // Tự động dừng sau thời gian quy định để tránh polling vô hạn
+      setTimeout(() => {
+        console.log(
+          `⏰ Timeout fallback - Dừng polling sau ${maxPolls * 2} giây`
+        );
+        stopProgressPolling();
+      }, maxPolls * 2000); // Thời gian tương ứng với maxPolls
+    }, 3000); // Delay 3 giây trước khi bắt đầu polling
+  };
+
+  // Hàm dừng polling
+  const stopProgressPolling = useCallback(() => {
+    console.log("🛑 Dừng polling tiến trình");
+    setIsPollingProgress(false);
+    isPollingProgressRef.current = false;
+
+    // Reset trạng thái live preview khi dừng polling
+    setShowingLivePreview(false);
+    console.log("🛑 Reset showingLivePreview = false khi dừng polling");
+
+    // Reset reference để chuẩn bị cho lần polling tiếp theo
+    lastGeneratedImageRef.current = null;
+
+    if (progressPollingIntervalRef.current) {
+      clearInterval(progressPollingIntervalRef.current);
+      progressPollingIntervalRef.current = null;
+    }
+  }, []);
+
+  // Cleanup khi component unmount
+  useEffect(() => {
+    return () => {
+      if (progressPollingIntervalRef.current) {
+        clearInterval(progressPollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Theo dõi khi có live preview thì dừng polling
+  useEffect(() => {
+    // Dừng polling khi có live_preview
+    if (stableDiffusionProgress?.live_preview && isPollingProgress) {
+      console.log("🎯 Có live_preview rồi! Dừng polling từ useEffect");
+      console.log(
+        "🖼️ Live preview length:",
+        stableDiffusionProgress.live_preview.length
+      );
+      stopProgressPolling();
+
+      setSnackbar({
+        open: true,
+        message: "Live preview đã sẵn sàng!",
+        severity: "success",
+      });
+    }
+
+    // Hoặc dừng nếu API báo lỗi nghiêm trọng
+    else if (
+      stableDiffusionProgress &&
+      !stableDiffusionProgress.active &&
+      !stableDiffusionProgress.completed &&
+      !stableDiffusionProgress.queued &&
+      isPollingProgress
+    ) {
+      console.log("❌ API báo lỗi nghiêm trọng, dừng polling");
+      stopProgressPolling();
+
+      setSnackbar({
+        open: true,
+        message: "Có lỗi xảy ra trong quá trình tạo ảnh. Vui lòng thử lại.",
+        severity: "error",
+      });
+    }
+  }, [stableDiffusionProgress, isPollingProgress, stopProgressPolling]);
+
+  // useEffect để theo dõi khi generatedImage có giá trị mới thì dừng progress polling và chuyển sang step 6
+  useEffect(() => {
+    // Chỉ dừng polling nếu có ảnh mới (khác với ảnh đã lưu khi bắt đầu polling)
+    if (
+      generatedImage &&
+      isPollingProgress &&
+      generatedImage !== lastGeneratedImageRef.current
+    ) {
+      console.log(
+        "🎉 Ảnh cuối cùng đã hoàn thành! Chuyển sang step 6 để user xem ảnh hoàn chỉnh"
+      );
+      console.log(
+        "🖼️ Generated image URL:",
+        generatedImage.substring(0, 50) + "..."
+      );
+      console.log(
+        "🔄 Ảnh cũ:",
+        lastGeneratedImageRef.current
+          ? lastGeneratedImageRef.current.substring(0, 50) + "..."
+          : "Không có"
+      );
+
+      // Dừng polling vì đã có ảnh cuối cùng
+      stopProgressPolling();
+
+      // Chuyển sang step 6 để hiển thị ảnh cuối cùng cho user
+      setCurrentStep(6);
+      setShowingLivePreview(false); // Reset state
+
+      setSnackbar({
+        open: true,
+        message: "🎉 Tạo ảnh AI hoàn thành! Ảnh cuối cùng đã sẵn sàng.",
+        severity: "success",
+      });
+    }
+  }, [generatedImage, isPollingProgress, stopProgressPolling]);
+
   const handleStepClick = (step) => {
     if (step < currentStep) {
       switch (step) {
@@ -5148,6 +5475,40 @@ const AIDesign = () => {
     { number: 7, label: "Xác nhận đơn hàng" },
   ];
 
+  // useEffect để track progress changes và tính delta
+  useEffect(() => {
+    if (stableDiffusionProgress?.progress !== undefined) {
+      const currentProgress = stableDiffusionProgress.progress * 100;
+      const timestamp = new Date().toISOString();
+
+      // Tính delta từ lần cập nhật trước
+      if (lastProgressUpdate !== null) {
+        const delta = currentProgress - lastProgressUpdate;
+        setProgressDelta(delta);
+        console.log(`📊 Progress Delta: ${delta.toFixed(6)}%`);
+      }
+
+      // Update history (chỉ giữ 10 entries gần nhất)
+      setProgressHistory((prev) => {
+        const newEntry = {
+          progress: currentProgress,
+          timestamp,
+          delta:
+            lastProgressUpdate !== null
+              ? currentProgress - lastProgressUpdate
+              : 0,
+        };
+        const updated = [...prev, newEntry].slice(-10);
+        return updated;
+      });
+
+      setLastProgressUpdate(currentProgress);
+
+      console.log(`📈 Progress updated: ${currentProgress.toFixed(6)}%`);
+      console.log(`⏰ Timestamp: ${timestamp}`);
+    }
+  }, [stableDiffusionProgress?.progress, lastProgressUpdate]);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -5166,21 +5527,6 @@ const AIDesign = () => {
       opacity: 1,
       y: 0,
       transition: { type: "spring", stiffness: 300, damping: 24 },
-    },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { type: "spring", stiffness: 400, damping: 20 },
-    },
-    hover: {
-      scale: 1.03,
-      boxShadow:
-        "0 20px 25px -5px rgba(86, 89, 232, 0.15), 0 10px 10px -5px rgba(86, 89, 232, 0.06)",
-      transition: { type: "spring", stiffness: 400, damping: 10 },
     },
   };
 
@@ -5355,6 +5701,10 @@ const AIDesign = () => {
             imageGenerationError={imageGenerationError}
             imageGenerationStatus={imageGenerationStatus}
             generatedImage={generatedImage}
+            stableDiffusionProgress={stableDiffusionProgress}
+            progressCheckStatus={progressCheckStatus}
+            progressCheckError={progressCheckError}
+            isPollingProgress={isPollingProgress}
             setSelectedImage={setSelectedImage}
             handleRegenerate={handleRegenerate}
             setSnackbar={setSnackbar}
@@ -5418,29 +5768,502 @@ const AIDesign = () => {
         {renderContent()}
       </div>
 
-      {/* AI Generation Loading Backdrop */}
+      {/* AI Generation Loading Backdrop - Enhanced UI */}
       <Backdrop
         sx={{
           color: "#fff",
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          background:
+            "linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(51, 65, 85, 0.95) 100%)",
+          backdropFilter: "blur(12px)",
         }}
         open={isGenerating}
       >
-        <div className="flex flex-col items-center">
-          <CircularProgress color="secondary" size={60} />
-          <div className="mt-6 text-center">
-            <div className="flex items-center justify-center mb-4">
-              <FaRobot className="w-8 h-8 text-custom-secondary mr-3 animate-bounce" />
-              <h3 className="text-2xl font-bold text-white">
-                AI đang tạo hình ảnh
-              </h3>
+        <div className="flex flex-col items-center max-w-4xl mx-auto px-6 py-8">
+          {/* Header Section */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <div className="w-20 h-20 border-4 border-purple-500/30 rounded-full animate-spin">
+                  <div
+                    className="absolute inset-2 border-4 border-t-purple-400 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"
+                    style={{
+                      animationDirection: "reverse",
+                      animationDuration: "1s",
+                    }}
+                  ></div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <FaRobot className="w-8 h-8 text-purple-400 animate-pulse" />
+                </div>
+              </div>
             </div>
-            <p className="text-gray-300 max-w-md">
-              {currentStep === 5
-                ? "Hệ thống AI đang tạo các bản thiết kế dựa trên mẫu bạn đã chọn. Vui lòng đợi trong giây lát..."
-                : "Hệ thống AI đang phân tích yêu cầu và tạo ra các mẫu thiết kế phù hợp với thông số kỹ thuật của bạn. Vui lòng chờ trong giây lát..."}
+
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent mb-3">
+              AI đang tạo thiết kế của bạn
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto leading-relaxed">
+              Hệ thống AI đang phân tích và tạo ra thiết kế độc đáo dựa trên yêu
+              cầu của bạn. Quá trình này có thể mất vài phút để đảm bảo chất
+              lượng tốt nhất.
             </p>
+          </div>
+
+          {/* Live Preview Section - Enhanced */}
+          {(() => {
+            console.log("🔍 Debug Live Preview:");
+            console.log("   - showingLivePreview:", showingLivePreview);
+            console.log(
+              "   - stableDiffusionProgress:",
+              stableDiffusionProgress
+            );
+            console.log(
+              "   - has live_preview:",
+              !!stableDiffusionProgress?.live_preview
+            );
+            console.log(
+              "   - live_preview length:",
+              stableDiffusionProgress?.live_preview?.length
+            );
+            if (stableDiffusionProgress?.live_preview) {
+              console.log(
+                "   - live_preview first 50 chars:",
+                stableDiffusionProgress.live_preview.substring(0, 50)
+              );
+              console.log(
+                "   - live_preview starts with /9j (JPEG):",
+                stableDiffusionProgress.live_preview.startsWith("/9j")
+              );
+              console.log(
+                "   - live_preview starts with iVBORw0KGgo (PNG):",
+                stableDiffusionProgress.live_preview.startsWith("iVBORw0KGgo")
+              );
+            }
+            return null;
+          })()}
+
+          {/* Hiển thị tiến độ chi tiết - Cả khi có và không có live preview (không hiển thị ở step 6) */}
+          {(stableDiffusionProgress?.progress !== undefined ||
+            isPollingProgress) &&
+            currentStep !== 6 && (
+              <div className="w-full max-w-2xl mb-8">
+                {/* Detailed Progress Header */}
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-2xl border border-blue-400/30 backdrop-blur-sm shadow-2xl">
+                    <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse mr-4 shadow-lg"></div>
+                    <span className="text-blue-200 font-bold text-xl mr-4">
+                      {stableDiffusionProgress?.live_preview
+                        ? " Ảnh tạm thời"
+                        : " Đang xử lý"}
+                    </span>
+
+                    {/* Large Progress Percentage */}
+                    <div className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent font-black text-2xl tracking-wider">
+                      {stableDiffusionProgress?.progress
+                        ? `${(stableDiffusionProgress.progress * 100).toFixed(
+                            2
+                          )}%`
+                        : "0.00%"}
+                    </div>
+                  </div>
+
+                  {/* Enhanced Progress Bar with Multiple Indicators */}
+                  <div className="mt-6 w-full max-w-lg mx-auto space-y-4">
+                    {/* Main Progress Bar */}
+                    <div className="relative">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm font-medium text-gray-300">
+                          Tiến độ chi tiết
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg font-bold text-blue-300 tabular-nums">
+                            {stableDiffusionProgress?.progress
+                              ? `${(
+                                  stableDiffusionProgress.progress * 100
+                                ).toFixed(3)}%`
+                              : "0.000%"}
+                          </span>
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar Container */}
+                      <div className="relative w-full bg-gray-700/50 rounded-full h-4 backdrop-blur-sm border-2 border-gray-600/30 shadow-inner">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full transition-all duration-300 ease-out relative overflow-hidden shadow-lg"
+                          style={{
+                            width: `${
+                              stableDiffusionProgress?.progress
+                                ? (
+                                    stableDiffusionProgress.progress * 100
+                                  ).toFixed(3)
+                                : 0
+                            }%`,
+                          }}
+                        >
+                          {/* Animated shine effect */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                          <div
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-ping"
+                            style={{ animationDuration: "2s" }}
+                          ></div>
+                        </div>
+
+                        {/* Progress markers */}
+                        <div className="absolute inset-0 flex justify-between items-center px-2">
+                          {[0, 25, 50, 75, 100].map((marker) => (
+                            <div
+                              key={marker}
+                              className={`w-0.5 h-2 rounded-full transition-colors duration-300 ${
+                                (stableDiffusionProgress?.progress * 100 ||
+                                  0) >= marker
+                                  ? "bg-white/60"
+                                  : "bg-gray-500/40"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Progress Numbers */}
+                      <div className="flex justify-between text-xs text-gray-400 mt-2 font-mono">
+                        <span>0%</span>
+                        <span>25%</span>
+                        <span>50%</span>
+                        <span>75%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+
+                    {/* Status Information */}
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-600/20">
+                        <div className="text-xs text-gray-400 mb-1">
+                          Trạng thái
+                        </div>
+                        <div className="text-sm font-semibold text-green-300">
+                          {stableDiffusionProgress?.active
+                            ? "🟢 Đang chạy"
+                            : stableDiffusionProgress?.queued
+                            ? "🟡 Đang chờ"
+                            : stableDiffusionProgress?.completed
+                            ? "✅ Hoàn thành"
+                            : "⚪ Khởi tạo"}
+                        </div>
+                      </div>
+                      <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-600/20">
+                        <div className="text-xs text-gray-400 mb-1">
+                          Tiến độ 
+                        </div>
+                        <div className="text-sm font-semibold text-blue-300 tabular-nums">
+                          {stableDiffusionProgress?.progress
+                            ? (stableDiffusionProgress.progress * 100).toFixed(
+                                4
+                              )
+                            : "0.0000"}
+                          %
+                        </div>
+                      </div>
+                      <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-600/20">
+                        <div className="text-xs text-gray-400 mb-1">
+                          Live Preview
+                        </div>
+                        <div className="text-sm font-semibold text-purple-300">
+                          {stableDiffusionProgress?.live_preview
+                            ? "📸 Có"
+                            : "⏳ Chờ"}
+                        </div>
+                      </div>
+                    </div>
+
+                   
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* Live Preview Image (chỉ hiển thị khi có live_preview) */}
+          {stableDiffusionProgress?.live_preview && (
+            <div className="w-full max-w-lg mb-8">
+              {/* Image Container */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300"></div>
+                <div className="relative bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl p-6 border border-gray-600/30 backdrop-blur-sm">
+                  <div className="flex justify-center">
+                    {/* Live preview với validation và xử lý nhiều format */}
+                    {(() => {
+                      let rawData = stableDiffusionProgress.live_preview;
+
+                      // Validate dữ liệu ban đầu
+                      if (!rawData || typeof rawData !== "string") {
+                        console.error(
+                          "❌ Invalid live_preview data:",
+                          typeof rawData,
+                          rawData?.length
+                        );
+                        return (
+                          <div className="text-center">
+                            <div className="w-80 h-48 bg-gradient-to-br from-gray-700/30 to-gray-800/30 rounded-xl border border-gray-600/30 flex flex-col items-center justify-center">
+                              <div className="w-12 h-12 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mb-4"></div>
+                              <div className="text-gray-300 text-lg font-medium mb-2">
+                                🔄 Đang khởi tạo preview...
+                              </div>
+                              <div className="w-48 bg-gray-600/30 rounded-full h-2">
+                                <div
+                                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                                  style={{
+                                    width: `${(
+                                      stableDiffusionProgress.progress * 100
+                                    ).toFixed(1)}%`,
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      let imageSrc = "";
+
+                      // Kiểm tra xem dữ liệu đã có header data URL chưa
+                      if (rawData.startsWith("data:image/")) {
+                        imageSrc = rawData;
+                        console.log("🖼️ Using existing data URL format");
+                      } else {
+                        console.log("🖼️ Raw base64 data, adding header");
+
+                        // Clean base64 data
+                        let base64Data = rawData
+                          .trim()
+                          .replace(/[^A-Za-z0-9+/=]/g, "");
+
+                        // Validate base64 format
+                        const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+                        if (!base64Regex.test(base64Data)) {
+                          console.error(
+                            "❌ Invalid base64 format:",
+                            base64Data.substring(0, 50)
+                          );
+                          return (
+                            <div className="text-center">
+                              <div className="w-80 h-48 bg-gradient-to-br from-orange-700/30 to-red-700/30 rounded-xl border border-orange-500/30 flex flex-col items-center justify-center">
+                                <div className="text-4xl mb-3">⚠️</div>
+                                <div className="text-orange-200 text-lg font-medium mb-2">
+                                  Format đang được xử lý
+                                </div>
+                                <div className="text-xs text-orange-300 tabular-nums">
+                                  Tiến độ:{" "}
+                                  {(
+                                    stableDiffusionProgress.progress * 100
+                                  ).toFixed(3)}
+                                  %
+                                </div>
+                                <div className="text-xs text-orange-400 mt-1 tabular-nums">
+                                  Chi tiết:{" "}
+                                  {(
+                                    stableDiffusionProgress.progress * 100
+                                  ).toFixed(6)}
+                                  %
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Check minimum length
+                        if (base64Data.length < 100) {
+                          console.error(
+                            "❌ Base64 data too short:",
+                            base64Data.length
+                          );
+                          return (
+                            <div className="text-center">
+                              <div className="w-80 h-48 bg-gradient-to-br from-yellow-700/30 to-orange-700/30 rounded-xl border border-yellow-500/30 flex flex-col items-center justify-center">
+                                <div className="text-4xl mb-3">📏</div>
+                                <div className="text-yellow-200 text-lg font-medium mb-2">
+                                  Đang tạo dữ liệu ảnh...
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Detect image format từ base64 header
+                        let imageFormat = "jpeg"; // default
+                        if (base64Data.startsWith("/9j")) {
+                          imageFormat = "jpeg";
+                        } else if (base64Data.startsWith("iVBORw0KGgo")) {
+                          imageFormat = "png";
+                        } else if (base64Data.startsWith("UklGR")) {
+                          imageFormat = "webp";
+                        }
+
+                        imageSrc = `data:image/${imageFormat};base64,${base64Data}`;
+                      }
+
+                      console.log("🖼️ Live preview debug info:");
+                      console.log(
+                        "   - Original data length:",
+                        rawData?.length
+                      );
+                      console.log(
+                        "   - Final image src length:",
+                        imageSrc.length
+                      );
+                      console.log(
+                        "   - Image src start:",
+                        imageSrc.substring(0, 80)
+                      );
+                      console.log(
+                        "   - Contains data URL:",
+                        imageSrc.includes("data:image/")
+                      );
+
+                      return (
+                        <div className="relative">
+                          <img
+                            src={imageSrc}
+                            alt="Live Preview"
+                            className="max-w-sm rounded-xl shadow-2xl border-2 border-gray-500/30 transition-all duration-300 hover:scale-105"
+                            style={{
+                              maxWidth: "400px",
+                              maxHeight: "300px",
+                              filter: "brightness(0.95) contrast(1.05)",
+                            }}
+                            onLoad={(event) => {
+                              console.log(
+                                "✅ Live preview image loaded successfully!"
+                              );
+                              console.log(
+                                "✅ Final image dimensions:",
+                                event.target.naturalWidth,
+                                "x",
+                                event.target.naturalHeight
+                              );
+                            }}
+                            onError={(e) => {
+                              console.error(
+                                "❌ Live preview image failed to load:",
+                                e
+                              );
+                              console.error(
+                                "❌ Failed src length:",
+                                e.target.src.length
+                              );
+                              console.error(
+                                "❌ Failed src start:",
+                                e.target.src.substring(0, 100)
+                              );
+                              console.error("❌ Image element:", e.target);
+
+                              // Fallback: hide image and show text
+                              e.target.style.display = "none";
+                              if (
+                                !e.target.parentNode.querySelector(
+                                  ".fallback-div"
+                                )
+                              ) {
+                                const fallbackDiv =
+                                  document.createElement("div");
+                                fallbackDiv.className =
+                                  "fallback-div w-80 h-48 bg-gradient-to-br from-red-700/30 to-pink-700/30 rounded-xl border border-red-500/30 flex flex-col items-center justify-center";
+                                fallbackDiv.innerHTML = `
+                                  <div class="text-4xl mb-3">❌</div>
+                                  <div class="text-red-200 text-lg font-medium mb-2">Không thể hiển thị preview</div>
+                                  <div class="text-xs text-red-300 tabular-nums">Tiến độ: ${(
+                                    stableDiffusionProgress.progress * 100
+                                  ).toFixed(3)}%</div>
+                                  <div class="text-xs text-red-400 mt-2">Đang tiếp tục xử lý...</div>
+                                  <div class="text-xs text-red-500 mt-1 tabular-nums">Chi tiết: ${(
+                                    stableDiffusionProgress.progress * 100
+                                  ).toFixed(6)}%</div>
+                                `;
+                                e.target.parentNode.appendChild(fallbackDiv);
+                              }
+                            }}
+                          />
+
+                          {/* Enhanced Preview Overlay với tiến độ chi tiết */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent rounded-xl pointer-events-none"></div>
+                          <div className="absolute bottom-4 left-4 right-4">
+                            <div className="bg-black/80 backdrop-blur-sm rounded-lg p-4 border border-white/10 shadow-2xl">
+                              <div className="flex items-center justify-between text-white mb-2">
+                                <div className="flex items-center">
+                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse mr-3 shadow-lg"></div>
+                                  <span className="text-sm font-medium">
+                                    Đang hoàn thiện
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-lg font-bold text-blue-300 tabular-nums">
+                                    {(
+                                      stableDiffusionProgress.progress * 100
+                                    ).toFixed(2)}
+                                    %
+                                  </div>
+                                  <div className="text-xs text-gray-300 tabular-nums">
+                                    {(
+                                      stableDiffusionProgress.progress * 100
+                                    ).toFixed(4)}
+                                    %
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Mini progress bar trong overlay */}
+                              <div className="w-full bg-gray-600/50 rounded-full h-1.5 mt-2">
+                                <div
+                                  className="h-1.5 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full transition-all duration-300 ease-out"
+                                  style={{
+                                    width: `${(
+                                      stableDiffusionProgress.progress * 100
+                                    ).toFixed(3)}%`,
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="mt-4 text-center">
+                    <p className="text-gray-400 text-sm">
+                      ✨ Hình ảnh cuối cùng sẽ có độ phân giải cao và chất lượng
+                      tối ưu
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status Section */}
+          <div className="text-center">
+            <div className="inline-flex items-center px-6 py-3 bg-gray-800/50 rounded-full border border-gray-600/30 backdrop-blur-sm mb-6">
+              <div className="flex space-x-2 mr-4">
+                <div
+                  className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                ></div>
+              </div>
+              <span className="text-gray-300 font-medium">
+                {currentStep === 5
+                  ? "Đang tạo thiết kế dựa trên mẫu được chọn..."
+                  : "Đang phân tích yêu cầu và tạo mẫu thiết kế..."}
+              </span>
+            </div>
+
+          
           </div>
         </div>
       </Backdrop>

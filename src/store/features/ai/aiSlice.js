@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createAIDesignApi,
   generateImageFromTextApi,
+  checkStableDiffusionProgressApi,
 } from "../../../api/aiService";
 
 // Tạo AI Design Thunk
@@ -62,16 +63,39 @@ export const generateImageFromText = createAsyncThunk(
   }
 );
 
+// Kiểm tra tiến trình Stable Diffusion
+export const checkStableDiffusionProgress = createAsyncThunk(
+  "ai/checkStableDiffusionProgress",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await checkStableDiffusionProgressApi();
+
+      if (!response.success) {
+        return rejectWithValue(
+          response.message || "Failed to check Stable Diffusion progress"
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      return rejectWithValue(error.message || "An unexpected error occurred");
+    }
+  }
+);
+
 const initialState = {
   currentAIDesign: null,
   generatedImage: null,
   // generatedImageBlob: null,
   status: "idle",
   imageGenerationStatus: "idle",
+  progressCheckStatus: "idle",
   error: null,
   imageGenerationError: null,
+  progressCheckError: null,
   currentDesignTemplate: null,
   currentBackground: null,
+  stableDiffusionProgress: null,
 };
 
 // Slice
@@ -87,6 +111,11 @@ const aiSlice = createSlice({
       state.imageGenerationStatus = "idle";
       state.imageGenerationError = null;
       state.generatedImage = null;
+    },
+    resetProgressCheck: (state) => {
+      state.progressCheckStatus = "idle";
+      state.progressCheckError = null;
+      state.stableDiffusionProgress = null;
     },
    setCurrentAIDesign: (state, action) => {
       state.currentAIDesign = action.payload;
@@ -132,11 +161,23 @@ const aiSlice = createSlice({
       .addCase(generateImageFromText.rejected, (state, action) => {
         state.imageGenerationStatus = "failed";
         state.imageGenerationError = action.payload;
+      })
+      .addCase(checkStableDiffusionProgress.pending, (state) => {
+        state.progressCheckStatus = "loading";
+        state.progressCheckError = null;
+      })
+      .addCase(checkStableDiffusionProgress.fulfilled, (state, action) => {
+        state.progressCheckStatus = "succeeded";
+        state.stableDiffusionProgress = action.payload;
+      })
+      .addCase(checkStableDiffusionProgress.rejected, (state, action) => {
+        state.progressCheckStatus = "failed";
+        state.progressCheckError = action.payload;
       });
   },
 });
 
-export const { resetAIStatus,setCurrentAIDesign, resetImageGeneration } = aiSlice.actions;
+export const { resetAIStatus, setCurrentAIDesign, resetImageGeneration, resetProgressCheck } = aiSlice.actions;
 
 // Selectors
 export const selectCurrentAIDesign = (state) => state.ai.currentAIDesign;
@@ -154,4 +195,10 @@ export const selectCurrentDesignTemplate = (state) =>
 export const selectCurrentBackground = (state) => state.ai.currentBackground;
 export const selectEditedImageUrl = (state) =>
   state.ai.currentAIDesign?.editedImage;
+
+// Selectors cho Stable Diffusion Progress
+export const selectStableDiffusionProgress = (state) => state.ai.stableDiffusionProgress;
+export const selectProgressCheckStatus = (state) => state.ai.progressCheckStatus;
+export const selectProgressCheckError = (state) => state.ai.progressCheckError;
+
 export default aiSlice.reducer;
