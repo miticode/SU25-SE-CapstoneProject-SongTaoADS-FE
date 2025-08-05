@@ -50,7 +50,7 @@ import AccessDeny from "./pages/AccessDeny";
 import RoleBasedRoute from "./components/RoleBasedRoute";
 import { ROLES } from "./utils/roleUtils";
 import Order from "./pages/Order";
-
+import Authenticate from "./pages/Authenticate";
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -286,7 +286,7 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-               <Route
+              <Route
                 path="order"
                 element={
                   <ProtectedRoute>
@@ -349,6 +349,7 @@ const App = () => {
               <Route path="signup" element={<Signup />} />
               <Route path="forgot-password" element={<ForgotPassword />} />
             </Route>
+             <Route path="authentication" element={<Authenticate />} />
           </Routes>
         </AnimatePresence>
 

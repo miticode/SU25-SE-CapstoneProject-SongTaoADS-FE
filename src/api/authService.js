@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Biến lưu trữ trạng thái đăng nhập và thông tin user
 let authState = {
@@ -21,7 +21,7 @@ const authService = axios.create({
 // Thêm interceptor request để tự động gắn token
 authService.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -193,10 +193,7 @@ export const logoutApi = async () => {
   try {
     console.log("Attempting logout");
     // Không cần lấy token và gắn header thủ công nữa
-    const response = await authService.post(
-      "/api/auth/logout",
-      {}
-    );
+    const response = await authService.post("/api/auth/logout", {});
 
     console.log("Logout response:", response.data);
 
@@ -257,24 +254,26 @@ export const checkAuthStatus = async () => {
           return {
             isAuthenticated: true,
             user: response.data.result,
-            accessToken: accessToken,  // Trả về token hiện tại
+            accessToken: accessToken, // Trả về token hiện tại
           };
         }
       } catch (error) {
         // Token validation failed, try to refresh
         if (error.response?.status === 401) {
-          console.log("Token expired, trying to refresh during checkAuthStatus");
+          console.log(
+            "Token expired, trying to refresh during checkAuthStatus"
+          );
           const refreshResult = await refreshTokenApi();
           if (refreshResult.success) {
             console.log("Token refreshed successfully during checkAuthStatus");
             return {
               isAuthenticated: true,
               user: refreshResult.user || authState.user,
-              accessToken: refreshResult.accessToken,  // Trả về token mới
+              accessToken: refreshResult.accessToken, // Trả về token mới
             };
           }
         }
-        throw error;  // Đảm bảo lỗi được truyền lên để xử lý ở cấp cao hơn
+        throw error; // Đảm bảo lỗi được truyền lên để xử lý ở cấp cao hơn
       }
     }
 
@@ -304,8 +303,8 @@ export const getProfileApi = async () => {
 
     const { success, result, message } = response.data;
 
-    console.log('Profile API response:', response.data); // Debug log
-    console.log('User roles:', result?.roles); // Debug log
+    console.log("Profile API response:", response.data); // Debug log
+    console.log("User roles:", result?.roles); // Debug log
 
     if (success) {
       return { success: true, data: result }; // Đảm bảo trả về result
@@ -321,7 +320,9 @@ export const getProfileApi = async () => {
 // Hàm gọi refresh token
 export const refreshTokenApi = async () => {
   try {
-    console.log(`[${new Date().toLocaleTimeString()}] Attempting to refresh access token`);
+    console.log(
+      `[${new Date().toLocaleTimeString()}] Attempting to refresh access token`
+    );
 
     const response = await authService.post(
       "/api/auth/refresh-token",
@@ -332,7 +333,9 @@ export const refreshTokenApi = async () => {
     const { success, result } = response.data;
 
     if (success && result?.accessToken) {
-      console.log(`[${new Date().toLocaleTimeString()}] Token refresh successful`);
+      console.log(
+        `[${new Date().toLocaleTimeString()}] Token refresh successful`
+      );
       localStorage.setItem("accessToken", result.accessToken);
 
       if (result.user) {
@@ -346,7 +349,9 @@ export const refreshTokenApi = async () => {
       };
     }
 
-    console.warn(`[${new Date().toLocaleTimeString()}] Refresh token response missing access token`);
+    console.warn(
+      `[${new Date().toLocaleTimeString()}] Refresh token response missing access token`
+    );
     return { success: false, error: "No access token in response" };
   } catch (error) {
     console.error(
@@ -454,16 +459,19 @@ export const updateUserPasswordApi = async (
 export const resendVerificationApi = async (userData) => {
   try {
     console.log("Sending verification email to:", userData.email);
-    
+
     const response = await authService.post("/api/verifications/resend", {
-      email: userData.email
+      email: userData.email,
     });
 
     console.log("Verification email response:", response.data);
     const { success, message, result } = response.data;
     return { success, message, result };
   } catch (error) {
-    console.error("Verification email error:", error.response?.data || error.message);
+    console.error(
+      "Verification email error:",
+      error.response?.data || error.message
+    );
     return {
       success: false,
       error: error.response?.data?.message || "Gửi email xác thực thất bại",
@@ -474,13 +482,66 @@ export const resendVerificationApi = async (userData) => {
 // Hàm gửi email đặt lại mật khẩu
 export const forgotPasswordApi = async (email) => {
   try {
-    const response = await authService.post("/api/password-reset/resend", { email });
+    const response = await authService.post("/api/password-reset/resend", {
+      email,
+    });
     const { success, message, result } = response.data;
     return { success, message, result };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || "Gửi email đặt lại mật khẩu thất bại",
+      error:
+        error.response?.data?.message || "Gửi email đặt lại mật khẩu thất bại",
+    };
+  }
+};
+
+// Hàm xác thực OAuth từ dịch vụ bên ngoài (Google, Facebook, etc.)
+export const outboundAuthenticationApi = async (code) => {
+  try {
+    console.log("Calling outbound authentication with code:", code);
+    console.log("Code length:", code.length);
+
+    // Tạo URL với URLSearchParams để đảm bảo encoding chính xác
+    const url = new URL('/api/auth/outbound/authentication', API_URL || 'https://songtaoads.online');
+    url.searchParams.set('code', code);
+    
+    console.log("Final URL:", url.toString());
+
+    const response = await authService.post(url.pathname + url.search);
+
+    const { success, message, result, timestamp } = response.data;
+
+    console.log("Outbound authentication response:", response.data);
+
+    if (success && result?.accessToken) {
+      // Lưu access token vào localStorage
+      console.log("Saving access token from outbound authentication");
+      localStorage.setItem("accessToken", result.accessToken);
+
+      // Cập nhật trạng thái đăng nhập
+      authState.isAuthenticated = true;
+
+      return {
+        success,
+        data: result,
+        message,
+        timestamp,
+      };
+    }
+
+    return {
+      success: false,
+      error: message || "Outbound authentication failed",
+    };
+  } catch (error) {
+    console.error(
+      "Outbound authentication error:",
+      error.response?.data || error.message
+    );
+    return {
+      success: false,
+      error: error.response?.data?.message || "Outbound authentication failed",
     };
   }
 };

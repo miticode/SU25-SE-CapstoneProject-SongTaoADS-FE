@@ -40,7 +40,21 @@ const Login = () => {
   const registrationSuccess = searchParams.get("registered") === "success";
   const verifyRequired = searchParams.get("verify") === "required";
   const sessionError = searchParams.get("error");
+  ///
+  const handleLoginWithGoogle = () => {
+    const callBackUrl = import.meta.env.VITE_REDIRECT_URI;
+    const authUri = import.meta.env.VITE_AUTH_URI;
+    const googleClientId = import.meta.env.VITE_CLIENT_ID;
+    const targetUrl = `${authUri}?redirect_uri=${encodeURIComponent(
+      callBackUrl
+    )}&response_type=code&client_id=${googleClientId}&scope=openid%20email%20profile`;
 
+    console.log(targetUrl);
+
+    window.location.href = targetUrl;
+  };
+
+  ///
   useEffect(() => {
     // Reset auth status khi component mount
     dispatch(resetAuthStatus());
@@ -62,10 +76,11 @@ const Login = () => {
     try {
       localStorage.removeItem("accessToken");
 
-      const result = await dispatch(loginAndFetchProfile({ email, password, rememberMe })).unwrap();
+      const result = await dispatch(
+        loginAndFetchProfile({ email, password, rememberMe })
+      ).unwrap();
 
-
-      console.log('Login result:', result); // Debug log
+      console.log("Login result:", result); // Debug log
 
       // Thông báo đăng nhập thành công
       notifyLoginSuccess();
@@ -73,13 +88,12 @@ const Login = () => {
       // Điều hướng dựa trên role của user
       const userRole = getUserRole(result.user);
       const redirectPath = getDefaultRedirectPath(userRole);
-      
-      console.log('User role:', userRole); // Debug log
-      console.log('Redirect path:', redirectPath); // Debug log
-      
+
+      console.log("User role:", userRole); // Debug log
+      console.log("Redirect path:", redirectPath); // Debug log
+
       // Chuyển hướng ngay lập tức không có delay
       navigate(redirectPath, { replace: true });
-      
     } catch (err) {
       console.error("Login failed:", err);
     }
@@ -98,14 +112,22 @@ const Login = () => {
             Quay lại trang chủ
           </Link>
         </div>
-        
+
         <div className="inline-block p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4">
-          <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          <svg
+            className="w-8 h-8 text-white"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+              clipRule="evenodd"
+            />
           </svg>
         </div>
         <h2 className="text-3xl font-black text-gray-800 mb-3">
-           Chào mừng trở lại!
+          Chào mừng trở lại!
         </h2>
         <p className="text-gray-600 text-lg">
           Đăng nhập để tiếp tục hành trình sáng tạo quảng cáo với AI
@@ -137,15 +159,15 @@ const Login = () => {
                   <IoClose />
                 </IconButton>
               }
-              sx={{ 
-                mb: 2, 
+              sx={{
+                mb: 2,
                 alignItems: "center",
                 borderRadius: "12px",
                 boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
                 "& .MuiAlert-message": {
                   fontSize: "14px",
-                  fontWeight: 500
-                }
+                  fontWeight: 500,
+                },
               }}
             >
               {verifyRequired
@@ -162,15 +184,15 @@ const Login = () => {
           <Alert
             severity="error"
             icon={<FaExclamationCircle className="text-xl" />}
-            sx={{ 
-              mb: 2, 
+            sx={{
+              mb: 2,
               alignItems: "center",
               borderRadius: "12px",
               boxShadow: "0 4px 20px rgba(239, 68, 68, 0.2)",
               "& .MuiAlert-message": {
                 fontSize: "14px",
-                fontWeight: 500
-              }
+                fontWeight: 500,
+              },
             }}
           >
             ❌ {error || "Đăng nhập thất bại. Vui lòng thử lại."}
@@ -200,9 +222,13 @@ const Login = () => {
               autoComplete="email"
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-              <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+              <svg
+                className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-300"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
               </svg>
             </div>
           </div>
@@ -263,7 +289,7 @@ const Login = () => {
               htmlFor="remember-me"
               className="ml-3 block text-sm font-medium text-gray-700"
             >
-               Ghi nhớ đăng nhập
+              Ghi nhớ đăng nhập
             </label>
           </div>
         </div>
@@ -272,23 +298,48 @@ const Login = () => {
           type="submit"
           disabled={status === "loading"}
           className={`group relative w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 overflow-hidden ${
-            status === "loading" ? "opacity-70 cursor-not-allowed" : "hover:from-blue-700 hover:to-purple-700"
+            status === "loading"
+              ? "opacity-70 cursor-not-allowed"
+              : "hover:from-blue-700 hover:to-purple-700"
           }`}
         >
           <span className="relative z-10 flex items-center justify-center">
             {status === "loading" ? (
               <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
-                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    className="opacity-25"
+                  ></circle>
+                  <path
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    className="opacity-75"
+                  ></path>
                 </svg>
                 Đang xử lý...
               </>
             ) : (
               <>
-                 Đăng nhập
-                <svg className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+                Đăng nhập
+                <svg
+                  className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </>
             )}
@@ -304,7 +355,7 @@ const Login = () => {
             to="/auth/signup"
             className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
           >
-             Đăng ký ngay
+            Đăng ký ngay
           </Link>
         </p>
       </div>
@@ -324,7 +375,8 @@ const Login = () => {
         <div className="mt-6 flex justify-center">
           <button
             type="button"
-            className="group flex items-center justify-center py-4 w-full border-2 border-gray-200 rounded-2xl shadow-sm bg-white/80 backdrop-blur-sm text-sm font-semibold text-gray-700 hover:bg-white hover:border-gray-300 hover:scale-[1.02] transition-all duration-300 hover:shadow-lg"
+            onClick={handleLoginWithGoogle}
+            className="cursor-pointer group flex items-center justify-center py-4 w-full border-2 border-gray-200 rounded-2xl shadow-sm bg-white/80  text-sm font-semibold text-gray-700 hover:bg-white hover:border-gray-300 hover:scale-[1.02] transition-all duration-300 hover:shadow-lg"
             disabled={status === "loading"}
           >
             <svg
