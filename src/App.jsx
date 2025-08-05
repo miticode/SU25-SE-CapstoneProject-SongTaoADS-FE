@@ -47,7 +47,7 @@ import AccessDeny from "./pages/AccessDeny";
 import RoleBasedRoute from "./components/RoleBasedRoute";
 import { ROLES } from "./utils/roleUtils";
 import Order from "./pages/Order";
-
+import Authenticate from "./pages/Authenticate";
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -118,24 +118,26 @@ const App = () => {
   const authInitialized = useRef(false); // Thêm ref để track đã init hay chưa
 
   // Xử lý sự kiện đăng nhập thành công
- useEffect(() => {
-  const handleLoginSuccess = () => {
-    setShowLoginSuccess(true);
-    
-    // Debug: kiểm tra user data sau khi đăng nhập
-    console.log('Login success event triggered');
-    setTimeout(() => {
-      const currentUser = JSON.parse(localStorage.getItem('persist:auth') || '{}');
-      console.log('Current user after login:', currentUser);
-    }, 1000);
-  };
+  useEffect(() => {
+    const handleLoginSuccess = () => {
+      setShowLoginSuccess(true);
 
-  window.addEventListener("loginSuccess", handleLoginSuccess);
+      // Debug: kiểm tra user data sau khi đăng nhập
+      console.log("Login success event triggered");
+      setTimeout(() => {
+        const currentUser = JSON.parse(
+          localStorage.getItem("persist:auth") || "{}"
+        );
+        console.log("Current user after login:", currentUser);
+      }, 1000);
+    };
 
-  return () => {
-    window.removeEventListener("loginSuccess", handleLoginSuccess);
-  };
-}, []);
+    window.addEventListener("loginSuccess", handleLoginSuccess);
+
+    return () => {
+      window.removeEventListener("loginSuccess", handleLoginSuccess);
+    };
+  }, []);
 
   // Kiểm tra trạng thái đăng nhập khi tải trang
   useEffect(() => {
@@ -148,9 +150,9 @@ const App = () => {
       try {
         setAuthLoading(true);
         authInitialized.current = true; // Đánh dấu đã init
-        
+
         const hasToken = localStorage.getItem("accessToken");
-        
+
         if (hasToken) {
           // Nếu có token, kiểm tra và sync auth state
           await dispatch(initializeAuth()).unwrap();
@@ -269,9 +271,9 @@ const App = () => {
               <Route path="custom-design" element={<CustomDesign />} />
               <Route path="my-ticket" element={<MyTicket />} />
               <Route path="access-denied" element={<AccessDeny />} />
-              
+
               {/* Protected routes - chỉ cho CUSTOMER */}
-             
+
               <Route
                 path="profile"
                 element={
@@ -280,7 +282,7 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-               <Route
+              <Route
                 path="order"
                 element={
                   <ProtectedRoute>
@@ -343,6 +345,7 @@ const App = () => {
               <Route path="signup" element={<Signup />} />
               <Route path="forgot-password" element={<ForgotPassword />} />
             </Route>
+             <Route path="authentication" element={<Authenticate />} />
           </Routes>
         </AnimatePresence>
 

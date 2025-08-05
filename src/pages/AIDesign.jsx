@@ -5219,7 +5219,9 @@ const AIDesign = () => {
       console.log("   1️⃣ Có generatedImage hoàn chỉnh trong Redux store");
       console.log("   2️⃣ Có lỗi thực sự (!active && !completed && !queued)");
       console.log(`   3️⃣ Timeout sau ${maxPolls * 2} giây`);
-      console.log("   📌 KHÔNG dừng khi có live_preview - tiếp tục polling để chờ ảnh cuối!");
+      console.log(
+        "   📌 KHÔNG dừng khi có live_preview - tiếp tục polling để chờ ảnh cuối!"
+      );
 
       // Hàm thực hiện progress check
       const performProgressCheck = async () => {
@@ -5274,8 +5276,9 @@ const AIDesign = () => {
           // Xử lý live_preview - luôn cập nhật khi có ảnh mới
           if (result.live_preview) {
             // Kiểm tra xem live preview có thay đổi không
-            const isNewLivePreview = lastLivePreviewRef.current !== result.live_preview;
-            
+            const isNewLivePreview =
+              lastLivePreviewRef.current !== result.live_preview;
+
             if (!showingLivePreview) {
               console.log(
                 "🎨 Có live_preview lần đầu! Chuyển sang step 5.5 để hiển thị live preview cho user"
@@ -5295,19 +5298,21 @@ const AIDesign = () => {
               );
               console.log(
                 "🔄 Ảnh cũ:",
-                lastLivePreviewRef.current ? lastLivePreviewRef.current.substring(0, 50) + "..." : "Không có"
+                lastLivePreviewRef.current
+                  ? lastLivePreviewRef.current.substring(0, 50) + "..."
+                  : "Không có"
               );
               console.log(
                 "🔄 Ảnh mới:",
                 result.live_preview.substring(0, 50) + "..."
               );
-              
+
               // Cập nhật ref để track ảnh mới
               lastLivePreviewRef.current = result.live_preview;
-              
+
               // Force update key để trigger re-render component
-              setLivePreviewUpdateKey(prev => prev + 1);
-              
+              setLivePreviewUpdateKey((prev) => prev + 1);
+
               // Hiển thị thông báo cập nhật
               setSnackbar({
                 open: true,
@@ -5315,11 +5320,15 @@ const AIDesign = () => {
                 severity: "info",
               });
             } else {
-              console.log("🔄 Live preview không thay đổi, tiếp tục polling...");
+              console.log(
+                "🔄 Live preview không thay đổi, tiếp tục polling..."
+              );
             }
 
             // KHÔNG dừng polling - tiếp tục để chờ ảnh cuối cùng và cập nhật live preview
-            console.log("🔄 Tiếp tục polling để chờ ảnh cuối cùng và cập nhật live preview...");
+            console.log(
+              "🔄 Tiếp tục polling để chờ ảnh cuối cùng và cập nhật live preview..."
+            );
           }
 
           // Log trạng thái nhưng KHÔNG dừng polling khi completed (vẫn chờ ảnh cuối)
@@ -5429,10 +5438,12 @@ const AIDesign = () => {
         severity: "error",
       });
     }
-    
+
     // Log khi có live_preview nhưng KHÔNG dừng polling
     if (stableDiffusionProgress?.live_preview && isPollingProgress) {
-      console.log("🎯 Có live_preview! Tiếp tục polling để chờ ảnh cuối cùng...");
+      console.log(
+        "🎯 Có live_preview! Tiếp tục polling để chờ ảnh cuối cùng..."
+      );
       console.log(
         "🖼️ Live preview length:",
         stableDiffusionProgress.live_preview.length
@@ -5489,12 +5500,14 @@ const AIDesign = () => {
         "🖼️ Progress:",
         ((stableDiffusionProgress.progress || 0) * 100).toFixed(2) + "%"
       );
-      console.log(
-        "🖼️ Current update key:",
-        livePreviewUpdateKey
-      );
+      console.log("🖼️ Current update key:", livePreviewUpdateKey);
     }
-  }, [stableDiffusionProgress?.live_preview, stableDiffusionProgress?.progress, showingLivePreview, livePreviewUpdateKey]);
+  }, [
+    stableDiffusionProgress?.live_preview,
+    stableDiffusionProgress?.progress,
+    showingLivePreview,
+    livePreviewUpdateKey,
+  ]);
 
   const handleStepClick = (step) => {
     if (step < currentStep) {
@@ -6005,7 +6018,7 @@ const AIDesign = () => {
                       </div>
                       <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-600/20">
                         <div className="text-xs text-gray-400 mb-1">
-                          Tiến độ 
+                          Tiến độ
                         </div>
                         <div className="text-sm font-semibold text-blue-300 tabular-nums">
                           {stableDiffusionProgress?.progress
@@ -6027,8 +6040,6 @@ const AIDesign = () => {
                         </div>
                       </div>
                     </div>
-
-                   
                   </div>
                 </div>
               </div>
@@ -6174,7 +6185,9 @@ const AIDesign = () => {
                       return (
                         <div className="relative">
                           <img
-                            key={`live-preview-${livePreviewUpdateKey}-${stableDiffusionProgress.progress || 0}`}
+                            key={`live-preview-${livePreviewUpdateKey}-${
+                              stableDiffusionProgress.progress || 0
+                            }`}
                             src={imageSrc}
                             alt="Live Preview"
                             className="max-w-sm rounded-xl shadow-2xl border-2 border-gray-500/30 transition-all duration-300 hover:scale-105"
@@ -6319,8 +6332,6 @@ const AIDesign = () => {
                   : "Đang phân tích yêu cầu và tạo mẫu thiết kế..."}
               </span>
             </div>
-
-          
           </div>
         </div>
       </Backdrop>
