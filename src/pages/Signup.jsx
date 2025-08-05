@@ -5,20 +5,23 @@ import {
   register,
   resetAuthStatus,
   resetVerificationStatus,
+  sendVerificationEmail,
 } from "../store/features/auth/authSlice";
 import { isAuthenticated } from "../utils/cookieManager";
 import PageTransition from "../components/PageTransition";
+import CountdownTimer from "../components/CountdownTimer";
 
 // Import MUI components
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import Button from "@mui/material/Button";
 
 // Import React Icons
 import { FaExclamationCircle } from "react-icons/fa";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { FaCheckCircle } from "react-icons/fa";
-import { FaEye, FaEyeSlash, FaArrowLeft } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaArrowLeft, FaRedo } from "react-icons/fa";
 
 const Signup = () => {
   const [fullName, setFullName] = useState("");
@@ -67,6 +70,16 @@ const Signup = () => {
       navigate("/");
     }
   }, [dispatch, reduxAuth, navigate]);
+
+  // Handle resend verification email
+  const handleResendVerification = async () => {
+    try {
+      await dispatch(sendVerificationEmail({ email })).unwrap();
+      console.log("Verification email resent successfully");
+    } catch (err) {
+      console.error("Failed to resend verification email:", err);
+    }
+  };
 
   const validatePassword = (password) => {
     // Kiểm tra mật khẩu có ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt
@@ -174,7 +187,7 @@ const Signup = () => {
         console.log("Registration successful");
 
         setShowVerificationMessage(true);
-        navigate("/auth/login?registered=success&verify=required");
+        // Không navigate ngay, để hiển thị countdown timer
       } catch (err) {
         console.error("Registration failed:", err);
       }
@@ -238,7 +251,7 @@ const Signup = () => {
         </Box>
       )}
 
-      {/* Hiển thị thông báo xác thực email */}
+      {/* Hiển thị thông báo xác thực email với countdown timer */}
       {showVerificationMessage && (
         <Box sx={{ width: "100%", mb: 4 }}>
           <Alert
@@ -255,30 +268,115 @@ const Signup = () => {
               },
             }}
           >
-            📧 Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi
-            đăng nhập.
+            <div className="w-full">
+              <div className="mb-3">
+                📧 Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng nhập.
+              </div>
+              
+              {/* Countdown Timer Component */}
+              <CountdownTimer
+                initialSeconds={60}
+                onResend={handleResendVerification}
+                isResendLoading={verificationStatus === "loading"}
+                showResendButton={true}
+              />
+              
+              {/* Success message for resend */}
+              {verificationStatus === "succeeded" && (
+                <div className="mt-2 text-sm text-green-600 font-medium">
+                  ✅ Email xác thực đã được gửi lại thành công!
+                </div>
+              )}
+            </div>
           </Alert>
         </Box>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Form đăng ký - ẩn khi hiển thị verification message */}
+      {!showVerificationMessage && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="group">
+              <label
+                htmlFor="fullName"
+                className="block text-sm font-semibold text-gray-700 mb-2"
+              >
+                👤 Họ và tên
+              </label>
+              <div className="relative">
+                <input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                  placeholder="Nguyễn Văn A"
+                  disabled={status === "loading"}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+                  <svg
+                    className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors duration-300"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="group">
+              <label
+                htmlFor="phone"
+                className="block text-sm font-semibold text-gray-700 mb-2"
+              >
+                📱 Số điện thoại
+              </label>
+              <div className="relative">
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                  placeholder="0901234567"
+                  disabled={status === "loading"}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+                  <svg
+                    className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors duration-300"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="group">
             <label
-              htmlFor="fullName"
+              htmlFor="email"
               className="block text-sm font-semibold text-gray-700 mb-2"
             >
-              👤 Họ và tên
+              📧 Email
             </label>
             <div className="relative">
               <input
-                id="fullName"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                placeholder="Nguyễn Văn A"
+                placeholder="your.email@example.com"
                 disabled={status === "loading"}
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-4">
@@ -287,309 +385,272 @@ const Signup = () => {
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                    clipRule="evenodd"
-                  />
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                 </svg>
               </div>
             </div>
           </div>
 
-          <div className="group">
-            <label
-              htmlFor="phone"
-              className="block text-sm font-semibold text-gray-700 mb-2"
-            >
-              📱 Số điện thoại
-            </label>
-            <div className="relative">
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                placeholder="0901234567"
-                disabled={status === "loading"}
-              />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-                <svg
-                  className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors duration-300"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="group">
+              <label
+                htmlFor="password"
+                className="block text-sm font-semibold text-gray-700 mb-2"
+              >
+                🔒 Mật khẩu
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                  placeholder="••••••••••••"
+                  disabled={status === "loading"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
+                  disabled={status === "loading"}
                 >
-                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                </svg>
+                  {showPassword ? (
+                    <FaEyeSlash className="w-5 h-5" />
+                  ) : (
+                    <FaEye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
+              
+              {/* Password validation checklist */}
+              {password && (
+                <div className="mt-3 space-y-2">
+                  <div className="text-xs font-medium text-gray-600 mb-2">Yêu cầu mật khẩu:</div>
+                  <div className="space-y-1">
+                    <div className={`flex items-center text-xs ${passwordValidation.length ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.length ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                        {passwordValidation.length ? '✓' : '○'}
+                      </span>
+                      Ít nhất 7 ký tự
+                    </div>
+                    <div className={`flex items-center text-xs ${passwordValidation.hasLetter ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasLetter ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                        {passwordValidation.hasLetter ? '✓' : '○'}
+                      </span>
+                      Có chữ cái
+                    </div>
+                    <div className={`flex items-center text-xs ${passwordValidation.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasNumber ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                        {passwordValidation.hasNumber ? '✓' : '○'}
+                      </span>
+                      Có số
+                    </div>
+                    <div className={`flex items-center text-xs ${passwordValidation.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
+                      <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasSpecial ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                        {passwordValidation.hasSpecial ? '✓' : '○'}
+                      </span>
+                      Có ký tự đặc biệt (@$!%*#?&)
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {!password && (
+                <p className="mt-2 text-xs text-gray-500 font-medium">
+                  💡 Ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt
+                </p>
+              )}
+            </div>
+
+            <div className="group">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-semibold text-gray-700 mb-2"
+              >
+                🔐 Xác nhận mật khẩu
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={handleConfirmPasswordChange}
+                  required
+                  className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                  placeholder="••••••••••••"
+                  disabled={status === "loading"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
+                  disabled={status === "loading"}
+                >
+                  {showConfirmPassword ? (
+                    <FaEyeSlash className="w-5 h-5" />
+                  ) : (
+                    <FaEye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              
+              {/* Confirm password validation */}
+              {confirmPassword && (
+                <div className="mt-3">
+                  <div className={`flex items-center text-xs ${confirmPasswordValidation.matches ? 'text-green-600' : 'text-red-500'}`}>
+                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${confirmPasswordValidation.matches ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                      {confirmPasswordValidation.matches ? '✓' : '✗'}
+                    </span>
+                    {confirmPasswordValidation.matches ? 'Mật khẩu khớp' : 'Mật khẩu không khớp'}
+                  </div>
+                </div>
+              )}
+              
+              {passwordError && (
+                <Box sx={{ width: "100%", mt: 1 }}>
+                  <Alert
+                    severity="warning"
+                    icon={<FaExclamationTriangle className="text-lg" />}
+                    sx={{
+                      py: 1,
+                      alignItems: "center",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {passwordError}
+                  </Alert>
+                </Box>
+              )}
             </div>
           </div>
-        </div>
 
-        <div className="group">
-          <label
-            htmlFor="email"
-            className="block text-sm font-semibold text-gray-700 mb-2"
-          >
-            📧 Email
-          </label>
-          <div className="relative">
+          <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-2xl border border-blue-200">
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="terms"
+              type="checkbox"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
               required
-              className="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-              placeholder="your.email@example.com"
+              className="h-5 w-5 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-300 mt-0.5"
               disabled={status === "loading"}
             />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-              <svg
-                className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors duration-300"
-                fill="currentColor"
-                viewBox="0 0 20 20"
+            <label htmlFor="terms" className="text-sm text-gray-700 font-medium">
+              📋 Tôi đồng ý với{" "}
+              <Link
+                to="/terms"
+                className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
               >
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="group">
-            <label
-              htmlFor="password"
-              className="block text-sm font-semibold text-gray-700 mb-2"
-            >
-              🔒 Mật khẩu
+                Điều khoản sử dụng
+              </Link>{" "}
+              và{" "}
+              <Link
+                to="/privacy"
+                className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
+              >
+                Chính sách bảo mật
+              </Link>
             </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={handlePasswordChange}
-                required
-                className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                placeholder="••••••••••••"
-                disabled={status === "loading"}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
-                disabled={status === "loading"}
-              >
-                {showPassword ? (
-                  <FaEyeSlash className="w-5 h-5" />
-                ) : (
-                  <FaEye className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-            
-            {/* Password validation checklist */}
-            {password && (
-              <div className="mt-3 space-y-2">
-                <div className="text-xs font-medium text-gray-600 mb-2">Yêu cầu mật khẩu:</div>
-                <div className="space-y-1">
-                  <div className={`flex items-center text-xs ${passwordValidation.length ? 'text-green-600' : 'text-gray-400'}`}>
-                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.length ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
-                      {passwordValidation.length ? '✓' : '○'}
-                    </span>
-                    Ít nhất 7 ký tự
-                  </div>
-                  <div className={`flex items-center text-xs ${passwordValidation.hasLetter ? 'text-green-600' : 'text-gray-400'}`}>
-                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasLetter ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
-                      {passwordValidation.hasLetter ? '✓' : '○'}
-                    </span>
-                    Có chữ cái
-                  </div>
-                  <div className={`flex items-center text-xs ${passwordValidation.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
-                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasNumber ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
-                      {passwordValidation.hasNumber ? '✓' : '○'}
-                    </span>
-                    Có số
-                  </div>
-                  <div className={`flex items-center text-xs ${passwordValidation.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
-                    <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordValidation.hasSpecial ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
-                      {passwordValidation.hasSpecial ? '✓' : '○'}
-                    </span>
-                    Có ký tự đặc biệt (@$!%*#?&)
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {!password && (
-              <p className="mt-2 text-xs text-gray-500 font-medium">
-                💡 Ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt
-              </p>
-            )}
           </div>
 
-          <div className="group">
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-semibold text-gray-700 mb-2"
-            >
-              🔐 Xác nhận mật khẩu
-            </label>
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={handleConfirmPasswordChange}
-                required
-                className="w-full px-4 py-4 pr-12 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                placeholder="••••••••••••"
-                disabled={status === "loading"}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
-                disabled={status === "loading"}
-              >
-                {showConfirmPassword ? (
-                  <FaEyeSlash className="w-5 h-5" />
-                ) : (
-                  <FaEye className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-            
-            {/* Confirm password validation */}
-            {confirmPassword && (
-              <div className="mt-3">
-                <div className={`flex items-center text-xs ${confirmPasswordValidation.matches ? 'text-green-600' : 'text-red-500'}`}>
-                  <span className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${confirmPasswordValidation.matches ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                    {confirmPasswordValidation.matches ? '✓' : '✗'}
-                  </span>
-                  {confirmPasswordValidation.matches ? 'Mật khẩu khớp' : 'Mật khẩu không khớp'}
-                </div>
-              </div>
-            )}
-            
-            {passwordError && (
-              <Box sx={{ width: "100%", mt: 1 }}>
-                <Alert
-                  severity="warning"
-                  icon={<FaExclamationTriangle className="text-lg" />}
-                  sx={{
-                    py: 1,
-                    alignItems: "center",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                >
-                  {passwordError}
-                </Alert>
-              </Box>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-2xl border border-blue-200">
-          <input
-            id="terms"
-            type="checkbox"
-            checked={agreeTerms}
-            onChange={(e) => setAgreeTerms(e.target.checked)}
-            required
-            className="h-5 w-5 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-300 mt-0.5"
-            disabled={status === "loading"}
-          />
-          <label htmlFor="terms" className="text-sm text-gray-700 font-medium">
-            📋 Tôi đồng ý với{" "}
-            <Link
-              to="/terms"
-              className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
-            >
-              Điều khoản sử dụng
-            </Link>{" "}
-            và{" "}
-            <Link
-              to="/privacy"
-              className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
-            >
-              Chính sách bảo mật
-            </Link>
-          </label>
-        </div>
-
-        <button
-          type="submit"
-          disabled={status === "loading" || verificationStatus === "loading"}
-          className={`group relative w-full py-4 px-6 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-2xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 overflow-hidden ${
-            status === "loading" || verificationStatus === "loading"
-              ? "opacity-70 cursor-not-allowed"
-              : "hover:from-green-700 hover:to-blue-700"
-          }`}
-        >
-          <span className="relative z-10 flex items-center justify-center">
-            {status === "loading" || verificationStatus === "loading" ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    className="opacity-25"
-                  ></circle>
-                  <path
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    className="opacity-75"
-                  ></path>
-                </svg>
-                Đang xử lý...
-              </>
-            ) : (
-              <>
-                Tạo tài khoản
-                <svg
-                  className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </>
-            )}
-          </span>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        </button>
-      </form>
-
-      <div className="mt-8 text-center">
-        <p className="text-gray-600 font-medium">
-          Đã có tài khoản?{" "}
-          <Link
-            to="/auth/login"
-            className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
+          <button
+            type="submit"
+            disabled={status === "loading" || verificationStatus === "loading"}
+            className={`group relative w-full py-4 px-6 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-2xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 overflow-hidden ${
+              status === "loading" || verificationStatus === "loading"
+                ? "opacity-70 cursor-not-allowed"
+                : "hover:from-green-700 hover:to-blue-700"
+            }`}
           >
-            Đăng nhập ngay
-          </Link>
-        </p>
-      </div>
+            <span className="relative z-10 flex items-center justify-center">
+              {status === "loading" || verificationStatus === "loading" ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      className="opacity-25"
+                    ></circle>
+                    <path
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      className="opacity-75"
+                    ></path>
+                  </svg>
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  Tạo tài khoản
+                  <svg
+                    className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </>
+              )}
+            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </button>
+        </form>
+      )}
 
-      
+      {/* Hiển thị nút chuyển đến trang đăng nhập khi đã đăng ký thành công */}
+      {showVerificationMessage && (
+        <div className="mt-8 text-center">
+          <p className="text-gray-600 font-medium mb-4">
+            Sau khi xác thực email, bạn có thể đăng nhập vào tài khoản
+          </p>
+          <Link
+            to={`/auth/login?verify=required&email=${encodeURIComponent(email)}`}
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
+          >
+            Đi đến trang đăng nhập
+            <svg
+              className="ml-2 w-5 h-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </Link>
+        </div>
+      )}
+
+      {/* Hiển thị link đăng nhập khi chưa đăng ký */}
+      {!showVerificationMessage && (
+        <div className="mt-8 text-center">
+          <p className="text-gray-600 font-medium">
+            Đã có tài khoản?{" "}
+            <Link
+              to="/auth/login"
+              className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
+            >
+              Đăng nhập ngay
+            </Link>
+          </p>
+        </div>
+      )}
     </PageTransition>
   );
 };
