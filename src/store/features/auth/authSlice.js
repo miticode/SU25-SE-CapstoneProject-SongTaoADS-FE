@@ -6,6 +6,7 @@ import {
   resendVerificationApi,
   getProfileApi,
   forgotPasswordApi, // Thêm import hàm mới
+  outboundAuthenticationApi, // Thêm import hàm outbound authentication
 } from "../../../api/authService";
 
 // Initial state
@@ -22,6 +23,8 @@ const initialState = {
   forgotPasswordStatus: "idle",
   forgotPasswordError: null,
   forgotPasswordMessage: null,
+  outboundAuthStatus: "idle", // Thêm trạng thái outbound authentication
+  outboundAuthError: null, // Thêm lỗi outbound authentication
 };
 
 // Async thunks
@@ -125,7 +128,7 @@ export const loginAndFetchProfile = createAsyncThunk(
         return rejectWithValue("Không thể lấy thông tin người dùng");
       }
 
-      console.log('Profile in loginAndFetchProfile:', profileResponse.data); // Debug log
+      console.log("Profile in loginAndFetchProfile:", profileResponse.data); // Debug log
 
       // Trả về dữ liệu hoàn chỉnh
       return {
@@ -186,9 +189,69 @@ export const forgotPassword = createAsyncThunk(
   async (email, { rejectWithValue }) => {
     const response = await forgotPasswordApi(email);
     if (!response.success) {
-      return rejectWithValue(response.error || "Gửi email đặt lại mật khẩu thất bại");
+      return rejectWithValue(
+        response.error || "Gửi email đặt lại mật khẩu thất bại"
+      );
     }
     return response;
+  }
+);
+
+// Thunk xác thực OAuth từ dịch vụ bên ngoài
+export const outboundAuthentication = createAsyncThunk(
+  "/api/auth/outbound/authentication",
+  async (code, { rejectWithValue }) => {
+    const response = await outboundAuthenticationApi(code);
+    if (!response.success) {
+      return rejectWithValue(
+        response.error || "Outbound authentication failed"
+      );
+    }
+    return response;
+  }
+);
+
+// Thunk để thực hiện outbound authentication và fetch profile
+export const outboundAuthenticationAndFetchProfile = createAsyncThunk(
+  "auth/outboundAuthenticationAndFetchProfile",
+  async (code, { rejectWithValue }) => {
+    try {
+      // Bước 1: Thực hiện outbound authentication
+      const authResponse = await outboundAuthenticationApi(code);
+
+      if (!authResponse.success) {
+        return rejectWithValue(
+          authResponse.error || "Outbound authentication failed"
+        );
+      }
+
+      // Lưu token ngay lập tức
+      if (authResponse.data.accessToken) {
+        localStorage.setItem("accessToken", authResponse.data.accessToken);
+      }
+
+      // Bước 2: Lấy thông tin profile
+      const profileResponse = await getProfileApi();
+
+      if (!profileResponse.success) {
+        return rejectWithValue("Không thể lấy thông tin người dùng");
+      }
+
+      console.log(
+        "Profile in outboundAuthenticationAndFetchProfile:",
+        profileResponse.data
+      );
+
+      // Trả về dữ liệu hoàn chỉnh
+      return {
+        user: profileResponse.data,
+        accessToken: authResponse.data.accessToken,
+        authResponse: authResponse,
+      };
+    } catch (error) {
+      console.error("Outbound authentication and fetch profile error:", error);
+      return rejectWithValue(error.message || "Có lỗi xảy ra khi đăng nhập");
+    }
   }
 );
 
@@ -209,6 +272,10 @@ const authSlice = createSlice({
       state.forgotPasswordStatus = "idle";
       state.forgotPasswordError = null;
       state.forgotPasswordMessage = null;
+    },
+    resetOutboundAuthStatus: (state) => {
+      state.outboundAuthStatus = "idle";
+      state.outboundAuthError = null;
     },
     syncAuthState: (state, action) => {
       const { isAuthenticated, user, accessToken } = action.payload;
@@ -303,7 +370,6 @@ const authSlice = createSlice({
         state.verificationError = action.payload;
       })
 
-
       // Forgot password cases
       .addCase(forgotPassword.pending, (state) => {
         state.forgotPasswordStatus = "loading";
@@ -320,6 +386,68 @@ const authSlice = createSlice({
         state.forgotPasswordError = action.payload;
         state.forgotPasswordMessage = null;
       })
+
+      // Outbound authentication cases
+      .addCase(outboundAuthentication.pending, (state) => {
+        state.outboundAuthStatus = "loading";
+        state.outboundAuthError = null;
+        state.status = "loading";
+      })
+      .addCase(outboundAuthentication.fulfilled, (state, action) => {
+        state.outboundAuthStatus = "succeeded";
+        state.status = "succeeded";
+        state.isAuthenticated = true;
+        state.accessToken = action.payload.data.accessToken;
+        state.tokenTimestamp = Date.now();
+        state.outboundAuthError = null;
+        state.error = null;
+        // User data sẽ được fetch riêng sau khi authentication thành công
+      })
+      .addCase(outboundAuthentication.rejected, (state, action) => {
+        state.outboundAuthStatus = "failed";
+        state.status = "failed";
+        state.isAuthenticated = false;
+        state.user = null;
+        state.accessToken = null;
+        state.tokenTimestamp = null;
+        state.outboundAuthError = action.payload;
+        state.error = action.payload;
+      })
+
+      // Outbound authentication and fetch profile
+      .addCase(outboundAuthenticationAndFetchProfile.pending, (state) => {
+        state.outboundAuthStatus = "loading";
+        state.status = "loading";
+        state.outboundAuthError = null;
+        state.error = null;
+      })
+      .addCase(
+        outboundAuthenticationAndFetchProfile.fulfilled,
+        (state, action) => {
+          state.outboundAuthStatus = "succeeded";
+          state.status = "succeeded";
+          state.isAuthenticated = true;
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken;
+          state.tokenTimestamp = Date.now();
+          state.outboundAuthError = null;
+          state.error = null;
+        }
+      )
+      .addCase(
+        outboundAuthenticationAndFetchProfile.rejected,
+        (state, action) => {
+          state.outboundAuthStatus = "failed";
+          state.status = "failed";
+          state.isAuthenticated = false;
+          state.user = null;
+          state.accessToken = null;
+          state.tokenTimestamp = null;
+          state.outboundAuthError = action.payload;
+          state.error = action.payload;
+          localStorage.removeItem("accessToken");
+        }
+      )
 
       // Fetch profile
       .addCase(fetchProfile.pending, (state) => {
@@ -386,17 +514,16 @@ const authSlice = createSlice({
   },
 });
 
-
-export const { 
-  resetAuthStatus, 
-  resetVerificationStatus, 
-  syncAuthState, 
-  setRefreshing, 
+export const {
+  resetAuthStatus,
+  resetVerificationStatus,
+  syncAuthState,
+  setRefreshing,
   resetForgotPasswordStatus,
+  resetOutboundAuthStatus,
   clearAuthError,
-  updateUserProfile
+  updateUserProfile,
 } = authSlice.actions;
-
 
 export default authSlice.reducer;
 // Selectors
@@ -404,11 +531,15 @@ export const selectAuthUser = (state) => state.auth.user;
 export const selectAuthStatus = (state) => state.auth.status;
 export const selectAuthError = (state) => state.auth.error;
 
-
 // Selector cho forgot password
-export const selectForgotPasswordStatus = (state) => state.auth.forgotPasswordStatus;
-export const selectForgotPasswordError = (state) => state.auth.forgotPasswordError;
-export const selectForgotPasswordMessage = (state) => state.auth.forgotPasswordMessage;
+export const selectForgotPasswordStatus = (state) =>
+  state.auth.forgotPasswordStatus;
+export const selectForgotPasswordError = (state) =>
+  state.auth.forgotPasswordError;
+export const selectForgotPasswordMessage = (state) =>
+  state.auth.forgotPasswordMessage;
 
-
-
+// Selector cho outbound authentication
+export const selectOutboundAuthStatus = (state) =>
+  state.auth.outboundAuthStatus;
+export const selectOutboundAuthError = (state) => state.auth.outboundAuthError;
