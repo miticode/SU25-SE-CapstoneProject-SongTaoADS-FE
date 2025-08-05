@@ -141,6 +141,11 @@ const TemplateBackgroundSelection = ({
         currentOrder?.id
       );
 
+      // 🎯 TRACK USER WORKFLOW: Set localStorage để track là background workflow
+      console.log("🎯 [WORKFLOW TRACKING] Setting background workflow context");
+      localStorage.setItem('lastUserAction', 'background-selection');
+      localStorage.setItem('workflowContext', 'background');
+
       try {
         // Lấy pixel values từ API
         console.log(
@@ -271,12 +276,18 @@ const TemplateBackgroundSelection = ({
           });
         }
 
+        // 🎯 TRACK USER WORKFLOW: Set localStorage và URL params để track là background workflow  
+        console.log("🎯 [WORKFLOW TRACKING] Setting background workflow context for navigation");
+        localStorage.setItem('lastUserAction', 'background-selection');
+        localStorage.setItem('workflowContext', 'background');
+        localStorage.setItem('lastActionStep', '5');
+
         // Chuyển thẳng đến case 7 (canvas editor)
         console.log(
           "🔵 [Background Selection] Navigating to canvas editor (step 7)"
         );
         setCurrentStep(7);
-        navigate("/ai-design?step=edit");
+        navigate("/ai-design?from=background&step=edit");
 
         setSnackbar({
           open: true,

@@ -500,9 +500,34 @@ const DesignEditor = ({
               setFabricCanvas(null);
             }
 
-            if (generatedImage) {
+            // 🎯 LOGIC THÔNG MINH: Xác định step quay lại theo workflow context
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromStep = urlParams.get('from');
+            const lastUserAction = localStorage.getItem('lastUserAction');
+            const workflowContext = localStorage.getItem('workflowContext');
+            
+            console.log("🔙 [BACK NAVIGATION] Determining back step:");
+            console.log("🔙 [BACK NAVIGATION] URL from:", fromStep);
+            console.log("🔙 [BACK NAVIGATION] localStorage lastUserAction:", lastUserAction);
+            console.log("🔙 [BACK NAVIGATION] localStorage workflowContext:", workflowContext);
+            console.log("🔙 [BACK NAVIGATION] Has generatedImage:", !!generatedImage);
+            console.log("🔙 [BACK NAVIGATION] Has selectedBackgroundForCanvas:", !!selectedBackgroundForCanvas);
+
+            if (fromStep === 'background' || workflowContext === 'background' || lastUserAction === 'background-selection') {
+              // Người dùng đến từ background workflow → quay về case 5 (background selection)
+              console.log("🔙 [BACK NAVIGATION] Going back to case 5 (background selection)");
+              setCurrentStep(5);
+            } else if (fromStep === 'ai' || workflowContext === 'ai' || lastUserAction?.includes('ai')) {
+              // Người dùng đến từ AI workflow → quay về case 6 (AI preview)
+              console.log("🔙 [BACK NAVIGATION] Going back to case 6 (AI preview)");
+              setCurrentStep(6);
+            } else if (generatedImage) {
+              // Fallback: Nếu có generatedImage thì về case 6
+              console.log("🔙 [BACK NAVIGATION] Fallback to case 6 (has generatedImage)");
               setCurrentStep(6);
             } else {
+              // Fallback cuối: về case 5
+              console.log("🔙 [BACK NAVIGATION] Final fallback to case 5");
               setCurrentStep(5);
             }
           }}

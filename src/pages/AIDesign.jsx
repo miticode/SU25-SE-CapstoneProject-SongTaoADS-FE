@@ -4880,11 +4880,6 @@ const AIDesign = () => {
     }
   };
 
-  const handleRegenerate = () => {
-    setCurrentStep(3); // Quay lại bước chọn loại biển hiệu
-    navigate("/ai-design?step=billboard");
-  };
-
   const handleConfirm = async () => {
     console.log("AIDesign - handleConfirm được gọi");
     console.log("AIDesign - editedDesign data:", editedDesign);
@@ -5771,7 +5766,6 @@ const AIDesign = () => {
             progressCheckError={progressCheckError}
             isPollingProgress={isPollingProgress}
             setSelectedImage={setSelectedImage}
-            handleRegenerate={handleRegenerate}
             setSnackbar={setSnackbar}
             setCurrentStep={setCurrentStep}
             setIsConfirming={setIsConfirming}
@@ -5874,38 +5868,7 @@ const AIDesign = () => {
             </p>
           </div>
 
-          {/* Live Preview Section - Enhanced */}
-          {(() => {
-            console.log("🔍 Debug Live Preview:");
-            console.log("   - showingLivePreview:", showingLivePreview);
-            console.log(
-              "   - stableDiffusionProgress:",
-              stableDiffusionProgress
-            );
-            console.log(
-              "   - has live_preview:",
-              !!stableDiffusionProgress?.live_preview
-            );
-            console.log(
-              "   - live_preview length:",
-              stableDiffusionProgress?.live_preview?.length
-            );
-            if (stableDiffusionProgress?.live_preview) {
-              console.log(
-                "   - live_preview first 50 chars:",
-                stableDiffusionProgress.live_preview.substring(0, 50)
-              );
-              console.log(
-                "   - live_preview starts with /9j (JPEG):",
-                stableDiffusionProgress.live_preview.startsWith("/9j")
-              );
-              console.log(
-                "   - live_preview starts with iVBORw0KGgo (PNG):",
-                stableDiffusionProgress.live_preview.startsWith("iVBORw0KGgo")
-              );
-            }
-            return null;
-          })()}
+       
 
           {/* Hiển thị tiến độ chi tiết - Cả khi có và không có live preview (không hiển thị ở step 6) */}
           {(stableDiffusionProgress?.progress !== undefined ||
