@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import {
   FaCheck,
-  FaRedo,
+  FaArrowLeft,
   FaRobot
 } from "react-icons/fa";
 
@@ -21,7 +21,6 @@ const DesignPreview = ({
   progressCheckError,
   isPollingProgress,
   setSelectedImage,
-  handleRegenerate,
   setSnackbar,
   setCurrentStep,
   setIsConfirming,
@@ -79,6 +78,11 @@ const DesignPreview = ({
 
   const imageSize = getImageDisplaySize();
 
+  const handleGoBack = () => {
+    setCurrentStep(5); // Quay lại step 5 (chọn mẫu thiết kế)
+    navigate("/ai-design");
+  };
+
   const handleConfirmDesign = () => {
     if (!generatedImage) {
       setSnackbar({
@@ -94,9 +98,15 @@ const DesignPreview = ({
 
     // Use setTimeout to simulate processing time
     setTimeout(() => {
+      // 🎯 TRACK USER WORKFLOW: Set localStorage và URL params khi confirm AI design
+      console.log("🎯 [WORKFLOW TRACKING] User confirmed AI design, navigating to editor");
+      localStorage.setItem('lastUserAction', 'ai-confirmed');
+      localStorage.setItem('workflowContext', 'ai');
+      localStorage.setItem('lastActionStep', '6');
+      
       setCurrentStep(7);
       setIsConfirming(false);
-      navigate("/ai-design?step=confirm");
+      navigate("/ai-design?from=ai&step=confirm");
     }, 1000);
   };
 
@@ -569,11 +579,11 @@ const DesignPreview = ({
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={handleRegenerate}
+          onClick={handleGoBack}
           className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center"
         >
-          <FaRedo className="mr-2" />
-          Tạo lại
+          <FaArrowLeft className="mr-2" />
+          Quay lại
         </motion.button>
 
         <motion.button
