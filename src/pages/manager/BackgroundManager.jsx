@@ -34,6 +34,7 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   Image as ImageIcon,
+  Clear as ClearIcon,
 } from "@mui/icons-material";
 import {
   fetchBackgroundsByAttributeValueId,
@@ -49,13 +50,25 @@ import {
   clearSelectedBackground,
   fetchAllBackgrounds,
 } from "../../store/features/background/backgroundSlice";
-import { getAttributeValuesByAttributeId } from "../../store/features/attribute/attributeValueSlice";
-import { fetchAttributesByProductTypeId } from "../../store/features/attribute/attributeSlice";
-import { fetchProductTypes } from "../../store/features/productType/productTypeSlice";
 import {
   fetchImageFromS3,
   selectS3Image,
 } from "../../store/features/s3/s3Slice";
+import {
+  fetchProductTypes,
+  selectAllProductTypes,
+  selectProductTypeStatus,
+} from "../../store/features/productType/productTypeSlice";
+import {
+  fetchAttributesByProductTypeId,
+  selectAllAttributes,
+  selectAttributeStatus,
+  clearAttributes,
+} from "../../store/features/attribute/attributeSlice";
+import {
+  getAttributeValuesByAttributeId,
+  resetAttributeValue,
+} from "../../store/features/attribute/attributeValueSlice";
 
 // Trang quản lý Nền (Background) cho Manager
 const BackgroundManager = () => {
@@ -66,13 +79,31 @@ const BackgroundManager = () => {
   const backgroundError = useSelector(selectBackgroundError);
   const selectedBackground = useSelector(selectSelectedBackground);
 
-  // State filter
-  const [productTypes, setProductTypes] = useState([]); // Danh sách product type
-  const [selectedProductType, setSelectedProductType] = useState("");
-  const [attributes, setAttributes] = useState([]); // Danh sách thuộc tính
-  const [selectedAttribute, setSelectedAttribute] = useState("");
-  const [attributeValues, setAttributeValues] = useState([]); // Danh sách giá trị thuộc tính
-  const [selectedAttributeValue, setSelectedAttributeValue] = useState("");
+  // State filter - cascade filter cho user experience tốt hơn
+  const [filterProductType, setFilterProductType] = useState("");
+  const [filterAttribute, setFilterAttribute] = useState("");
+  const [filterAttributeValue, setFilterAttributeValue] = useState("");
+  
+  // State cho filter attributes
+  const [filterAttributes, setFilterAttributes] = useState([]);
+  const [filterAttributeValues, setFilterAttributeValues] = useState([]);
+  const [isLoadingFilterAttributes, setIsLoadingFilterAttributes] = useState(false);
+  const [isLoadingFilterAttributeValues, setIsLoadingFilterAttributeValues] = useState(false);
+
+  // State cho product types trong form
+  const allProductTypes = useSelector(selectAllProductTypes) || [];
+  const productTypeStatus = useSelector(selectProductTypeStatus);
+  
+  // Filter chỉ lấy product types có isAiGenerated = false
+  const productTypes = allProductTypes.filter(pt => pt.isAiGenerated === false);
+
+  // State cho attributes trong form
+  const attributes = useSelector(selectAllAttributes) || [];
+  const attributeStatus = useSelector(selectAttributeStatus);
+
+  // State cho attribute values trong form
+  const attributeValues = useSelector((state) => state.attributeValue.attributeValues) || [];
+  const attributeValueStatus = useSelector((state) => state.attributeValue.isLoading);
 
   // Modal/Form state
   const [openForm, setOpenForm] = useState(false);
@@ -81,6 +112,8 @@ const BackgroundManager = () => {
     name: "",
     description: "",
     attributeValueId: "",
+    productTypeId: "", // Thêm productTypeId
+    attributeId: "", // Thêm attributeId
     backgroundImage: null,
     isAvailable: true,
     id: undefined,
@@ -105,7 +138,7 @@ const BackgroundManager = () => {
       if (background?.backgroundUrl && !s3Image) {
         dispatch(fetchImageFromS3(background.backgroundUrl));
       }
-    }, [background?.backgroundUrl, s3Image, dispatch]);
+    }, [background?.backgroundUrl, s3Image]);
 
     const isSmall = size === "small";
 
@@ -167,96 +200,152 @@ const BackgroundManager = () => {
     );
   };
 
-  // Lấy danh sách product type khi mount
+  // Lấy tất cả backgrounds khi component mount
   useEffect(() => {
-    dispatch(fetchProductTypes()).then((res) => {
-      if (res.payload && res.payload.data && Array.isArray(res.payload.data)) {
-        setProductTypes(res.payload.data);
-      }
-    });
+    const initializeData = async () => {
+      // Lấy product types
+      dispatch(fetchProductTypes({ page: 1, size: 100 })); // Lấy nhiều product types
+      
+      // Tự động hiển thị tất cả backgrounds khi vào trang
+      setShowAll(true);
+      setFilterProductType("");
+      setFilterAttribute("");
+      setFilterAttributeValue("");
+      setFilterAttributes([]);
+      setFilterAttributeValues([]);
+      setPagination({ page: 0, rowsPerPage: 10 });
+      const backgroundsRes = await dispatch(fetchAllBackgrounds());
+      if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+    };
+    
+    initializeData();
   }, [dispatch]);
 
-  // Lấy danh sách thuộc tính khi chọn product type
+  // Lấy danh sách background khi chọn attribute value
   useEffect(() => {
-    if (selectedProductType) {
-      dispatch(fetchAttributesByProductTypeId(selectedProductType)).then(
-        (res) => {
-          if (res.payload && Array.isArray(res.payload)) {
-            setAttributes(res.payload);
-          } else {
-            setAttributes([]);
-          }
-          setSelectedAttribute("");
-          setAttributeValues([]);
-          setSelectedAttributeValue("");
-        }
-      );
-    } else {
-      setAttributes([]);
-      setSelectedAttribute("");
-      setAttributeValues([]);
-      setSelectedAttributeValue("");
+    if (filterAttributeValue) {
+      dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
     }
-  }, [dispatch, selectedProductType]);
-
-  // Lấy danh sách giá trị thuộc tính khi chọn attribute
-  useEffect(() => {
-    if (selectedAttribute) {
-      dispatch(
-        getAttributeValuesByAttributeId({
-          attributeId: selectedAttribute,
-          page: 1,
-          size: 50,
-        })
-      ).then((res) => {
-        if (
-          res.payload &&
-          res.payload.attributeValues &&
-          Array.isArray(res.payload.attributeValues)
-        ) {
-          setAttributeValues(res.payload.attributeValues);
-        } else {
-          setAttributeValues([]);
-        }
-        setSelectedAttributeValue("");
-      });
-    } else {
-      setAttributeValues([]);
-      setSelectedAttributeValue("");
-    }
-  }, [dispatch, selectedAttribute]);
-
-  // Lấy danh sách background khi chọn đủ 3 cấp
-  useEffect(() => {
-    if (selectedAttributeValue) {
-      dispatch(fetchBackgroundsByAttributeValueId(selectedAttributeValue));
-    }
-  }, [dispatch, selectedAttributeValue]);
+  }, [dispatch, filterAttributeValue]);
 
   // Hàm xử lý khi bấm nút TẤT CẢ
   const handleShowAll = async () => {
     setShowAll(true);
-    setSelectedProductType("");
-    setSelectedAttribute("");
-    setSelectedAttributeValue("");
+    setFilterAttributeValue("");
+    setFilterAttribute("");
+    setFilterProductType("");
+    setFilterAttributes([]);
+    setFilterAttributeValues([]);
+    setIsLoadingFilterAttributes(false);
+    setIsLoadingFilterAttributeValues(false);
     setPagination({ page: 0, rowsPerPage: 10 });
     const res = await dispatch(fetchAllBackgrounds());
     if (res.payload) setAllBackgrounds(res.payload);
   };
 
-  // Khi chọn filter lại thì tắt chế độ tất cả
-  const handleProductTypeChange = (e) => {
-    setShowAll(false);
-    setSelectedProductType(e.target.value);
+  // Hàm xử lý khi product type thay đổi
+  const handleProductTypeChange = (productTypeId) => {
+    setFormData({
+      ...formData,
+      productTypeId,
+      attributeId: "", // Reset attribute khi đổi product type
+      attributeValueId: "", // Reset attribute value khi đổi product type
+    });
+    
+    // Clear attributes cũ và fetch attributes mới
+    dispatch(clearAttributes());
+    dispatch(resetAttributeValue()); // Reset attribute values
+    if (productTypeId) {
+      dispatch(fetchAttributesByProductTypeId(productTypeId));
+    }
   };
-  const handleAttributeChange = (e) => {
-    setShowAll(false);
-    setSelectedAttribute(e.target.value);
+
+  // Hàm xử lý khi attribute thay đổi
+  const handleAttributeChange = (attributeId) => {
+    setFormData({
+      ...formData,
+      attributeId,
+      attributeValueId: "", // Reset attribute value khi đổi attribute
+    });
+    
+    // Reset và fetch attribute values mới
+    dispatch(resetAttributeValue());
+    if (attributeId) {
+      dispatch(getAttributeValuesByAttributeId({ 
+        attributeId, 
+        page: 1, 
+        size: 100 
+      }));
+    }
   };
+
+  // Hàm xử lý cascade filter cho product type
+  const handleFilterProductTypeChange = async (productTypeId) => {
+    setFilterProductType(productTypeId);
+    setFilterAttribute("");
+    setFilterAttributeValue("");
+    setFilterAttributes([]);
+    setFilterAttributeValues([]);
+    setShowAll(false);
+    
+    if (productTypeId) {
+      setIsLoadingFilterAttributes(true);
+      try {
+        // Fetch attributes cho product type được chọn
+        const attributesRes = await dispatch(fetchAttributesByProductTypeId(productTypeId));
+        if (attributesRes.payload) {
+          setFilterAttributes(attributesRes.payload);
+        }
+      } catch (error) {
+        console.error('Error fetching attributes:', error);
+      } finally {
+        setIsLoadingFilterAttributes(false);
+      }
+    }
+  };
+
+  // Hàm xử lý cascade filter cho attribute
+  const handleFilterAttributeChange = async (attributeId) => {
+    setFilterAttribute(attributeId);
+    setFilterAttributeValue("");
+    setFilterAttributeValues([]);
+    setShowAll(false);
+    
+    if (attributeId) {
+      setIsLoadingFilterAttributeValues(true);
+      try {
+        // Fetch attribute values cho attribute được chọn
+        const attributeValuesRes = await dispatch(getAttributeValuesByAttributeId({ 
+          attributeId, 
+          page: 1, 
+          size: 100 
+        }));
+        
+        if (attributeValuesRes.payload?.attributeValues) {
+          setFilterAttributeValues(attributeValuesRes.payload.attributeValues);
+        } else if (attributeValuesRes.payload && Array.isArray(attributeValuesRes.payload)) {
+          // Fallback nếu cấu trúc khác
+          setFilterAttributeValues(attributeValuesRes.payload);
+        }
+      } catch (error) {
+        console.error('Error fetching attribute values:', error);
+      } finally {
+        setIsLoadingFilterAttributeValues(false);
+      }
+    }
+  };
+
+  // Khi chọn attribute value thì tắt chế độ tất cả
   const handleAttributeValueChange = (e) => {
+    const selectedValue = e.target.value;
     setShowAll(false);
-    setSelectedAttributeValue(e.target.value);
+    setFilterAttributeValue(selectedValue);
     setPagination({ ...pagination, page: 0 });
+    
+    // Tự động fetch backgrounds theo attribute value được chọn
+    if (selectedValue) {
+      dispatch(fetchBackgroundsByAttributeValueId(selectedValue));
+    }
   };
 
   // Mở modal tạo mới
@@ -266,26 +355,51 @@ const BackgroundManager = () => {
       name: "",
       description: "",
       attributeValueId: "",
+      productTypeId: "", // Reset productTypeId
+      attributeId: "", // Reset attributeId
       backgroundImage: null,
       isAvailable: true,
       id: undefined,
     });
     setImageFile(null);
     setFormError("");
+    dispatch(clearAttributes()); // Clear attributes khi mở form mới
+    dispatch(resetAttributeValue()); // Reset attribute values
     setOpenForm(true);
   };
   // Mở modal sửa
   const handleOpenEdit = (bg) => {
     setFormMode("edit");
+    const productTypeId = bg.attributeValues?.productTypeId || "";
     setFormData({
       name: bg.name,
       description: bg.description,
       attributeValueId: bg.attributeValues?.id || "",
+      productTypeId: productTypeId, // Lấy productTypeId từ attributeValues
+      attributeId: bg.attributeValues?.attributeId || "", // Thêm attributeId
       isAvailable: bg.isAvailable,
       id: bg.id,
     });
     setImageFile(null);
     setFormError("");
+    
+    // Load attributes cho product type này khi edit
+    dispatch(clearAttributes());
+    dispatch(resetAttributeValue()); // Reset attribute values
+    if (productTypeId) {
+      dispatch(fetchAttributesByProductTypeId(productTypeId));
+    }
+    
+    // Load attribute values nếu có attributeId
+    const attributeId = bg.attributeValues?.attributes?.id;
+    if (attributeId) {
+      dispatch(getAttributeValuesByAttributeId({ 
+        attributeId, 
+        page: 1, 
+        size: 100 
+      }));
+    }
+    
     setOpenForm(true);
   };
   // Mở modal chi tiết
@@ -315,8 +429,8 @@ const BackgroundManager = () => {
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     setFormError("");
-    if (!formData.name || !formData.attributeValueId) {
-      setFormError("Vui lòng nhập tên và chọn giá trị thuộc tính.");
+    if (!formData.name || !formData.productTypeId || !formData.attributeId || !formData.attributeValueId) {
+      setFormError("Vui lòng nhập tên và chọn đầy đủ loại sản phẩm, thuộc tính, giá trị thuộc tính.");
       return;
     }
     if (formMode === "create") {
@@ -331,8 +445,20 @@ const BackgroundManager = () => {
       );
       if (res.meta.requestStatus === "fulfilled") {
         setOpenForm(false);
-        if (selectedAttributeValue) {
-          dispatch(fetchBackgroundsByAttributeValueId(selectedAttributeValue));
+        // Tự động làm mới danh sách backgrounds để hiển thị background mới
+        if (showAll) {
+          // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
+          const backgroundsRes = await dispatch(fetchAllBackgrounds());
+          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+        } else if (filterAttributeValue) {
+          // Nếu có filter theo attribute value, refresh theo filter đó
+          dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+        } else {
+          // Mặc định chuyển về chế độ hiển thị tất cả và refresh
+          setShowAll(true);
+          setFilterAttributeValue("");
+          const backgroundsRes = await dispatch(fetchAllBackgrounds());
+          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
         }
       } else {
         setFormError(res.payload || "Tạo nền thất bại");
@@ -357,8 +483,20 @@ const BackgroundManager = () => {
           );
         }
         setOpenForm(false);
-        if (selectedAttributeValue) {
-          dispatch(fetchBackgroundsByAttributeValueId(selectedAttributeValue));
+        // Tự động làm mới danh sách backgrounds sau khi cập nhật
+        if (showAll) {
+          // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
+          const backgroundsRes = await dispatch(fetchAllBackgrounds());
+          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+        } else if (filterAttributeValue) {
+          // Nếu có filter theo attribute value, refresh theo filter đó
+          dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+        } else {
+          // Mặc định chuyển về chế độ hiển thị tất cả và refresh
+          setShowAll(true);
+          setFilterAttributeValue("");
+          const backgroundsRes = await dispatch(fetchAllBackgrounds());
+          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
         }
       } else {
         setFormError(res.payload || "Cập nhật thất bại");
@@ -369,8 +507,22 @@ const BackgroundManager = () => {
   const handleDelete = async () => {
     setOpenDelete(false);
     const res = await dispatch(deleteBackgroundById(formData.id));
-    if (res.meta.requestStatus === "fulfilled" && selectedAttributeValue) {
-      dispatch(fetchBackgroundsByAttributeValueId(selectedAttributeValue));
+    if (res.meta.requestStatus === "fulfilled") {
+      // Tự động làm mới danh sách backgrounds sau khi xóa
+      if (showAll) {
+        // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
+        const backgroundsRes = await dispatch(fetchAllBackgrounds());
+        if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+      } else if (filterAttributeValue) {
+        // Nếu có filter theo attribute value, refresh theo filter đó
+        dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+      } else {
+        // Mặc định chuyển về chế độ hiển thị tất cả và refresh
+        setShowAll(true);
+        setFilterAttributeValue("");
+        const backgroundsRes = await dispatch(fetchAllBackgrounds());
+        if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+      }
     }
   };
   // Xử lý upload ảnh
@@ -380,22 +532,12 @@ const BackgroundManager = () => {
     }
   };
 
-  // Tính toán backgrounds hiển thị
+  // Tính toán backgrounds hiển thị - chỉ filter theo attribute value
   const filteredBackgrounds = showAll
     ? allBackgrounds.filter((bg) => {
         if (
-          selectedProductType &&
-          bg.attributeValues?.productTypeId !== selectedProductType
-        )
-          return false;
-        if (
-          selectedAttribute &&
-          bg.attributeValues?.attributeId !== selectedAttribute
-        )
-          return false;
-        if (
-          selectedAttributeValue &&
-          bg.attributeValues?.id !== selectedAttributeValue
+          filterAttributeValue &&
+          bg.attributeValues?.id !== filterAttributeValue
         )
           return false;
         return true;
@@ -409,81 +551,188 @@ const BackgroundManager = () => {
         <Typography variant="h4" fontWeight="bold">
           Quản lý Nền Mẫu
         </Typography>
-        {/* Filter 3 cấp + nút TẤT CẢ */}
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Button
-            variant={showAll ? "contained" : "outlined"}
-            color="secondary"
-            onClick={handleShowAll}
-            sx={{ height: 56 }}
+        {/* Filter thân thiện với người dùng - cascade selection */}
+        <Box>
+          <Stack 
+            direction={{ xs: "column", sm: "row" }} 
+            spacing={2} 
+            alignItems={{ xs: "stretch", sm: "center" }} 
+            flexWrap="wrap"
           >
-            TẤT CẢ
-          </Button>
-          <FormControl
-            sx={{ minWidth: 180 }}
-            disabled={productTypes.length === 0}
-          >
-            <InputLabel>Loại sản phẩm</InputLabel>
-            <Select
-              value={selectedProductType}
-              label="Loại sản phẩm"
-              onChange={handleProductTypeChange}
+            <Button
+              variant={showAll ? "contained" : "outlined"}
+              color="secondary"
+              onClick={handleShowAll}
+              sx={{ 
+                height: 56, 
+                minWidth: { xs: "100%", sm: 100 },
+                maxWidth: { xs: "100%", sm: "auto" }
+              }}
             >
-              <MenuItem value="">Chọn loại sản phẩm</MenuItem>
-              {productTypes.map((pt) => (
-                <MenuItem key={pt.id} value={pt.id}>
-                  {pt.name}
+              TẤT CẢ
+            </Button>
+            
+            <FormControl sx={{ minWidth: { xs: "100%", sm: 200 } }}>
+              <InputLabel>Loại sản phẩm</InputLabel>
+              <Select
+                value={filterProductType}
+                label="Loại sản phẩm"
+                onChange={(e) => handleFilterProductTypeChange(e.target.value)}
+                disabled={productTypes.length === 0 || productTypeStatus === 'loading'}
+              >
+                <MenuItem value="">
+                  <em>
+                    {productTypeStatus === 'loading' 
+                      ? "Đang tải..." 
+                      : "Chọn loại sản phẩm"
+                    }
+                  </em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl
-            sx={{ minWidth: 180 }}
-            disabled={attributes.length === 0}
-          >
-            <InputLabel>Thuộc tính</InputLabel>
-            <Select
-              value={selectedAttribute}
-              label="Thuộc tính"
-              onChange={handleAttributeChange}
+                {productTypes.map((pt) => (
+                  <MenuItem key={pt.id} value={pt.id}>
+                    {pt.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl sx={{ minWidth: { xs: "100%", sm: 180 } }}>
+              <InputLabel>Thuộc tính</InputLabel>
+              <Select
+                value={filterAttribute}
+                label="Thuộc tính"
+                onChange={(e) => handleFilterAttributeChange(e.target.value)}
+                disabled={!filterProductType || filterAttributes.length === 0 || isLoadingFilterAttributes}
+              >
+                <MenuItem value="">
+                  <em>
+                    {!filterProductType 
+                      ? "Chọn loại sản phẩm trước" 
+                      : isLoadingFilterAttributes
+                        ? "Đang tải..."
+                        : filterAttributes.length === 0 
+                          ? "Không có thuộc tính"
+                          : "Chọn thuộc tính"
+                    }
+                  </em>
+                </MenuItem>
+                {filterAttributes.map((attr) => (
+                  <MenuItem key={attr.id} value={attr.id}>
+                    {attr.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl sx={{ minWidth: { xs: "100%", sm: 200 } }}>
+              <InputLabel>Giá trị thuộc tính</InputLabel>
+              <Select
+                value={filterAttributeValue}
+                label="Giá trị thuộc tính"
+                onChange={handleAttributeValueChange}
+                disabled={!filterAttribute || filterAttributeValues.length === 0 || isLoadingFilterAttributeValues}
+              >
+                <MenuItem value="">
+                  <em>
+                    {!filterAttribute 
+                      ? "Chọn thuộc tính trước" 
+                      : isLoadingFilterAttributeValues
+                        ? "Đang tải..."
+                        : filterAttributeValues.length === 0 
+                          ? "Không có giá trị"
+                          : "Chọn giá trị thuộc tính"
+                    }
+                  </em>
+                </MenuItem>
+                {filterAttributeValues.map((attrValue) => (
+                  <MenuItem key={attrValue.id} value={attrValue.id}>
+                    {attrValue.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Nút Clear Filter nếu có filter được áp dụng */}
+            {(filterProductType || filterAttribute || filterAttributeValue) && (
+              <Tooltip title="Xóa bộ lọc">
+                <IconButton 
+                  color="secondary" 
+                  onClick={handleShowAll}
+                  sx={{ 
+                    bgcolor: 'grey.100',
+                    '&:hover': { bgcolor: 'grey.200' },
+                    alignSelf: { xs: "center", sm: "auto" }
+                  }}
+                >
+                  <ClearIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        </Box>
+
+        {/* Hiển thị thông tin số lượng kết quả và breadcrumb filter */}
+        <Box display="flex" flexDirection="column" gap={1}>
+          {/* Breadcrumb hiển thị path filter hiện tại */}
+          {(filterProductType || filterAttribute || filterAttributeValue) && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Đang lọc: 
+                {filterProductType && (
+                  <Chip 
+                    label={productTypes.find(pt => pt.id === filterProductType)?.name || ''} 
+                    size="small" 
+                    sx={{ ml: 1, mr: 0.5 }}
+                    color="primary"
+                    variant="outlined"
+                  />
+                )}
+                {filterAttribute && (
+                  <>
+                    <span style={{ margin: '0 4px' }}>→</span>
+                    <Chip 
+                      label={filterAttributes.find(attr => attr.id === filterAttribute)?.name || ''} 
+                      size="small" 
+                      sx={{ mr: 0.5 }}
+                      color="secondary"
+                      variant="outlined"
+                    />
+                  </>
+                )}
+                {filterAttributeValue && (
+                  <>
+                    <span style={{ margin: '0 4px' }}>→</span>
+                    <Chip 
+                      label={filterAttributeValues.find(av => av.id === filterAttributeValue)?.name || ''} 
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                    />
+                  </>
+                )}
+              </Typography>
+            </Box>
+          )}
+          
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              {showAll 
+                ? `Hiển thị tất cả: ${filteredBackgrounds.length} nền mẫu`
+                : filterAttributeValue
+                  ? `Kết quả tìm kiếm: ${filteredBackgrounds.length} nền mẫu`
+                  : `${filteredBackgrounds.length} nền mẫu`
+              }
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleOpenCreate}
+              disabled={!filterAttributeValue && !showAll}
             >
-              <MenuItem value="">Chọn thuộc tính</MenuItem>
-              {attributes.map((attr) => (
-                <MenuItem key={attr.id} value={attr.id}>
-                  {attr.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl
-            sx={{ minWidth: 180 }}
-            disabled={attributeValues.length === 0}
-          >
-            <InputLabel>Giá trị thuộc tính</InputLabel>
-            <Select
-              value={selectedAttributeValue}
-              label="Giá trị thuộc tính"
-              onChange={handleAttributeValueChange}
-            >
-              <MenuItem value="">Chọn giá trị thuộc tính</MenuItem>
-              {attributeValues.map((av) => (
-                <MenuItem key={av.id} value={av.id}>
-                  {av.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-        <Box textAlign="right">
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleOpenCreate}
-            disabled={!selectedAttributeValue && !showAll}
-          >
-            Tạo mới
-          </Button>
+              Tạo mới
+            </Button>
+          </Box>
         </Box>
       </Box>
       {backgroundStatus === "loading" ? (
@@ -664,7 +913,58 @@ const BackgroundManager = () => {
             <FormControl
               fullWidth
               margin="normal"
-              disabled={attributeValues.length === 0}
+              disabled={productTypes.length === 0 || productTypeStatus === 'loading'}
+            >
+              <InputLabel>Loại sản phẩm</InputLabel>
+              <Select
+                value={formData.productTypeId}
+                label="Loại sản phẩm"
+                onChange={(e) => handleProductTypeChange(e.target.value)}
+                required
+              >
+                <MenuItem value="">
+                  {productTypeStatus === 'loading' ? "Đang tải..." : "Chọn loại sản phẩm"}
+                </MenuItem>
+                {productTypes.map((pt) => (
+                  <MenuItem key={pt.id} value={pt.id}>
+                    {pt.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl
+              fullWidth
+              margin="normal"
+              disabled={!formData.productTypeId || attributes.length === 0}
+            >
+              <InputLabel>Thuộc tính</InputLabel>
+              <Select
+                value={formData.attributeId}
+                label="Thuộc tính"
+                onChange={(e) => handleAttributeChange(e.target.value)}
+                required
+              >
+                <MenuItem value="">
+                  {!formData.productTypeId 
+                    ? "Chọn loại sản phẩm trước" 
+                    : attributeStatus === 'loading' 
+                      ? "Đang tải..."
+                      : attributes.length === 0 
+                        ? "Không có thuộc tính" 
+                        : "Chọn thuộc tính"
+                  }
+                </MenuItem>
+                {attributes.map((attr) => (
+                  <MenuItem key={attr.id} value={attr.id}>
+                    {attr.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl
+              fullWidth
+              margin="normal"
+              disabled={!formData.attributeId || attributeValues.length === 0}
             >
               <InputLabel>Giá trị thuộc tính</InputLabel>
               <Select
@@ -675,10 +975,19 @@ const BackgroundManager = () => {
                 }
                 required
               >
-                <MenuItem value="">Chọn giá trị thuộc tính</MenuItem>
-                {attributeValues.map((av) => (
-                  <MenuItem key={av.id} value={av.id}>
-                    {av.name}
+                <MenuItem value="">
+                  {!formData.attributeId 
+                    ? "Chọn thuộc tính trước" 
+                    : attributeValueStatus 
+                      ? "Đang tải..."
+                      : attributeValues.length === 0 
+                        ? "Không có giá trị thuộc tính" 
+                        : "Chọn giá trị thuộc tính"
+                  }
+                </MenuItem>
+                {attributeValues.map((attrValue) => (
+                  <MenuItem key={attrValue.id} value={attrValue.id}>
+                    {attrValue.name}
                   </MenuItem>
                 ))}
               </Select>
