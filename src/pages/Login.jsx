@@ -4,8 +4,10 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   loginAndFetchProfile,
   resetAuthStatus,
+  sendVerificationEmail,
 } from "../store/features/auth/authSlice";
 import PageTransition from "../components/PageTransition";
+import CountdownTimer from "../components/CountdownTimer";
 import { notifyLoginSuccess } from "../App"; // Import hàm thông báo
 
 // MUI Components
@@ -13,6 +15,7 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
+import Button from "@mui/material/Button";
 import {
   FaCheckCircle,
   FaExclamationCircle,
@@ -20,6 +23,7 @@ import {
   FaEye,
   FaEyeSlash,
   FaArrowLeft,
+  FaRedo,
 } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { getDefaultRedirectPath, getUserRole } from "../utils/roleUtils";
@@ -33,13 +37,25 @@ const Login = () => {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { status, error, isAuthenticated } = useSelector((state) => state.auth);
+  const { status, error, isAuthenticated, verificationStatus, verificationError } = useSelector((state) => state.auth);
 
   // Kiểm tra xem người dùng vừa đăng ký thành công hay không
   const [searchParams] = useSearchParams();
   const registrationSuccess = searchParams.get("registered") === "success";
   const verifyRequired = searchParams.get("verify") === "required";
   const sessionError = searchParams.get("error");
+  const emailFromParams = searchParams.get("email");
+
+  // Handle resend verification email
+  const handleResendVerification = async () => {
+    try {
+      await dispatch(sendVerificationEmail({ email })).unwrap();
+      console.log("Verification email resent successfully");
+    } catch (err) {
+      console.error("Failed to resend verification email:", err);
+    }
+  };
+
   ///
   const handleLoginWithGoogle = () => {
     const callBackUrl = import.meta.env.VITE_REDIRECT_URI;
@@ -68,7 +84,12 @@ const Login = () => {
     if (sessionError === "session_expired") {
       console.log("Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.");
     }
-  }, [dispatch, isAuthenticated, navigate, sessionError]);
+
+    // Set email from URL parameters if verify is required
+    if (verifyRequired && emailFromParams) {
+      setEmail(emailFromParams);
+    }
+  }, [dispatch, isAuthenticated, navigate, sessionError, verifyRequired, emailFromParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -134,7 +155,7 @@ const Login = () => {
         </p>
       </div>
 
-      {/* Hiển thị thông báo đăng ký thành công */}
+      {/* Hiển thị thông báo đăng ký thành công với countdown timer */}
       {registrationSuccess && (
         <Box sx={{ width: "100%", mb: 4 }}>
           <Collapse in={openAlert}>
@@ -170,9 +191,30 @@ const Login = () => {
                 },
               }}
             >
-              {verifyRequired
-                ? "📧 Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng nhập."
-                : "🎉 Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục."}
+              <div className="w-full">
+                <div className="mb-3">
+                  {verifyRequired
+                    ? "📧 Vui lòng kiểm tra email của bạn để xác thực tài khoản trước khi đăng nhập."
+                    : "🎉 Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục."}
+                </div>
+                
+                {/* Countdown Timer Component chỉ hiển thị khi cần xác thực */}
+                {verifyRequired && (
+                  <CountdownTimer
+                    initialSeconds={60}
+                    onResend={handleResendVerification}
+                    isResendLoading={verificationStatus === "loading"}
+                    showResendButton={true}
+                  />
+                )}
+                
+                {/* Success message for resend */}
+                {verifyRequired && verificationStatus === "succeeded" && (
+                  <div className="mt-2 text-sm text-green-600 font-medium">
+                    ✅ Email xác thực đã được gửi lại thành công!
+                  </div>
+                )}
+              </div>
             </Alert>
           </Collapse>
         </Box>

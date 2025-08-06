@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Tạo instance axios với interceptors
 const customerService = axios.create({
@@ -24,7 +24,6 @@ customerService.interceptors.request.use(
     if (token) {
       // Thêm token vào header cho tất cả các request
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("Adding token to request:", config.url);
     } else {
       console.warn("No token found for request:", config.url);
     }
@@ -114,7 +113,6 @@ export const updateCustomerDetailApi = async (
         `/api/customer-details/${customerDetailId}`
       );
       const currentDetail = currentDetailResponse.data.result;
-      console.log("Current customer detail:", currentDetail);
 
       // 2. Update text fields first (companyName, tagLine, contactInfo)
       const textData = {
@@ -124,11 +122,6 @@ export const updateCustomerDetailApi = async (
         logoUrl: currentDetail.logoUrl, // Keep existing logo URL to prevent null value
         userId: customerData.userId,
       };
-
-      console.log("Updating customer text details:", {
-        id: customerDetailId,
-        ...textData,
-      });
 
       // Lấy token từ localStorage
       const token = getToken();
@@ -148,7 +141,6 @@ export const updateCustomerDetailApi = async (
       const textResult = textResponse.data;
       textUpdateSuccess = textResult.success;
       textUpdateResult = textResult.result;
-      console.log("Text update response:", textResult);
     } catch (textError) {
       console.error(
         "Failed to update text fields:",
@@ -226,7 +218,6 @@ export const updateCustomerDetailApi = async (
 };
 export const getCustomerDetailByUserIdApi = async (userId) => {
   try {
-    console.log("Fetching customer detail for userId:", userId);
     // Thử endpoint ban đầu trước
     const token = getToken();
     const response = await customerService.get(
@@ -238,7 +229,6 @@ export const getCustomerDetailByUserIdApi = async (userId) => {
         withCredentials: true,
       }
     );
-    console.log("API response:", response.data);
 
     return response.data;
   } catch (error) {
@@ -269,26 +259,23 @@ export const linkCustomerToProductTypeApi = async (
       };
     }
 
-    console.log("Linking customer to product type:", {
-      customerId,
-      productTypeId,
-    });
-
     // First check if customer already has a choice
     try {
       const existingChoices = await customerService.get(
         `/api/customers/${customerId}/customer-choices`
       );
-      
+
       if (existingChoices.data.success && existingChoices.data.result) {
         const existingChoice = existingChoices.data.result;
-        
+
         // Check if the existing choice has the same product type
         // CẬP NHẬT: Kiểm tra productTypes.id thay vì productTypeId
         const existingProductTypeId = existingChoice.productTypes?.id;
-        
+
         if (existingProductTypeId === productTypeId) {
-          console.log("Customer already has this product type, returning existing choice");
+          console.log(
+            "Customer already has this product type, returning existing choice"
+          );
           return existingChoices.data;
         } else {
           console.log("Customer has different product type, updating...");
@@ -309,7 +296,6 @@ export const linkCustomerToProductTypeApi = async (
     const response = await customerService.post(
       `/api/customers/${customerId}/product-types/${productTypeId}`
     );
-    console.log("Create response:", response.data);
 
     return response.data;
   } catch (error) {
@@ -328,12 +314,15 @@ export const linkCustomerToProductTypeApi = async (
         const existingChoices = await customerService.get(
           `/api/customers/${customerId}/customer-choices`
         );
-        
+
         if (existingChoices.data.success && existingChoices.data.result) {
           return existingChoices.data;
         }
       } catch (fetchError) {
-        console.error("Failed to fetch existing choice after duplicate error:", fetchError);
+        console.error(
+          "Failed to fetch existing choice after duplicate error:",
+          fetchError
+        );
       }
     }
 
@@ -372,9 +361,6 @@ export const linkSizeToCustomerChoiceApi = async (
   sizeValue
 ) => {
   try {
-    console.log(
-      `API call with customerChoiceId: ${customerChoiceId}, sizeId: ${sizeId}, sizeValue: ${sizeValue} (type: ${typeof sizeValue})`
-    );
     const numericSizeValue = parseFloat(sizeValue);
     const response = await customerService.post(
       `/api/customer-choices/${customerChoiceId}/sizes/${sizeId}`,
@@ -382,7 +368,7 @@ export const linkSizeToCustomerChoiceApi = async (
         sizeValue: numericSizeValue,
       }
     );
-    console.log("API response:", response.data);
+
     return response.data;
   } catch (error) {
     console.error("API error:", error.response?.data || error.message);
@@ -396,13 +382,6 @@ export const linkSizeToCustomerChoiceApi = async (
 };
 export const getCustomerChoiceDetailApi = async (customerChoiceDetailId) => {
   try {
-    // Log the ID to verify it's a string
-    console.log(
-      "Fetching customer choice detail with ID:",
-      customerChoiceDetailId
-    );
-
-    // Make sure customerChoiceDetailId is a string
     if (typeof customerChoiceDetailId !== "string") {
       console.error(
         "Invalid customerChoiceDetailId type:",
@@ -679,7 +658,10 @@ export const getCustomerChoicePixelValueApi = async (customerChoiceId) => {
       };
     }
 
-    console.log("Fetching pixel value for customer choice ID:", customerChoiceId);
+    console.log(
+      "Fetching pixel value for customer choice ID:",
+      customerChoiceId
+    );
 
     const response = await customerService.get(
       `/api/customer-choices/${customerChoiceId}/pixel-value`

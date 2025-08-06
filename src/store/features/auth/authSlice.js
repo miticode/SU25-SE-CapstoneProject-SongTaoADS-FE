@@ -543,3 +543,7 @@ export const selectForgotPasswordMessage = (state) =>
 export const selectOutboundAuthStatus = (state) =>
   state.auth.outboundAuthStatus;
 export const selectOutboundAuthError = (state) => state.auth.outboundAuthError;
+
+// Selector cho verification email
+export const selectVerificationStatus = (state) => state.auth.verificationStatus;
+export const selectVerificationError = (state) => state.auth.verificationError;

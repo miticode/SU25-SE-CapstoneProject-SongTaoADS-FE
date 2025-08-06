@@ -23,6 +23,9 @@ const BillboardInfoForm = ({
   setSnackbar,
   // eslint-disable-next-line no-unused-vars
   ModernBillboardForm,
+  coreAttributesReady,
+  setCoreAttributesReady,
+  currentStep,
 }) => {
   const navigate = useNavigate();
   const productTypes = useSelector(selectAllProductTypes);
@@ -100,6 +103,16 @@ const BillboardInfoForm = ({
   );
 
   const handleCustomDesign = () => {
+    // Kiểm tra validation trước khi chuyển trang
+    if (!coreAttributesReady) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn đầy đủ các thuộc tính bắt buộc trước khi thiết kế thủ công",
+        severity: "warning",
+      });
+      return;
+    }
+
     navigate("/custom-design", {
       state: {
         customerChoiceId: currentOrder?.id,
@@ -114,6 +127,23 @@ const BillboardInfoForm = ({
         },
       },
     });
+  };
+
+  const handleSubmitWithValidation = (e) => {
+    e.preventDefault();
+    
+    // Kiểm tra validation trước khi submit
+    if (!coreAttributesReady) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn đầy đủ các thuộc tính bắt buộc trước khi tiếp tục",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Nếu đã đủ điều kiện thì gọi handleBillboardSubmit
+    handleBillboardSubmit(e);
   };
 
   return (
@@ -140,7 +170,7 @@ const BillboardInfoForm = ({
       )}
 
       <motion.form
-        onSubmit={handleBillboardSubmit}
+        onSubmit={handleSubmitWithValidation}
         variants={containerVariants}
       >
         <ModernBillboardForm
@@ -151,6 +181,9 @@ const BillboardInfoForm = ({
             productTypes.find((pt) => pt.id === billboardType)?.name
           }
           setSnackbar={setSnackbar}
+          coreAttributesReady={coreAttributesReady}
+          setCoreAttributesReady={setCoreAttributesReady}
+          currentStep={currentStep}
         />
 
         <motion.div
@@ -187,9 +220,19 @@ const BillboardInfoForm = ({
               <motion.button
                 type="button"
                 onClick={handleCustomDesign}
-                className="px-8 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-all shadow-md hover:shadow-lg flex items-center"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={!coreAttributesReady}
+                className={`px-8 py-3 font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center ${
+                  coreAttributesReady
+                    ? "bg-gray-600 text-white hover:bg-gray-700"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+                whileHover={coreAttributesReady ? { scale: 1.02 } : {}}
+                whileTap={coreAttributesReady ? { scale: 0.98 } : {}}
+                title={
+                  !coreAttributesReady
+                    ? "Vui lòng chọn đầy đủ các thuộc tính bắt buộc"
+                    : ""
+                }
               >
                 <FaEdit className="w-5 h-5 mr-2" />
                 Thiết kế thủ công
@@ -211,10 +254,27 @@ const BillboardInfoForm = ({
 
             <motion.button
               type="submit"
-              className="px-8 py-3 bg-custom-primary text-white font-medium rounded-lg hover:bg-custom-secondary transition-all shadow-md hover:shadow-lg flex items-center"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              disabled={attributeStatus === "loading"}
+              disabled={!coreAttributesReady || attributeStatus === "loading"}
+              className={`px-8 py-3 font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center ${
+                coreAttributesReady && attributeStatus !== "loading"
+                  ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+              whileHover={
+                coreAttributesReady && attributeStatus !== "loading" 
+                  ? { scale: 1.02 } 
+                  : {}
+              }
+              whileTap={
+                coreAttributesReady && attributeStatus !== "loading" 
+                  ? { scale: 0.98 } 
+                  : {}
+              }
+              title={
+                !coreAttributesReady
+                  ? "Vui lòng chọn đầy đủ các thuộc tính bắt buộc"
+                  : ""
+              }
             >
               {attributeStatus === "loading" ? (
                 <>

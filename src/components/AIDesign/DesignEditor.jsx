@@ -500,9 +500,24 @@ const DesignEditor = ({
               setFabricCanvas(null);
             }
 
-            if (generatedImage) {
-              setCurrentStep(6);
-            } else {
+            // 🎯 LOGIC ĐƠN GIẢN: Dựa vào loại thiết kế hiện tại
+            console.log("🔙 [BACK NAVIGATION] Determining back step:");
+            console.log("🔙 [BACK NAVIGATION] Has generatedImage:", !!generatedImage);
+            console.log("🔙 [BACK NAVIGATION] Has selectedBackgroundForCanvas:", !!selectedBackgroundForCanvas);
+
+            // Nếu đang làm việc với AI image → về case 5 (template selection)
+            if (generatedImage && !selectedBackgroundForCanvas) {
+              console.log("🔙 [BACK NAVIGATION] AI workflow - Going back to case 5 (template selection)");
+              setCurrentStep(5);
+            }
+            // Nếu đang làm việc với background → về case 5 (background selection) 
+            else if (selectedBackgroundForCanvas) {
+              console.log("🔙 [BACK NAVIGATION] Background workflow - Going back to case 5 (background selection)");
+              setCurrentStep(5);
+            }
+            // Fallback: về case 5
+            else {
+              console.log("🔙 [BACK NAVIGATION] Fallback to case 5");
               setCurrentStep(5);
             }
           }}

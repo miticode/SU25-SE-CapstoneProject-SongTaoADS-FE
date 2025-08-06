@@ -20,7 +20,6 @@ import {
   TextField,
   Grid,
   CircularProgress,
-  Pagination,
   Alert,
   FormControl,
   InputLabel,
@@ -58,7 +57,6 @@ import {
   selectAllDesignRequests,
   selectStatus,
   selectError,
-  selectPagination,
   assignDesignerToRequest,
   updateRequestStatus,
   CUSTOM_DESIGN_STATUS_MAP,
@@ -77,7 +75,6 @@ import {
   fetchOrders,
   ORDER_STATUS_MAP,
   selectOrderError,
-  selectOrderPagination,
   selectOrders,
   selectOrdersByType,
   selectOrderStatus,
@@ -323,7 +320,6 @@ const CustomerRequests = () => {
   const designRequests = useSelector(selectAllDesignRequests);
   const status = useSelector(selectStatus);
   const error = useSelector(selectError);
-  const pagination = useSelector(selectPagination);
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -346,14 +342,27 @@ const CustomerRequests = () => {
     'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION'
   ];
   const orders = useSelector(state => selectOrdersByType(state, customDesignOrderTypes));
+  
+  // Debug: Log order type breakdown
+  useEffect(() => {
+    if (currentTab === 1 && allOrders.length > 0) {
+      const orderTypeCount = allOrders.reduce((acc, order) => {
+        acc[order.orderType] = (acc[order.orderType] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log('Order type breakdown:', orderTypeCount);
+      console.log('Total orders from API:', allOrders.length);
+      console.log('Custom design orders (filtered):', orders.length);
+      console.log('Custom design order types:', customDesignOrderTypes);
+    }
+  }, [currentTab, allOrders, orders, customDesignOrderTypes]);
+  
   const orderStatus = useSelector(selectOrderStatus);
   const orderError = useSelector(selectOrderError);
-  const orderPagination = useSelector(selectOrderPagination);
   
   // Lấy danh sách contractors từ Redux store
   const { contractors } = useSelector((state) => state.contractor);
-  const [orderPage, setOrderPage] = useState(1);
-  const [orderPageSize, setOrderPageSize] = useState(10);
   const [contractViewLoading, setContractViewLoading] = useState(false);
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
   
@@ -365,7 +374,7 @@ const CustomerRequests = () => {
     onConfirm: null,
   });
   const [selectedOrderStatus, setSelectedOrderStatus] =
-    useState("PENDING_CONTRACT");
+    useState(""); // Mặc định là tất cả trạng thái
   const [notification, setNotification] = useState({
     open: false,
     message: "",
@@ -379,12 +388,9 @@ const CustomerRequests = () => {
     totalPrice: "",
     depositAmount: "",
   });
-  const handleOrderPageChange = (event, value) => {
-    setOrderPage(value);
-  };
   const [creatingProposal, setCreatingProposal] = useState(false);
 
-  const [selectedStatus, setSelectedStatus] = useState("PENDING"); // Mặc định là PENDING
+  const [selectedStatus, setSelectedStatus] = useState(""); // Mặc định là tất cả trạng thái
 
   const [priceProposals, setPriceProposals] = useState([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
@@ -412,6 +418,15 @@ const CustomerRequests = () => {
     open: false,
     order: null,
   });
+  // Fetch design requests when component mounts or tab changes to 0
+  useEffect(() => {
+    if (currentTab === 0) {
+      dispatch(
+        fetchAllDesignRequests({ status: selectedStatus, page: 1, size: 1000 })
+      );
+    }
+  }, [currentTab, dispatch, selectedStatus]);
+
   useEffect(() => {
     if (currentTab === 1) {
       // Thêm memoization để tránh fetch quá nhiều lần
@@ -421,8 +436,8 @@ const CustomerRequests = () => {
       dispatch(
         fetchOrders({
           orderStatus: selectedOrderStatus,
-          page: orderPage,
-          size: orderPageSize,
+          page: 1,
+          size: 1000,
           signal,
         })
       );
@@ -432,7 +447,7 @@ const CustomerRequests = () => {
         controller.abort();
       };
     }
-  }, [currentTab, selectedOrderStatus, orderPage, orderPageSize]);
+  }, [currentTab, selectedOrderStatus]);
   const handleUpdateEstimatedDeliveryDate = async (orderId, deliveryDate) => {
     if (!deliveryDate) {
       setNotification({
@@ -465,8 +480,8 @@ const CustomerRequests = () => {
         dispatch(
           fetchOrders({
             orderStatus: selectedOrderStatus,
-            page: orderPage,
-            size: orderPageSize,
+            page: 1,
+            size: 1000,
           })
         );
 
@@ -511,9 +526,9 @@ const CustomerRequests = () => {
             // Refresh danh sách orders
             await dispatch(
               fetchOrders({
-                orderStatus: selectedOrderStatus || "PENDING_CONTRACT",
-                page: orderPage,
-                size: orderPageSize,
+                orderStatus: selectedOrderStatus,
+                page: 1,
+                size: 1000,
               })
             );
 
@@ -660,8 +675,8 @@ const CustomerRequests = () => {
         dispatch(
           fetchOrders({
             orderStatus: selectedOrderStatus,
-            page: orderPage,
-            size: orderPageSize,
+            page: 1,
+            size: 1000,
           })
         );
 
@@ -738,16 +753,16 @@ const CustomerRequests = () => {
     setOpenRevisedContractUpload(false);
     setContractId(null);
 
-    // Refresh data
-    setTimeout(() => {
-      dispatch(
-        fetchOrders({
-          orderStatus: selectedOrderStatus,
-          page: orderPage,
-          size: orderPageSize,
-        })
-      );
-    }, 300);
+            // Refresh data
+        setTimeout(() => {
+          dispatch(
+            fetchOrders({
+              orderStatus: selectedOrderStatus,
+              page: 1,
+              size: 1000,
+            })
+          );
+        }, 300);
 
     // Close main dialog last
     setTimeout(() => {
@@ -772,8 +787,8 @@ const CustomerRequests = () => {
         dispatch(
           fetchOrders({
             orderStatus: selectedOrderStatus,
-            page: orderPage,
-            size: orderPageSize,
+            page: 1,
+            size: 1000,
           })
         );
       }, 300);
@@ -845,8 +860,8 @@ const CustomerRequests = () => {
         dispatch(
           fetchOrders({
             orderStatus: selectedOrderStatus,
-            page: orderPage,
-            size: orderPageSize,
+            page: 1,
+            size: 1000,
           })
         );
 
@@ -950,8 +965,8 @@ const CustomerRequests = () => {
       dispatch(
         fetchOrders({
           orderStatus: selectedOrderStatus,
-          page: orderPage,
-          size: orderPageSize,
+          page: 1,
+          size: 1000,
         })
       );
 
@@ -965,12 +980,7 @@ const CustomerRequests = () => {
     }
   };
 
-  useEffect(() => {
-    // Fetch theo status mỗi khi selectedStatus thay đổi
-    dispatch(
-      fetchAllDesignRequests({ status: selectedStatus, page: 1, size: 10 })
-    );
-  }, [dispatch, selectedStatus]);
+
 
   // Customer details are now included in the API response, so we don't need to fetch them separately
   // The customerDetail object is already available in each design request
@@ -992,11 +1002,7 @@ const CustomerRequests = () => {
     }
   };
 
-  const handlePageChange = (event, value) => {
-    dispatch(
-      fetchAllDesignRequests({ page: value, size: pagination.pageSize })
-    );
-  };
+  // Removed pagination handler since we're displaying all items
 
   const handleViewDetails = (request) => {
     setSelectedRequest(request);
@@ -1040,8 +1046,9 @@ const CustomerRequests = () => {
         // Refresh data after assignment
         dispatch(
           fetchAllDesignRequests({
-            page: pagination.currentPage,
-            size: pagination.pageSize,
+            status: selectedStatus,
+            page: 1,
+            size: 1000,
           })
         );
 
@@ -1091,8 +1098,9 @@ const CustomerRequests = () => {
         // Refresh data
         dispatch(
           fetchAllDesignRequests({
-            page: pagination.currentPage,
-            size: pagination.pageSize,
+            status: selectedStatus,
+            page: 1,
+            size: 1000,
           })
         );
 
@@ -1141,8 +1149,9 @@ const CustomerRequests = () => {
         // Refresh data after rejection
         dispatch(
           fetchAllDesignRequests({
-            page: pagination.currentPage,
-            size: pagination.pageSize,
+            status: selectedStatus,
+            page: 1,
+            size: 1000,
           })
         );
 
@@ -1383,7 +1392,7 @@ const CustomerRequests = () => {
                 <MenuItem value="">Tất cả</MenuItem>
                 <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
                 <MenuItem value="PRICING_NOTIFIED">Đã báo giá</MenuItem>
-                <MenuItem value="NEGOTIATING">Đang thương lượng</MenuItem>
+                <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
                 <MenuItem value="APPROVED_PRICING">Đã duyệt giá</MenuItem>
                 <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
                 <MenuItem value="ASSIGNED_DESIGNER">Đã giao designer</MenuItem>
@@ -1397,10 +1406,8 @@ const CustomerRequests = () => {
                   Chờ thanh toán đủ
                 </MenuItem>
                 <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
-                <MenuItem value="PENDING_CONTRACT">Chờ gửi hợp đồng</MenuItem>
                 <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
                 <MenuItem value="CANCELLED">Đã hủy</MenuItem>
-                <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
               </Select>
             </FormControl>
             {designRequests.length === 0 && status === "succeeded" ? (
@@ -1409,8 +1416,8 @@ const CustomerRequests = () => {
               <>
                 <TableContainer component={Paper} elevation={0}>
                   <Table>
-                                            <TableHead>
-                          <TableRow>
+                    <TableHead>
+                      <TableRow>
                             <TableCell>Customer Name</TableCell>
                             <TableCell>Company</TableCell>
                             <TableCell>Requirements</TableCell>
@@ -1449,14 +1456,7 @@ const CustomerRequests = () => {
                   </Table>
                 </TableContainer>
 
-                <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                  <Pagination
-                    count={pagination.totalPages}
-                    page={pagination.currentPage}
-                    onChange={handlePageChange}
-                    color="primary"
-                  />
-                </Box>
+                {/* Pagination removed - displaying all items */}
               </>
             )}
           </>
@@ -1501,6 +1501,12 @@ const CustomerRequests = () => {
               </Alert>
             ) : (
               <>
+                                {/* Show filtering info */}
+                {allOrders.length > orders.length && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Hiển thị {orders.length} đơn hàng thiết kế tùy chỉnh (tổng {allOrders.length} đơn hàng từ API)
+                  </Alert>
+                )}
                 <TableContainer component={Paper} elevation={0}>
                   <Table>
                     <TableHead>
@@ -1578,14 +1584,7 @@ const CustomerRequests = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-                <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                  <Pagination
-                    count={orderPagination.totalPages || 1}
-                    page={orderPage}
-                    onChange={handleOrderPageChange}
-                    color="primary"
-                  />
-                </Box>
+                {/* Pagination removed - displaying all items */}
               </>
             )}
           </>

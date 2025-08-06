@@ -199,4 +199,39 @@ export const deleteDesignTemplateByIdApi = async (designTemplateId) => {
   }
 };
 
+// Lấy gợi ý thiết kế mẫu cho customer choice
+export const fetchDesignTemplateSuggestionsByCustomerChoiceIdApi = async (customerChoiceId, page = 1, size = 10) => {
+  try {
+    const response = await designTemplateService.get(`/api/customer-choices/${customerChoiceId}/design-template-suggestion`, {
+      params: {
+        page,
+        size
+      }
+    });
+    
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+    
+    if (success) {
+      return { 
+        success: true, 
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
+    }
+    
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching design template suggestions:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch design template suggestions'
+    };
+  }
+};
+
 export default designTemplateService;

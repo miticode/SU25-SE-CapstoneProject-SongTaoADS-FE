@@ -6,15 +6,25 @@ import {
   updateDesignTemplateImageApi,
   fetchAllDesignTemplatesApi,
   fetchDesignTemplateByIdApi,
-  deleteDesignTemplateByIdApi
+  deleteDesignTemplateByIdApi,
+  fetchDesignTemplateSuggestionsByCustomerChoiceIdApi
 } from '../../../api/designTemplateService';
 
 // Initial state
 const initialState = {
   designTemplates: [],
+  suggestedTemplates: [],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  suggestionsStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
-  selectedTemplate: null
+  suggestionsError: null,
+  selectedTemplate: null,
+  suggestionsPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0
+  }
 };
 
 // Async thunk for fetching design templates by product type ID
@@ -131,6 +141,25 @@ export const deleteDesignTemplateById = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching design template suggestions by customer choice ID
+export const fetchDesignTemplateSuggestionsByCustomerChoiceId = createAsyncThunk(
+  'designTemplate/fetchSuggestionsByCustomerChoiceId',
+  async ({ customerChoiceId, page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await fetchDesignTemplateSuggestionsByCustomerChoiceIdApi(customerChoiceId, page, size);
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to fetch design template suggestions');
+      }
+      return {
+        templates: response.data,
+        pagination: response.pagination
+      };
+    } catch (error) {
+      return rejectWithValue(error.message || 'Something went wrong');
+    }
+  }
+);
+
 // Design Template slice
 const designTemplateSlice = createSlice({
   name: 'designTemplate',
@@ -141,6 +170,11 @@ const designTemplateSlice = createSlice({
       state.status = 'idle';
       state.error = null;
     },
+    // Reset suggestions status
+    resetSuggestionsStatus: (state) => {
+      state.suggestionsStatus = 'idle';
+      state.suggestionsError = null;
+    },
     // Set a selected template for preview or editing
     setSelectedTemplate: (state, action) => {
       state.selectedTemplate = action.payload;
@@ -148,6 +182,16 @@ const designTemplateSlice = createSlice({
     // Clear selected template
     clearSelectedTemplate: (state) => {
       state.selectedTemplate = null;
+    },
+    // Clear suggested templates
+    clearSuggestedTemplates: (state) => {
+      state.suggestedTemplates = [];
+      state.suggestionsPagination = {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0
+      };
     },
     // Optimistic delete - xóa template ngay lập tức khỏi state
     removeDesignTemplateOptimistically: (state, action) => {
@@ -251,6 +295,20 @@ const designTemplateSlice = createSlice({
       .addCase(deleteDesignTemplateById.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      // Fetch design template suggestions by customer choice ID
+      .addCase(fetchDesignTemplateSuggestionsByCustomerChoiceId.pending, (state) => {
+        state.suggestionsStatus = 'loading';
+      })
+      .addCase(fetchDesignTemplateSuggestionsByCustomerChoiceId.fulfilled, (state, action) => {
+        state.suggestionsStatus = 'succeeded';
+        state.suggestedTemplates = action.payload.templates;
+        state.suggestionsPagination = action.payload.pagination;
+        state.suggestionsError = null;
+      })
+      .addCase(fetchDesignTemplateSuggestionsByCustomerChoiceId.rejected, (state, action) => {
+        state.suggestionsStatus = 'failed';
+        state.suggestionsError = action.payload;
       });
   }
 });
@@ -258,16 +316,22 @@ const designTemplateSlice = createSlice({
 // Export actions
 export const {
   resetDesignTemplateStatus,
+  resetSuggestionsStatus,
   setSelectedTemplate,
   clearSelectedTemplate,
+  clearSuggestedTemplates,
   removeDesignTemplateOptimistically
 } = designTemplateSlice.actions;
 
 // Export selectors
 export const selectAllDesignTemplates = (state) => state.designTemplate.designTemplates;
+export const selectSuggestedTemplates = (state) => state.designTemplate.suggestedTemplates;
 export const selectDesignTemplateStatus = (state) => state.designTemplate.status;
+export const selectSuggestionsStatus = (state) => state.designTemplate.suggestionsStatus;
 export const selectDesignTemplateError = (state) => state.designTemplate.error;
+export const selectSuggestionsError = (state) => state.designTemplate.suggestionsError;
 export const selectSelectedTemplate = (state) => state.designTemplate.selectedTemplate;
+export const selectSuggestionsPagination = (state) => state.designTemplate.suggestionsPagination;
 
 // Selector for a design template by ID
 export const selectDesignTemplateById = (state, id) =>

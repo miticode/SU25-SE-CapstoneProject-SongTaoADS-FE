@@ -96,10 +96,13 @@ import {
   FaUnderline,
 } from "react-icons/fa";
 import {
-  fetchDesignTemplatesByProductTypeId,
+  fetchDesignTemplateSuggestionsByCustomerChoiceId,
   selectAllDesignTemplates,
+  selectSuggestedTemplates,
   selectDesignTemplateError,
   selectDesignTemplateStatus,
+  selectSuggestionsStatus,
+  selectSuggestionsError,
 } from "../store/features/designTemplate/designTemplateSlice";
 import {
   createAIDesign,
@@ -115,6 +118,7 @@ import {
   selectProgressCheckStatus,
   selectProgressCheckError,
   resetProgressCheck,
+  resetImageGeneration,
   setCurrentAIDesign,
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
@@ -155,6 +159,9 @@ const ModernBillboardForm = ({
   productTypeId,
   productTypeName,
   setSnackbar,
+  coreAttributesReady,
+  setCoreAttributesReady,
+  currentStep,
 }) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
@@ -170,6 +177,14 @@ const ModernBillboardForm = ({
   const hasRestoredSizesRef = useRef(false);
   const hasRestoredAttributesRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
+
+  // Reset restoration flag when navigating back to step 4
+  useEffect(() => {
+    if (currentStep === 4) {
+      hasRestoredAttributesRef.current = false;
+    }
+  }, [currentStep]);
+
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
   const productTypeSizesError = useSelector(selectProductTypeSizesError);
@@ -191,6 +206,46 @@ const ModernBillboardForm = ({
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [coreAttributesValidation, setCoreAttributesValidation] = useState({});
+
+  // Hàm kiểm tra xem tất cả thuộc tính bắt buộc đã được chọn chưa
+  const validateCoreAttributes = useCallback(() => {
+    const coreAttributes = attributes.filter((attr) => attr.isCore === true);
+    const missingCoreAttributes = [];
+
+    coreAttributes.forEach((attr) => {
+      if (!formData[attr.id] || formData[attr.id] === "") {
+        missingCoreAttributes.push(attr.name);
+      }
+    });
+
+    setCoreAttributesValidation({
+      isValid: missingCoreAttributes.length === 0,
+      missingAttributes: missingCoreAttributes,
+      coreAttributesCount: coreAttributes.length,
+      selectedCoreAttributesCount:
+        coreAttributes.length - missingCoreAttributes.length,
+    });
+
+    return missingCoreAttributes.length === 0;
+  }, [attributes, formData]);
+
+  // Effect để tự động validate khi formData hoặc attributes thay đổi
+  useEffect(() => {
+    if (sizesConfirmed && attributes.length > 0) {
+      const isValid = validateCoreAttributes();
+      if (setCoreAttributesReady) {
+        setCoreAttributesReady(isValid);
+      }
+    }
+  }, [
+    sizesConfirmed,
+    attributes,
+    formData,
+    validateCoreAttributes,
+    setCoreAttributesReady,
+  ]);
+
   useEffect(() => {
     // Tạo mapping từ attributeValueId trong customerChoiceDetails về attributeId
     if (
@@ -200,15 +255,11 @@ const ModernBillboardForm = ({
       Object.keys(attributeValuesState).length > 0
     ) {
       const newAttributePrices = {};
+      const restoredFormData = {};
 
       // Duyệt qua tất cả customerChoiceDetails (mapped by attributeValueId)
       Object.entries(customerChoiceDetails).forEach(
         ([attributeValueId, detail]) => {
-          console.log(
-            `Processing attributeValueId: ${attributeValueId}`,
-            detail
-          );
-
           if (detail?.subTotal !== undefined) {
             // Tìm attributeId tương ứng với attributeValueId này
             let foundAttributeId = null;
@@ -221,7 +272,8 @@ const ModernBillboardForm = ({
 
               if (hasThisValue) {
                 foundAttributeId = attribute.id;
-
+                // Khôi phục formData với attributeValueId đã chọn
+                restoredFormData[foundAttributeId] = attributeValueId;
                 break;
               }
             }
@@ -242,10 +294,16 @@ const ModernBillboardForm = ({
         }
       );
 
-      console.log("New attribute prices mapping:", newAttributePrices);
       setAttributePrices(newAttributePrices);
+
+      // Khôi phục formData với các lựa chọn đã có
+      if (Object.keys(restoredFormData).length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          ...restoredFormData,
+        }));
+      }
     } else {
-      console.log("Clearing attribute prices - insufficient data");
       setAttributePrices({});
     }
   }, [customerChoiceDetails, attributes, attributeValuesState]);
@@ -442,17 +500,12 @@ const ModernBillboardForm = ({
       productTypeSizes.length > 0 &&
       !hasRestoredDataRef.current
     ) {
-      console.log("Fetching customer choice sizes for restore...");
-      console.log("Available productTypeSizes:", productTypeSizes);
-
       hasRestoredDataRef.current = true;
 
       dispatch(fetchCustomerChoiceSizes(currentOrder.id))
         .unwrap()
         .then((sizes) => {
           if (sizes && sizes.length > 0) {
-            console.log("Found saved sizes for restore:", sizes);
-
             const existingSizes = {};
             const sizeFormData = {};
 
@@ -476,7 +529,7 @@ const ModernBillboardForm = ({
                 ...prev,
                 ...sizeFormData,
               };
-              console.log("Updated form data with sizes:", newFormData);
+
               return newFormData;
             });
 
@@ -522,6 +575,8 @@ const ModernBillboardForm = ({
   // Reset sizesConfirmed when productTypeId changes
   useEffect(() => {
     setSizesConfirmed(false);
+    // Reset attribute restoration flag when product type changes
+    hasRestoredAttributesRef.current = false;
   }, [productTypeId]);
 
   useEffect(() => {
@@ -531,9 +586,6 @@ const ModernBillboardForm = ({
         const currentStatus = attributeValuesStatusState[attr.id];
 
         if (currentStatus === "idle" || currentStatus === undefined) {
-          console.log(
-            `📥 Fetching values for attribute: ${attr.id} (${attr.name})`
-          );
           // Sử dụng size = 50 để đảm bảo lấy đủ values
           dispatch(fetchAttributeValuesByAttributeId(attr.id, 1, 50));
         }
@@ -547,7 +599,6 @@ const ModernBillboardForm = ({
       dispatch(fetchProductTypeSizesByProductTypeId(productTypeId))
         .unwrap()
         .then((data) => {
-          console.log("🔍 Product Type Sizes API Response:", data);
           if (data && data.length > 0) {
             console.log("🔍 First size object structure:", data[0]);
             console.log("🔍 MinValue:", data[0].minValue);
@@ -570,16 +621,11 @@ const ModernBillboardForm = ({
   }, [attributePrices]);
   useEffect(() => {
     if (refreshCounter > 0 && currentOrder?.id) {
-      console.log(
-        `RefreshCounter changed to ${refreshCounter}, re-fetching data`
-      );
-
       // Fetch lại dữ liệu khi refreshCounter thay đổi
       const updatePrices = async () => {
         try {
           await dispatch(fetchCustomerChoiceDetails(currentOrder.id));
           await dispatch(fetchCustomerChoice(currentOrder.id));
-          console.log("Data refreshed due to refreshCounter change");
         } catch (error) {
           console.error("Failed to refresh data:", error);
         }
@@ -595,6 +641,74 @@ const ModernBillboardForm = ({
       hasRestoredAttributesRef.current = false;
     };
   }, [productTypeId]);
+
+  // Effect riêng để khôi phục formData từ customerChoiceDetails khi tất cả dữ liệu đã sẵn sàng
+  useEffect(() => {
+    if (
+      sizesConfirmed &&
+      customerChoiceDetails &&
+      Object.keys(customerChoiceDetails).length > 0 &&
+      attributes.length > 0 &&
+      Object.keys(attributeValuesState).length > 0 &&
+      !hasRestoredAttributesRef.current
+    ) {
+      hasRestoredAttributesRef.current = true;
+
+      const restoredFormData = {};
+
+      // Duyệt qua customerChoiceDetails để tìm lại các lựa chọn
+      Object.entries(customerChoiceDetails).forEach(
+        ([attributeValueId, detail]) => {
+          // Tìm attributeId tương ứng với attributeValueId này
+          for (const attribute of attributes) {
+            const attributeValues = attributeValuesState[attribute.id] || [];
+            const hasThisValue = attributeValues.some(
+              (av) => av.id === attributeValueId
+            );
+
+            if (hasThisValue) {
+              restoredFormData[attribute.id] = attributeValueId;
+
+              break;
+            }
+          }
+        }
+      );
+
+      if (Object.keys(restoredFormData).length > 0) {
+        setFormData((prev) => {
+          const newFormData = {
+            ...prev,
+            ...restoredFormData,
+          };
+
+          return newFormData;
+        });
+
+        // Trigger validation after restoring
+        setTimeout(() => {
+          if (setCoreAttributesReady) {
+            const coreAttributes = attributes.filter(
+              (attr) => attr.isCore === true
+            );
+            const missingCoreAttributes = coreAttributes.filter(
+              (attr) =>
+                !restoredFormData[attr.id] || restoredFormData[attr.id] === ""
+            );
+            const isValid = missingCoreAttributes.length === 0;
+            setCoreAttributesReady(isValid);
+          }
+        }, 100);
+      }
+    }
+  }, [
+    sizesConfirmed,
+    customerChoiceDetails,
+    attributes,
+    attributeValuesState,
+    setCoreAttributesReady,
+  ]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -781,7 +895,7 @@ const ModernBillboardForm = ({
 
     try {
       // Process sizes
-      console.log("Calling API for sizes:", sizeInputs);
+
       const createdSizes = {}; // Store created sizes for edit functionality
 
       // Thêm đoạn theo dõi số lượng size đã xử lý
@@ -789,9 +903,6 @@ const ModernBillboardForm = ({
       const totalSizes = Object.keys(sizeInputs).length;
 
       for (const [sizeId, sizeValue] of Object.entries(sizeInputs)) {
-        console.log(
-          `Linking size ${sizeId} with value ${sizeValue} (type: ${typeof sizeValue})`
-        );
         // Convert sizeValue to a number explicitly
         const numericSizeValue = parseFloat(sizeValue);
 
@@ -808,12 +919,8 @@ const ModernBillboardForm = ({
         const result = resultAction.payload;
         processedSizes++;
 
-        console.log("Complete API response:", resultAction);
-        console.log("Result payload:", result);
-
         // Make sure we're accessing the ID correctly
         if (result && result.id) {
-          console.log("Created size with ID:", result.id);
           createdSizes[sizeId] = {
             id: result.id,
             sizeValue: numericSizeValue,
@@ -831,14 +938,11 @@ const ModernBillboardForm = ({
 
       // Update the customerChoiceSizes state with the newly created sizes
       setCustomerChoiceSizes(createdSizes);
-      console.log("Created sizes with IDs:", createdSizes);
 
       // Mark sizes as confirmed
       setSizesConfirmed(true);
 
       if (currentOrder?.id) {
-        console.log("Fetching initial prices after confirming sizes");
-
         // Thêm delay nhỏ để đảm bảo backend đã xử lý xong tất cả sizes
         // Thêm theo dõi thành công
         let priceFetched = false;
@@ -846,27 +950,18 @@ const ModernBillboardForm = ({
         // Thử lấy giá 3 lần nếu lần đầu không thành công
         const fetchPriceWithRetry = async (retryCount = 0) => {
           try {
-            // Đầu tiên fetch customerChoiceDetails
-            console.log(
-              `Attempt ${retryCount + 1} to fetch customer choice details`
-            );
             await dispatch(
               fetchCustomerChoiceDetails(currentOrder.id)
             ).unwrap();
 
-            // Sau đó fetch totalAmount
-            console.log(`Attempt ${retryCount + 1} to fetch total amount`);
             const result = await dispatch(
               fetchCustomerChoice(currentOrder.id)
             ).unwrap();
-            console.log(`Total amount fetched: ${result.totalAmount}`);
 
             if (result.totalAmount > 0) {
               priceFetched = true;
               console.log("Price fetched successfully:", result.totalAmount);
             } else if (retryCount < 2) {
-              // Nếu totalAmount vẫn là 0 và chưa thử đủ 3 lần, thử lại sau 700ms
-              console.log("Total amount is still 0, retrying...");
               setTimeout(() => fetchPriceWithRetry(retryCount + 1), 700);
             }
           } catch (error) {
@@ -1449,50 +1544,95 @@ const ModernBillboardForm = ({
                 )}
               </Box>
             </Box>
-            {/* Ghi chú thiết kế */}
-            {/* <Box mt={2}>
-              <Typography
-                variant="subtitle2"
-                fontWeight={600}
-                mb={1}
-                sx={{
-                  color: "#2c3e50",
-                  display: "flex",
-                  alignItems: "center",
-                  fontSize: "0.85rem",
-                }}
-              >
-                <span className="inline-block w-1 h-4 bg-green-500 mr-2 rounded"></span>
-                GHI CHÚ THIẾT KẾ
-              </Typography>
 
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                name="designNotes"
-                placeholder="Mô tả yêu cầu thiết kế chi tiết của bạn..."
-                variant="outlined"
-                value={formData.designNotes || ""}
-                onChange={handleChange}
-                size="small"
-                InputProps={{
-                  style: { fontSize: "0.8rem" },
-                }}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "4px",
-                  },
-                }}
-              />
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontStyle: "italic", display: "block", mt: 0.5 }}
-              >
-                Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
-              </Typography>
-            </Box> */}
+            {coreAttributesValidation.coreAttributesCount > 0 && (
+              <Box mt={2}>
+                <Box
+                  sx={{
+                    background: coreAttributesValidation.isValid
+                      ? "#f0f7ff"
+                      : "#fff3e0",
+                    borderRadius: 2,
+                    padding: 2,
+                    border: `1px solid ${
+                      coreAttributesValidation.isValid ? "#cce4ff" : "#ffcc80"
+                    }`,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight={600}
+                    mb={1}
+                    sx={{
+                      color: coreAttributesValidation.isValid
+                        ? "#1565c0"
+                        : "#f57c00",
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    <span
+                      className={`inline-block w-1 h-4 mr-2 rounded ${
+                        coreAttributesValidation.isValid
+                          ? "bg-blue-500"
+                          : "bg-orange-500"
+                      }`}
+                    ></span>
+                    KIỂM TRA THUỘC TÍNH BẮT BUỘC
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: coreAttributesValidation.isValid
+                        ? "#1565c0"
+                        : "#f57c00",
+                      mb: 1,
+                    }}
+                    component="div"
+                  >
+                    {coreAttributesValidation.isValid ? (
+                      <Box display="flex" alignItems="center">
+                        <FaCheckCircle className="mr-2 text-green-500" />
+                        Tất cả thuộc tính bắt buộc đã được chọn (
+                        {coreAttributesValidation.selectedCoreAttributesCount}/
+                        {coreAttributesValidation.coreAttributesCount})
+                      </Box>
+                    ) : (
+                      <Box>
+                        <Box display="flex" alignItems="center" mb={1}>
+                          <FaTimes className="mr-2 text-orange-500" />
+                          Còn thiếu{" "}
+                          {
+                            coreAttributesValidation.missingAttributes?.length
+                          }{" "}
+                          thuộc tính bắt buộc (
+                          {coreAttributesValidation.selectedCoreAttributesCount}
+                          /{coreAttributesValidation.coreAttributesCount})
+                        </Box>
+                        {coreAttributesValidation.missingAttributes?.length >
+                          0 && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontStyle: "italic",
+                              color: "#f57c00",
+                              display: "block",
+                            }}
+                          >
+                            Cần chọn:{" "}
+                            {coreAttributesValidation.missingAttributes.join(
+                              ", "
+                            )}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
           </motion.div>
         )}
 
@@ -1547,9 +1687,34 @@ const AIDesign = () => {
   const attributeStatus = useSelector(selectAttributeStatus);
   const attributeError = useSelector(selectAttributeError);
   const customerDetail = useSelector(selectCustomerDetail);
-  const designTemplates = useSelector(selectAllDesignTemplates);
-  const designTemplateStatus = useSelector(selectDesignTemplateStatus);
-  const designTemplateError = useSelector(selectDesignTemplateError);
+
+  // Get all design templates data
+  const allDesignTemplates = useSelector(selectAllDesignTemplates);
+  const suggestedTemplates = useSelector(selectSuggestedTemplates);
+  const allDesignTemplateStatus = useSelector(selectDesignTemplateStatus);
+  const suggestionsStatus = useSelector(selectSuggestionsStatus);
+  const allDesignTemplateError = useSelector(selectDesignTemplateError);
+  const suggestionsError = useSelector(selectSuggestionsError);
+
+  // State variables needed early
+  const [currentProductType, setCurrentProductType] = useState(null);
+
+  // Determine current product type information
+  const currentProductTypeInfo =
+    productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+  const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+  // Choose appropriate data based on AI generation
+  const designTemplates = isAiGenerated
+    ? suggestedTemplates
+    : allDesignTemplates;
+  const designTemplateStatus = isAiGenerated
+    ? suggestionsStatus
+    : allDesignTemplateStatus;
+  const designTemplateError = isAiGenerated
+    ? suggestionsError
+    : allDesignTemplateError;
+
   const [customerNote, setCustomerNote] = useState("");
   const aiStatus = useSelector(selectAIStatus);
   const aiError = useSelector(selectAIError);
@@ -1574,7 +1739,6 @@ const AIDesign = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadImagePreview, setUploadImagePreview] = useState("");
   const [processedLogoUrl, setProcessedLogoUrl] = useState("");
-  const [currentProductType, setCurrentProductType] = useState(null);
   const hasFetchedDataRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
   const [currentSubStep, setCurrentSubStep] = useState("template"); // 'template' hoặc 'background'
@@ -1618,6 +1782,7 @@ const AIDesign = () => {
     message: "",
     severity: "success",
   });
+  const [coreAttributesReady, setCoreAttributesReady] = useState(false);
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const totalAmount = useSelector(selectTotalAmount);
@@ -1800,22 +1965,13 @@ const AIDesign = () => {
 
   useEffect(() => {
     if (designTemplates && designTemplates.length > 0) {
-      console.log(
-        "🔄 Design templates loaded, fetching images:",
-        designTemplates.length
-      );
       designTemplates.forEach((template) => {
         if (template.image && !designTemplateImageUrls[template.id]) {
-          console.log(
-            "📥 Fetching image for template:",
-            template.id,
-            template.image
-          );
           fetchDesignTemplateImage(template);
         } else if (!template.image) {
-          console.warn("⚠️ Template missing image URL:", template.id);
+          console.warn("Template missing image URL:", template.id);
         } else {
-          console.log("✅ Template image already cached:", template.id);
+          console.log("Template image already cached:", template.id);
         }
       });
     }
@@ -2655,10 +2811,17 @@ const AIDesign = () => {
     if (prevStepRef.current === 5 && currentStep !== 5) {
       // ✅ ONLY reset retry attempts when leaving step 5, but keep URLs cached
       setBackgroundRetryAttempts({});
-      console.log(
-        "🔄 Left step 5, clearing retry attempts but keeping blob URLs cached"
-      );
     }
+
+    // Reset attribute restoration flag when navigating to step 4 (case 4)
+    if (currentStep === 4 && prevStepRef.current !== 4) {
+      console.log(
+        "🔄 Navigated to step 4, resetting attribute restoration flag"
+      );
+      // This will be passed down to ModernBillboardForm via props, but we need to reset it here
+      // The flag will be reset in the ModernBillboardForm component itself
+    }
+
     prevStepRef.current = currentStep;
   }, [currentStep]);
   useEffect(() => {
@@ -2911,15 +3074,13 @@ const AIDesign = () => {
   };
   // Điều chỉnh cài đặt canvas để có chất lượng tốt hơn
   useEffect(() => {
+    // ✅ Chỉ khởi tạo canvas cho step 7
     if (
       currentStep === 7 &&
       canvasRef.current &&
       !fabricCanvas &&
       (generatedImage || selectedBackgroundForCanvas)
     ) {
-      console.log("INITIALIZING CANVAS");
-      console.log("🎯 [CANVAS] pixelValueData:", pixelValueData);
-
       const canvasContainer = canvasRef.current.parentElement;
       const containerWidth = canvasContainer.clientWidth;
 
@@ -2989,15 +3150,35 @@ const AIDesign = () => {
         preserveObjectStacking: true,
       });
 
-      // Xác định nguồn ảnh để sử dụng
+      // Xác định nguồn ảnh để sử dụng dựa trên product type
       let imageUrl = null;
       let imageSource = null;
 
-      if (generatedImage) {
+      // Determine current product type
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) ||
+        currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      console.log("🎯 [CANVAS] Determining image source:");
+      console.log("🎯 [CANVAS] isAiGenerated:", isAiGenerated);
+      console.log("🎯 [CANVAS] has generatedImage:", !!generatedImage);
+      console.log(
+        "🎯 [CANVAS] has selectedBackgroundForCanvas:",
+        !!selectedBackgroundForCanvas
+      );
+
+      // Priority logic based on product type
+      if (isAiGenerated && generatedImage) {
+        // AI product type: prioritize AI generated image
         imageUrl = generatedImage;
         imageSource = "ai-generated";
-        console.log("Using AI-generated image URL:", imageUrl);
-      } else if (selectedBackgroundForCanvas) {
+        console.log(
+          "🤖 [CANVAS] Using AI-generated image for AI product type:",
+          imageUrl
+        );
+      } else if (!isAiGenerated && selectedBackgroundForCanvas) {
+        // Non-AI product type: prioritize background
         console.log(
           "🔍 [CANVAS DEBUG] selectedBackgroundForCanvas:",
           selectedBackgroundForCanvas
@@ -3019,7 +3200,10 @@ const AIDesign = () => {
         if (selectedBackgroundForCanvas.extrasImageUrl) {
           imageUrl = selectedBackgroundForCanvas.extrasImageUrl;
           imageSource = "background-extras";
-          console.log("🎨 Using background extras image ONLY:", imageUrl);
+          console.log(
+            "🎨 [CANVAS] Using background extras image for non-AI product:",
+            imageUrl
+          );
         } else {
           console.warn(
             "⚠️ [CANVAS] No extrasImageUrl available, using TEMPORARY fallback"
@@ -3464,246 +3648,14 @@ const AIDesign = () => {
     selectedBackgroundForCanvas,
     fabricCanvas,
     pixelValueData,
+    billboardType,
+    currentProductType,
+    productTypes,
   ]);
 
-  // Thêm useEffect riêng để handle khi selectedImage thay đổi trong step 6
+  // Canvas chỉ được khởi tạo cho step 7, không cần xử lý step 6 nữa
+  // vì từ step 7 sẽ luôn quay về step 5
 
-  useEffect(() => {
-    if (currentStep === 6 && fabricCanvas) {
-      let imageToLoad = null;
-      let imageSource = null;
-
-      if (generatedImage) {
-        imageToLoad = generatedImage;
-        imageSource = "ai-generated";
-        console.log(
-          "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
-          generatedImage
-        );
-      } else if (selectedBackgroundForCanvas) {
-        // 🎨 CHỈ SỬ DỤNG extrasImageUrl - không fallback về background gốc
-        if (selectedBackgroundForCanvas.extrasImageUrl) {
-          imageToLoad = selectedBackgroundForCanvas.extrasImageUrl;
-          imageSource = "background-extras";
-          console.log("🎨 Using background extras image ONLY:", imageToLoad);
-        } else {
-          console.warn(
-            "⚠️ [CANVAS UPDATE] No extrasImageUrl available, cannot update background"
-          );
-          imageSource = "no-extras";
-        }
-      }
-
-      if (
-        imageToLoad &&
-        (imageSource === "ai-generated" || imageSource === "background-extras")
-      ) {
-        // Xóa ảnh cũ
-        const objects = fabricCanvas.getObjects();
-        const oldImages = objects.filter(
-          (obj) =>
-            obj.name === "backgroundImage" ||
-            obj.name === "backgroundImage-ai-generated" ||
-            obj.name === "backgroundImage-background" ||
-            obj.name === "backgroundImage-background-extras" ||
-            obj.name === "placeholder-ai-generated" ||
-            obj.name === "placeholder-background" ||
-            obj.name === "placeholder-background-extras" ||
-            obj.name === "placeholder-text-ai-generated" ||
-            obj.name === "placeholder-text-background" ||
-            obj.name === "placeholder-text-background-extras" ||
-            obj.name === "waiting-extras-placeholder" ||
-            obj.name === "waiting-extras-text" ||
-            obj.name === "waiting-extras-subtext"
-        );
-
-        oldImages.forEach((img) => fabricCanvas.remove(img));
-
-        // ✅ THÊM FLAG ĐỂ TRÁNH VÒNG LẶP VÔ HẠN
-        let hasErrored = false;
-
-        const updateCanvasImage = async () => {
-          try {
-            let finalImageUrl = null;
-
-            if (imageSource === "ai-generated") {
-              finalImageUrl = imageToLoad;
-            } else if (imageSource === "background-extras") {
-              // Background Extras Image - sử dụng trực tiếp URL từ extras API
-              finalImageUrl = imageToLoad;
-              console.log(
-                "🎨 Updating with background extras image URL directly:",
-                finalImageUrl
-              );
-            }
-
-            if (!finalImageUrl) {
-              throw new Error("No valid image URL available for update");
-            }
-
-            // Load ảnh mới
-            const img = new Image();
-
-            // ✅ CHỈ SET crossOrigin cho AI-generated images
-            if (imageSource === "ai-generated") {
-              img.crossOrigin = "anonymous";
-            }
-
-            img.onload = function () {
-              console.log(
-                `${imageSource.toUpperCase()} IMAGE LOADED SUCCESSFULLY`
-              );
-
-              const fabricImg = new fabric.Image(img, {
-                left: 0,
-                top: 0,
-                selectable: false,
-                evented: false,
-                name: `backgroundImage-${imageSource}`,
-              });
-
-              const canvasWidth = fabricCanvas.width;
-              const canvasHeight = fabricCanvas.height;
-
-              const scaleX = canvasWidth / fabricImg.width;
-              const scaleY = canvasHeight / fabricImg.height;
-              const scale = Math.max(scaleX, scaleY);
-
-              fabricImg.set({
-                scaleX: scale,
-                scaleY: scale,
-                left: (canvasWidth - fabricImg.width * scale) / 2,
-                top: (canvasHeight - fabricImg.height * scale) / 2,
-              });
-
-              fabricCanvas.add(fabricImg);
-              fabricCanvas.sendToBack(fabricImg);
-              fabricCanvas.renderAll();
-
-              console.log(
-                `${imageSource.toUpperCase()} IMAGE UPDATED IN CANVAS`
-              );
-            };
-
-            img.onerror = function (error) {
-              // ✅ KIỂM TRA FLAG ĐỂ TRÁNH VÒNG LẶP
-              if (hasErrored) {
-                console.log(
-                  "Already handled error in image update, skipping..."
-                );
-                return;
-              }
-
-              hasErrored = true;
-              console.error(`ERROR updating ${imageSource} image:`, error);
-
-              setSnackbar({
-                open: true,
-                message: `Lỗi khi cập nhật ${
-                  imageSource === "ai-generated" ? "thiết kế" : "background"
-                }`,
-                severity: "warning",
-              });
-            };
-
-            img.src = finalImageUrl;
-          } catch (error) {
-            console.error(`Error updating ${imageSource} image:`, error);
-
-            if (hasErrored) return;
-            hasErrored = true;
-
-            setSnackbar({
-              open: true,
-              message: `Lỗi khi cập nhật ${
-                imageSource === "ai-generated" ? "thiết kế" : "background"
-              }: ${error.message}`,
-              severity: "warning",
-            });
-          }
-        };
-
-        updateCanvasImage();
-      } else if (imageSource === "no-extras") {
-        // Xóa ảnh cũ và hiển thị placeholder
-        const objects = fabricCanvas.getObjects();
-        const oldImages = objects.filter(
-          (obj) =>
-            obj.name === "backgroundImage" ||
-            obj.name === "backgroundImage-ai-generated" ||
-            obj.name === "backgroundImage-background" ||
-            obj.name === "backgroundImage-background-extras" ||
-            obj.name === "placeholder-ai-generated" ||
-            obj.name === "placeholder-background" ||
-            obj.name === "placeholder-background-extras" ||
-            obj.name === "placeholder-text-ai-generated" ||
-            obj.name === "placeholder-text-background" ||
-            obj.name === "placeholder-text-background-extras" ||
-            obj.name === "waiting-extras-placeholder" ||
-            obj.name === "waiting-extras-text" ||
-            obj.name === "waiting-extras-subtext"
-        );
-
-        oldImages.forEach((img) => fabricCanvas.remove(img));
-
-        // Tạo placeholder chờ extras
-        const canvasWidth = fabricCanvas.width;
-        const canvasHeight = fabricCanvas.height;
-
-        const placeholderRect = new fabric.Rect({
-          left: 0,
-          top: 0,
-          width: canvasWidth,
-          height: canvasHeight,
-          fill: "#f8f9fa",
-          stroke: "#ddd",
-          strokeWidth: 2,
-          selectable: false,
-          evented: false,
-          name: "waiting-extras-placeholder",
-        });
-
-        const placeholderText = new fabric.Text(
-          "Không có ảnh background extras",
-          {
-            left: canvasWidth / 2,
-            top: canvasHeight / 2 - 20,
-            fontSize: 20,
-            fill: "#666",
-            textAlign: "center",
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: "waiting-extras-text",
-          }
-        );
-
-        const subText = new fabric.Text(
-          "Vui lòng quay lại Case 5 để tạo lại background",
-          {
-            left: canvasWidth / 2,
-            top: canvasHeight / 2 + 20,
-            fontSize: 14,
-            fill: "#999",
-            textAlign: "center",
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: "waiting-extras-subtext",
-          }
-        );
-
-        fabricCanvas.add(placeholderRect);
-        fabricCanvas.add(placeholderText);
-        fabricCanvas.add(subText);
-        fabricCanvas.renderAll();
-
-        console.log("🎨 [CANVAS UPDATE] No extras placeholder added");
-      }
-    }
-  }, [generatedImage, selectedBackgroundForCanvas, fabricCanvas, currentStep]);
   const addText = () => {
     if (!fabricCanvas) return;
 
@@ -3756,6 +3708,18 @@ const AIDesign = () => {
     fabricCanvas.renderAll();
   };
   const exportDesignWithBackground = async () => {
+    console.log("🎯 [EXPORT BACKGROUND] Starting export...");
+    console.log("🎯 [EXPORT BACKGROUND] fabricCanvas:", !!fabricCanvas);
+    console.log(
+      "🎯 [EXPORT BACKGROUND] selectedBackgroundForCanvas:",
+      selectedBackgroundForCanvas
+    );
+    console.log("🎯 [EXPORT BACKGROUND] customerDetail:", customerDetail);
+    console.log(
+      "🎯 [EXPORT BACKGROUND] selectedSampleProduct:",
+      selectedSampleProduct
+    );
+
     if (!fabricCanvas || !selectedBackgroundForCanvas || !customerDetail?.id) {
       setSnackbar({
         open: true,
@@ -3810,12 +3774,23 @@ const AIDesign = () => {
       });
 
       // 3. Call API to save edited design with background
-      console.log("Saving edited design with background:", {
-        customerDetailId: customerDetail.id,
-        backgroundId: selectedBackgroundForCanvas.id,
-        customerNote: customerNote || "",
-        fileSize: file.size,
-      });
+      console.log(
+        "🎯 [EXPORT BACKGROUND] Saving edited design with background:",
+        {
+          customerDetailId: customerDetail.id,
+          backgroundId: selectedBackgroundForCanvas.id,
+          customerNote: customerNote || "",
+          fileSize: file.size,
+          selectedBackgroundForCanvas: selectedBackgroundForCanvas,
+          selectedSampleProduct: selectedSampleProduct,
+          backgroundObject: {
+            id: selectedBackgroundForCanvas.id,
+            name: selectedBackgroundForCanvas.name,
+            backgroundUrl: selectedBackgroundForCanvas.backgroundUrl,
+            extrasImageUrl: selectedBackgroundForCanvas.extrasImageUrl,
+          },
+        }
+      );
 
       const result = await dispatch(
         createEditedDesignWithBackgroundThunk({
@@ -3898,12 +3873,33 @@ const AIDesign = () => {
         }, 3000);
       }
     } catch (error) {
-      console.error("Error exporting background design:", error);
+      console.error(
+        "🎯 [EXPORT BACKGROUND] Error exporting background design:",
+        error
+      );
+      console.error("🎯 [EXPORT BACKGROUND] Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack,
+        fullError: error,
+      });
+
+      let errorMessage =
+        "Lỗi khi xuất thiết kế với background. Vui lòng thử lại.";
+
+      if (error.message && error.message.includes("mẫu thiết kế")) {
+        errorMessage =
+          "Không tìm thấy mẫu thiết kế đã chọn. Vui lòng chọn lại background và thử lại.";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       setSnackbar({
         open: true,
-        message:
-          error.message ||
-          "Lỗi khi xuất thiết kế với background. Vui lòng thử lại.",
+        message: errorMessage,
         severity: "error",
       });
     } finally {
@@ -4106,14 +4102,35 @@ const AIDesign = () => {
       return;
     }
 
-    // Kiểm tra loại thiết kế dựa trên nguồn gốc
-    if (generatedImage) {
-      // Đây là AI generated design - sử dụng logic cũ
+    // Determine current product type to decide export method
+    const currentProductTypeInfo =
+      productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+    const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+    console.log("🎯 [EXPORT] Determining export method:");
+    console.log("🎯 [EXPORT] isAiGenerated:", isAiGenerated);
+    console.log("🎯 [EXPORT] has generatedImage:", !!generatedImage);
+    console.log(
+      "🎯 [EXPORT] has selectedBackgroundForCanvas:",
+      !!selectedBackgroundForCanvas
+    );
+
+    // Export logic based on product type
+    if (isAiGenerated && generatedImage) {
+      // AI product type with generated image
       console.log("Exporting AI generated design");
       await exportAIDesign();
-    } else if (selectedBackgroundForCanvas) {
-      // Đây là background design - sử dụng logic mới
+    } else if (!isAiGenerated && selectedBackgroundForCanvas) {
+      // Non-AI product type with background selection
       console.log("Exporting background design");
+      await exportDesignWithBackground();
+    } else if (generatedImage && !selectedBackgroundForCanvas) {
+      // Fallback: has AI image but no background (mixed case)
+      console.log("Exporting AI generated design (fallback)");
+      await exportAIDesign();
+    } else if (selectedBackgroundForCanvas && !generatedImage) {
+      // Fallback: has background but no AI image (mixed case)
+      console.log("Exporting background design (fallback)");
       await exportDesignWithBackground();
     } else {
       setSnackbar({
@@ -4130,13 +4147,20 @@ const AIDesign = () => {
         currentProductType;
       const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
 
-      console.log("Step 5 - isAiGenerated:", isAiGenerated);
       if (isAiGenerated) {
-        console.log(
-          "Fetching design templates for AI product type:",
-          billboardType
-        );
-        dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+        if (currentOrder?.id) {
+          dispatch(
+            fetchDesignTemplateSuggestionsByCustomerChoiceId({
+              customerChoiceId: currentOrder.id,
+              page: 1,
+              size: 10,
+            })
+          );
+        } else {
+          console.warn(
+            "No currentOrder.id available for fetching design template suggestions"
+          );
+        }
       } else {
         console.log("Fetching background suggestions for non-AI product type");
         if (currentOrder?.id) {
@@ -4224,29 +4248,21 @@ const AIDesign = () => {
     const restoreFormData = async () => {
       // THÊM ĐIỀU KIỆN KIỂM TRA currentOrder?.id
       if (currentStep === 4 && billboardType && currentOrder?.id) {
-        console.log("Restoring form data for step 4");
-        console.log("Current order ID:", currentOrder.id);
-
         try {
           // 1. Fetch customer choice details để lấy attribute values đã chọn
           const choiceDetailsResult = await dispatch(
             fetchCustomerChoiceDetails(currentOrder.id)
           ).unwrap();
-          console.log("Choice details fetched:", choiceDetailsResult);
 
           // 2. Fetch customer choice sizes để lấy sizes đã chọn
           const existingSizes = await dispatch(
             fetchCustomerChoiceSizes(currentOrder.id)
           ).unwrap();
-          console.log("Existing sizes fetched:", existingSizes);
 
           // 3. Fetch total amount
           const choiceResult = await dispatch(
             fetchCustomerChoice(currentOrder.id)
           ).unwrap();
-          console.log("Choice result fetched:", choiceResult);
-
-          console.log("Form data restored successfully");
 
           // CHỈ HIỂN thị thông báo nếu thực sự có dữ liệu để khôi phục
           const hasChoiceDetails =
@@ -4312,7 +4328,6 @@ const AIDesign = () => {
           });
       } else if (currentOrder?.id && !hasRestoredDataRef.current) {
         hasRestoredDataRef.current = true;
-        console.log("Restoring data for existing order:", currentOrder.id);
 
         dispatch(fetchCustomerChoiceDetails(currentOrder.id));
         dispatch(fetchCustomerChoice(currentOrder.id));
@@ -4325,14 +4340,20 @@ const AIDesign = () => {
       hasFetchedDataRef.current = false;
       hasRestoredDataRef.current = false;
     }
-  }, [currentStep, billboardType, dispatch, attributeStatus, user?.id]);
+  }, [
+    currentStep,
+    billboardType,
+    dispatch,
+    attributeStatus,
+    user?.id,
+    currentOrder,
+  ]);
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const res = await getProfileApi();
-        console.log("Profile API Response:", res);
+
         if (res.success && res.data) {
-          console.log("User data from API:", res.data);
           setUser(res.data);
 
           // After getting the user, fetch their customer detail
@@ -4379,14 +4400,12 @@ const AIDesign = () => {
   useEffect(() => {
     if (s3CustomerLogo) {
       setProcessedLogoUrl(s3CustomerLogo);
-      console.log("Processed S3 logo URL:", s3CustomerLogo);
     } else if (customerDetail?.logoUrl) {
       // Fallback: Tạo URL từ API endpoint nếu không có trong state
       const apiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
         customerDetail.logoUrl
       )}`;
       setProcessedLogoUrl(apiUrl);
-      console.log("Fallback logo URL:", apiUrl);
     }
   }, [s3CustomerLogo, customerDetail?.logoUrl]);
   const handleInputChange = (e) => {
@@ -4462,25 +4481,17 @@ const AIDesign = () => {
       userId: user.id,
     };
 
-    console.log("Customer data to be sent:", customerData);
-
     try {
       let resultCustomerDetail = null;
 
       // LOGIC ĐƠN GIẢN: Nếu có customerDetail trong Redux thì update, không thì tạo mới
       if (customerDetail && customerDetail.id) {
-        console.log("Updating existing customer detail:", customerDetail.id);
         resultCustomerDetail = await dispatch(
           updateCustomerDetail({
             customerDetailId: customerDetail.id,
             customerData,
           })
         ).unwrap();
-
-        console.log(
-          "Customer detail updated successfully:",
-          resultCustomerDetail
-        );
 
         if (resultCustomerDetail.warning) {
           setSnackbar({
@@ -4518,8 +4529,6 @@ const AIDesign = () => {
           fetchCustomerChoices(customerId)
         ).unwrap();
 
-        console.log("Customer choices response:", customerChoicesResponse);
-
         if (
           customerChoicesResponse &&
           customerChoicesResponse.productTypes?.id
@@ -4538,7 +4547,6 @@ const AIDesign = () => {
             severity: "info",
           });
         } else {
-          console.log("No existing customer choice found, moving to step 3");
           setCurrentStep(3);
           navigate("/ai-design?step=billboard");
         }
@@ -4629,7 +4637,6 @@ const AIDesign = () => {
 
   const handleBillboardSubmit = async (e) => {
     e.preventDefault();
-    console.log("Billboard form submitted");
 
     const sizesConfirmed =
       document.querySelector("svg.text-green-500") !== null;
@@ -4640,19 +4647,14 @@ const AIDesign = () => {
       return;
     }
 
-    console.log("Sizes confirmed, proceeding to step 5");
-
     // Lấy thông tin product type hiện tại để kiểm tra isAiGenerated
     const currentProductTypeInfo =
       productTypes.find((pt) => pt.id === billboardType) || currentProductType;
     const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
 
-    console.log("Product type isAiGenerated:", isAiGenerated);
-
     if (isAiGenerated) {
       // Nếu là AI Generated -> hiển thị Design Templates
       setCurrentSubStep("template");
-      console.log("Showing design templates for AI generated product");
     } else {
       // Nếu không phải AI Generated -> hiển thị Background Suggestions
       setCurrentSubStep("background");
@@ -4880,11 +4882,6 @@ const AIDesign = () => {
     }
   };
 
-  const handleRegenerate = () => {
-    setCurrentStep(3); // Quay lại bước chọn loại biển hiệu
-    navigate("/ai-design?step=billboard");
-  };
-
   const handleConfirm = async () => {
     console.log("AIDesign - handleConfirm được gọi");
     console.log("AIDesign - editedDesign data:", editedDesign);
@@ -4957,6 +4954,65 @@ const AIDesign = () => {
   useEffect(() => {
     setImageLoadError(null);
   }, [currentStep]);
+
+  // Clear generatedImage when user selects background (not AI-generated product type)
+  useEffect(() => {
+    if (selectedBackgroundForCanvas && currentStep === 5) {
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) ||
+        currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      // If it's not AI-generated and user selects background, clear any existing AI image and sample product
+      if (!isAiGenerated) {
+        if (generatedImage) {
+          console.log(
+            "🧹 Clearing AI image because user selected background for non-AI product"
+          );
+          dispatch(resetImageGeneration());
+        }
+        if (selectedSampleProduct) {
+          console.log(
+            "🧹 Clearing selectedSampleProduct because user selected background for non-AI product"
+          );
+          setSelectedSampleProduct(null);
+        }
+      }
+    }
+  }, [
+    selectedBackgroundForCanvas,
+    currentStep,
+    billboardType,
+    productTypes,
+    currentProductType,
+    generatedImage,
+    selectedSampleProduct,
+    dispatch,
+  ]);
+
+  // Clear selectedBackgroundForCanvas when user generates AI image
+  useEffect(() => {
+    if (generatedImage && selectedBackgroundForCanvas) {
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) ||
+        currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      // If it's AI-generated and user has AI image, clear background selection
+      if (isAiGenerated) {
+        console.log(
+          "🧹 Clearing background selection because user generated AI image"
+        );
+        setSelectedBackgroundForCanvas(null);
+      }
+    }
+  }, [
+    generatedImage,
+    selectedBackgroundForCanvas,
+    billboardType,
+    productTypes,
+    currentProductType,
+  ]);
   useEffect(() => {
     // Khôi phục currentProductType từ localStorage nếu chưa có
     if (!currentProductType && billboardType) {
@@ -5028,8 +5084,6 @@ const AIDesign = () => {
         );
       }
 
-      console.log("Selected product type:", selectedProductType);
-
       // Check if user already has a customer choice for this product type
       const customerChoicesResponse = await dispatch(
         fetchCustomerChoices(user.id)
@@ -5040,11 +5094,6 @@ const AIDesign = () => {
         customerChoicesResponse &&
         customerChoicesResponse.productTypes?.id === productTypeId
       ) {
-        console.log(
-          "User already has a customer choice for this product type:",
-          customerChoicesResponse
-        );
-
         // Set the existing choice as current order
         setBillboardType(productTypeId);
 
@@ -5069,7 +5118,6 @@ const AIDesign = () => {
 
       // If no existing choice or different product type, create/update
       const userId = user.id;
-      console.log(`Linking user ${userId} to product type ${productTypeId}`);
 
       // Dispatch the action to link customer with product type
       const resultAction = await dispatch(
@@ -5078,8 +5126,6 @@ const AIDesign = () => {
           productTypeId,
         })
       ).unwrap();
-
-      console.log("Customer linked to product type:", resultAction);
 
       // After successful API call, update UI and navigate
       setBillboardType(productTypeId);
@@ -5138,9 +5184,6 @@ const AIDesign = () => {
       dispatch(deleteCustomerChoice(currentOrder.id))
         .unwrap()
         .then(() => {
-          console.log(
-            `Successfully deleted customer choice ${currentOrder.id}`
-          );
           // Navigate back after successful deletion
           setBillboardType("");
           setCurrentProductType(null); // Reset current product type
@@ -5175,11 +5218,8 @@ const AIDesign = () => {
 
   // Hàm bắt đầu polling tiến trình Stable Diffusion
   const startProgressPolling = () => {
-    console.log("🔄 Bắt đầu polling tiến trình Stable Diffusion...");
-
     // Dừng polling hiện tại nếu có
     if (progressPollingIntervalRef.current) {
-      console.log("⏹️ Dừng polling hiện tại trước khi bắt đầu mới");
       clearInterval(progressPollingIntervalRef.current);
       progressPollingIntervalRef.current = null;
     }
@@ -5731,6 +5771,9 @@ const AIDesign = () => {
             handleBackToTypeSelection={handleBackToTypeSelection}
             setSnackbar={setSnackbar}
             ModernBillboardForm={ModernBillboardForm}
+            coreAttributesReady={coreAttributesReady}
+            setCoreAttributesReady={setCoreAttributesReady}
+            currentStep={currentStep}
           />
         );
       case 5:
@@ -5771,7 +5814,6 @@ const AIDesign = () => {
             progressCheckError={progressCheckError}
             isPollingProgress={isPollingProgress}
             setSelectedImage={setSelectedImage}
-            handleRegenerate={handleRegenerate}
             setSnackbar={setSnackbar}
             setCurrentStep={setCurrentStep}
             setIsConfirming={setIsConfirming}
@@ -5873,39 +5915,6 @@ const AIDesign = () => {
               lượng tốt nhất.
             </p>
           </div>
-
-          {/* Live Preview Section - Enhanced */}
-          {(() => {
-            console.log("🔍 Debug Live Preview:");
-            console.log("   - showingLivePreview:", showingLivePreview);
-            console.log(
-              "   - stableDiffusionProgress:",
-              stableDiffusionProgress
-            );
-            console.log(
-              "   - has live_preview:",
-              !!stableDiffusionProgress?.live_preview
-            );
-            console.log(
-              "   - live_preview length:",
-              stableDiffusionProgress?.live_preview?.length
-            );
-            if (stableDiffusionProgress?.live_preview) {
-              console.log(
-                "   - live_preview first 50 chars:",
-                stableDiffusionProgress.live_preview.substring(0, 50)
-              );
-              console.log(
-                "   - live_preview starts with /9j (JPEG):",
-                stableDiffusionProgress.live_preview.startsWith("/9j")
-              );
-              console.log(
-                "   - live_preview starts with iVBORw0KGgo (PNG):",
-                stableDiffusionProgress.live_preview.startsWith("iVBORw0KGgo")
-              );
-            }
-            return null;
-          })()}
 
           {/* Hiển thị tiến độ chi tiết - Cả khi có và không có live preview (không hiển thị ở step 6) */}
           {(stableDiffusionProgress?.progress !== undefined ||
