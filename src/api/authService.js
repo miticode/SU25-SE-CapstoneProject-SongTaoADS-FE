@@ -303,9 +303,6 @@ export const getProfileApi = async () => {
 
     const { success, result, message } = response.data;
 
-    console.log("Profile API response:", response.data); // Debug log
-    console.log("User roles:", result?.roles); // Debug log
-
     if (success) {
       return { success: true, data: result }; // Đảm bảo trả về result
     }
@@ -503,9 +500,12 @@ export const outboundAuthenticationApi = async (code) => {
     console.log("Code length:", code.length);
 
     // Tạo URL với URLSearchParams để đảm bảo encoding chính xác
-    const url = new URL('/api/auth/outbound/authentication', API_URL || 'https://songtaoads.online');
-    url.searchParams.set('code', code);
-    
+    const url = new URL(
+      "/api/auth/outbound/authentication",
+      API_URL || "https://songtaoads.online"
+    );
+    url.searchParams.set("code", code);
+
     console.log("Final URL:", url.toString());
 
     const response = await authService.post(url.pathname + url.search);
