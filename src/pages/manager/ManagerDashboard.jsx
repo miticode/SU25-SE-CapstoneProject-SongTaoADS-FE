@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
   Grid,
@@ -47,6 +48,10 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Refresh as RefreshIcon,
+  CheckCircle as CompletedIcon,
+  LocalShipping as ShippingIcon,
+  Settings as TicketIcon,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -63,6 +68,13 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import {
+  fetchStaffDashboard,
+  selectStaffDashboard,
+  selectDashboardStatus,
+  selectDashboardError,
+  selectDashboardLastUpdated
+} from "../../store/features/dashboard/dashboardSlice";
 import TicketManager from "./TicketManager";
 
 // Mock data for manager dashboard
@@ -155,11 +167,29 @@ const teamMembers = [
 
 const ManagerDashboard = () => {
   const { activeTab } = useOutletContext();
+  const dispatch = useDispatch();
+  
+  // Redux selectors for dashboard data
+  const dashboardData = useSelector(selectStaffDashboard);
+  const dashboardStatus = useSelector(selectDashboardStatus);
+  const dashboardError = useSelector(selectDashboardError);
+  const lastUpdated = useSelector(selectDashboardLastUpdated);
+  
   const [timeFilter, setTimeFilter] = useState("weekly");
   const [tasksTabValue, setTasksTabValue] = useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    dispatch(fetchStaffDashboard());
+  }, [dispatch]);
+
+  // Handle refresh dashboard data
+  const handleRefreshDashboard = () => {
+    dispatch(fetchStaffDashboard());
+  };
 
   const handleTimeFilterChange = (event) => {
     setTimeFilter(event.target.value);
@@ -172,7 +202,7 @@ const ManagerDashboard = () => {
   // Dashboard Content
   const renderDashboardContent = () => (
     <Box>
-      {/* Header Section */}
+      {/* Header với refresh button và time filter */}
       <Box
         mb={3}
         display="flex"
@@ -188,89 +218,51 @@ const ManagerDashboard = () => {
         >
           Manager Dashboard
         </Typography>
-        <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-          <InputLabel id="time-filter-label">Time Period</InputLabel>
-          <Select
-            labelId="time-filter-label"
-            value={timeFilter}
-            onChange={handleTimeFilterChange}
-            label="Time Period"
-          >
-            <MenuItem value="daily">Daily</MenuItem>
-            <MenuItem value="weekly">Weekly</MenuItem>
-            <MenuItem value="monthly">Monthly</MenuItem>
-            <MenuItem value="yearly">Yearly</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      {/* Stats Cards */}
-      <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 2 : 4}>
-        {/* Team Performance Card */}
-        <Grid xs={12} sm={6} lg={3}>
-          <Paper
-            elevation={0}
+        
+        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+          {lastUpdated && (
+            <Typography variant="body2" color="text.secondary">
+              Cập nhật lần cuối: {new Date(lastUpdated).toLocaleString('vi-VN')}
+            </Typography>
+          )}
+          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+            <InputLabel id="time-filter-label">Time Period</InputLabel>
+            <Select
+              labelId="time-filter-label"
+              value={timeFilter}
+              onChange={handleTimeFilterChange}
+              label="Time Period"
+            >
+              <MenuItem value="daily">Daily</MenuItem>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="yearly">Yearly</MenuItem>
+            </Select>
+          </FormControl>
+          <IconButton
+            onClick={handleRefreshDashboard}
+            disabled={dashboardStatus === 'loading'}
+            color="primary"
             sx={{
-              p: isMobile ? 1.5 : 2,
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              position: "relative",
-              overflow: "hidden",
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "4px",
-                backgroundColor: "#2e7d32",
-              },
+              bgcolor: 'primary.50',
+              '&:hover': { bgcolor: 'primary.100' }
             }}
           >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="flex-start"
-              mb={1}
-            >
-              <Avatar
-                sx={{
-                  bgcolor: "rgba(46, 125, 50, 0.15)",
-                  width: isMobile ? 40 : 48,
-                  height: isMobile ? 40 : 48,
-                }}
-              >
-                <TeamIcon
-                  sx={{
-                    color: "#2e7d32",
-                    fontSize: isMobile ? "1.25rem" : "1.5rem",
-                  }}
-                />
-              </Avatar>
-              <Box display="flex" alignItems="center">
-                <ArrowUpIcon sx={{ color: "#2e7d32", fontSize: 16 }} />
-                <Typography variant="body2" color="#2e7d32" fontWeight="medium">
-                  +8.5%
-                </Typography>
-              </Box>
-            </Box>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="medium"
-              my={isMobile ? 0.5 : 1}
-            >
-              92%
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Team Performance
-            </Typography>
-          </Paper>
-        </Grid>
+            <RefreshIcon />
+          </IconButton>
+        </Box>
+      </Box>
 
-        {/* Active Tasks Card */}
+      {/* Error Alert */}
+      {dashboardError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {dashboardError}
+        </Alert>
+      )}
+
+      {/* Staff Dashboard Stats Cards */}
+      <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 2 : 4}>
+        {/* Đơn hàng đang sản xuất */}
         <Grid item xs={12} sm={6} lg={3}>
           <Paper
             elevation={0}
@@ -283,6 +275,13 @@ const ManagerDashboard = () => {
               boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
               position: "relative",
               overflow: "hidden",
+              background: "linear-gradient(135deg, #fff3e0 0%, #fff3e080 100%)",
+              border: "1px solid #ff980020",
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              "&:hover": {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px #ff980030'
+              },
               "&::before": {
                 content: '""',
                 position: "absolute",
@@ -290,7 +289,7 @@ const ManagerDashboard = () => {
                 left: 0,
                 width: "100%",
                 height: "4px",
-                backgroundColor: "#1976d2",
+                backgroundColor: "#ff9800",
               },
             }}
           >
@@ -302,39 +301,37 @@ const ManagerDashboard = () => {
             >
               <Avatar
                 sx={{
-                  bgcolor: "rgba(25, 118, 210, 0.15)",
+                  bgcolor: "rgba(255, 152, 0, 0.15)",
                   width: isMobile ? 40 : 48,
                   height: isMobile ? 40 : 48,
                 }}
               >
                 <TasksIcon
                   sx={{
-                    color: "#1976d2",
+                    color: "#ff9800",
                     fontSize: isMobile ? "1.25rem" : "1.5rem",
                   }}
                 />
               </Avatar>
-              <Box display="flex" alignItems="center">
-                <ArrowUpIcon sx={{ color: "#2e7d32", fontSize: 16 }} />
-                <Typography variant="body2" color="#2e7d32" fontWeight="medium">
-                  +12.3%
-                </Typography>
-              </Box>
+              {dashboardStatus === 'loading' && (
+                <CircularProgress size={16} sx={{ color: "#ff9800" }} />
+              )}
             </Box>
             <Typography
               variant={isMobile ? "h5" : "h4"}
-              fontWeight="medium"
+              fontWeight="bold"
               my={isMobile ? 0.5 : 1}
+              color="#ff9800"
             >
-              18
+              {dashboardStatus === 'loading' ? '...' : dashboardData.productingOrders.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Active Tasks
+            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+              Đơn hàng đang sản xuất
             </Typography>
           </Paper>
         </Grid>
 
-        {/* Team Members Card */}
+        {/* Đơn hàng hoàn thành sản xuất */}
         <Grid item xs={12} sm={6} lg={3}>
           <Paper
             elevation={0}
@@ -347,6 +344,13 @@ const ManagerDashboard = () => {
               boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
               position: "relative",
               overflow: "hidden",
+              background: "linear-gradient(135deg, #e3f2fd 0%, #e3f2fd80 100%)",
+              border: "1px solid #2196f320",
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              "&:hover": {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px #2196f330'
+              },
               "&::before": {
                 content: '""',
                 position: "absolute",
@@ -354,7 +358,7 @@ const ManagerDashboard = () => {
                 left: 0,
                 width: "100%",
                 height: "4px",
-                backgroundColor: "#ed6c02",
+                backgroundColor: "#2196f3",
               },
             }}
           >
@@ -366,39 +370,37 @@ const ManagerDashboard = () => {
             >
               <Avatar
                 sx={{
-                  bgcolor: "rgba(237, 108, 2, 0.15)",
+                  bgcolor: "rgba(33, 150, 243, 0.15)",
                   width: isMobile ? 40 : 48,
                   height: isMobile ? 40 : 48,
                 }}
               >
-                <PeopleIcon
+                <ShippingIcon
                   sx={{
-                    color: "#ed6c02",
+                    color: "#2196f3",
                     fontSize: isMobile ? "1.25rem" : "1.5rem",
                   }}
                 />
               </Avatar>
-              <Box display="flex" alignItems="center">
-                <ArrowUpIcon sx={{ color: "#2e7d32", fontSize: 16 }} />
-                <Typography variant="body2" color="#2e7d32" fontWeight="medium">
-                  +2
-                </Typography>
-              </Box>
+              {dashboardStatus === 'loading' && (
+                <CircularProgress size={16} sx={{ color: "#2196f3" }} />
+              )}
             </Box>
             <Typography
               variant={isMobile ? "h5" : "h4"}
-              fontWeight="medium"
+              fontWeight="bold"
               my={isMobile ? 0.5 : 1}
+              color="#2196f3"
             >
-              12
+              {dashboardStatus === 'loading' ? '...' : dashboardData.productionCompletedOrders.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Team Members
+            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+              Đơn hàng hoàn thành sản xuất
             </Typography>
           </Paper>
         </Grid>
 
-        {/* Project Completion Card */}
+        {/* Tickets đang xử lý */}
         <Grid item xs={12} sm={6} lg={3}>
           <Paper
             elevation={0}
@@ -411,6 +413,13 @@ const ManagerDashboard = () => {
               boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
               position: "relative",
               overflow: "hidden",
+              background: "linear-gradient(135deg, #f3e5f5 0%, #f3e5f580 100%)",
+              border: "1px solid #9c27b020",
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              "&:hover": {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px #9c27b030'
+              },
               "&::before": {
                 content: '""',
                 position: "absolute",
@@ -435,29 +444,96 @@ const ManagerDashboard = () => {
                   height: isMobile ? 40 : 48,
                 }}
               >
-                <TrendingUpIcon
+                <TicketIcon
                   sx={{
                     color: "#9c27b0",
                     fontSize: isMobile ? "1.25rem" : "1.5rem",
                   }}
                 />
               </Avatar>
-              <Box display="flex" alignItems="center">
-                <ArrowUpIcon sx={{ color: "#2e7d32", fontSize: 16 }} />
-                <Typography variant="body2" color="#2e7d32" fontWeight="medium">
-                  +5.2%
-                </Typography>
-              </Box>
+              {dashboardStatus === 'loading' && (
+                <CircularProgress size={16} sx={{ color: "#9c27b0" }} />
+              )}
             </Box>
             <Typography
               variant={isMobile ? "h5" : "h4"}
-              fontWeight="medium"
+              fontWeight="bold"
               my={isMobile ? 0.5 : 1}
+              color="#9c27b0"
             >
-              85%
+              {dashboardStatus === 'loading' ? '...' : dashboardData.inprogressTickets.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Project Completion
+            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+              Tickets đang xử lý
+            </Typography>
+          </Paper>
+        </Grid>
+
+        {/* Đơn hàng hoàn thành */}
+        <Grid item xs={12} sm={6} lg={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: isMobile ? 1.5 : 2,
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              borderRadius: 2,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              position: "relative",
+              overflow: "hidden",
+              background: "linear-gradient(135deg, #e8f5e8 0%, #e8f5e880 100%)",
+              border: "1px solid #4caf5020",
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              "&:hover": {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px #4caf5030'
+              },
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "4px",
+                backgroundColor: "#4caf50",
+              },
+            }}
+          >
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="flex-start"
+              mb={1}
+            >
+              <Avatar
+                sx={{
+                  bgcolor: "rgba(76, 175, 80, 0.15)",
+                  width: isMobile ? 40 : 48,
+                  height: isMobile ? 40 : 48,
+                }}
+              >
+                <CompletedIcon
+                  sx={{
+                    color: "#4caf50",
+                    fontSize: isMobile ? "1.25rem" : "1.5rem",
+                  }}
+                />
+              </Avatar>
+              {dashboardStatus === 'loading' && (
+                <CircularProgress size={16} sx={{ color: "#4caf50" }} />
+              )}
+            </Box>
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
+              fontWeight="bold"
+              my={isMobile ? 0.5 : 1}
+              color="#4caf50"
+            >
+              {dashboardStatus === 'loading' ? '...' : dashboardData.completedOrders.toLocaleString()}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+              Đơn hàng hoàn thành
             </Typography>
           </Paper>
         </Grid>
