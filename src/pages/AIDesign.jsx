@@ -155,6 +155,9 @@ const ModernBillboardForm = ({
   productTypeId,
   productTypeName,
   setSnackbar,
+  coreAttributesReady,
+  setCoreAttributesReady,
+  currentStep,
 }) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
@@ -170,6 +173,15 @@ const ModernBillboardForm = ({
   const hasRestoredSizesRef = useRef(false);
   const hasRestoredAttributesRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
+  
+  // Reset restoration flag when navigating back to step 4
+  useEffect(() => {
+    if (currentStep === 4) {
+      console.log("🔄 Step 4 detected in ModernBillboardForm, resetting restoration flag");
+      hasRestoredAttributesRef.current = false;
+    }
+  }, [currentStep]);
+  
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
   const productTypeSizesError = useSelector(selectProductTypeSizesError);
@@ -191,6 +203,39 @@ const ModernBillboardForm = ({
   );
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [coreAttributesValidation, setCoreAttributesValidation] = useState({});
+
+  // Hàm kiểm tra xem tất cả thuộc tính bắt buộc đã được chọn chưa
+  const validateCoreAttributes = useCallback(() => {
+    const coreAttributes = attributes.filter(attr => attr.isCore === true);
+    const missingCoreAttributes = [];
+    
+    coreAttributes.forEach(attr => {
+      if (!formData[attr.id] || formData[attr.id] === "") {
+        missingCoreAttributes.push(attr.name);
+      }
+    });
+
+    setCoreAttributesValidation({
+      isValid: missingCoreAttributes.length === 0,
+      missingAttributes: missingCoreAttributes,
+      coreAttributesCount: coreAttributes.length,
+      selectedCoreAttributesCount: coreAttributes.length - missingCoreAttributes.length
+    });
+
+    return missingCoreAttributes.length === 0;
+  }, [attributes, formData]);
+
+  // Effect để tự động validate khi formData hoặc attributes thay đổi
+  useEffect(() => {
+    if (sizesConfirmed && attributes.length > 0) {
+      const isValid = validateCoreAttributes();
+      if (setCoreAttributesReady) {
+        setCoreAttributesReady(isValid);
+      }
+    }
+  }, [sizesConfirmed, attributes, formData, validateCoreAttributes, setCoreAttributesReady]);
+
   useEffect(() => {
     // Tạo mapping từ attributeValueId trong customerChoiceDetails về attributeId
     if (
@@ -200,6 +245,7 @@ const ModernBillboardForm = ({
       Object.keys(attributeValuesState).length > 0
     ) {
       const newAttributePrices = {};
+      const restoredFormData = {};
 
       // Duyệt qua tất cả customerChoiceDetails (mapped by attributeValueId)
       Object.entries(customerChoiceDetails).forEach(
@@ -221,7 +267,8 @@ const ModernBillboardForm = ({
 
               if (hasThisValue) {
                 foundAttributeId = attribute.id;
-
+                // Khôi phục formData với attributeValueId đã chọn
+                restoredFormData[foundAttributeId] = attributeValueId;
                 break;
               }
             }
@@ -243,7 +290,17 @@ const ModernBillboardForm = ({
       );
 
       console.log("New attribute prices mapping:", newAttributePrices);
+      console.log("Restored form data:", restoredFormData);
+      
       setAttributePrices(newAttributePrices);
+      
+      // Khôi phục formData với các lựa chọn đã có
+      if (Object.keys(restoredFormData).length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          ...restoredFormData,
+        }));
+      }
     } else {
       console.log("Clearing attribute prices - insufficient data");
       setAttributePrices({});
@@ -522,6 +579,8 @@ const ModernBillboardForm = ({
   // Reset sizesConfirmed when productTypeId changes
   useEffect(() => {
     setSizesConfirmed(false);
+    // Reset attribute restoration flag when product type changes
+    hasRestoredAttributesRef.current = false;
   }, [productTypeId]);
 
   useEffect(() => {
@@ -595,6 +654,75 @@ const ModernBillboardForm = ({
       hasRestoredAttributesRef.current = false;
     };
   }, [productTypeId]);
+
+  // Effect riêng để khôi phục formData từ customerChoiceDetails khi tất cả dữ liệu đã sẵn sàng
+  useEffect(() => {
+    console.log("🔍 Checking restoration conditions:", {
+      sizesConfirmed,
+      customerChoiceDetailsLength: Object.keys(customerChoiceDetails || {}).length,
+      attributesLength: attributes.length,
+      attributeValuesStateLength: Object.keys(attributeValuesState || {}).length,
+      hasRestored: hasRestoredAttributesRef.current
+    });
+
+    if (
+      sizesConfirmed &&
+      customerChoiceDetails &&
+      Object.keys(customerChoiceDetails).length > 0 &&
+      attributes.length > 0 &&
+      Object.keys(attributeValuesState).length > 0 &&
+      !hasRestoredAttributesRef.current
+    ) {
+      console.log("🔄 Restoring attribute selections from customerChoiceDetails");
+      hasRestoredAttributesRef.current = true;
+
+      const restoredFormData = {};
+
+      // Duyệt qua customerChoiceDetails để tìm lại các lựa chọn
+      Object.entries(customerChoiceDetails).forEach(
+        ([attributeValueId, detail]) => {
+          // Tìm attributeId tương ứng với attributeValueId này
+          for (const attribute of attributes) {
+            const attributeValues = attributeValuesState[attribute.id] || [];
+            const hasThisValue = attributeValues.some(
+              (av) => av.id === attributeValueId
+            );
+
+            if (hasThisValue) {
+              restoredFormData[attribute.id] = attributeValueId;
+              console.log(`✅ Restored: ${attribute.name} = ${detail.attributeValueName || attributeValueId}`);
+              break;
+            }
+          }
+        }
+      );
+
+      if (Object.keys(restoredFormData).length > 0) {
+        setFormData((prev) => {
+          const newFormData = {
+            ...prev,
+            ...restoredFormData,
+          };
+          console.log("📝 Updated form data with restored attributes:", newFormData);
+          return newFormData;
+        });
+
+        // Trigger validation after restoring
+        setTimeout(() => {
+          if (setCoreAttributesReady) {
+            const coreAttributes = attributes.filter(attr => attr.isCore === true);
+            const missingCoreAttributes = coreAttributes.filter(attr => 
+              !restoredFormData[attr.id] || restoredFormData[attr.id] === ""
+            );
+            const isValid = missingCoreAttributes.length === 0;
+            setCoreAttributesReady(isValid);
+            console.log(`🔍 Validation after restore: ${isValid ? 'VALID' : 'INVALID'} (${coreAttributes.length - missingCoreAttributes.length}/${coreAttributes.length})`);
+          }
+        }, 100);
+      }
+    }
+  }, [sizesConfirmed, customerChoiceDetails, attributes, attributeValuesState, setCoreAttributesReady]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -1493,6 +1621,73 @@ const ModernBillboardForm = ({
                 Chi tiết sẽ giúp AI tạo thiết kế phù hợp hơn với nhu cầu của bạn
               </Typography>
             </Box> */}
+
+            {/* Validation cho thuộc tính bắt buộc */}
+            {coreAttributesValidation.coreAttributesCount > 0 && (
+              <Box mt={2}>
+                <Box
+                  sx={{
+                    background: coreAttributesValidation.isValid ? "#f0f7ff" : "#fff3e0",
+                    borderRadius: 2,
+                    padding: 2,
+                    border: `1px solid ${coreAttributesValidation.isValid ? "#cce4ff" : "#ffcc80"}`,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight={600}
+                    mb={1}
+                    sx={{
+                      color: coreAttributesValidation.isValid ? "#1565c0" : "#f57c00",
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    <span 
+                      className={`inline-block w-1 h-4 mr-2 rounded ${
+                        coreAttributesValidation.isValid ? "bg-blue-500" : "bg-orange-500"
+                      }`}
+                    ></span>
+                    KIỂM TRA THUỘC TÍNH BẮT BUỘC
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: coreAttributesValidation.isValid ? "#1565c0" : "#f57c00",
+                      mb: 1,
+                    }}
+                  >
+                    {coreAttributesValidation.isValid ? (
+                      <Box display="flex" alignItems="center">
+                        <FaCheckCircle className="mr-2 text-green-500" />
+                        Tất cả thuộc tính bắt buộc đã được chọn ({coreAttributesValidation.selectedCoreAttributesCount}/{coreAttributesValidation.coreAttributesCount})
+                      </Box>
+                    ) : (
+                      <Box>
+                        <Box display="flex" alignItems="center" mb={1}>
+                          <FaTimes className="mr-2 text-orange-500" />
+                          Còn thiếu {coreAttributesValidation.missingAttributes?.length} thuộc tính bắt buộc ({coreAttributesValidation.selectedCoreAttributesCount}/{coreAttributesValidation.coreAttributesCount})
+                        </Box>
+                        {coreAttributesValidation.missingAttributes?.length > 0 && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontStyle: "italic",
+                              color: "#f57c00",
+                              display: "block",
+                            }}
+                          >
+                            Cần chọn: {coreAttributesValidation.missingAttributes.join(", ")}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
           </motion.div>
         )}
 
@@ -1618,6 +1813,7 @@ const AIDesign = () => {
     message: "",
     severity: "success",
   });
+  const [coreAttributesReady, setCoreAttributesReady] = useState(false);
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const totalAmount = useSelector(selectTotalAmount);
@@ -2659,6 +2855,14 @@ const AIDesign = () => {
         "🔄 Left step 5, clearing retry attempts but keeping blob URLs cached"
       );
     }
+    
+    // Reset attribute restoration flag when navigating to step 4 (case 4)
+    if (currentStep === 4 && prevStepRef.current !== 4) {
+      console.log("🔄 Navigated to step 4, resetting attribute restoration flag");
+      // This will be passed down to ModernBillboardForm via props, but we need to reset it here
+      // The flag will be reset in the ModernBillboardForm component itself
+    }
+    
     prevStepRef.current = currentStep;
   }, [currentStep]);
   useEffect(() => {
@@ -5726,6 +5930,9 @@ const AIDesign = () => {
             handleBackToTypeSelection={handleBackToTypeSelection}
             setSnackbar={setSnackbar}
             ModernBillboardForm={ModernBillboardForm}
+            coreAttributesReady={coreAttributesReady}
+            setCoreAttributesReady={setCoreAttributesReady}
+            currentStep={currentStep}
           />
         );
       case 5:
