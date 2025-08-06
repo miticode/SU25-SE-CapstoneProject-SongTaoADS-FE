@@ -39,6 +39,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import SearchIcon from "@mui/icons-material/Search";
+import DescriptionIcon from "@mui/icons-material/Description";
+import CloseIcon from "@mui/icons-material/Close";
+import DownloadIcon from "@mui/icons-material/Download";
 import {
   uploadFileFineTune,
   fineTuneModel,
@@ -74,7 +77,12 @@ import {
   fetchOpenAiModels,
   selectOpenAiModels,
   selectOpenAiModelsStatus,
+  // File content API
+  fetchFineTuneFileContent,
+  selectFineTuneFileContent,
+  selectFineTuneFileContentStatus,
 } from "../../store/features/chat/chatSlice";
+import { downloadFile } from "../../api/s3Service";
 import {
   BarChart,
   Bar,
@@ -137,6 +145,8 @@ const ManagerFineTuneAI = () => {
   const [selectedModel, setSelectedModel] = useState(null);
   const [tab, setTab] = useState(0);
   const [openFileDetail, setOpenFileDetail] = useState(false);
+  const [openFileContent, setOpenFileContent] = useState(false);
+  const [currentFileId, setCurrentFileId] = useState(null);
   const [fileFilter, setFileFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
   const [filePage, setFilePage] = useState(0);
@@ -168,12 +178,29 @@ const ManagerFineTuneAI = () => {
   const fineTuneFilesStatus = useSelector(selectFineTuneFilesStatus);
   const fineTuneFileDetail = useSelector(selectFineTuneFileDetail);
   const fineTuneFileDetailStatus = useSelector(selectFineTuneFileDetailStatus);
+  const fineTuneFileContent = useSelector(selectFineTuneFileContent);
+  const fineTuneFileContentStatus = useSelector(selectFineTuneFileContentStatus);
   const succeededJobs = useSelector(selectSucceededFineTuneJobs);
   const [selectedSucceededJob, setSelectedSucceededJob] = useState(null);
   const [integrateAlert, setIntegrateAlert] = useState(null);
 
   // Debug dữ liệu file
   console.log("fineTuneFiles:", fineTuneFiles);
+
+  // Helper function để format nội dung file
+  const formatFileContent = (content) => {
+    if (typeof content === 'string') {
+      return content.split('\n').map((line, index) => {
+        try {
+          const parsed = JSON.parse(line);
+          return JSON.stringify(parsed, null, 2);
+        } catch {
+          return line;
+        }
+      }).join('\n\n');
+    }
+    return JSON.stringify(content, null, 2);
+  };
 
   useEffect(() => {
     return () => {
@@ -332,6 +359,16 @@ const ManagerFineTuneAI = () => {
     setOpenFileDetail(true);
   };
   const handleCloseFileDetail = () => setOpenFileDetail(false);
+
+  const handleViewFileContent = (fileId) => {
+    setCurrentFileId(fileId);
+    dispatch(fetchFineTuneFileContent(fileId));
+    setOpenFileContent(true);
+  };
+  const handleCloseFileContent = () => {
+    setOpenFileContent(false);
+    setCurrentFileId(null);
+  };
 
   const handleSelectModelForChat = async (jobId) => {
     try {
@@ -1169,33 +1206,56 @@ const ManagerFineTuneAI = () => {
                               : ""}
                           </Typography>
                         </TableCell>
-                        <TableCell>
-                          <Box display="flex" gap={1}>
+                                                <TableCell>
+                          <Box display="flex" gap={0.5} flexWrap="wrap">
                             <Tooltip title="Xem chi tiết">
                               <IconButton
+                                size="small"
                                 onClick={() => handleViewFileDetail(file.id)}
                                 sx={{
                                   bgcolor: '#e3f2fd',
                                   '&:hover': { bgcolor: '#1976d2', color: '#fff' },
                                   transition: 'all 0.2s',
-                                  borderRadius: 2,
+                                  borderRadius: 1,
+                                  width: 32,
+                                  height: 32,
                                 }}
                               >
-                                <VisibilityIcon />
+                                <VisibilityIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Xem nội dung">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleViewFileContent(file.id)}
+                                sx={{
+                                  bgcolor: '#e3f2fd',
+                                  '&:hover': { bgcolor: '#1976d2', color: '#fff' },
+                                  transition: 'all 0.2s',
+                                  borderRadius: 1,
+                                  width: 32,
+                                  height: 32,
+                                }}
+                              >
+                                <DescriptionIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            
                             <Tooltip title="Xóa file">
                               <IconButton
+                                size="small"
                                 color="error"
                                 onClick={() => setConfirmDeleteFileId(file.id)}
                                 sx={{
                                   bgcolor: '#ffebee',
                                   '&:hover': { bgcolor: '#d32f2f', color: '#fff' },
                                   transition: 'all 0.2s',
-                                  borderRadius: 2,
+                                  borderRadius: 1,
+                                  width: 32,
+                                  height: 32,
                                 }}
                               >
-                                <DeleteIcon />
+                                <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           </Box>
@@ -1285,6 +1345,98 @@ const ManagerFineTuneAI = () => {
               )}
             </DialogContent>
           </Dialog>
+                     {/* Dialog xem nội dung file */}
+           <Dialog
+             open={openFileContent}
+             onClose={handleCloseFileContent}
+             maxWidth="lg"
+             fullWidth
+           >
+             <DialogTitle>
+               <Box display="flex" alignItems="center" justifyContent="space-between">
+                 <Typography variant="h6">Nội dung file</Typography>
+                 <IconButton onClick={handleCloseFileContent} size="small">
+                   <CloseIcon />
+                 </IconButton>
+               </Box>
+             </DialogTitle>
+             <DialogContent>
+               {fineTuneFileContentStatus === "loading" ? (
+                 <Box display="flex" justifyContent="center" p={4}>
+                   <CircularProgress />
+                 </Box>
+               ) : fineTuneFileContent ? (
+                 <Box>
+                   <Typography variant="body2" color="text.secondary" mb={2}>
+                     Nội dung file JSONL (dữ liệu training):
+                   </Typography>
+                   <Box
+                     sx={{
+                       bgcolor: "#f8f9fa",
+                       p: 3,
+                       borderRadius: 2,
+                       border: "1px solid #e0e0e0",
+                       maxHeight: 500,
+                       overflow: "auto",
+                       fontFamily: "monospace",
+                       fontSize: 13,
+                       lineHeight: 1.5,
+                     }}
+                   >
+                     <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                       {formatFileContent(fineTuneFileContent)}
+                     </pre>
+                   </Box>
+                   <Box mt={2} display="flex" gap={1}>
+                     <Button
+                       size="small"
+                       variant="outlined"
+                       onClick={() => {
+                         const content = formatFileContent(fineTuneFileContent);
+                         navigator.clipboard.writeText(content);
+                         setAlert({ type: "success", message: "Đã copy nội dung vào clipboard!" });
+                       }}
+                     >
+                       Copy nội dung
+                     </Button>
+                     <Button
+                       size="small"
+                       variant="outlined"
+                       onClick={async () => {
+                         try {
+                           // Tìm file tương ứng trong danh sách files để lấy filename
+                           const currentFile = fineTuneFiles.find(file => 
+                             file.id === currentFileId
+                           );
+                           
+                           if (currentFile && currentFile.filename) {
+                             const result = await downloadFile(
+                               currentFile.filename, 
+                               currentFile.filename.split('/').pop() // Lấy tên file từ path
+                             );
+                             
+                             if (result.success) {
+                               setAlert({ type: "success", message: "Đã tải xuống file thành công!" });
+                             } else {
+                               setAlert({ type: "error", message: result.message || "Lỗi khi tải xuống file" });
+                             }
+                           } else {
+                             setAlert({ type: "error", message: "Không tìm thấy thông tin file" });
+                           }
+                         } catch (error) {
+                           setAlert({ type: "error", message: "Lỗi khi tải xuống file: " + error.message });
+                         }
+                       }}
+                     >
+                       Tải xuống file 
+                     </Button>
+                   </Box>
+                 </Box>
+               ) : (
+                 <Typography color="error">Không tìm thấy nội dung file.</Typography>
+               )}
+             </DialogContent>
+           </Dialog>
           {/* Dialog xác nhận xóa file */}
           <Dialog
             open={!!confirmDeleteFileId}
