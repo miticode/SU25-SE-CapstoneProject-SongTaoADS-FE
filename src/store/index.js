@@ -28,6 +28,8 @@ import contractorReducer from "./features/contractor/contractorSlice";
 
 import progressLogReducer from "./features/progressLog/progressLogSlice";
 
+import dashboardReducer from "./features/dashboard/dashboardSlice";
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -58,6 +60,7 @@ export const store = configureStore({
     costype: costypeReducer,
     contractor: contractorReducer,
     progressLog: progressLogReducer,
+    dashboard: dashboardReducer,
   },
 });
 
