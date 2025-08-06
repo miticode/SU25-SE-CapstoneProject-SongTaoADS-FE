@@ -269,18 +269,20 @@ export const createAiOrderApi = async (
 };
 // Hàm lấy danh sách đơn hàng
 export const getOrdersApi = async (orderStatus, page = 1, size = 10, orderType = null) => {
-  if (!orderStatus) {
-    throw new Error("orderStatus is required!");
-  }
   try {
-    let url = `/api/orders?orderStatus=${orderStatus}&page=${page}&size=${size}`;
+    const params = { page, size };
+
+    // Only add orderStatus parameter if it's not empty string (for "Tất cả" option)
+    if (orderStatus && orderStatus !== "") {
+      params.orderStatus = orderStatus;
+    }
 
     // Thêm orderType vào query params nếu có
     if (orderType) {
-      url += `&orderType=${orderType}`;
+      params.orderType = orderType;
     }
 
-    const response = await orderService.get(url);
+    const response = await orderService.get('/api/orders', { params });
 
     const {
       success,
