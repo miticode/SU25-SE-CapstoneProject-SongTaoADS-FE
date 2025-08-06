@@ -96,10 +96,13 @@ import {
   FaUnderline,
 } from "react-icons/fa";
 import {
-  fetchDesignTemplatesByProductTypeId,
+  fetchDesignTemplateSuggestionsByCustomerChoiceId,
   selectAllDesignTemplates,
+  selectSuggestedTemplates,
   selectDesignTemplateError,
   selectDesignTemplateStatus,
+  selectSuggestionsStatus,
+  selectSuggestionsError,
 } from "../store/features/designTemplate/designTemplateSlice";
 import {
   createAIDesign,
@@ -115,6 +118,7 @@ import {
   selectProgressCheckStatus,
   selectProgressCheckError,
   resetProgressCheck,
+  resetImageGeneration,
   setCurrentAIDesign,
 } from "../store/features/ai/aiSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
@@ -173,15 +177,17 @@ const ModernBillboardForm = ({
   const hasRestoredSizesRef = useRef(false);
   const hasRestoredAttributesRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
-  
+
   // Reset restoration flag when navigating back to step 4
   useEffect(() => {
     if (currentStep === 4) {
-      console.log("🔄 Step 4 detected in ModernBillboardForm, resetting restoration flag");
+      console.log(
+        "🔄 Step 4 detected in ModernBillboardForm, resetting restoration flag"
+      );
       hasRestoredAttributesRef.current = false;
     }
   }, [currentStep]);
-  
+
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
   const productTypeSizesError = useSelector(selectProductTypeSizesError);
@@ -207,10 +213,10 @@ const ModernBillboardForm = ({
 
   // Hàm kiểm tra xem tất cả thuộc tính bắt buộc đã được chọn chưa
   const validateCoreAttributes = useCallback(() => {
-    const coreAttributes = attributes.filter(attr => attr.isCore === true);
+    const coreAttributes = attributes.filter((attr) => attr.isCore === true);
     const missingCoreAttributes = [];
-    
-    coreAttributes.forEach(attr => {
+
+    coreAttributes.forEach((attr) => {
       if (!formData[attr.id] || formData[attr.id] === "") {
         missingCoreAttributes.push(attr.name);
       }
@@ -220,7 +226,8 @@ const ModernBillboardForm = ({
       isValid: missingCoreAttributes.length === 0,
       missingAttributes: missingCoreAttributes,
       coreAttributesCount: coreAttributes.length,
-      selectedCoreAttributesCount: coreAttributes.length - missingCoreAttributes.length
+      selectedCoreAttributesCount:
+        coreAttributes.length - missingCoreAttributes.length,
     });
 
     return missingCoreAttributes.length === 0;
@@ -234,7 +241,13 @@ const ModernBillboardForm = ({
         setCoreAttributesReady(isValid);
       }
     }
-  }, [sizesConfirmed, attributes, formData, validateCoreAttributes, setCoreAttributesReady]);
+  }, [
+    sizesConfirmed,
+    attributes,
+    formData,
+    validateCoreAttributes,
+    setCoreAttributesReady,
+  ]);
 
   useEffect(() => {
     // Tạo mapping từ attributeValueId trong customerChoiceDetails về attributeId
@@ -291,9 +304,9 @@ const ModernBillboardForm = ({
 
       console.log("New attribute prices mapping:", newAttributePrices);
       console.log("Restored form data:", restoredFormData);
-      
+
       setAttributePrices(newAttributePrices);
-      
+
       // Khôi phục formData với các lựa chọn đã có
       if (Object.keys(restoredFormData).length > 0) {
         setFormData((prev) => ({
@@ -659,10 +672,12 @@ const ModernBillboardForm = ({
   useEffect(() => {
     console.log("🔍 Checking restoration conditions:", {
       sizesConfirmed,
-      customerChoiceDetailsLength: Object.keys(customerChoiceDetails || {}).length,
+      customerChoiceDetailsLength: Object.keys(customerChoiceDetails || {})
+        .length,
       attributesLength: attributes.length,
-      attributeValuesStateLength: Object.keys(attributeValuesState || {}).length,
-      hasRestored: hasRestoredAttributesRef.current
+      attributeValuesStateLength: Object.keys(attributeValuesState || {})
+        .length,
+      hasRestored: hasRestoredAttributesRef.current,
     });
 
     if (
@@ -673,7 +688,9 @@ const ModernBillboardForm = ({
       Object.keys(attributeValuesState).length > 0 &&
       !hasRestoredAttributesRef.current
     ) {
-      console.log("🔄 Restoring attribute selections from customerChoiceDetails");
+      console.log(
+        "🔄 Restoring attribute selections from customerChoiceDetails"
+      );
       hasRestoredAttributesRef.current = true;
 
       const restoredFormData = {};
@@ -690,7 +707,11 @@ const ModernBillboardForm = ({
 
             if (hasThisValue) {
               restoredFormData[attribute.id] = attributeValueId;
-              console.log(`✅ Restored: ${attribute.name} = ${detail.attributeValueName || attributeValueId}`);
+              console.log(
+                `✅ Restored: ${attribute.name} = ${
+                  detail.attributeValueName || attributeValueId
+                }`
+              );
               break;
             }
           }
@@ -703,25 +724,41 @@ const ModernBillboardForm = ({
             ...prev,
             ...restoredFormData,
           };
-          console.log("📝 Updated form data with restored attributes:", newFormData);
+          console.log(
+            "📝 Updated form data with restored attributes:",
+            newFormData
+          );
           return newFormData;
         });
 
         // Trigger validation after restoring
         setTimeout(() => {
           if (setCoreAttributesReady) {
-            const coreAttributes = attributes.filter(attr => attr.isCore === true);
-            const missingCoreAttributes = coreAttributes.filter(attr => 
-              !restoredFormData[attr.id] || restoredFormData[attr.id] === ""
+            const coreAttributes = attributes.filter(
+              (attr) => attr.isCore === true
+            );
+            const missingCoreAttributes = coreAttributes.filter(
+              (attr) =>
+                !restoredFormData[attr.id] || restoredFormData[attr.id] === ""
             );
             const isValid = missingCoreAttributes.length === 0;
             setCoreAttributesReady(isValid);
-            console.log(`🔍 Validation after restore: ${isValid ? 'VALID' : 'INVALID'} (${coreAttributes.length - missingCoreAttributes.length}/${coreAttributes.length})`);
+            console.log(
+              `🔍 Validation after restore: ${isValid ? "VALID" : "INVALID"} (${
+                coreAttributes.length - missingCoreAttributes.length
+              }/${coreAttributes.length})`
+            );
           }
         }, 100);
       }
     }
-  }, [sizesConfirmed, customerChoiceDetails, attributes, attributeValuesState, setCoreAttributesReady]);
+  }, [
+    sizesConfirmed,
+    customerChoiceDetails,
+    attributes,
+    attributeValuesState,
+    setCoreAttributesReady,
+  ]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1627,10 +1664,14 @@ const ModernBillboardForm = ({
               <Box mt={2}>
                 <Box
                   sx={{
-                    background: coreAttributesValidation.isValid ? "#f0f7ff" : "#fff3e0",
+                    background: coreAttributesValidation.isValid
+                      ? "#f0f7ff"
+                      : "#fff3e0",
                     borderRadius: 2,
                     padding: 2,
-                    border: `1px solid ${coreAttributesValidation.isValid ? "#cce4ff" : "#ffcc80"}`,
+                    border: `1px solid ${
+                      coreAttributesValidation.isValid ? "#cce4ff" : "#ffcc80"
+                    }`,
                   }}
                 >
                   <Typography
@@ -1638,15 +1679,19 @@ const ModernBillboardForm = ({
                     fontWeight={600}
                     mb={1}
                     sx={{
-                      color: coreAttributesValidation.isValid ? "#1565c0" : "#f57c00",
+                      color: coreAttributesValidation.isValid
+                        ? "#1565c0"
+                        : "#f57c00",
                       display: "flex",
                       alignItems: "center",
                       fontSize: "0.85rem",
                     }}
                   >
-                    <span 
+                    <span
                       className={`inline-block w-1 h-4 mr-2 rounded ${
-                        coreAttributesValidation.isValid ? "bg-blue-500" : "bg-orange-500"
+                        coreAttributesValidation.isValid
+                          ? "bg-blue-500"
+                          : "bg-orange-500"
                       }`}
                     ></span>
                     KIỂM TRA THUỘC TÍNH BẮT BUỘC
@@ -1655,22 +1700,33 @@ const ModernBillboardForm = ({
                   <Typography
                     variant="body2"
                     sx={{
-                      color: coreAttributesValidation.isValid ? "#1565c0" : "#f57c00",
+                      color: coreAttributesValidation.isValid
+                        ? "#1565c0"
+                        : "#f57c00",
                       mb: 1,
                     }}
                   >
                     {coreAttributesValidation.isValid ? (
                       <Box display="flex" alignItems="center">
                         <FaCheckCircle className="mr-2 text-green-500" />
-                        Tất cả thuộc tính bắt buộc đã được chọn ({coreAttributesValidation.selectedCoreAttributesCount}/{coreAttributesValidation.coreAttributesCount})
+                        Tất cả thuộc tính bắt buộc đã được chọn (
+                        {coreAttributesValidation.selectedCoreAttributesCount}/
+                        {coreAttributesValidation.coreAttributesCount})
                       </Box>
                     ) : (
                       <Box>
                         <Box display="flex" alignItems="center" mb={1}>
                           <FaTimes className="mr-2 text-orange-500" />
-                          Còn thiếu {coreAttributesValidation.missingAttributes?.length} thuộc tính bắt buộc ({coreAttributesValidation.selectedCoreAttributesCount}/{coreAttributesValidation.coreAttributesCount})
+                          Còn thiếu{" "}
+                          {
+                            coreAttributesValidation.missingAttributes?.length
+                          }{" "}
+                          thuộc tính bắt buộc (
+                          {coreAttributesValidation.selectedCoreAttributesCount}
+                          /{coreAttributesValidation.coreAttributesCount})
                         </Box>
-                        {coreAttributesValidation.missingAttributes?.length > 0 && (
+                        {coreAttributesValidation.missingAttributes?.length >
+                          0 && (
                           <Typography
                             variant="caption"
                             sx={{
@@ -1679,7 +1735,10 @@ const ModernBillboardForm = ({
                               display: "block",
                             }}
                           >
-                            Cần chọn: {coreAttributesValidation.missingAttributes.join(", ")}
+                            Cần chọn:{" "}
+                            {coreAttributesValidation.missingAttributes.join(
+                              ", "
+                            )}
                           </Typography>
                         )}
                       </Box>
@@ -1742,9 +1801,38 @@ const AIDesign = () => {
   const attributeStatus = useSelector(selectAttributeStatus);
   const attributeError = useSelector(selectAttributeError);
   const customerDetail = useSelector(selectCustomerDetail);
-  const designTemplates = useSelector(selectAllDesignTemplates);
-  const designTemplateStatus = useSelector(selectDesignTemplateStatus);
-  const designTemplateError = useSelector(selectDesignTemplateError);
+  
+  // Get all design templates data
+  const allDesignTemplates = useSelector(selectAllDesignTemplates);
+  const suggestedTemplates = useSelector(selectSuggestedTemplates);
+  const allDesignTemplateStatus = useSelector(selectDesignTemplateStatus);
+  const suggestionsStatus = useSelector(selectSuggestionsStatus);
+  const allDesignTemplateError = useSelector(selectDesignTemplateError);
+  const suggestionsError = useSelector(selectSuggestionsError);
+  
+  // State variables needed early
+  const [currentProductType, setCurrentProductType] = useState(null);
+  
+  // Determine current product type information
+  const currentProductTypeInfo = productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+  const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+  
+  // Choose appropriate data based on AI generation
+  const designTemplates = isAiGenerated ? suggestedTemplates : allDesignTemplates;
+  const designTemplateStatus = isAiGenerated ? suggestionsStatus : allDesignTemplateStatus;
+  const designTemplateError = isAiGenerated ? suggestionsError : allDesignTemplateError;
+  
+  // Debug log để kiểm tra design templates
+  useEffect(() => {
+    console.log("🔍 Design Templates Debug:", {
+      isAiGenerated,
+      allDesignTemplatesLength: allDesignTemplates?.length || 0,
+      suggestedTemplatesLength: suggestedTemplates?.length || 0,
+      finalDesignTemplatesLength: designTemplates?.length || 0,
+      designTemplates: designTemplates?.map(t => ({ id: t.id, name: t.name, image: t.image }))
+    });
+  }, [isAiGenerated, allDesignTemplates, suggestedTemplates, designTemplates]);
+  
   const [customerNote, setCustomerNote] = useState("");
   const aiStatus = useSelector(selectAIStatus);
   const aiError = useSelector(selectAIError);
@@ -1769,7 +1857,6 @@ const AIDesign = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadImagePreview, setUploadImagePreview] = useState("");
   const [processedLogoUrl, setProcessedLogoUrl] = useState("");
-  const [currentProductType, setCurrentProductType] = useState(null);
   const hasFetchedDataRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
   const [currentSubStep, setCurrentSubStep] = useState("template"); // 'template' hoặc 'background'
@@ -2855,14 +2942,16 @@ const AIDesign = () => {
         "🔄 Left step 5, clearing retry attempts but keeping blob URLs cached"
       );
     }
-    
+
     // Reset attribute restoration flag when navigating to step 4 (case 4)
     if (currentStep === 4 && prevStepRef.current !== 4) {
-      console.log("🔄 Navigated to step 4, resetting attribute restoration flag");
+      console.log(
+        "🔄 Navigated to step 4, resetting attribute restoration flag"
+      );
       // This will be passed down to ModernBillboardForm via props, but we need to reset it here
       // The flag will be reset in the ModernBillboardForm component itself
     }
-    
+
     prevStepRef.current = currentStep;
   }, [currentStep]);
   useEffect(() => {
@@ -3193,15 +3282,28 @@ const AIDesign = () => {
         preserveObjectStacking: true,
       });
 
-      // Xác định nguồn ảnh để sử dụng
+      // Xác định nguồn ảnh để sử dụng dựa trên product type
       let imageUrl = null;
       let imageSource = null;
 
-      if (generatedImage) {
+      // Determine current product type
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      console.log("🎯 [CANVAS] Determining image source:");
+      console.log("🎯 [CANVAS] isAiGenerated:", isAiGenerated);
+      console.log("🎯 [CANVAS] has generatedImage:", !!generatedImage);
+      console.log("🎯 [CANVAS] has selectedBackgroundForCanvas:", !!selectedBackgroundForCanvas);
+
+      // Priority logic based on product type
+      if (isAiGenerated && generatedImage) {
+        // AI product type: prioritize AI generated image
         imageUrl = generatedImage;
         imageSource = "ai-generated";
-        console.log("Using AI-generated image URL:", imageUrl);
-      } else if (selectedBackgroundForCanvas) {
+        console.log("🤖 [CANVAS] Using AI-generated image for AI product type:", imageUrl);
+      } else if (!isAiGenerated && selectedBackgroundForCanvas) {
+        // Non-AI product type: prioritize background
         console.log(
           "🔍 [CANVAS DEBUG] selectedBackgroundForCanvas:",
           selectedBackgroundForCanvas
@@ -3223,7 +3325,7 @@ const AIDesign = () => {
         if (selectedBackgroundForCanvas.extrasImageUrl) {
           imageUrl = selectedBackgroundForCanvas.extrasImageUrl;
           imageSource = "background-extras";
-          console.log("🎨 Using background extras image ONLY:", imageUrl);
+          console.log("🎨 [CANVAS] Using background extras image for non-AI product:", imageUrl);
         } else {
           console.warn(
             "⚠️ [CANVAS] No extrasImageUrl available, using TEMPORARY fallback"
@@ -3677,14 +3779,27 @@ const AIDesign = () => {
       let imageToLoad = null;
       let imageSource = null;
 
-      if (generatedImage) {
+      // Determine current product type for step 6
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+      console.log("🎯 [STEP 6] Determining image source:");
+      console.log("🎯 [STEP 6] isAiGenerated:", isAiGenerated);
+      console.log("🎯 [STEP 6] has generatedImage:", !!generatedImage);
+      console.log("🎯 [STEP 6] has selectedBackgroundForCanvas:", !!selectedBackgroundForCanvas);
+
+      // Priority logic based on product type
+      if (isAiGenerated && generatedImage) {
+        // AI product type: prioritize AI generated image
         imageToLoad = generatedImage;
         imageSource = "ai-generated";
         console.log(
-          "GENERATED IMAGE CHANGED: Updating canvas with AI generated image:",
+          "🤖 [STEP 6] Using AI generated image for AI product:",
           generatedImage
         );
-      } else if (selectedBackgroundForCanvas) {
+      } else if (!isAiGenerated && selectedBackgroundForCanvas) {
+        // Non-AI product type: prioritize background
         // 🎨 CHỈ SỬ DỤNG extrasImageUrl - không fallback về background gốc
         if (selectedBackgroundForCanvas.extrasImageUrl) {
           imageToLoad = selectedBackgroundForCanvas.extrasImageUrl;
@@ -4337,10 +4452,23 @@ const AIDesign = () => {
       console.log("Step 5 - isAiGenerated:", isAiGenerated);
       if (isAiGenerated) {
         console.log(
-          "Fetching design templates for AI product type:",
+          "Fetching design template suggestions for AI product type:",
           billboardType
         );
-        dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+        // Sử dụng suggestions thay vì fetch tất cả design templates
+        if (currentOrder?.id) {
+          dispatch(
+            fetchDesignTemplateSuggestionsByCustomerChoiceId({
+              customerChoiceId: currentOrder.id,
+              page: 1,
+              size: 10,
+            })
+          );
+        } else {
+          console.warn(
+            "No currentOrder.id available for fetching design template suggestions"
+          );
+        }
       } else {
         console.log("Fetching background suggestions for non-AI product type");
         if (currentOrder?.id) {
@@ -5156,6 +5284,36 @@ const AIDesign = () => {
   useEffect(() => {
     setImageLoadError(null);
   }, [currentStep]);
+  
+  // Clear generatedImage when user selects background (not AI-generated product type)
+  useEffect(() => {
+    if (selectedBackgroundForCanvas && currentStep === 5) {
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+      
+      // If it's not AI-generated and user selects background, clear any existing AI image
+      if (!isAiGenerated && generatedImage) {
+        console.log("🧹 Clearing AI image because user selected background for non-AI product");
+        dispatch(resetImageGeneration());
+      }
+    }
+  }, [selectedBackgroundForCanvas, currentStep, billboardType, productTypes, currentProductType, generatedImage, dispatch]);
+  
+  // Clear selectedBackgroundForCanvas when user generates AI image
+  useEffect(() => {
+    if (generatedImage && selectedBackgroundForCanvas) {
+      const currentProductTypeInfo =
+        productTypes.find((pt) => pt.id === billboardType) || currentProductType;
+      const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+      
+      // If it's AI-generated and user has AI image, clear background selection
+      if (isAiGenerated) {
+        console.log("🧹 Clearing background selection because user generated AI image");
+        setSelectedBackgroundForCanvas(null);
+      }
+    }
+  }, [generatedImage, selectedBackgroundForCanvas, billboardType, productTypes, currentProductType]);
   useEffect(() => {
     // Khôi phục currentProductType từ localStorage nếu chưa có
     if (!currentProductType && billboardType) {
@@ -6074,8 +6232,6 @@ const AIDesign = () => {
               lượng tốt nhất.
             </p>
           </div>
-
-       
 
           {/* Hiển thị tiến độ chi tiết - Cả khi có và không có live preview (không hiển thị ở step 6) */}
           {(stableDiffusionProgress?.progress !== undefined ||
