@@ -46,12 +46,12 @@ export const createCustomer = createAsyncThunk(
     console.log("Creating customer with data:", customerData);
     const response = await createCustomerApi(customerData);
     console.log("API response:", response);
-    
+
     if (!response.success) {
       console.log("API failed:", response.error);
       return rejectWithValue(response.error || "Failed to create customer");
     }
-    
+
     console.log("API success, returning result:", response.result);
     return response.result; // Trả về result thay vì data
   }
@@ -84,10 +84,6 @@ export const linkAttributeValueToCustomerChoice = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
-      console.log(
-        `Linking attribute value ${attributeValueId} for customer choice ${customerChoiceId}`
-      );
-
       const response = await linkAttributeValueToCustomerChoiceApi(
         customerChoiceId,
         attributeValueId
@@ -110,9 +106,6 @@ export const linkAttributeValueToCustomerChoice = createAsyncThunk(
 
       // If successful and we have a result ID, fetch the customer choice detail
       if (response.result && response.result.id) {
-        console.log(
-          `Successfully linked attribute, now fetching details for: ${response.result.id}`
-        );
         dispatch(
           fetchCustomerChoiceDetail({
             customerChoiceDetailId: response.result.id,
@@ -259,9 +252,7 @@ export const fetchCustomerDetailByUserId = createAsyncThunk(
   "customers/fetchDetailByUserId",
   async (userId, { rejectWithValue }) => {
     try {
-      console.log("Fetching customer detail for userId:", userId);
       const response = await getCustomerDetailByUserIdApi(userId);
-      console.log("Fetch response:", response);
 
       if (!response.success) {
         console.log("Fetch failed:", response.error);
@@ -270,17 +261,16 @@ export const fetchCustomerDetailByUserId = createAsyncThunk(
         );
       }
 
-              console.log("Fetch success, returning result:", response.result);
-        return response.result;
-      } catch (error) {
-        console.log("Fetch error:", error);
-        // Nếu là 404, trả về null thay vì error
-        if (error.response?.status === 404) {
-          console.log("404 error, returning null");
-          return null;
-        }
-        return rejectWithValue(error.message || "Unknown error occurred");
+      return response.result;
+    } catch (error) {
+      console.log("Fetch error:", error);
+      // Nếu là 404, trả về null thay vì error
+      if (error.response?.status === 404) {
+        console.log("404 error, returning null");
+        return null;
       }
+      return rejectWithValue(error.message || "Unknown error occurred");
+    }
   }
 );
 export const updateCustomerChoiceSize = createAsyncThunk(
@@ -460,9 +450,7 @@ export const fetchCustomerChoicePixelValue = createAsyncThunk(
       const response = await getCustomerChoicePixelValueApi(customerChoiceId);
 
       if (!response.success) {
-        return rejectWithValue(
-          response.error || "Failed to fetch pixel value"
-        );
+        return rejectWithValue(response.error || "Failed to fetch pixel value");
       }
 
       return response.result;
@@ -564,7 +552,7 @@ const customerSlice = createSlice({
       })
       .addCase(fetchCustomerChoiceDetail.fulfilled, (state, action) => {
         state.customerChoiceDetailsStatus = "succeeded";
-        console.log("Processing customer choice details:", action.payload);
+
         const detailsMap = {};
 
         // API trả về object với result array
@@ -591,10 +579,6 @@ const customerSlice = createSlice({
         }
 
         state.customerChoiceDetails = detailsMap;
-        console.log(
-          "Mapped customer choice details by attributeValueId:",
-          detailsMap
-        );
       })
       .addCase(fetchCustomerChoiceDetail.rejected, (state, action) => {
         state.customerChoiceDetailsStatus = "failed";
@@ -670,7 +654,6 @@ const customerSlice = createSlice({
       })
       .addCase(fetchCustomerChoiceDetails.fulfilled, (state, action) => {
         state.customerChoiceDetailsStatus = "succeeded";
-        console.log("Processing customer choice details:", action.payload);
 
         // Xử lý cấu trúc API response mới
         let details = [];
@@ -685,15 +668,11 @@ const customerSlice = createSlice({
           return;
         }
 
-        console.log("Processing details array:", details);
-
         // THAY ĐỔI: Map theo attributeValueId để có thể tìm ngược về attributeId
         const detailsMap = {};
 
         if (Array.isArray(details)) {
-          details.forEach((detail, index) => {
-            console.log(`Processing detail ${index}:`, detail);
-
+          details.forEach((detail) => {
             const attributeValueId = detail.attributeValues?.id;
 
             if (attributeValueId) {
