@@ -51,7 +51,10 @@ customDesignService.interceptors.response.use(
 export const fetchCustomDesignRequestsApi = async (status, page = 1, size = 10) => {
   try {
     const params = { page, size };
-    if (status) params.status = status;
+    // Only add status parameter if it's not empty string (for "Tất cả" option)
+    if (status && status !== "") {
+      params.status = status;
+    }
     const response = await customDesignService.get('/api/custom-design-requests', { params });
     return response.data;
   } catch (error) {
