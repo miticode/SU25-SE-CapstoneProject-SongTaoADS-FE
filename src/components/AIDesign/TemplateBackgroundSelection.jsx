@@ -8,9 +8,13 @@ import { useSelector, useDispatch } from "react-redux";
 import { selectAllProductTypes } from "../../store/features/productType/productTypeSlice";
 import {
   selectAllDesignTemplates,
+  selectSuggestedTemplates,
   selectDesignTemplateStatus,
+  selectSuggestionsStatus,
   selectDesignTemplateError,
+  selectSuggestionsError,
   fetchDesignTemplatesByProductTypeId,
+  fetchDesignTemplateSuggestionsByCustomerChoiceId,
 } from "../../store/features/designTemplate/designTemplateSlice";
 import {
   selectAllBackgroundSuggestions,
@@ -50,9 +54,15 @@ const TemplateBackgroundSelection = ({
   const dispatch = useDispatch();
 
   const productTypes = useSelector(selectAllProductTypes);
-  const designTemplates = useSelector(selectAllDesignTemplates);
-  const designTemplateStatus = useSelector(selectDesignTemplateStatus);
-  const designTemplateError = useSelector(selectDesignTemplateError);
+  
+  // Use appropriate selectors based on AI generation  
+  const allDesignTemplates = useSelector(selectAllDesignTemplates);
+  const suggestedTemplates = useSelector(selectSuggestedTemplates);
+  const allDesignTemplateStatus = useSelector(selectDesignTemplateStatus);
+  const suggestionsStatus = useSelector(selectSuggestionsStatus);
+  const allDesignTemplateError = useSelector(selectDesignTemplateError);
+  const suggestionsError = useSelector(selectSuggestionsError);
+  
   const backgroundSuggestions = useSelector(selectAllBackgroundSuggestions);
   const backgroundStatus = useSelector(selectBackgroundStatus);
   const backgroundError = useSelector(selectBackgroundError);
@@ -88,6 +98,11 @@ const TemplateBackgroundSelection = ({
   const currentProductTypeInfo =
     productTypes.find((pt) => pt.id === billboardType) || currentProductType;
   const isAiGenerated = currentProductTypeInfo?.isAiGenerated;
+
+  // Choose appropriate data based on AI generation
+  const designTemplates = isAiGenerated ? suggestedTemplates : allDesignTemplates;
+  const designTemplateStatus = isAiGenerated ? suggestionsStatus : allDesignTemplateStatus;
+  const designTemplateError = isAiGenerated ? suggestionsError : allDesignTemplateError;
 
   const handleContinue = async () => {
     if (isAiGenerated) {
@@ -351,9 +366,21 @@ const TemplateBackgroundSelection = ({
                   "Không thể tải mẫu thiết kế. Vui lòng thử lại."}
               </p>
               <button
-                onClick={() =>
-                  dispatch(fetchDesignTemplatesByProductTypeId(billboardType))
-                }
+                onClick={() => {
+                  if (isAiGenerated) {
+                    if (currentOrder?.id) {
+                      dispatch(
+                        fetchDesignTemplateSuggestionsByCustomerChoiceId({
+                          customerChoiceId: currentOrder.id,
+                          page: 1,
+                          size: 10
+                        })
+                      );
+                    }
+                  } else {
+                    dispatch(fetchDesignTemplatesByProductTypeId(billboardType));
+                  }
+                }}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
                 Tải lại
