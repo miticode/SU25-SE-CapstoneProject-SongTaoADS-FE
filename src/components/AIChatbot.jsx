@@ -439,9 +439,10 @@ const AIChatbot = () => {
             ? await dispatch(getTraditionalPricing(nextData)).unwrap()
             : await dispatch(getModernPricing(nextData)).unwrap();
             
-          if (result && result.choices && result.choices[0]) {
+          if (result && Array.isArray(result)) {
             // Hiển thị kết quả báo giá trực tiếp trong chat, không gọi API chat
-            dispatch(addUserMessage(`Báo giá ${pricingType === "traditional" ? "truyền thống" : "hiện đại"}: ${result.choices[0].message.content}`));
+            const pricingResult = result.join('\n');
+            dispatch(addUserMessage(`Báo giá ${pricingType === "traditional" ? "truyền thống" : "hiện đại"}: ${pricingResult}`));
           } else {
             dispatch(addUserMessage("Không thể tính toán báo giá. Vui lòng thử lại."));
           }
