@@ -65,9 +65,7 @@ export const createDesignTemplateApi = async (productTypeId, templateData) => {
     // Thêm các trường dữ liệu vào FormData
     if (templateData.name) formData.append('name', templateData.name);
     if (templateData.description) formData.append('description', templateData.description);
-    if (templateData.negativePrompt) formData.append('negativePrompt', templateData.negativePrompt);
-    if (templateData.width) formData.append('width', templateData.width);
-    if (templateData.height) formData.append('height', templateData.height);
+    if (templateData.aspectRatio) formData.append('aspectRatio', templateData.aspectRatio);
     if (templateData.isAvailable !== undefined) formData.append('isAvailable', templateData.isAvailable);
     
     // Thêm file hình ảnh nếu có

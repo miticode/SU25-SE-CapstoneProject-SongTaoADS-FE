@@ -44,7 +44,6 @@ import {
 } from "@mui/icons-material";
 import {
   fetchAllDesignTemplates,
-  fetchDesignTemplatesByProductTypeId,
   fetchDesignTemplateById,
   createDesignTemplate,
   updateDesignTemplateInfo,
@@ -76,7 +75,7 @@ const DesignTemplateManager = () => {
   const s3Images = useSelector((state) => state.s3.images);
 
   // State local
-  const [selectedProductType, setSelectedProductType] = useState("all");
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState("all");
   const [openDetail, setOpenDetail] = useState(false);
   const [openForm, setOpenForm] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
@@ -84,9 +83,7 @@ const DesignTemplateManager = () => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    negativePrompt: "",
-    width: 1073741824,
-    height: 1073741824,
+    aspectRatio: "SQUARE",
     isAvailable: true,
     productTypeId: "",
     image: null,
@@ -100,14 +97,10 @@ const DesignTemplateManager = () => {
     dispatch(fetchProductTypes());
   }, [dispatch]);
 
-  // Lấy danh sách design template khi mount hoặc khi chọn loại sản phẩm
+  // Lấy danh sách design template khi mount
   useEffect(() => {
-    if (selectedProductType === "all") {
-      dispatch(fetchAllDesignTemplates());
-    } else {
-      dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
-    }
-  }, [dispatch, selectedProductType]);
+    dispatch(fetchAllDesignTemplates());
+  }, [dispatch]);
 
   // Preload S3 images cho danh sách
   useEffect(() => {
@@ -131,9 +124,9 @@ const DesignTemplateManager = () => {
     }
   }, [openDetail, selectedTemplate, dispatch]);
 
-  // Thay filter dropdown bằng button group filter
-  const handleProductTypeFilter = (id) => {
-    setSelectedProductType(id);
+  // Handler cho filter aspect ratio
+  const handleAspectRatioFilter = (ratio) => {
+    setSelectedAspectRatio(ratio);
     setPagination({ ...pagination, page: 0 });
   };
 
@@ -151,9 +144,7 @@ const DesignTemplateManager = () => {
     setFormData({
       name: "",
       description: "",
-      negativePrompt: "",
-      width: 1073741824,
-      height: 1073741824,
+      aspectRatio: "SQUARE",
       isAvailable: true,
       productTypeId: "",
       image: null,
@@ -169,9 +160,7 @@ const DesignTemplateManager = () => {
     setFormData({
       name: template.name,
       description: template.description,
-      negativePrompt: template.negativePrompt,
-      width: template.width,
-      height: template.height,
+      aspectRatio: template.aspectRatio || "SQUARE",
       isAvailable: template.isAvailable,
       productTypeId: template.productTypes?.id || "",
       image: template.image,
@@ -220,22 +209,13 @@ const DesignTemplateManager = () => {
     }
     if (formMode === "create") {
       // Tạo mới với API mới - gửi multipart/form-data
-      const {
-        name,
-        description,
-        negativePrompt,
-        width,
-        height,
-        isAvailable,
-        productTypeId,
-      } = formData;
+      const { name, description, aspectRatio, isAvailable, productTypeId } =
+        formData;
 
       const templateData = {
         name,
         description,
-        negativePrompt,
-        width,
-        height,
+        aspectRatio,
         isAvailable,
         designTemplateImage: imageFile, // Thêm file hình ảnh vào dữ liệu
       };
@@ -249,34 +229,20 @@ const DesignTemplateManager = () => {
       if (res.meta.requestStatus === "fulfilled") {
         setOpenForm(false);
         // Refresh danh sách để hiển thị template mới
-        if (selectedProductType === "all") {
-          dispatch(fetchAllDesignTemplates());
-        } else {
-          dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
-        }
+        dispatch(fetchAllDesignTemplates());
       } else {
         setFormError(res.payload || "Tạo mẫu thất bại");
       }
     } else {
       // Sửa thông tin
-      const {
-        id,
-        name,
-        description,
-        negativePrompt,
-        width,
-        height,
-        isAvailable,
-      } = formData;
+      const { id, name, description, aspectRatio, isAvailable } = formData;
       const updateRes = await dispatch(
         updateDesignTemplateInfo({
           designTemplateId: id,
           updateData: {
             name,
             description,
-            negativePrompt,
-            width,
-            height,
+            aspectRatio,
             isAvailable,
           },
         })
@@ -292,11 +258,7 @@ const DesignTemplateManager = () => {
         }
         setOpenForm(false);
         // Refresh danh sách
-        if (selectedProductType === "all") {
-          dispatch(fetchAllDesignTemplates());
-        } else {
-          dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
-        }
+        dispatch(fetchAllDesignTemplates());
       } else {
         setFormError(updateRes.payload || "Cập nhật thất bại");
       }
@@ -314,11 +276,7 @@ const DesignTemplateManager = () => {
     const res = await dispatch(deleteDesignTemplateById(templateId));
     if (res.meta.requestStatus === "rejected") {
       // Nếu xóa thất bại, refresh lại danh sách để khôi phục
-      if (selectedProductType === "all") {
-        dispatch(fetchAllDesignTemplates());
-      } else {
-        dispatch(fetchDesignTemplatesByProductTypeId(selectedProductType));
-      }
+      dispatch(fetchAllDesignTemplates());
     }
   };
 
@@ -329,6 +287,16 @@ const DesignTemplateManager = () => {
     }
   };
 
+  // Filter designTemplates dựa trên selectedAspectRatio
+  const filteredDesignTemplates = designTemplates.filter((template) => {
+    // Filter theo aspect ratio
+    const aspectRatioMatch =
+      selectedAspectRatio === "all" ||
+      (template.aspectRatio || "SQUARE") === selectedAspectRatio;
+
+    return aspectRatioMatch;
+  });
+
   // Render
   return (
     <Box>
@@ -336,28 +304,54 @@ const DesignTemplateManager = () => {
         <Typography variant="h4" fontWeight="bold">
           Quản lý Thiết Kế Mẫu
         </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          <ButtonGroup variant="outlined" color="primary">
-            <Button
-              variant={selectedProductType === "all" ? "contained" : "outlined"}
-              onClick={() => handleProductTypeFilter("all")}
-            >
-              Tất cả
-            </Button>
-            {productTypes.map((pt) => (
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" mb={1}>
+            Lọc theo tỷ lệ khung hình:
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <ButtonGroup variant="outlined" color="secondary">
               <Button
-                key={pt.id}
                 variant={
-                  selectedProductType === pt.id ? "contained" : "outlined"
+                  selectedAspectRatio === "all" ? "contained" : "outlined"
                 }
-                onClick={() => handleProductTypeFilter(pt.id)}
+                onClick={() => handleAspectRatioFilter("all")}
               >
-                {pt.name}
+                Tất cả
               </Button>
-            ))}
-          </ButtonGroup>
-        </Stack>
-        <Box textAlign="right">
+              <Button
+                variant={
+                  selectedAspectRatio === "SQUARE" ? "contained" : "outlined"
+                }
+                onClick={() => handleAspectRatioFilter("SQUARE")}
+              >
+                Vuông
+              </Button>
+              <Button
+                variant={
+                  selectedAspectRatio === "HORIZONTAL"
+                    ? "contained"
+                    : "outlined"
+                }
+                onClick={() => handleAspectRatioFilter("HORIZONTAL")}
+              >
+                Ngang
+              </Button>
+              <Button
+                variant={
+                  selectedAspectRatio === "VERTICAL" ? "contained" : "outlined"
+                }
+                onClick={() => handleAspectRatioFilter("VERTICAL")}
+              >
+                Dọc
+              </Button>
+            </ButtonGroup>
+          </Stack>
+        </Box>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="body2" color="text.secondary">
+            Hiển thị {filteredDesignTemplates.length} / {designTemplates.length}{" "}
+            mẫu thiết kế
+          </Typography>
           <Button
             variant="contained"
             color="primary"
@@ -379,9 +373,37 @@ const DesignTemplateManager = () => {
         </Box>
       ) : designTemplateError ? (
         <Alert severity="error">{designTemplateError}</Alert>
+      ) : filteredDesignTemplates.length === 0 ? (
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          minHeight={300}
+          gap={2}
+        >
+          <Typography variant="h6" color="text.secondary">
+            Không tìm thấy mẫu thiết kế nào
+          </Typography>
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            {selectedAspectRatio !== "all"
+              ? "Thử thay đổi bộ lọc để xem thêm kết quả"
+              : "Hãy tạo mẫu thiết kế đầu tiên của bạn"}
+          </Typography>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setSelectedAspectRatio("all");
+              setPagination({ ...pagination, page: 0 });
+            }}
+            sx={{ mt: 1 }}
+          >
+            Xóa bộ lọc
+          </Button>
+        </Box>
       ) : (
         <Grid container spacing={5} justifyContent="flex-start" width="100%">
-          {designTemplates
+          {filteredDesignTemplates
             .slice(
               pagination.page * pagination.rowsPerPage,
               pagination.page * pagination.rowsPerPage + pagination.rowsPerPage
@@ -400,8 +422,8 @@ const DesignTemplateManager = () => {
                     component="img"
                     image={
                       template.image
-                        ? s3Images[template.image] || "/public/default-logo.png"
-                        : "/public/default-logo.png"
+                        ? s3Images[template.image] || ""
+                        : ""
                     }
                     alt={template.name}
                     sx={{
@@ -442,7 +464,7 @@ const DesignTemplateManager = () => {
                         size="small"
                       />
                       <Typography variant="caption" color="text.secondary">
-                        {template.width}x{template.height}
+                        {template.aspectRatio || "SQUARE"}
                       </Typography>
                     </Stack>
                   </CardContent>
@@ -482,7 +504,7 @@ const DesignTemplateManager = () => {
       <Box mt={3} display="flex" justifyContent="center">
         <TablePagination
           component="div"
-          count={designTemplates.length}
+          count={filteredDesignTemplates.length}
           page={pagination.page}
           onPageChange={handleChangePage}
           rowsPerPage={pagination.rowsPerPage}
@@ -524,10 +546,7 @@ const DesignTemplateManager = () => {
                 Loại sản phẩm: {selectedTemplate.productTypes?.name}
               </Typography>
               <Typography>
-                Negative Prompt: {selectedTemplate.negativePrompt}
-              </Typography>
-              <Typography>
-                Kích thước: {selectedTemplate.width} x {selectedTemplate.height}
+                Tỷ lệ khung hình: {selectedTemplate.aspectRatio || "SQUARE"}
               </Typography>
               <Typography>
                 Trạng thái: {selectedTemplate.isAvailable ? "Hiển thị" : "Ẩn"}
@@ -573,41 +592,21 @@ const DesignTemplateManager = () => {
               fullWidth
               margin="normal"
             />
-            <TextField
-              label="Negative Prompt"
-              value={formData.negativePrompt}
-              onChange={(e) =>
-                setFormData({ ...formData, negativePrompt: e.target.value })
-              }
-              fullWidth
-              margin="normal"
-            />
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  label="Width"
-                  type="number"
-                  value={formData.width}
-                  onChange={(e) =>
-                    setFormData({ ...formData, width: Number(e.target.value) })
-                  }
-                  fullWidth
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  label="Height"
-                  type="number"
-                  value={formData.height}
-                  onChange={(e) =>
-                    setFormData({ ...formData, height: Number(e.target.value) })
-                  }
-                  fullWidth
-                  margin="normal"
-                />
-              </Grid>
-            </Grid>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Tỷ lệ khung hình</InputLabel>
+              <Select
+                value={formData.aspectRatio}
+                label="Tỷ lệ khung hình"
+                onChange={(e) =>
+                  setFormData({ ...formData, aspectRatio: e.target.value })
+                }
+                required
+              >
+                <MenuItem value="SQUARE">Vuông (SQUARE)</MenuItem>
+                <MenuItem value="HORIZONTAL">Ngang (HORIZONTAL)</MenuItem>
+                <MenuItem value="VERTICAL">Dọc (VERTICAL)</MenuItem>
+              </Select>
+            </FormControl>
             <FormControl fullWidth margin="normal">
               <InputLabel>Loại sản phẩm</InputLabel>
               <Select
@@ -618,11 +617,13 @@ const DesignTemplateManager = () => {
                 }
                 required
               >
-                {productTypes.map((pt) => (
-                  <MenuItem key={pt.id} value={pt.id}>
-                    {pt.name}
-                  </MenuItem>
-                ))}
+                {productTypes
+                  .filter((pt) => pt.isAiGenerated === true)
+                  .map((pt) => (
+                    <MenuItem key={pt.id} value={pt.id}>
+                      {pt.name}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
             <Box mt={2}>
