@@ -295,4 +295,19 @@ export const getOpenAiModelsApi = async () => {
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể lấy danh sách model OpenAI' };
   }
+};
+
+// Lấy nội dung file fine-tune
+export const getFineTuneFileContentApi = async (fileId) => {
+  try {
+    const response = await chatService.get(`/api/fine-tune/files/${fileId}/content`, {
+      headers: {
+        'accept': 'text/plain'
+      }
+    });
+    // API trả về text thuần, không phải object JSON
+    return { success: true, result: response.data };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.message || 'Không thể lấy nội dung file' };
+  }
 }; 

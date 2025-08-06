@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi, requestTraditionalPricingApi, getOpenAiModelsApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi, requestTraditionalPricingApi, getOpenAiModelsApi, getFineTuneFileContentApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
@@ -35,6 +35,8 @@ const initialState = {
   modelChatUploadedFileStatus: 'idle',
   modelChatFineTunedModels: [],
   modelChatFineTunedModelsStatus: 'idle',
+  fineTuneFileContent: null,
+  fineTuneFileContentStatus: 'idle',
 };
 
 export const sendChatMessage = createAsyncThunk(
@@ -117,6 +119,16 @@ export const fetchFineTuneJobDetail = createAsyncThunk(
   'chat/fetchFineTuneJobDetail',
   async (fineTuneJobId, { rejectWithValue }) => {
     const response = await getFineTuneJobDetailApi(fineTuneJobId);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
+// Lấy nội dung file
+export const fetchFineTuneFileContent = createAsyncThunk(
+  'chat/fetchFineTuneFileContent',
+  async (fileId, { rejectWithValue }) => {
+    const response = await getFineTuneFileContentApi(fileId);
     if (!response.success) return rejectWithValue(response.error);
     return response.result;
   }
@@ -347,6 +359,18 @@ const chatSlice = createSlice({
         state.fineTuneFileDetailStatus = 'failed';
         state.error = action.payload;
       })
+      // Lấy nội dung file
+      .addCase(fetchFineTuneFileContent.pending, (state) => {
+        state.fineTuneFileContentStatus = 'loading';
+      })
+      .addCase(fetchFineTuneFileContent.fulfilled, (state, action) => {
+        state.fineTuneFileContentStatus = 'succeeded';
+        state.fineTuneFileContent = action.payload;
+      })
+      .addCase(fetchFineTuneFileContent.rejected, (state, action) => {
+        state.fineTuneFileContentStatus = 'failed';
+        state.error = action.payload;
+      })
       // Lấy top 10 câu hỏi được hỏi nhiều nhất
       .addCase(fetchFrequentQuestions.pending, (state) => {
         state.frequentQuestionsStatus = 'loading';
@@ -497,5 +521,7 @@ export const selectModelChatUploadedFile = (state) => state.chat.modelChatUpload
 export const selectModelChatUploadedFileStatus = (state) => state.chat.modelChatUploadedFileStatus;
 export const selectModelChatFineTunedModels = (state) => state.chat.modelChatFineTunedModels;
 export const selectModelChatFineTunedModelsStatus = (state) => state.chat.modelChatFineTunedModelsStatus;
+export const selectFineTuneFileContent = (state) => state.chat.fineTuneFileContent;
+export const selectFineTuneFileContentStatus = (state) => state.chat.fineTuneFileContentStatus;
 
 export default chatSlice.reducer;
