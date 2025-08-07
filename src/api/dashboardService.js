@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL
 
 // Create axios instance with interceptors
 const dashboardService = axios.create({
@@ -38,19 +38,40 @@ dashboardService.interceptors.request.use(
 export const fetchStaffDashboardApi = async () => {
   try {
     const response = await dashboardService.get('/api/dashboard/staff');
-    
+
     const { success, result, message } = response.data;
-    
+
     if (success) {
       return { success: true, data: result };
     }
-    
+
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching staff dashboard:', error);
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch staff dashboard'
+    };
+  }
+};
+
+// API to fetch admin dashboard data
+export const fetchAdminDashboardApi = async () => {
+  try {
+    const response = await dashboardService.get('/api/dashboard/admin');
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching admin dashboard:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch admin dashboard'
     };
   }
 };
