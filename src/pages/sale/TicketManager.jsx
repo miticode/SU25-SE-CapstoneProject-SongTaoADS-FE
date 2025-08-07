@@ -25,8 +25,38 @@ import {
   FormControl,
   InputLabel,
   TablePagination,
+  Card,
+  CardContent,
+  Stack,
+  Divider,
+  Container,
+  Tooltip,
+  Fade,
+  Zoom,
+  Grid,
+  Avatar,
+  Badge,
 } from "@mui/material";
-import { Visibility } from "@mui/icons-material";
+import { 
+  Visibility as VisibilityIcon,
+  SupportAgent as SupportAgentIcon,
+  Assignment as AssignmentIcon,
+  People as PeopleIcon,
+  Business as BusinessIcon,
+  Schedule as ScheduleIcon,
+  AttachMoney as AttachMoneyIcon,
+  FilterList as FilterIcon,
+  Refresh as RefreshIcon,
+  Dashboard as DashboardIcon,
+  ShoppingCart as OrderIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
+  Close as CloseIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  Error as ErrorIcon,
+} from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchTicketsByStatus,
@@ -43,6 +73,7 @@ import {
   selectDeliveryStatus,
   selectDeliveryError,
 } from "../../store/features/ticket/ticketSlice";
+import S3Avatar from "../../components/S3Avatar";
 
 // Tạo mã ticket chuyên nghiệp
 const generateTicketCode = (ticket) => {
@@ -194,90 +225,280 @@ const TicketManager = () => {
   }
 
   return (
-    <Box>
-      <Box display="flex" alignItems="center" mb={2} gap={2}>
-                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-           Danh sách Hỗ trợ
-         </Typography>
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel>Trạng thái</InputLabel>
-          <Select
-            value={filterStatus}
-            label="Trạng thái"
-            onChange={handleChangeStatus}
-          >
-            {statusOptions.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-      <TableContainer component={Paper}>
-        <Table>
-                     <TableHead>
-             <TableRow>
-               <TableCell>Mã Hỗ trợ</TableCell>
-               <TableCell>Mã Đơn Hàng</TableCell>
-               <TableCell>Khách hàng</TableCell>
-               <TableCell>Loại hỗ trợ</TableCell>
-               <TableCell>Trạng thái</TableCell>
-               <TableCell>Ngày tạo</TableCell>
-               <TableCell>Hành động</TableCell>
-             </TableRow>
-           </TableHead>
-           <TableBody>
-             {tickets && tickets.length > 0 ? (
-               tickets.map((tk) => (
-                 <TableRow key={tk.id} hover>
-                                       <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>
-                      {generateTicketCode(tk)}
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      {/* Header Section */}
+      <Card sx={{ 
+        mb: 3, 
+        background: "linear-gradient(135deg, #030C20 0%, #030C20 50%, #030C20 100%)",
+        color: "white",
+        borderRadius: 3,      
+        overflow: "hidden",
+        position: "relative",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
+          `,
+          pointerEvents: "none",
+        },
+      }}>
+        <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+            <Avatar sx={{ 
+              bgcolor: "rgba(255, 255, 255, 0.2)", 
+              width: 56, 
+              height: 56,
+              border: "2px solid rgba(255, 255, 255, 0.3)"
+            }}>
+              <SupportAgentIcon sx={{ fontSize: 28 }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Quản lý Hỗ trợ Khách hàng
+              </Typography>
+              <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                Theo dõi và xử lý các yêu cầu hỗ trợ từ khách hàng
+              </Typography>
+            </Box>
+          </Stack>
+          
+          <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel sx={{ color: "rgba(255, 255, 255, 0.8)" }}>Trạng thái</InputLabel>
+              <Select
+                value={filterStatus}
+                label="Trạng thái"
+                onChange={handleChangeStatus}
+                sx={{
+                  color: "white",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255, 255, 255, 0.3)",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255, 255, 255, 0.5)",
+                  },
+                  "& .MuiSvgIcon-root": {
+                    color: "rgba(255, 255, 255, 0.8)",
+                  },
+                }}
+              >
+                {statusOptions.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <Tooltip title="Làm mới danh sách" arrow>
+              <IconButton
+                onClick={() => {
+                  dispatch(
+                    fetchTicketsByStatus({
+                      status: filterStatus,
+                      page: page + 1,
+                      size: rowsPerPage,
+                    })
+                  );
+                }}
+                sx={{
+                  bgcolor: "rgba(255, 255, 255, 0.1)",
+                  color: "white",
+                  "&:hover": {
+                    bgcolor: "rgba(255, 255, 255, 0.2)",
+                    transform: "scale(1.05)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </CardContent>
+      </Card>
+      <Card sx={{ borderRadius: 3, overflow: "hidden", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ background: "#030C20" }}>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                  Mã Hỗ trợ
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                  Mã Đơn Hàng
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                  Khách hàng
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                  Loại hỗ trợ
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                  Trạng thái
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                  Ngày tạo
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", textAlign: "center", color: "white" }}>
+                  Hành động
+                </TableCell>
+              </TableRow>
+            </TableHead>
+                       <TableBody>
+              {tickets && tickets.length > 0 ? (
+                tickets.map((tk) => (
+                  <TableRow 
+                    key={tk.id} 
+                    hover
+                    sx={{
+                      "&:hover": {
+                        backgroundColor: "rgba(25, 118, 210, 0.04)",
+                        transform: "scale(1.001)",
+                        transition: "all 0.2s ease",
+                      },
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
+                      },
+                    }}
+                  >
+                    <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>
+                      <Typography variant="body2" fontWeight="bold" color="primary.main">
+                        {generateTicketCode(tk)}
+                      </Typography>
                     </TableCell>
-                   <TableCell sx={{ color: 'text.secondary' }}>
-                     {tk.orders?.orderCode}
-                   </TableCell>
-                   <TableCell>{tk.customer?.fullName || tk.customer}</TableCell>
-                   <TableCell>{tk.title || tk.type}</TableCell>
-                   <TableCell>
-                     <Chip
-                       label={getStatusDisplay(tk.status)}
-                       color={getStatusColor(tk.status)}
-                       size="small"
-                     />
-                   </TableCell>
-                   <TableCell>
-                     {new Date(tk.createdAt).toLocaleString("vi-VN")}
-                   </TableCell>
-                   <TableCell>
-                     <IconButton color="primary" onClick={() => handleView(tk)}>
-                       <Visibility />
-                     </IconButton>
-                   </TableCell>
-                 </TableRow>
-               ))
-             ) : (
-               <TableRow>
-                 <TableCell colSpan={7} align="center">
-                   Không có yêu cầu hỗ trợ nào.
-                 </TableCell>
-               </TableRow>
-             )}
-           </TableBody>
-        </Table>
-      </TableContainer>
-      <TablePagination
-        component="div"
-        count={pagination.totalElements || 0}
-        page={page}
-        onPageChange={handleChangePage}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        labelRowsPerPage="Số dòng mỗi trang"
-      />
-             {/* Dialog chi tiết hỗ trợ */}
-       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-         <DialogTitle>Chi tiết Yêu cầu Hỗ trợ</DialogTitle>
+                    <TableCell sx={{ color: 'text.secondary' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {tk.orders?.orderCode || "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <S3Avatar
+                          s3Key={tk.customer?.avatar}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                            fontSize: "0.8rem"
+                          }}
+                        >
+                          {(tk.customer?.fullName || tk.customer || "K").charAt(0).toUpperCase()}
+                        </S3Avatar>
+                        <Typography variant="body2" fontWeight="medium">
+                          {tk.customer?.fullName || tk.customer || "Chưa có thông tin"}
+                        </Typography>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {tk.title || tk.type || "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={getStatusDisplay(tk.status)}
+                        color={getStatusColor(tk.status)}
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.75rem",
+                          "& .MuiChip-label": {
+                            px: 1.5,
+                          },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(tk.createdAt).toLocaleString("vi-VN")}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Xem chi tiết" arrow>
+                        <IconButton 
+                          color="primary" 
+                          onClick={() => handleView(tk)}
+                          sx={{
+                            bgcolor: "rgba(25, 118, 210, 0.1)",
+                            "&:hover": {
+                              bgcolor: "rgba(25, 118, 210, 0.2)",
+                              transform: "scale(1.1)",
+                            },
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                    <Box sx={{ textAlign: "center" }}>
+                      <SupportAgentIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+                      <Typography variant="h6" color="text.secondary" gutterBottom>
+                        Không có yêu cầu hỗ trợ nào
+                      </Typography>
+                      <Typography variant="body2" color="text.disabled">
+                        Hiện tại không có ticket nào trong trạng thái này
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+                  </Table>
+        </TableContainer>
+      </Card>
+      
+      <Box sx={{ mt: 2 }}>
+        <TablePagination
+          component="div"
+          count={pagination.totalElements || 0}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelRowsPerPage="Số dòng mỗi trang"
+        />
+      </Box>
+      {/* Dialog chi tiết hỗ trợ */}
+      <Dialog 
+        open={open} 
+        onClose={handleClose} 
+        maxWidth="md" 
+        fullWidth
+        TransitionComponent={Fade}
+        TransitionProps={{ timeout: 300 }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
+          color: "white",
+          fontWeight: 700,
+          fontSize: "1.5rem",
+        }}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <SupportAgentIcon sx={{ fontSize: 28 }} />
+            <Typography variant="h6" component="div">
+              Chi tiết Yêu cầu Hỗ trợ
+            </Typography>
+          </Stack>
+        </DialogTitle>
         <DialogContent>
           {!ticketDetail ? (
             <Box
@@ -381,22 +602,46 @@ const TicketManager = () => {
                 Thông tin Khách hàng
               </Typography>
               
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                <S3Avatar
+                  s3Key={ticketDetail.customer?.avatar}
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    mr: 2,
+                    background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                    fontSize: "1.5rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {ticketDetail.customer?.fullName?.charAt(0)?.toUpperCase() || "K"}
+                </S3Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+                    {ticketDetail.customer?.fullName}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {ticketDetail.customer?.email}
+                  </Typography>
+                </Box>
+              </Box>
+              
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Họ tên
+                    Số điện thoại
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.customer?.fullName}
+                    {ticketDetail.customer?.phone}
                   </Typography>
                 </Box>
                 
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Email
+                    Địa chỉ
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.customer?.email}
+                    {ticketDetail.customer?.address || 'Chưa cập nhật'}
                   </Typography>
                 </Box>
               </Box>
@@ -826,7 +1071,7 @@ const TicketManager = () => {
           Gửi phản hồi thành công!
         </Alert>
       </Snackbar>
-    </Box>
+    </Container>
   );
 };
 

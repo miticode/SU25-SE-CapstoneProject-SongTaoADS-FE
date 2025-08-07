@@ -53,11 +53,123 @@ import {
 } from "../store/features/background/backgroundSlice";
 import { getImageFromS3 } from "../api/s3Service";
 
-// Component để load ảnh từ S3
-const S3Image = ({ imageKey, alt, className }) => {
+// Component để load ảnh từ S3 với auto-detect tỷ lệ
+const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, showDimensions = false, onClick }) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [imageType, setImageType] = useState(null); // 'SQUARE', 'HORIZONTAL', 'VERTICAL'
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+
+  // Hàm xác định loại ảnh dựa trên tỷ lệ
+  const detectImageType = (width, height) => {
+    const ratio = width / height;
+    const tolerance = 0.1; // Dung sai để coi là vuông
+    
+    if (Math.abs(ratio - 1) <= tolerance) {
+      return 'SQUARE';
+    } else if (ratio > 1) {
+      return 'HORIZONTAL';
+    } else {
+      return 'VERTICAL';
+    }
+  };
+
+  // Hàm xử lý khi ảnh load xong
+  const handleImageLoad = (event) => {
+    const { naturalWidth, naturalHeight } = event.target;
+    setImageDimensions({ width: naturalWidth, height: naturalHeight });
+    const type = detectImageType(naturalWidth, naturalHeight);
+    setImageType(type);
+    console.log(`S3Image dimensions: ${naturalWidth}x${naturalHeight}, Type: ${type}`);
+  };
+
+  // Hàm lấy style dựa trên loại ảnh và size
+  const getImageStyles = (type, size) => {
+    const baseStyles = {
+      borderRadius: 8,
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.3s ease",
+      objectFit: "cover",
+      border: "1px solid #e0e0e0",
+      "&:hover": onClick ? {
+        opacity: 0.9,
+        transform: "scale(1.02)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+      } : {},
+    };
+
+    // Size multipliers
+    const sizeMultiplier = {
+      small: 0.6,
+      medium: 0.8,
+      large: 1,
+    };
+    const multiplier = sizeMultiplier[size] || 1;
+
+    switch (type) {
+      case 'SQUARE':
+        return {
+          ...baseStyles,
+          width: Math.round(300 * multiplier),
+          height: Math.round(300 * multiplier),
+          aspectRatio: "1/1",
+        };
+      case 'HORIZONTAL':
+        return {
+          ...baseStyles,
+          width: Math.round(400 * multiplier),
+          height: Math.round(250 * multiplier),
+          aspectRatio: "16/10",
+        };
+      case 'VERTICAL':
+        return {
+          ...baseStyles,
+          width: Math.round(250 * multiplier),
+          height: Math.round(350 * multiplier),
+          aspectRatio: "5/7",
+        };
+      default:
+        return {
+          ...baseStyles,
+          maxWidth: Math.round(400 * multiplier),
+          height: "auto",
+          objectFit: "contain",
+        };
+    }
+  };
+
+  // Hàm lấy container styles dựa trên loại ảnh
+  const getContainerStyles = (type) => {
+    const baseStyles = {
+      position: "relative",
+      display: "inline-block",
+      borderRadius: 2,
+      overflow: "hidden",
+    };
+
+    switch (type) {
+      case 'SQUARE':
+        return {
+          ...baseStyles,
+          background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
+          margin: "0 auto",
+        };
+      case 'HORIZONTAL':
+        return {
+          ...baseStyles,
+          background: "linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%)",
+        };
+      case 'VERTICAL':
+        return {
+          ...baseStyles,
+          background: "linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%)",
+          margin: "0 auto",
+        };
+      default:
+        return baseStyles;
+    }
+  };
 
   useEffect(() => {
     const loadImage = async () => {
@@ -96,29 +208,136 @@ const S3Image = ({ imageKey, alt, className }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
-        <CircularProgress size={30} />
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: size === "small" ? 120 : size === "medium" ? 180 : 200,
+          p: 2,
+          border: "1px dashed #ccc",
+          borderRadius: 2,
+          backgroundColor: "#f8f9fa",
+        }}
+      >
+        <CircularProgress size={size === "small" ? 20 : 30} />
+        <Typography variant="caption" sx={{ mt: 1, color: "text.secondary" }}>
+          Đang tải ảnh...
+        </Typography>
+      </Box>
     );
   }
 
   if (error || !imageUrl) {
     return (
-      <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
-        <Typography variant="caption" className="text-gray-500">
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: size === "small" ? 120 : size === "medium" ? 180 : 200,
+          p: 2,
+          border: "1px dashed #ccc",
+          borderRadius: 2,
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
           Không thể tải ảnh
         </Typography>
-      </div>
+      </Box>
     );
   }
 
   return (
-    <img
-      src={imageUrl}
-      alt={alt}
-      className={className}
-      onError={() => setError(true)}
-    />
+    <Box sx={getContainerStyles(imageType)}>
+      {/* Badge hiển thị loại ảnh */}
+      {showBadge && imageType && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 2,
+            backgroundColor: 
+              imageType === 'SQUARE' ? '#2196f3' :
+              imageType === 'HORIZONTAL' ? '#4caf50' : '#ff9800',
+            color: "white",
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            fontSize: size === "small" ? "0.6rem" : "0.7rem",
+            fontWeight: 600,
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+            lineHeight: 1,
+          }}
+        >
+          {imageType === 'SQUARE' && '⬜ SQUARE'}
+          {imageType === 'HORIZONTAL' && '▭ HORIZONTAL'}
+          {imageType === 'VERTICAL' && '▬ VERTICAL'}
+        </Box>
+      )}
+
+      {/* Hiển thị kích thước ảnh */}
+      {showDimensions && imageDimensions.width > 0 && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            zIndex: 2,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            color: "white",
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            fontSize: size === "small" ? "0.6rem" : "0.7rem",
+            fontWeight: 500,
+            lineHeight: 1,
+          }}
+        >
+          {imageDimensions.width} × {imageDimensions.height}
+        </Box>
+      )}
+
+      <Box
+        component="img"
+        src={imageUrl}
+        alt={alt}
+        sx={{
+          ...getImageStyles(imageType, size),
+          ...(className && { className }),
+        }}
+        onClick={onClick}
+        onLoad={handleImageLoad}
+        onError={() => setError(true)}
+      />
+
+      {/* Hiển thị thông tin tỷ lệ dưới ảnh */}
+      {showDimensions && imageType && imageDimensions.width > 0 && (
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 8,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+            backgroundColor: "rgba(0,0,0,0.8)",
+            color: "white",
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            fontSize: "0.6rem",
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Tỷ lệ: {(imageDimensions.width / imageDimensions.height).toFixed(2)}:1
+        </Box>
+      )}
+    </Box>
   );
 };
 
@@ -755,30 +974,46 @@ const Order = () => {
             component="h1"
             className="font-bold text-gray-800 mb-2 text-2xl sm:text-3xl lg:text-4xl"
           >
-            {currentStep === 1
-              ? finalIsFromAIDesign
-                ? "Đặt Hàng Thiết Kế AI"
-                : finalIsFromCustomDesign
-                ? "Đặt Hàng Thiết Kế Tùy Chỉnh"
-                : "Tạo Đơn Hàng Mới"
-              : currentStep === 2
-              ? "Xác Nhận Đơn Hàng"
-              : "Hoàn Tất Đơn Hàng"}
+            {(() => {
+              if (currentStep === 1) {
+                if (finalIsFromAIDesign) return "Đặt Hàng Thiết Kế AI";
+                if (finalIsFromCustomDesign) return "Đặt Hàng Thiết Kế Tùy Chỉnh";
+                return "Tạo Đơn Hàng Mới";
+              }
+              if (currentStep === 2) return "Xác Nhận Đơn Hàng";
+              return "Hoàn Tất Đơn Hàng";
+            })()}
           </Typography>
-          <Typography
-            variant="subtitle1"
-            className="text-gray-600 max-w-2xl mx-auto"
+          <Box 
+            className="text-gray-600 max-w-2xl mx-auto text-center px-4"
+            sx={{ 
+              lineHeight: 1.6,
+              wordBreak: 'break-word',
+              hyphens: 'auto',
+              fontSize: '1rem',
+              fontWeight: 400
+            }}
           >
-            {currentStep === 1
-              ? finalIsFromAIDesign
-                ? "Vui lòng điền thông tin để tạo đơn hàng thiết kế AI"
-                : finalIsFromCustomDesign
-                ? "Vui lòng điền thông tin để tạo đơn hàng thiết kế tùy chỉnh"
-                : "Vui lòng điền thông tin để tạo đơn hàng của bạn"
-              : currentStep === 2
-              ? "Kiểm tra lại thông tin trước khi xác nhận"
-              : "Đơn hàng của bạn đã được tạo thành công"}
-          </Typography>
+            {(() => {
+              if (currentStep === 1) {
+                if (finalIsFromAIDesign) return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span>Vui lòng điền thông tin để tạo</span>
+                    <span>đơn hàng thiết kế AI</span>
+                  </div>
+                );
+                if (finalIsFromCustomDesign) return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span>Vui lòng điền thông tin để tạo</span>
+                    <span>đơn hàng thiết kế tùy chỉnh</span>
+                  </div>
+                );
+                return "Vui lòng điền thông tin để tạo đơn hàng của bạn";
+              }
+              if (currentStep === 2) return "Kiểm tra lại thông tin trước khi xác nhận";
+              return "Đơn hàng của bạn đã được tạo thành công";
+            })()}
+          </Box>
         </div>
 
         {/* Progress Stepper */}
@@ -1195,38 +1430,21 @@ const Order = () => {
                                       </Typography>
                                     </div>
                                   </div>
-                                ) : loadingEditedImage ? (
-                                  <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border">
-                                    <div className="text-center">
-                                      <CircularProgress size={40} className="mb-3" />
-                                      <Typography variant="body2" className="text-gray-600">
-                                        Đang tải ảnh từ S3...
-                                      </Typography>
-                                    </div>
-                                  </div>
-                                ) : editedImageUrl ? (
-                                  <CardMedia
-                                    component="img"
-                                    image={editedImageUrl}
-                                    alt="Ảnh thiết kế đã chỉnh sửa từ S3"
-                                    className="w-full max-h-80 object-contain rounded-lg shadow-sm"
-                                    onLoad={() => {
-                                      console.log("Order - Ảnh từ S3 đã load thành công:", editedImageUrl);
-                                    }}
-                                    onError={(e) => {
-                                      console.error("Order - Lỗi tải ảnh từ S3:", e, editedImageUrl);
-                                    }}
-                                  />
                                 ) : editedDesignDetail?.editedImage ? (
-                                  <div className="h-64 flex items-center justify-center bg-yellow-50 rounded-lg border border-yellow-200">
-                                    <div className="text-center">
-                                      <Typography variant="body2" className="text-yellow-700 mb-2">
-                                        Lỗi tải ảnh từ S3
-                                      </Typography>
-                                      <Typography variant="caption" className="text-yellow-600">
-                                        Key: {editedDesignDetail.editedImage}
-                                      </Typography>
-                                    </div>
+                                  <div className="flex justify-center">
+                                    <S3Image
+                                      imageKey={editedDesignDetail.editedImage}
+                                      alt="Ảnh thiết kế đã chỉnh sửa"
+                                      size="large"
+                                      showBadge={true}
+                                      showDimensions={true}
+                                      onClick={() => {
+                                        // Mở ảnh trong tab mới
+                                        if (editedImageUrl) {
+                                          window.open(editedImageUrl, '_blank');
+                                        }
+                                      }}
+                                    />
                                   </div>
                                 ) : (
                                   <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">
@@ -1584,7 +1802,7 @@ const Order = () => {
                               variant="h6"
                               className="text-blue-800 font-bold"
                             >
-                              #{currentOrder?.id || existingOrderId || 'N/A'}
+                              {currentOrder?.orderCode || 'N/A'}
                             </Typography>
                           </div>
                           <div className="text-right">
@@ -1819,11 +2037,17 @@ const Order = () => {
                                         >
                                           🎨 Hình ảnh thiết kế
                                         </Typography>
-                                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                                        <div className="bg-white rounded-lg p-4 border border-purple-200 flex justify-center">
                                           <S3Image 
                                             imageKey={detail.editedDesigns.editedImage}
                                             alt="Thiết kế đã chỉnh sửa"
-                                            className="w-full max-h-80 object-contain rounded-lg shadow-sm"
+                                            size="large"
+                                            showBadge={true}
+                                            showDimensions={true}
+                                            onClick={() => {
+                                              // Mở ảnh trong tab mới khi click
+                                              console.log("Opening image for key:", detail.editedDesigns.editedImage);
+                                            }}
                                           />
                                         </div>
                                       </div>
