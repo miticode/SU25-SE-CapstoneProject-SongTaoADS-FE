@@ -17,7 +17,6 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
   Grid,
   CircularProgress,
   Alert,
@@ -36,6 +35,13 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
+  Stack,
+  Divider,
+  Container,
+  Tooltip,
+  Fade,
+  Zoom,
+  TextField,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -51,6 +57,14 @@ import {
   Description as DescriptionIcon,
   People as PeopleIcon,
   MonetizationOn as MoneyIcon,
+  Assignment as AssignmentIcon,
+  Business as BusinessIcon,
+  Schedule as ScheduleIcon,
+  AttachMoney as AttachMoneyIcon,
+  FilterList as FilterIcon,
+  Refresh as RefreshIcon,
+  Dashboard as DashboardIcon,
+  ShoppingCart as OrderIcon,
 } from "@mui/icons-material";
 import {
   fetchAllDesignRequests,
@@ -84,6 +98,7 @@ import {
 import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
 
 import ContractUploadForm from "../../components/ContractUploadForm";
+import S3Avatar from "../../components/S3Avatar";
 import UploadRevisedContract from "../../components/UploadRevisedContract";
 import { getOrderContractApi } from "../../api/contractService";
 import { getPresignedUrl } from "../../api/s3Service";
@@ -448,6 +463,7 @@ const CustomerRequests = () => {
       };
     }
   }, [currentTab, selectedOrderStatus]);
+
   const handleUpdateEstimatedDeliveryDate = async (orderId, deliveryDate) => {
     if (!deliveryDate) {
       setNotification({
@@ -1342,8 +1358,18 @@ const CustomerRequests = () => {
 
   if (status === "loading" && designRequests.length === 0) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
-        <CircularProgress />
+      <Box sx={{ 
+        display: "flex", 
+        flexDirection: "column",
+        alignItems: "center", 
+        justifyContent: "center", 
+        minHeight: "60vh",
+        gap: 2
+      }}>
+        <CircularProgress size={60} thickness={4} />
+        <Typography variant="h6" color="text.secondary">
+          Đang tải dữ liệu...
+        </Typography>
       </Box>
     );
   }
@@ -1351,240 +1377,535 @@ const CustomerRequests = () => {
   if (status === "failed") {
     return (
       <Box sx={{ mt: 2 }}>
-        <Alert severity="error">Error loading data: {error}</Alert>
+        <Alert severity="error">Lỗi tải dữ liệu: {error}</Alert>
       </Box>
     );
   }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box>
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-          Customer Design Management
-        </Typography>
-        <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-          <Tab label="Design Requests" />
-          <Tab
-            label={
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <span>Custom Design Orders</span>
-                {!orderLoading && orders.length > 0 && (
-                  <Badge
-                    badgeContent={orders.length}
-                    color="warning"
-                    sx={{ ml: 1 }}
-                  />
-                )}
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        {/* Header Section */}
+        <Box sx={{ mb: 4 }}>
+          <Box
+            sx={{
+              background: "linear-gradient(135deg, #030C20 0%, #030C20 100%)",
+              borderRadius: 3,
+              p: 3,
+              color: "white",
+              position: "relative",
+              overflow: "hidden",
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: "100%",
+                height: "100%",
+                background: "url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"grain\" width=\"100\" height=\"100\" patternUnits=\"userSpaceOnUse\"><circle cx=\"25\" cy=\"25\" r=\"1\" fill=\"white\" opacity=\"0.1\"/><circle cx=\"75\" cy=\"75\" r=\"1\" fill=\"white\" opacity=\"0.1\"/><circle cx=\"50\" cy=\"10\" r=\"0.5\" fill=\"white\" opacity=\"0.1\"/><circle cx=\"10\" cy=\"60\" r=\"0.5\" fill=\"white\" opacity=\"0.1\"/><circle cx=\"90\" cy=\"40\" r=\"0.5\" fill=\"white\" opacity=\"0.1\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23grain)\"/></svg>')",
+                opacity: 0.3,
+              },
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={2} sx={{ position: "relative", zIndex: 1 }}>
+              <Box
+                sx={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: "50%",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <AssignmentIcon sx={{ fontSize: 30, color: "white" }} />
               </Box>
-            }
-          />
-        </Tabs>
+              <Box>
+                <Typography variant="h4" fontWeight="bold" gutterBottom>
+                  Đơn hàng thiết kế thủ công
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                  Theo dõi và quản lý các yêu cầu thiết kế tùy chỉnh, đơn hàng thiết kế thủ công
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        </Box>
+
+        {/* Tabs Section */}
+        <Card sx={{ mb: 3, borderRadius: 2 }}>
+          <Tabs 
+            value={currentTab} 
+            onChange={handleTabChange} 
+            sx={{ 
+              px: 2,
+              "& .MuiTab-root": {
+                minHeight: 64,
+                fontSize: "1rem",
+                fontWeight: 500,
+                textTransform: "none",
+              },
+              "& .Mui-selected": {
+                color: "primary.main",
+                fontWeight: 600,
+              },
+            }}
+            variant="fullWidth"
+          >
+            <Tab 
+              label={
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <BrushIcon />
+                  <span>Yêu cầu thiết kế</span>
+                  {!status.includes("loading") && designRequests.length > 0 && (
+                    <Badge
+                      badgeContent={designRequests.length}
+                      color="primary"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Stack>
+              } 
+            />
+            <Tab
+              label={
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <OrderIcon />
+                  <span>Đơn hàng thiết kế tùy chỉnh</span>
+                  {!orderLoading && orders.length > 0 && (
+                    <Badge
+                      badgeContent={orders.length}
+                      color="warning"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Stack>
+              }
+            />
+          </Tabs>
+        </Card>
         {currentTab === 0 ? (
           <>
-            <FormControl size="small" sx={{ minWidth: 200, mb: 2 }}>
-              <InputLabel id="status-filter-label">Trạng thái</InputLabel>
-              <Select
-                labelId="status-filter-label"
-                value={selectedStatus}
-                label="Trạng thái"
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <MenuItem value="">Tất cả</MenuItem>
-                <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
-                <MenuItem value="PRICING_NOTIFIED">Đã báo giá</MenuItem>
-                <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
-                <MenuItem value="APPROVED_PRICING">Đã duyệt giá</MenuItem>
-                <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
-                <MenuItem value="ASSIGNED_DESIGNER">Đã giao designer</MenuItem>
-                <MenuItem value="PROCESSING">Đang thiết kế</MenuItem>
-                <MenuItem value="DESIGNER_REJECTED">Designer từ chối</MenuItem>
-                <MenuItem value="DEMO_SUBMITTED">Đã nộp demo</MenuItem>
-                <MenuItem value="REVISION_REQUESTED">
-                  Yêu cầu chỉnh sửa
-                </MenuItem>
-                <MenuItem value="WAITING_FULL_PAYMENT">
-                  Chờ thanh toán đủ
-                </MenuItem>
-                <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
-                <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
-                <MenuItem value="CANCELLED">Đã hủy</MenuItem>
-              </Select>
-            </FormControl>
+            {/* Filter Section */}
+            <Card sx={{ mb: 3, p: 2 }}>
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                <FilterIcon color="primary" />
+                <Typography variant="h6" fontWeight="medium">
+                  Bộ lọc
+                </Typography>
+              </Stack>
+              <FormControl size="small" sx={{ minWidth: 250 }}>
+                <InputLabel id="status-filter-label">Lọc theo trạng thái</InputLabel>
+                <Select
+                  labelId="status-filter-label"
+                  value={selectedStatus}
+                  label="Lọc theo trạng thái"
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  startAdornment={
+                    <Box sx={{ mr: 1 }}>
+                      <Chip 
+                        size="small" 
+                        label={designRequests.length} 
+                        color="primary" 
+                        variant="outlined"
+                      />
+                    </Box>
+                  }
+                >
+                  <MenuItem value="">Tất cả trạng thái</MenuItem>
+                  <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
+                  <MenuItem value="PRICING_NOTIFIED">Đã báo giá</MenuItem>
+                  <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
+                  <MenuItem value="APPROVED_PRICING">Đã duyệt giá</MenuItem>
+                  <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
+                  <MenuItem value="ASSIGNED_DESIGNER">Đã giao designer</MenuItem>
+                  <MenuItem value="PROCESSING">Đang thiết kế</MenuItem>
+                  <MenuItem value="DESIGNER_REJECTED">Designer từ chối</MenuItem>
+                  <MenuItem value="DEMO_SUBMITTED">Đã nộp demo</MenuItem>
+                  <MenuItem value="REVISION_REQUESTED">
+                    Yêu cầu chỉnh sửa
+                  </MenuItem>
+                  <MenuItem value="WAITING_FULL_PAYMENT">
+                    Chờ thanh toán đủ
+                  </MenuItem>
+                  <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
+                  <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
+                  <MenuItem value="CANCELLED">Đã hủy</MenuItem>
+                </Select>
+              </FormControl>
+            </Card>
+
+            {/* Content Section */}
             {designRequests.length === 0 && status === "succeeded" ? (
-              <Alert severity="info">No design requests found.</Alert>
+              <Card sx={{ p: 4, textAlign: "center" }}>
+                <Box sx={{ mb: 2 }}>
+                  <BrushIcon sx={{ fontSize: 64, color: "grey.400" }} />
+                </Box>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Chưa có yêu cầu thiết kế nào
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Hiện tại không có yêu cầu thiết kế nào phù hợp với bộ lọc đã chọn
+                </Typography>
+              </Card>
             ) : (
-              <>
-                <TableContainer component={Paper} elevation={0}>
+              <Card sx={{ borderRadius: 2, overflow: "hidden" }}>
+                <TableContainer>
                   <Table>
                     <TableHead>
-                      <TableRow>
-                            <TableCell>Customer Name</TableCell>
-                            <TableCell>Company</TableCell>
-                            <TableCell>Requirements</TableCell>
-                            <TableCell>Created At</TableCell>
-                            <TableCell>Total Price</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Actions</TableCell>
-                          </TableRow>
-                        </TableHead>
+                      <TableRow sx={{ background: "#030C20" }}>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Mã yêu cầu
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Khách hàng
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Công ty
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Yêu cầu
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Ngày tạo
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Tổng tiền
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                          Trạng thái
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", textAlign: "center", color: "white" }}>
+                          Thao tác
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
                     <TableBody>
-                      {designRequests.map((request) => (
-                        <TableRow key={request.id}>
+                      {designRequests.map((request, index) => (
+                        <TableRow 
+                          key={request.id}
+                          sx={{ 
+                            '&:hover': { 
+                              backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                              transition: 'background-color 0.2s ease'
+                            },
+                            '&:nth-of-type(even)': { 
+                              backgroundColor: 'rgba(0, 0, 0, 0.02)' 
+                            }
+                          }}
+                        >
                           <TableCell>
-                            {getCustomerName(request.customerDetail)}
+                            <Typography variant="body2" fontWeight="bold" color="primary.main">
+                              {request.code || "Chưa có mã"}
+                            </Typography>
                           </TableCell>
                           <TableCell>
-                            {request.customerDetail?.companyName || "N/A"}
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <S3Avatar 
+                                s3Key={request.customerDetail?.users?.avatar}
+                                sx={{ 
+                                  width: 32, 
+                                  height: 32,
+                                  fontSize: "0.8rem"
+                                }}
+                              >
+                                {getCustomerName(request.customerDetail).charAt(0).toUpperCase()}
+                              </S3Avatar>
+                              <Typography variant="body2" fontWeight="medium">
+                                {getCustomerName(request.customerDetail)}
+                              </Typography>
+                            </Stack>
                           </TableCell>
-                          <TableCell>{request.requirements}</TableCell>
-                          <TableCell>{formatDate(request.createdAt)}</TableCell>
                           <TableCell>
-                            {formatCurrency(request.totalPrice)}
+                            <Typography variant="body2" color="text.secondary">
+                              {request.customerDetail?.companyName || "Chưa có thông tin"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Tooltip title={request.requirements} placement="top">
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  maxWidth: 200, 
+                                  overflow: "hidden", 
+                                  textOverflow: "ellipsis", 
+                                  whiteSpace: "nowrap" 
+                                }}
+                              >
+                                {request.requirements}
+                              </Typography>
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {formatDate(request.createdAt)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold" color="primary.main">
+                              {formatCurrency(request.totalPrice)}
+                            </Typography>
                           </TableCell>
                           <TableCell>{getStatusChip(request.status)}</TableCell>
-                          <TableCell>
-                            <IconButton
-                              color="primary"
-                              onClick={() => handleViewDetails(request)}
-                            >
-                              <VisibilityIcon />
-                            </IconButton>
+                          <TableCell align="center">
+                            <Tooltip title="Xem chi tiết" placement="top">
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleViewDetails(request)}
+                                sx={{ 
+                                  '&:hover': { 
+                                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                    transform: 'scale(1.1)',
+                                    transition: 'all 0.2s ease'
+                                  }
+                                }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </TableContainer>
-
-                {/* Pagination removed - displaying all items */}
-              </>
+              </Card>
             )}
           </>
         ) : (
           <>
-            <FormControl size="small" sx={{ minWidth: 250, mb: 2 }}>
-              <InputLabel id="order-status-filter-label">
-                Trạng thái đơn hàng
-              </InputLabel>
-              <Select
-                labelId="order-status-filter-label"
-                value={selectedOrderStatus}
-                label="Trạng thái đơn hàng"
-                onChange={handleOrderStatusChange}
-              >
-                <MenuItem value="">Tất cả</MenuItem>
-                <MenuItem value="PENDING_DESIGN">Chờ thiết kế</MenuItem>
-                <MenuItem value="NEED_DEPOSIT_DESIGN">Cần đặt cọc thiết kế</MenuItem>
-                <MenuItem value="DEPOSITED_DESIGN">Đã đặt cọc thiết kế</MenuItem>
-                <MenuItem value="NEED_FULLY_PAID_DESIGN">Cần thanh toán đủ thiết kế</MenuItem>
-                <MenuItem value="WAITING_FINAL_DESIGN">Chờ thiết kế cuối</MenuItem>
-                <MenuItem value="DESIGN_COMPLETED">Hoàn thành thiết kế</MenuItem>
-                <MenuItem value="PENDING_CONTRACT">Chờ hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_SENT">Đã gửi hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_SIGNED">Đã ký hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_DISCUSS">Đàm phán hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_RESIGNED">Từ chối hợp đồng</MenuItem>
-                <MenuItem value="CONTRACT_CONFIRMED">Xác nhận hợp đồng</MenuItem>
-                <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
-                <MenuItem value="IN_PROGRESS">Đang thực hiện</MenuItem>
-                <MenuItem value="PRODUCING">Đang sản xuất</MenuItem>
-                <MenuItem value="PRODUCTION_COMPLETED">Hoàn thành sản xuất</MenuItem>
-                <MenuItem value="DELIVERING">Đang giao hàng</MenuItem>
-                <MenuItem value="INSTALLED">Đã lắp đặt</MenuItem>
-                <MenuItem value="ORDER_COMPLETED">Hoàn tất đơn hàng</MenuItem>
-                <MenuItem value="CANCELLED">Đã hủy</MenuItem>
-              </Select>
-            </FormControl>
+            {/* Filter Section */}
+            <Card sx={{ mb: 3, p: 2 }}>
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                <FilterIcon color="primary" />
+                <Typography variant="h6" fontWeight="medium">
+                  Bộ lọc đơn hàng
+                </Typography>
+              </Stack>
+              <FormControl size="small" sx={{ minWidth: 300 }}>
+                <InputLabel id="order-status-filter-label">
+                  Lọc theo trạng thái đơn hàng
+                </InputLabel>
+                <Select
+                  labelId="order-status-filter-label"
+                  value={selectedOrderStatus}
+                  label="Lọc theo trạng thái đơn hàng"
+                  onChange={handleOrderStatusChange}
+                  startAdornment={
+                    <Box sx={{ mr: 1 }}>
+                      <Chip 
+                        size="small" 
+                        label={orders.length} 
+                        color="warning" 
+                        variant="outlined"
+                      />
+                    </Box>
+                  }
+                >
+                  <MenuItem value="">Tất cả trạng thái</MenuItem>
+                  <MenuItem value="PENDING_DESIGN">Chờ thiết kế</MenuItem>
+                  <MenuItem value="NEED_DEPOSIT_DESIGN">Cần đặt cọc thiết kế</MenuItem>
+                  <MenuItem value="DEPOSITED_DESIGN">Đã đặt cọc thiết kế</MenuItem>
+                  <MenuItem value="NEED_FULLY_PAID_DESIGN">Cần thanh toán đủ thiết kế</MenuItem>
+                  <MenuItem value="WAITING_FINAL_DESIGN">Chờ thiết kế cuối</MenuItem>
+                  <MenuItem value="DESIGN_COMPLETED">Hoàn thành thiết kế</MenuItem>
+                  <MenuItem value="PENDING_CONTRACT">Chờ hợp đồng</MenuItem>
+                  <MenuItem value="CONTRACT_SENT">Đã gửi hợp đồng</MenuItem>
+                  <MenuItem value="CONTRACT_SIGNED">Đã ký hợp đồng</MenuItem>
+                  <MenuItem value="CONTRACT_DISCUSS">Đàm phán hợp đồng</MenuItem>
+                  <MenuItem value="CONTRACT_RESIGNED">Từ chối hợp đồng</MenuItem>
+                  <MenuItem value="CONTRACT_CONFIRMED">Xác nhận hợp đồng</MenuItem>
+                  <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
+                  <MenuItem value="IN_PROGRESS">Đang thực hiện</MenuItem>
+                  <MenuItem value="PRODUCING">Đang sản xuất</MenuItem>
+                  <MenuItem value="PRODUCTION_COMPLETED">Hoàn thành sản xuất</MenuItem>
+                  <MenuItem value="DELIVERING">Đang giao hàng</MenuItem>
+                  <MenuItem value="INSTALLED">Đã lắp đặt</MenuItem>
+                  <MenuItem value="ORDER_COMPLETED">Hoàn tất đơn hàng</MenuItem>
+                  <MenuItem value="CANCELLED">Đã hủy</MenuItem>
+                </Select>
+              </FormControl>
+            </Card>
+
+            {/* Content Section */}
             {orders.length === 0 ? (
-              <Alert severity="info">
-                Không tìm thấy đơn hàng nào với trạng thái đã chọn.
-              </Alert>
+              <Card sx={{ p: 4, textAlign: "center" }}>
+                <Box sx={{ mb: 2 }}>
+                  <OrderIcon sx={{ fontSize: 64, color: "grey.400" }} />
+                </Box>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Chưa có đơn hàng nào
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Không tìm thấy đơn hàng nào với trạng thái đã chọn
+                </Typography>
+              </Card>
             ) : (
               <>
-                                {/* Show filtering info */}
-                {allOrders.length > orders.length && (
+              
+                {/* {allOrders.length > orders.length && (
                   <Alert severity="info" sx={{ mb: 2 }}>
                     Hiển thị {orders.length} đơn hàng thiết kế tùy chỉnh (tổng {allOrders.length} đơn hàng từ API)
                   </Alert>
-                )}
-                <TableContainer component={Paper} elevation={0}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Mã đơn hàng</TableCell>
-                        <TableCell>Khách hàng</TableCell>
-                        <TableCell>Địa chỉ</TableCell>
-                        <TableCell>Loại đơn hàng</TableCell>
-                        <TableCell>Ngày tạo</TableCell>
-                        <TableCell>Tổng tiền</TableCell>
-                        <TableCell>Trạng thái</TableCell>
-                        <TableCell>Thao tác</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {orders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell>{order.orderCode || order.id}</TableCell>
-                          <TableCell>
-                            {order.users?.fullName || "Chưa có thông tin"}
+                )} */}
+                
+                <Card sx={{ borderRadius: 2, overflow: "hidden" }}>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ background: "#030C20" }}>
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Mã đơn hàng
                           </TableCell>
-                          <TableCell>
-                            {order.address || "Chưa có địa chỉ"}
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Khách hàng
                           </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={
-                                order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
-                                  ? "Thiết kế tùy chỉnh có thi công"
-                                  : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
-                                  ? "Thiết kế tùy chỉnh không thi công"
-                                  : order.orderType === "AI_DESIGN"
-                                  ? "Thiết kế AI"
-                                  : order.orderType
-                              }
-                              color={
-                                order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
-                                  ? "success"
-                                  : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
-                                  ? "info"
-                                  : "primary"
-                              }
-                              size="small"
-                            />
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Địa chỉ
                           </TableCell>
-                          <TableCell>{formatDate(order.createdAt)}</TableCell>
-                          <TableCell>
-                            {formatCurrency(order.totalOrderAmount || order.totalAmount)}
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Loại đơn hàng
                           </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={
-                                ORDER_STATUS_MAP[order.status]?.label ||
-                                order.status
-                              }
-                              color={
-                                ORDER_STATUS_MAP[order.status]?.color ||
-                                "default"
-                              }
-                              size="small"
-                              sx={{ fontWeight: 500 }}
-                            />
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Ngày tạo
                           </TableCell>
-                          <TableCell>
-                            <IconButton
-                              color="primary"
-                              onClick={() => handleViewDetail(order.id)}
-                              title={order.status === "DEPOSITED" ? "Báo ngày giao dự kiến" : "Xem chi tiết"}
-                            >
-                              {order.status === "DEPOSITED" ? <ShippingIcon /> : <VisibilityIcon />}
-                            </IconButton>
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Tổng tiền
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                            Trạng thái
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", textAlign: "center", color: "white" }}>
+                            Thao tác
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                {/* Pagination removed - displaying all items */}
+                      </TableHead>
+                      <TableBody>
+                        {orders.map((order) => (
+                          <TableRow 
+                            key={order.id}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                                transition: 'background-color 0.2s ease'
+                              },
+                              '&:nth-of-type(even)': { 
+                                backgroundColor: 'rgba(0, 0, 0, 0.02)' 
+                              }
+                            }}
+                          >
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="bold" color="primary.main">
+                                {order.orderCode || order.id}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <S3Avatar 
+                                  s3Key={order.users?.avatar}
+                                  sx={{ 
+                                    width: 32, 
+                                    height: 32,
+                                    fontSize: "0.8rem"
+                                  }}
+                                >
+                                  {(order.users?.fullName || "K").charAt(0).toUpperCase()}
+                                </S3Avatar>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {order.users?.fullName || "Chưa có thông tin"}
+                                </Typography>
+                              </Stack>
+                            </TableCell>
+                            <TableCell>
+                              <Tooltip title={order.address || "Chưa có địa chỉ"} placement="top">
+                                <Typography 
+                                  variant="body2" 
+                                  color="text.secondary"
+                                  sx={{ 
+                                    maxWidth: 200, 
+                                    overflow: "hidden", 
+                                    textOverflow: "ellipsis", 
+                                    whiteSpace: "nowrap" 
+                                  }}
+                                >
+                                  {order.address || "Chưa có địa chỉ"}
+                                </Typography>
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={
+                                  order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                    ? "Thiết kế tùy chỉnh có thi công"
+                                    : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                                    ? "Thiết kế tùy chỉnh không thi công"
+                                    : order.orderType === "AI_DESIGN"
+                                    ? "Thiết kế AI"
+                                    : order.orderType
+                                }
+                                color={
+                                  order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                    ? "success"
+                                    : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
+                                    ? "info"
+                                    : "primary"
+                                }
+                                size="small"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="text.secondary">
+                                {formatDate(order.createdAt)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="bold" color="primary.main">
+                                {formatCurrency(order.totalOrderAmount || order.totalAmount)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={
+                                  ORDER_STATUS_MAP[order.status]?.label ||
+                                  order.status
+                                }
+                                color={
+                                  ORDER_STATUS_MAP[order.status]?.color ||
+                                  "default"
+                                }
+                                size="small"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Tooltip 
+                                title={order.status === "DEPOSITED" ? "Báo ngày giao dự kiến" : "Xem chi tiết"} 
+                                placement="top"
+                              >
+                                <IconButton
+                                  color="primary"
+                                  onClick={() => handleViewDetail(order.id)}
+                                  sx={{ 
+                                    '&:hover': { 
+                                      backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                      transform: 'scale(1.1)',
+                                      transition: 'all 0.2s ease'
+                                    }
+                                  }}
+                                >
+                                  {order.status === "DEPOSITED" ? <ShippingIcon /> : <VisibilityIcon />}
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Card>
               </>
             )}
           </>
@@ -1595,294 +1916,393 @@ const CustomerRequests = () => {
           onClose={handleCloseDetails}
           maxWidth="md"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+            },
+          }}
         >
           {selectedRequest && (
             <>
-              <DialogTitle>
-                Request Details -{" "}
-                {getCustomerName(selectedRequest.customerDetail)}
+              <DialogTitle sx={{ 
+                background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                color: "white",
+                borderRadius: "12px 12px 0 0"
+              }}>
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <Avatar 
+                    sx={{ 
+                      background: "rgba(255, 255, 255, 0.2)",
+                      width: 40,
+                      height: 40
+                    }}
+                  >
+                    <BrushIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" fontWeight="bold">
+                      Chi tiết yêu cầu thiết kế
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      {getCustomerName(selectedRequest.customerDetail)}
+                    </Typography>
+                  </Box>
+                </Stack>
               </DialogTitle>
-              <DialogContent>
-                <Grid container spacing={3} sx={{ mt: 1 }}>
+              <DialogContent sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  {/* Requirements Section */}
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Requirements
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedRequest.requirements}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Company Name
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedRequest.customerDetail?.companyName || "N/A"}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Total Price
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {formatCurrency(selectedRequest.totalPrice)}
-                    </Typography>
+                    <Card sx={{ p: 2, background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)" }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                        <DescriptionIcon color="primary" />
+                        <Typography variant="h6" fontWeight="medium">
+                          Yêu cầu thiết kế
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+                        {selectedRequest.requirements}
+                      </Typography>
+                    </Card>
                   </Grid>
 
-                  {/* Pricing Information */}
+                  {/* Customer Information */}
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Deposit Amount
-                    </Typography>
-                    <Typography variant="body1" color="success.main">
-                      {formatCurrency(selectedRequest.depositAmount)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Remaining Amount
-                    </Typography>
-                    <Typography variant="body1" color="info.main">
-                      {formatCurrency(selectedRequest.remainingAmount)}
-                    </Typography>
+                    <Card sx={{ p: 2, height: "100%" }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                        <BusinessIcon color="primary" />
+                        <Typography variant="subtitle1" fontWeight="medium">
+                          Thông tin công ty
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedRequest.customerDetail?.companyName || "Chưa có thông tin"}
+                      </Typography>
+                    </Card>
                   </Grid>
 
-                  {/* Nếu đã giao task thì hiển thị tag và tên designer */}
+                  {/* Financial Information */}
+                  <Grid item xs={12} sm={6}>
+                    <Card sx={{ p: 2, height: "100%" }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                        <AttachMoneyIcon color="primary" />
+                        <Typography variant="subtitle1" fontWeight="medium">
+                          Thông tin tài chính
+                        </Typography>
+                      </Stack>
+                      <Stack spacing={1}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Tổng tiền:
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold" color="primary.main">
+                            {formatCurrency(selectedRequest.totalPrice)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Tiền cọc:
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold" color="success.main">
+                            {formatCurrency(selectedRequest.depositAmount)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Còn lại:
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold" color="info.main">
+                            {formatCurrency(selectedRequest.remainingAmount)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Card>
+                  </Grid>
+
+                  {/* Designer Assignment Section */}
                   {selectedRequest &&
                     selectedRequest.status === "ASSIGNED_DESIGNER" && (
                       <Grid item xs={12}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Chip label="Đã giao task" color="success" />
-                          <Typography>
-                            Designer phụ trách:{" "}
-                            {(() => {
-                              const d = designers.find(
-                                (d) =>
-                                  d.id ===
-                                  selectedRequest.assignDesigner.fullName
-                              );
-                              return d
-                                ? d.fullName
-                                : selectedRequest.assignDesigner.fullName ||
-                                    "Chưa rõ";
-                            })()}
-                          </Typography>
-                        </Box>
+                        <Card sx={{ p: 2, background: "linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%)" }}>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <Chip 
+                              label="Đã giao task" 
+                              color="success" 
+                              icon={<CheckCircleIcon />}
+                              sx={{ fontWeight: 600 }}
+                            />
+                            <Typography variant="body1" fontWeight="medium">
+                              Designer phụ trách:{" "}
+                              <Typography component="span" color="primary.main" fontWeight="bold">
+                                {(() => {
+                                  const d = designers.find(
+                                    (d) =>
+                                      d.id ===
+                                      selectedRequest.assignDesigner.fullName
+                                  );
+                                  return d
+                                    ? d.fullName
+                                    : selectedRequest.assignDesigner.fullName ||
+                                        "Chưa rõ";
+                                })()}
+                              </Typography>
+                            </Typography>
+                          </Stack>
+                        </Card>
                       </Grid>
                     )}
 
-                  {/* Chỉ hiện mục chọn designer khi status là DEPOSITED hoặc DESIGNER_REJECTED */}
+                  {/* Designer Selection Section */}
                   {selectedRequest &&
                     (selectedRequest.status === "DEPOSITED" ||
                       selectedRequest.status === "DESIGNER_REJECTED") && (
-                      <Grid item xs={6}>
-                        <Typography
-                          variant="subtitle2"
-                          color="text.secondary"
-                          sx={{ mb: 1 }}
-                        >
-                          Chọn Designer
-                        </Typography>
-                        <FormControl fullWidth>
-                          <InputLabel id="designer-select-label">
-                            Designer
-                          </InputLabel>
-                          <Select
-                            labelId="designer-select-label"
-                            id="designer-select"
-                            value={selectedDesigner}
-                            label="Designer"
-                            onChange={(e) =>
-                              setSelectedDesigner(e.target.value)
-                            }
-                            disabled={loadingDesigners}
-                          >
-                            <MenuItem value="">
-                              <em>None</em>
-                            </MenuItem>
-                            {designers.map((designer) => (
-                              <MenuItem key={designer.id} value={designer.id}>
-                                <Box
-                                  sx={{ display: "flex", alignItems: "center" }}
-                                >
-                                  <Avatar
-                                    src={designer.avatar}
-                                    sx={{ width: 24, height: 24, mr: 1 }}
-                                  >
-                                    {designer.fullName?.charAt(0) || "D"}
-                                  </Avatar>
-                                  <Typography noWrap>
-                                    {designer.fullName}
-                                  </Typography>
-                                </Box>
+                      <Grid item xs={12}>
+                        <Card sx={{ p: 2, background: "linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)" }}>
+                          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                            <AssignmentIcon color="warning" />
+                            <Typography variant="h6" fontWeight="medium">
+                              Giao designer
+                            </Typography>
+                          </Stack>
+                          <FormControl fullWidth>
+                            <InputLabel id="designer-select-label">
+                              Chọn designer
+                            </InputLabel>
+                            <Select
+                              labelId="designer-select-label"
+                              id="designer-select"
+                              value={selectedDesigner}
+                              label="Chọn designer"
+                              onChange={(e) =>
+                                setSelectedDesigner(e.target.value)
+                              }
+                              disabled={loadingDesigners}
+                            >
+                              <MenuItem value="">
+                                <em>Chọn designer...</em>
                               </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        {loadingDesigners && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "center",
-                              mt: 1,
-                            }}
-                          >
-                            <CircularProgress size={24} />
-                          </Box>
-                        )}
+                              {designers.map((designer) => (
+                                <MenuItem key={designer.id} value={designer.id}>
+                                  <Stack direction="row" alignItems="center" spacing={2}>
+                                    <Avatar
+                                      src={designer.avatar}
+                                      sx={{ width: 32, height: 32 }}
+                                    >
+                                      {designer.fullName?.charAt(0) || "D"}
+                                    </Avatar>
+                                    <Typography variant="body2" fontWeight="medium">
+                                      {designer.fullName}
+                                    </Typography>
+                                  </Stack>
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          {loadingDesigners && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                mt: 2,
+                              }}
+                            >
+                              <CircularProgress size={24} />
+                            </Box>
+                          )}
+                        </Card>
                       </Grid>
                     )}
 
-                  {/* Báo giá: Nếu đã có proposal thì chỉ hiện tổng giá và tiền cọc, nếu chưa thì hiện ô nhập */}
-                  {priceProposals.length > 0 ? (
-                    <>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Tổng giá đã báo
-                        </Typography>
-                        <Typography variant="body1" fontWeight="bold">
-                          {formatCurrency(priceProposals[0].totalPrice)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Tiền cọc đã báo
-                        </Typography>
-                        <Typography variant="body1" fontWeight="bold">
-                          {formatCurrency(priceProposals[0].depositAmount)}
-                        </Typography>
-                      </Grid>
-                    </>
-                  ) : (
-                    <>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Tổng giá (VND)"
-                          type="number"
-                          value={priceForm.totalPrice}
-                          onChange={(e) =>
-                            setPriceForm((f) => ({
-                              ...f,
-                              totalPrice: e.target.value,
-                            }))
-                          }
-                          InputProps={{ inputProps: { min: 0 } }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Tiền cọc (VND)"
-                          type="number"
-                          value={priceForm.depositAmount}
-                          onChange={(e) =>
-                            setPriceForm((f) => ({
-                              ...f,
-                              depositAmount: e.target.value,
-                            }))
-                          }
-                          InputProps={{ inputProps: { min: 0 } }}
-                        />
-                      </Grid>
-                    </>
-                  )}
-
-                  {/* Lịch sử báo giá */}
+                  {/* Pricing Section */}
                   <Grid item xs={12}>
-                    <Typography variant="h6" mt={2}>
-                      Lịch sử báo giá
-                    </Typography>
-                    {loadingProposals ? (
-                      <Box display="flex" justifyContent="center" py={2}>
-                        <CircularProgress />
-                      </Box>
-                    ) : priceProposals.length === 0 ? (
-                      <Typography>Chưa có báo giá nào.</Typography>
-                    ) : (
-                      <Box>
-                        {priceProposals.map((proposal) => (
-                          <Box
-                            key={proposal.id}
-                            mb={2}
-                            p={2}
-                            border={1}
-                            borderRadius={2}
-                            borderColor="grey.300"
-                          >
-                            <Typography>
-                              <b>Giá báo:</b>{" "}
-                              {proposal.totalPrice?.toLocaleString("vi-VN")}₫
-                            </Typography>
-                            <Typography>
-                              <b>Tiền cọc:</b>{" "}
-                              {proposal.depositAmount?.toLocaleString("vi-VN")}₫
-                            </Typography>
-                            {proposal.totalPriceOffer && (
-                              <Typography>
-                                <b>Giá offer:</b>{" "}
-                                {proposal.totalPriceOffer?.toLocaleString(
-                                  "vi-VN"
-                                )}
-                                ₫
+                    <Card sx={{ p: 2, background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)" }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                        <AttachMoneyIcon color="primary" />
+                        <Typography variant="h6" fontWeight="medium">
+                          Báo giá
+                        </Typography>
+                      </Stack>
+                      
+                      {priceProposals.length > 0 ? (
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2 }}>
+                              <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Tổng giá đã báo
                               </Typography>
-                            )}
-                            {proposal.depositAmountOffer && (
-                              <Typography>
-                                <b>Cọc offer:</b>{" "}
-                                {proposal.depositAmountOffer?.toLocaleString(
-                                  "vi-VN"
-                                )}
-                                ₫
+                              <Typography variant="h6" fontWeight="bold" color="primary.main">
+                                {formatCurrency(priceProposals[0].totalPrice)}
                               </Typography>
-                            )}
-                            <Typography>
-                              <b>Trạng thái:</b> {proposal.status}
-                            </Typography>
-                            <Typography>
-                              <b>Ngày báo giá:</b>{" "}
-                              {new Date(proposal.createAt).toLocaleString(
-                                "vi-VN"
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2 }}>
+                              <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Tiền cọc đã báo
+                              </Typography>
+                              <Typography variant="h6" fontWeight="bold" color="success.main">
+                                {formatCurrency(priceProposals[0].depositAmount)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      ) : (
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Tổng giá (VND)"
+                              type="number"
+                              value={priceForm.totalPrice}
+                              onChange={(e) =>
+                                setPriceForm((f) => ({
+                                  ...f,
+                                  totalPrice: e.target.value,
+                                }))
+                              }
+                              InputProps={{ 
+                                inputProps: { min: 0 },
+                                startAdornment: <AttachMoneyIcon color="action" sx={{ mr: 1 }} />
+                              }}
+                              sx={{ bgcolor: "white", borderRadius: 1 }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Tiền cọc (VND)"
+                              type="number"
+                              value={priceForm.depositAmount}
+                              onChange={(e) =>
+                                setPriceForm((f) => ({
+                                  ...f,
+                                  depositAmount: e.target.value,
+                                }))
+                              }
+                              InputProps={{ 
+                                inputProps: { min: 0 },
+                                startAdornment: <AttachMoneyIcon color="action" sx={{ mr: 1 }} />
+                              }}
+                              sx={{ bgcolor: "white", borderRadius: 1 }}
+                            />
+                          </Grid>
+                        </Grid>
+                      )}
+                    </Card>
+                  </Grid>
+
+                  {/* Pricing History Section */}
+                  <Grid item xs={12}>
+                    <Card sx={{ p: 2 }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                        <ScheduleIcon color="primary" />
+                        <Typography variant="h6" fontWeight="medium">
+                          Lịch sử báo giá
+                        </Typography>
+                      </Stack>
+                      
+                      {loadingProposals ? (
+                        <Box display="flex" justifyContent="center" py={3}>
+                          <CircularProgress />
+                        </Box>
+                      ) : priceProposals.length === 0 ? (
+                        <Box sx={{ textAlign: "center", py: 3 }}>
+                          <AttachMoneyIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
+                          <Typography variant="body1" color="text.secondary">
+                            Chưa có báo giá nào
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Stack spacing={2}>
+                          {priceProposals.map((proposal) => (
+                            <Card 
+                              key={proposal.id}
+                              sx={{ 
+                                p: 2, 
+                                border: "1px solid",
+                                borderColor: "grey.200",
+                                background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)"
+                              }}
+                            >
+                              <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Tổng giá:
+                                  </Typography>
+                                  <Typography variant="body1" fontWeight="bold" color="primary.main">
+                                    {formatCurrency(proposal.totalPrice)}
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Tiền cọc:
+                                  </Typography>
+                                  <Typography variant="body1" fontWeight="bold" color="success.main">
+                                    {formatCurrency(proposal.depositAmount)}
+                                  </Typography>
+                                </Grid>
+                                {proposal.totalPriceOffer && (
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Giá offer:
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="bold" color="warning.main">
+                                      {formatCurrency(proposal.totalPriceOffer)}
+                                    </Typography>
+                                  </Grid>
+                                )}
+                                {proposal.depositAmountOffer && (
+                                  <Grid item xs={12} sm={6}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Cọc offer:
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="bold" color="warning.main">
+                                      {formatCurrency(proposal.depositAmountOffer)}
+                                    </Typography>
+                                  </Grid>
+                                )}
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Trạng thái:
+                                  </Typography>
+                                  <Chip 
+                                    label={proposal.status} 
+                                    size="small" 
+                                    color={proposal.status === "PENDING" ? "warning" : "default"}
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Ngày báo giá:
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {new Date(proposal.createAt).toLocaleString("vi-VN")}
+                                  </Typography>
+                                </Grid>
+                              </Grid>
+                              
+                              {/* Action Buttons */}
+                              {(proposal.status === "PENDING" || proposal.status === "NEGOTIATING") && (
+                                <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+                                  <Button
+                                    variant={proposal.status === "PENDING" ? "outlined" : "contained"}
+                                    color="primary"
+                                    size="small"
+                                    onClick={() => handleOpenUpdateDialog(proposal)}
+                                    disabled={actionLoading}
+                                    startIcon={<RefreshIcon />}
+                                  >
+                                    Cập nhật lại giá
+                                  </Button>
+                                </Box>
                               )}
-                            </Typography>
-                            {/* Nếu trạng thái là PENDING thì Sale được cập nhật lại giá */}
-                            {proposal.status === "PENDING" && (
-                              <Box mt={1}>
-                                <Button
-                                  variant="outlined"
-                                  color="primary"
-                                  size="small"
-                                  onClick={() =>
-                                    handleOpenUpdateDialog(proposal)
-                                  }
-                                  disabled={actionLoading}
-                                >
-                                  Cập nhật lại giá
-                                </Button>
-                              </Box>
-                            )}
-                            {/* Nếu trạng thái là NEGOTIATING thì vẫn giữ nút cập nhật nếu cần (nếu muốn) */}
-                            {proposal.status === "NEGOTIATING" && (
-                              <Box mt={1}>
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  onClick={() =>
-                                    handleOpenUpdateDialog(proposal)
-                                  }
-                                  disabled={actionLoading}
-                                >
-                                  Cập nhật lại giá
-                                </Button>
-                              </Box>
-                            )}
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
+                            </Card>
+                          ))}
+                        </Stack>
+                      )}
+                    </Card>
+                  </Grid>
                     {/* Dialog cập nhật lại giá */}
                     <Dialog
                       open={updateDialog.open}
@@ -1933,7 +2353,6 @@ const CustomerRequests = () => {
                         </Button>
                       </DialogActions>
                     </Dialog>
-                  </Grid>
                   {selectedRequest &&
                     selectedRequest.status === "FULLY_PAID" && (
                       <Grid item xs={12}>
@@ -3112,7 +3531,7 @@ const CustomerRequests = () => {
           order={contractorDialog.order}
           onReportDelivery={handleReportDelivery}
         />
-      </Box>
+      </Container>
     </LocalizationProvider>
   );
 };

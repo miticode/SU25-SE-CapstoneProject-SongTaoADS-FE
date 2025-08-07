@@ -19,6 +19,7 @@ import {
   updateOrderToDeliveringApi,
   updateOrderToInstalledApi,
   deleteOrderApi,
+  cancelOrderApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -337,6 +338,23 @@ export const deleteOrder = createAsyncThunk(
       }
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to delete order');
+    }
+  }
+);
+
+export const cancelOrder = createAsyncThunk(
+  'order/cancelOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await cancelOrderApi(orderId);
+
+      if (response.success) {
+        return { orderId, ...response.data, message: response.message, timestamp: response.timestamp };
+      } else {
+        return rejectWithValue(response.error);
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to cancel order');
     }
   }
 );
@@ -724,6 +742,31 @@ const orderSlice = createSlice({
         }
       })
       .addCase(deleteOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Cancel Order
+      .addCase(cancelOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(cancelOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+
+        // Cập nhật order trong danh sách với trạng thái CANCELLED
+        const orderId = action.payload.orderId;
+        const index = state.orders.findIndex(order => order.id === orderId);
+        if (index !== -1) {
+          state.orders[index] = { ...state.orders[index], status: 'CANCELLED' };
+        }
+
+        // Cập nhật currentOrder nếu đó là order đang được chọn
+        if (state.currentOrder && state.currentOrder.id === orderId) {
+          state.currentOrder = { ...state.currentOrder, status: 'CANCELLED' };
+        }
+      })
+      .addCase(cancelOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
