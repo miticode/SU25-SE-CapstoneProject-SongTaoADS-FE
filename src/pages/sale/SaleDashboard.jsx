@@ -156,15 +156,41 @@ const SaleDashboard = () => {
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
 
   const menuItems = [
-    { id: "dashboard", label: "Đơn hàng thiết kế AI", icon: <DashboardIcon /> },
+    { 
+      id: "dashboard", 
+      label: "Đơn hàng thiết kế AI", 
+      icon: <DashboardIcon />,
+      color: "#1976d2",
+      description: "Quản lý đơn hàng thiết kế AI"
+    },
     {
       id: "customers",
       label: "Đơn hàng thiết kế thủ công",
       icon: <CustomerIcon />,
+      color: "#2196f3",
+      description: "Quản lý đơn hàng thiết kế thủ công"
     },
-    { id: "designer", label: "Quản lí thiết kế", icon: <PaletteIcon /> },
-    { id: "feedback", label: "Feedback", icon: <MoneyIcon /> },
-    { id: "ticket", label: "Hỗ trợ", icon: <SupportAgentIcon /> },
+    { 
+      id: "designer", 
+      label: "Quản lí thiết kế", 
+      icon: <PaletteIcon />,
+      color: "#4caf50",
+      description: "Chat với designer"
+    },
+    { 
+      id: "feedback", 
+      label: "Feedback", 
+      icon: <MoneyIcon />,
+      color: "#9c27b0",
+      description: "Quản lý phản hồi khách hàng"
+    },
+    { 
+      id: "ticket", 
+      label: "Hỗ trợ", 
+      icon: <SupportAgentIcon />,
+      color: "#f44336",
+      description: "Hỗ trợ khách hàng"
+    },
   ];
 
   // Khi filter trạng thái
@@ -221,34 +247,125 @@ const SaleDashboard = () => {
         sx={{
           p: 0,
           minHeight: "64px !important",
+          background: "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
         }}
       >
         <Box
-          component="img"
-          src="https://quangcaotayninh.com.vn/wp-content/uploads/2020/08/logo-quang-cao-tay-ninh-3.png"
-          alt="Logo"
           sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             width: "100%",
             height: "100%",
-            objectFit: "contain",
             p: 1,
           }}
-        />
+        >
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              color: "white",
+              textAlign: "center",
+            }}
+          >
+            SongTao ADS
+          </Typography>
+        </Box>
       </Toolbar>
       <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.id} disablePadding>
-            <ListItemButton
-              selected={selectedMenu === item.id}
-              onClick={() => setSelectedMenu(item.id)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+      <Box sx={{ py: 2, px: 1 }}>
+        <Typography
+          variant="subtitle2"
+          sx={{
+            color: "#4a5568",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            px: 2,
+            mb: 2,
+          }}
+        >
+          Sale Panel
+        </Typography>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                sx={{
+                  borderRadius: "12px",
+                  minHeight: 48,
+                  backgroundColor:
+                    selectedMenu === item.id
+                      ? "rgba(25, 118, 210, 0.15)"
+                      : "transparent",
+                  border:
+                    selectedMenu === item.id
+                      ? "2px solid rgba(25, 118, 210, 0.3)"
+                      : "2px solid transparent",
+                  "&:hover": {
+                    backgroundColor:
+                      selectedMenu === item.id
+                        ? "rgba(25, 118, 210, 0.2)"
+                        : "rgba(25, 118, 210, 0.08)",
+                    transform: "translateX(4px)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                  },
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  position: "relative",
+                  overflow: "hidden",
+                  "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    height: "100%",
+                    width: selectedMenu === item.id ? "4px" : "0px",
+                    backgroundColor: item.color,
+                    transition: "width 0.3s ease",
+                  },
+                }}
+                selected={selectedMenu === item.id}
+                onClick={() => setSelectedMenu(item.id)}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 40,
+                    color: selectedMenu === item.id ? item.color : "#64748b",
+                    "& svg": {
+                      fontSize: "1.3rem",
+                      filter:
+                        selectedMenu === item.id
+                          ? "drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
+                          : "none",
+                    },
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: selectedMenu === item.id ? 700 : 500,
+                    color: selectedMenu === item.id ? "#1e293b" : "#475569",
+                    fontSize: "0.95rem",
+                  }}
+                />
+                {selectedMenu === item.id && (
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: item.color,
+                      boxShadow: `0 0 10px ${item.color}`,
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
     </div>
   );
 
@@ -321,26 +438,82 @@ const SaleDashboard = () => {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          bgcolor: "#fff",
-          color: "#222",
-          boxShadow: 1,
+          background:
+            "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
+          boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+          backdropFilter: "blur(4px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.18)",
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: "70px !important" }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: "none" } }}
+            sx={{ 
+              mr: 2, 
+              display: { sm: "none" },
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                transform: "scale(1.05)",
+              },
+              transition: "all 0.3s ease",
+            }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-            Nhân Viên Sale
-          </Typography>
-          <IconButton color="inherit" onClick={handleMenu}>
-            <Badge badgeContent={2} color="error">
+          <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}>
+            <Typography
+              variant="h5"
+              noWrap
+              component="div"
+              sx={{
+                fontWeight: 700,
+                background: "linear-gradient(45deg, #ffffff 30%, #f0f0f0 90%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                mr: 2,
+              }}
+            >
+              SongTao ADS
+            </Typography>
+            <Chip
+              label="Sale Panel"
+              size="small"
+              sx={{
+                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                color: "white",
+                fontWeight: 600,
+              }}
+            />
+          </Box>
+          <IconButton 
+            color="inherit" 
+            onClick={handleMenu}
+            sx={{
+              mr: 2,
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                transform: "scale(1.05)",
+              },
+              transition: "all 0.3s ease",
+            }}
+          >
+            <Badge 
+              badgeContent={2} 
+              color="error"
+              sx={{
+                "& .MuiBadge-badge": {
+                  backgroundColor: "#ff4444",
+                  color: "white",
+                  animation: "pulse 2s infinite",
+                },
+              }}
+            >
               <NotificationsIcon />
             </Badge>
           </IconButton>
@@ -348,11 +521,53 @@ const SaleDashboard = () => {
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={handleClose}
+            sx={{
+              mt: "50px",
+              "& .MuiPaper-root": {
+                borderRadius: "16px",
+                minWidth: 200,
+                background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                color: "white",
+                boxShadow:
+                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                backdropFilter: "blur(10px)",
+              },
+            }}
           >
-            <MenuItem onClick={handleClose}>Bạn có 2 thông báo mới</MenuItem>
+            <MenuItem onClick={handleClose} sx={{
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+              },
+              transition: "all 0.3s ease",
+            }}>
+              Bạn có 2 thông báo mới
+            </MenuItem>
           </Menu>
-          <IconButton onClick={handleAvatarClick} sx={{ ml: 2 }}>
-            <Avatar sx={{ bgcolor: "#1976d2" }}>S</Avatar>
+          <IconButton 
+            onClick={handleAvatarClick} 
+            sx={{ 
+              ml: 1,
+              p: 0.5,
+              "&:hover": {
+                transform: "scale(1.05)",
+              },
+              transition: "all 0.3s ease",
+            }}
+          >
+            <Avatar 
+              sx={{ 
+                width: 45,
+                height: 45,
+                background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                border: "3px solid rgba(255, 255, 255, 0.3)",
+                fontSize: "1.2rem",
+                fontWeight: 600,
+                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+              }}
+            >
+              S
+            </Avatar>
           </IconButton>
           <Menu
             anchorEl={avatarAnchorEl}
@@ -361,10 +576,32 @@ const SaleDashboard = () => {
             onClick={handleAvatarClose}
             transformOrigin={{ horizontal: "right", vertical: "top" }}
             anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+            sx={{
+              mt: "50px",
+              "& .MuiPaper-root": {
+                borderRadius: "16px",
+                minWidth: 200,
+                background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                color: "white",
+                boxShadow:
+                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                backdropFilter: "blur(10px)",
+              },
+            }}
           >
-            <MenuItem onClick={handleLogout}>
+            <MenuItem 
+              onClick={handleLogout}
+              sx={{
+                color: "#ffcccb",
+                "&:hover": {
+                  backgroundColor: "rgba(255, 0, 0, 0.1)",
+                },
+                transition: "all 0.3s ease",
+              }}
+            >
               <ListItemIcon>
-                <Logout fontSize="small" />
+                <Logout fontSize="small" sx={{ color: "#ffcccb" }} />
               </ListItemIcon>
               <ListItemText>Đăng xuất</ListItemText>
             </MenuItem>
@@ -397,6 +634,9 @@ const SaleDashboard = () => {
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: drawerWidth,
+              background: "linear-gradient(180deg, #f8fafc 0%, #e3f2fd 100%)",
+              borderRight: "none",
+              boxShadow: "4px 0 15px rgba(0, 0, 0, 0.08)",
             },
           }}
           open
@@ -411,10 +651,30 @@ const SaleDashboard = () => {
           flexGrow: 1,
           p: { xs: 2, md: 4 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          background:
+            "linear-gradient(135deg, #f8fafc 0%, #e3f2fd 50%, #f1f8fe 100%)",
+          minHeight: "100vh",
+          position: "relative",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `
+              radial-gradient(circle at 20% 20%, rgba(25, 118, 210, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(66, 165, 245, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 40% 40%, rgba(144, 202, 249, 0.1) 0%, transparent 50%)
+            `,
+            pointerEvents: "none",
+          },
         }}
       >
-        <Toolbar />
-        {renderContent()}
+        <Toolbar sx={{ minHeight: "70px !important" }} />
+        <Box sx={{ position: "relative", zIndex: 1 }}>
+          {renderContent()}
+        </Box>
       </Box>
 
       {/* Order Detail Dialog */}
