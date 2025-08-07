@@ -583,7 +583,7 @@ const AIChatbot = () => {
               onMouseLeave={() => setIsHover(false)}
             >
               <Avatar
-                src="https://thumbs.dreamstime.com/b/ai-assistant-icon-chat-bot-design-virtual-smart-chatbot-symbol-concept-artificial-intelligence-support-device-generative-361146386.jpg"
+                src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                 alt="AI Bot"
                 sx={{ width: 56, height: 56, bgcolor: "transparent" }}
               />
@@ -646,7 +646,7 @@ const AIChatbot = () => {
               >
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Avatar
-                    src="https://thumbs.dreamstime.com/b/ai-assistant-icon-chat-bot-design-virtual-smart-chatbot-symbol-concept-artificial-intelligence-support-device-generative-361146386.jpg"
+                    src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                     alt="AI Bot"
                     sx={{
                       bgcolor: "#fff",
@@ -1021,7 +1021,7 @@ const AIChatbot = () => {
                           }}
                           src={
                             msg.from === "bot"
-                              ? "https://thumbs.dreamstime.com/b/ai-assistant-icon-chat-bot-design-virtual-smart-chatbot-symbol-concept-artificial-intelligence-support-device-generative-361146386.jpg"
+                              ? "https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                               : undefined
                           }
                           alt={msg.from === "bot" ? "AI Bot" : "User"}
@@ -1082,7 +1082,7 @@ const AIChatbot = () => {
                               mt: 0.5,
                               mr: 1,
                             }}
-                            src="https://thumbs.dreamstime.com/b/ai-assistant-icon-chat-bot-design-virtual-smart-chatbot-symbol-concept-artificial-intelligence-support-device-generative-361146386.jpg"
+                              src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                             alt="AI Bot"
                           />
                           <Card
@@ -1176,7 +1176,7 @@ const AIChatbot = () => {
                             mt: 0.5,
                             mr: 1,
                           }}
-                          src="https://thumbs.dreamstime.com/b/ai-assistant-icon-chat-bot-design-virtual-smart-chatbot-symbol-concept-artificial-intelligence-support-device-generative-361146386.jpg"
+                          src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                           alt="AI Bot"
                         />
                         <Box
