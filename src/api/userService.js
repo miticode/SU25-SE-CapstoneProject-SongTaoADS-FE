@@ -205,6 +205,27 @@ export const toggleUserStatusApi = async (userId, isActive) => {
     };
   }
 };
+
+// Hàm API thay đổi mật khẩu người dùng
+export const changeUserPasswordApi = async (userId, password) => {
+  try {
+    const response = await userService.patch(`/api/users/${userId}/new-password`, { password });
+    
+    const { success, result, message } = response.data;
+    
+    if (success) {
+      return { success: true, data: result };
+    }
+    
+    return { success: false, error: message || 'Failed to change user password' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to change user password'
+    };
+  }
+};
+
 export const getUsersByRoleApi = async (roleName, page = 1, size = 10) => {
   try {
     const response = await userService.get('/api/users/role', {
