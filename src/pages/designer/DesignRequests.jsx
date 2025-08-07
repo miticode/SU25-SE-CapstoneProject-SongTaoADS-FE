@@ -30,6 +30,7 @@ import {
   Avatar,
   Stack,
   Backdrop,
+  Container,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchDesignRequestsByDesigner } from "../../store/features/customeDesign/customerDesignSlice";
@@ -52,11 +53,13 @@ import {
   selectDemoSubImages,
 } from "../../store/features/demo/demoSlice";
 import { fetchImageFromS3 } from "../../store/features/s3/s3Slice";
+import { getPresignedUrl } from "../../api/s3Service";
 import { useDropzone } from "react-dropzone";
 
 // Lấy designerId từ state đăng nhập
 import { useSelector as useAuthSelector } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 
 const DesignRequests = () => {
   const dispatch = useDispatch();
@@ -110,8 +113,10 @@ const DesignRequests = () => {
   const error = useSelector(selectError);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  // Lưu thông tin doanh nghiệp: id -> { companyName }
+  // Lưu thông tin doanh nghiệp: id -> { companyName, avatar }
   const [customerDetails, setCustomerDetails] = useState({});
+  // Lưu avatar URLs từ S3
+  const [customerAvatars, setCustomerAvatars] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
   const [notification, setNotification] = useState({
     open: false,
@@ -261,11 +266,33 @@ const DesignRequests = () => {
                 .then((detail) => {
                   setCustomerDetails((prev) => ({
                     ...prev,
-                    [id]: detail.companyName || "Không rõ",
+                    [id]: {
+                      companyName: detail.companyName || "Không rõ",
+                      avatar: detail.users?.avatar || null
+                    },
                   }));
+                  
+                  // Fetch avatar từ S3 nếu có
+                  if (detail.users?.avatar) {
+                    getPresignedUrl(detail.users.avatar)
+                      .then((result) => {
+                        if (result.success) {
+                          setCustomerAvatars((prev) => ({
+                            ...prev,
+                            [id]: result.url
+                          }));
+                        }
+                      })
+                      .catch((error) => {
+                        console.error("Error fetching avatar:", error);
+                      });
+                  }
                 })
                 .catch(() => {
-                  setCustomerDetails((prev) => ({ ...prev, [id]: "Không rõ" }));
+                  setCustomerDetails((prev) => ({ 
+                    ...prev, 
+                    [id]: { companyName: "Không rõ", avatar: null } 
+                  }));
                 });
             }
           });
@@ -612,63 +639,256 @@ const DesignRequests = () => {
   };
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-        Yêu Cầu Thiết Kế Được Giao
-      </Typography>
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      {/* Header Section */}
+      <Card sx={{ 
+        mb: 3, 
+        background: "linear-gradient(135deg, #0F172A 0%, #0F172A 50%, #0F172A 100%)",
+        color: "white",
+        borderRadius: 3,
+        overflow: "hidden",
+        position: "relative",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
+          `,
+          pointerEvents: "none",
+        },
+      }}>
+        <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+            <Avatar sx={{ 
+              bgcolor: "rgba(255, 255, 255, 0.2)", 
+              width: 56, 
+              height: 56,
+              border: "2px solid rgba(255, 255, 255, 0.3)"
+            }}>
+              <AssignmentIcon sx={{ fontSize: 28 }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Yêu Cầu Thiết Kế Được Giao
+              </Typography>
+              <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                Quản lý và xử lý các yêu cầu thiết kế được phân công
+              </Typography>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
       {status === "loading" ? (
-        <Box display="flex" justifyContent="center" py={6}>
-          <CircularProgress />
+        <Box display="flex" justifyContent="center" py={8}>
+          <CircularProgress 
+            size={48}
+            sx={{ 
+              color: '#0F172A',
+              '& .MuiCircularProgress-circle': {
+                strokeLinecap: 'round'
+              }
+            }}
+          />
         </Box>
       ) : error ? (
-        <Alert severity="error">{error}</Alert>
+        <Alert 
+          severity="error"
+          sx={{
+            borderRadius: 3,
+            fontSize: '1rem',
+            fontWeight: 500,
+            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)'
+          }}
+        >
+          {error}
+        </Alert>
       ) : requests.length === 0 ? (
-        <Alert severity="info">Không có yêu cầu thiết kế nào được giao.</Alert>
+        <Alert 
+          severity="info"
+          sx={{
+            borderRadius: 3,
+            fontSize: '1rem',
+            fontWeight: 500,
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+            bgcolor: '#eff6ff',
+            border: '1px solid #bfdbfe'
+          }}
+        >
+          Không có yêu cầu thiết kế nào được giao.
+        </Alert>
       ) : (
         <>
-          <TableContainer component={Paper}>
+          <Card sx={{ borderRadius: 3, overflow: "hidden", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}>
+            <CardContent sx={{ p: 0 }}>
+              <Box sx={{ p: 3, bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: "#0f172a" }}>
+                  Danh sách yêu cầu thiết kế
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Tổng cộng {requests.length} yêu cầu được giao
+                </Typography>
+              </Box>
+              <TableContainer>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                  <TableCell>STT</TableCell>
-                  <TableCell>Yêu cầu</TableCell>
-                  <TableCell>Ngày tạo</TableCell>
-                  <TableCell>Khách hàng</TableCell>
-                  <TableCell>Tổng tiền</TableCell>
-                  <TableCell>Thao tác</TableCell>
+                <TableRow sx={{ 
+                  bgcolor: '#0F172A',
+                  '& th': {
+                    borderBottom: '2px solid #1e293b',
+                    py: 3
+                  }
+                }}>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Mã yêu cầu
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Yêu cầu
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Ngày tạo
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Khách hàng
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Tổng tiền
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Thao tác
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {requests.map((request, idx) => (
-                  <TableRow key={request.id} hover>
-                    <TableCell>
-                      {(pagination.currentPage - 1) * pagination.pageSize +
-                        idx +
-                        1}
+                  <TableRow 
+                    key={request.id} 
+                    sx={{
+                      transition: 'all 0.2s ease-in-out',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: '#f8fafc',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        '& .action-button': {
+                          transform: 'scale(1.05)',
+                          boxShadow: '0 6px 20px rgba(15, 23, 42, 0.3)'
+                        }
+                      },
+                      '&:nth-of-type(odd)': {
+                        bgcolor: '#fafafa'
+                      },
+                      '&:nth-of-type(odd):hover': {
+                        bgcolor: '#f1f5f9'
+                      },
+                      borderBottom: '1px solid #e2e8f0'
+                    }}
+                  >
+                    <TableCell sx={{ 
+                      py: 3, 
+                      fontSize: '0.95rem',
+                      color: '#1976d2',
+                      fontWeight: 600,
+                      fontFamily: 'monospace'
+                    }}>
+                      {request.code || ''}
                     </TableCell>
-                    <TableCell>{request.requirements}</TableCell>
-                    <TableCell>
-                      {new Date(request.createAt).toLocaleDateString("vi-VN")}
+                    <TableCell sx={{ 
+                      py: 3, 
+                      fontSize: '0.95rem',
+                      color: '#1e293b',
+                      maxWidth: 300,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {request.requirements}
                     </TableCell>
-                    <TableCell>
-                      {customerDetails[
-                        typeof request.customerDetail === "object" &&
-                        request.customerDetail !== null
-                          ? request.customerDetail.id
-                          : request.customerDetail
-                      ] || "Đang tải..."}
+                    <TableCell sx={{ 
+                      py: 3, 
+                      fontSize: '0.95rem',
+                      color: '#64748b',
+                      fontWeight: 500
+                    }}>
+                      {request.createdAt ? new Date(request.createdAt).toLocaleDateString("vi-VN") : "N/A"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ 
+                      py: 3, 
+                      fontSize: '0.95rem',
+                      color: '#0F172A',
+                      fontWeight: 600
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar
+                          src={customerAvatars[
+                            typeof request.customerDetail === "object" &&
+                            request.customerDetail !== null
+                              ? request.customerDetail.id
+                              : request.customerDetail
+                          ]}
+                          sx={{ 
+                            width: 40, 
+                            height: 40,
+                            bgcolor: '#0F172A',
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '0.9rem'
+                          }}
+                        >
+                          {customerDetails[
+                            typeof request.customerDetail === "object" &&
+                            request.customerDetail !== null
+                              ? request.customerDetail.id
+                              : request.customerDetail
+                          ]?.companyName?.charAt(0) || "?"}
+                        </Avatar>
+                        <Typography variant="body2" fontWeight={600}>
+                          {customerDetails[
+                            typeof request.customerDetail === "object" &&
+                            request.customerDetail !== null
+                              ? request.customerDetail.id
+                              : request.customerDetail
+                          ]?.companyName || "Đang tải..."}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ 
+                      py: 3, 
+                      fontSize: '1rem',
+                      color: '#059669',
+                      fontWeight: 700
+                    }}>
                       {request.totalPrice?.toLocaleString("vi-VN") || 0}₫
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ py: 3 }}>
                       <Button
                         variant="contained"
-                        color="primary"
-                        size="small"
+                        size="medium"
+                        className="action-button"
                         onClick={() => {
                           setSelectedRequest(request);
                           setOpenDialog(true);
+                        }}
+                        sx={{
+                          borderRadius: 3,
+                          px: 4,
+                          py: 1.5,
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          bgcolor: '#0F172A',
+                          color: 'white',
+                          letterSpacing: '-0.01em',
+                          transition: 'all 0.2s ease-in-out',
+                          boxShadow: '0 2px 8px rgba(15, 23, 42, 0.2)',
+                          '&:hover': {
+                            bgcolor: '#1e293b',
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(15, 23, 42, 0.3)'
+                          }
                         }}
                       >
                         Xem chi tiết
@@ -679,16 +899,40 @@ const DesignRequests = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          <Box display="flex" justifyContent="center" mt={2}>
+            </CardContent>
+          </Card>
+          <Box display="flex" justifyContent="center" mt={4}>
             <Pagination
               count={pagination.totalPages}
               page={pagination.currentPage}
               onChange={handlePageChange}
               color="primary"
+              sx={{
+                '& .MuiPaginationItem-root': {
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  }
+                },
+                '& .MuiPaginationItem-page': {
+                  '&.Mui-selected': {
+                    bgcolor: '#0F172A',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: '#1e293b'
+                    }
+                  }
+                }
+              }}
             />
           </Box>
         </>
       )}
+      
       {/* Dialog hiển thị chi tiết yêu cầu */}
       <Dialog
         open={openDialog}
@@ -1118,22 +1362,41 @@ const DesignRequests = () => {
                     }}
                   >
                     <CardContent sx={{ p: 4 }}>
-                      <Box mb={3}>
-                        <Typography 
-                          variant="h6" 
-                          fontWeight={600} 
-                          color="#0F172A"
-                          mb={1}
-                          letterSpacing="-0.015em"
-                        >
-                          Thông Tin Khách Hàng
-                </Typography>
-                        <Typography variant="body2" color="#64748b" fontSize="0.9rem">
-                          Chi tiết yêu cầu và thông tin doanh nghiệp
-                        </Typography>
-                      </Box>
+                      
 
                       <Stack spacing={3}>
+                        <Box>
+                          <Typography 
+                            variant="subtitle2" 
+                            fontWeight={600} 
+                            color="#0F172A" 
+                            mb={1.5}
+                            letterSpacing="-0.01em"
+                          >
+                            Mã yêu cầu
+                          </Typography>
+                          <Paper 
+                            elevation={0} 
+                            sx={{ 
+                              p: 3, 
+                              bgcolor: '#f0f9ff',
+                              borderRadius: 2,
+                              border: '1px solid #0ea5e9'
+                            }}
+                          >
+                            <Typography 
+                              variant="h6" 
+                              lineHeight={1.6} 
+                              color="#0ea5e9"
+                              fontWeight={700}
+                              fontFamily="monospace"
+                              letterSpacing="0.1em"
+                            >
+                              {selectedRequest.code || ''}
+                            </Typography>
+                          </Paper>
+                        </Box>
+
                         <Box>
                           <Typography 
                             variant="subtitle2" 
@@ -1169,14 +1432,44 @@ const DesignRequests = () => {
                           >
                             Doanh nghiệp
                           </Typography>
-                          <Typography variant="h5" color="#0F172A" fontWeight={700}>
-                  {customerDetails[
-                    typeof selectedRequest.customerDetail === "object" &&
-                    selectedRequest.customerDetail !== null
-                      ? selectedRequest.customerDetail.id
-                      : selectedRequest.customerDetail
-                  ] || "Đang tải..."}
-                </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Avatar
+                              src={customerAvatars[
+                                typeof selectedRequest.customerDetail === "object" &&
+                                selectedRequest.customerDetail !== null
+                                  ? selectedRequest.customerDetail.id
+                                  : selectedRequest.customerDetail
+                              ]}
+                              sx={{ 
+                                width: 60, 
+                                height: 60,
+                                bgcolor: '#0F172A',
+                                color: 'white',
+                                fontWeight: 700,
+                                fontSize: '1.2rem'
+                              }}
+                            >
+                              {customerDetails[
+                                typeof selectedRequest.customerDetail === "object" &&
+                                selectedRequest.customerDetail !== null
+                                  ? selectedRequest.customerDetail.id
+                                  : selectedRequest.customerDetail
+                              ]?.companyName?.charAt(0) || "?"}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h5" color="#0F172A" fontWeight={700}>
+                                {customerDetails[
+                                  typeof selectedRequest.customerDetail === "object" &&
+                                  selectedRequest.customerDetail !== null
+                                    ? selectedRequest.customerDetail.id
+                                    : selectedRequest.customerDetail
+                                ]?.companyName || "Đang tải..."}
+                              </Typography>
+                              <Typography variant="body2" color="#64748b" mt={0.5}>
+                                {selectedRequest.customerDetail?.users?.fullName || "Không rõ"}
+                              </Typography>
+                            </Box>
+                          </Box>
                         </Box>
 
                         <Box>
@@ -1190,7 +1483,7 @@ const DesignRequests = () => {
                             Ngày tạo
                 </Typography>
                           <Typography variant="body1" color="#374151" fontSize="1.1rem">
-                            {new Date(selectedRequest.createAt).toLocaleDateString("vi-VN")}
+                            {selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleDateString("vi-VN") : "N/A"}
                 </Typography>
                         </Box>
 
@@ -2312,7 +2605,7 @@ const DesignRequests = () => {
           {notification.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </Container>
   );
 };
 
