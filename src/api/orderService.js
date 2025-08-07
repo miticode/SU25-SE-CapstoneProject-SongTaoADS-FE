@@ -884,4 +884,34 @@ export const updateOrderToInstalledApi = async (
     };
   }
 };
+
+// Hủy đơn hàng
+export const cancelOrderApi = async (orderId) => {
+  try {
+    console.log("Gọi API hủy đơn hàng với orderId:", orderId);
+
+    const response = await orderService.patch(`/api/orders/${orderId}/cancel`);
+
+    const { success, result, message, timestamp } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API hủy đơn hàng:", {
+        success,
+        result,
+        message,
+        timestamp,
+      });
+      return { success: true, data: result, message, timestamp };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    console.error("Error canceling order:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to cancel order",
+    };
+  }
+};
+
 export default orderService;

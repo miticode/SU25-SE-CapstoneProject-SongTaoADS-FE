@@ -60,6 +60,7 @@ import {
   selectOrderDetailsStatus,
   selectOrderDetailsError,
   clearOrderDetails,
+  cancelOrder,
 } from "../store/features/order/orderSlice";
 import { fetchCustomerDetailByUserId } from "../store/features/customer/customerSlice";
 import {
@@ -471,6 +472,7 @@ const OrderHistory = () => {
 
   // const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [depositLoadingId, setDepositLoadingId] = useState(null);
+  const [cancelingOrderId, setCancelingOrderId] = useState(null);
   const s3FinalImageUrl = useSelector((state) =>
     currentDesignRequest?.finalDesignImage
       ? state.s3.images[currentDesignRequest.finalDesignImage]
@@ -2193,6 +2195,45 @@ const OrderHistory = () => {
     });
   };
 
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) {
+      return;
+    }
+
+    setCancelingOrderId(orderId);
+    try {
+      const result = await dispatch(cancelOrder(orderId));
+      
+      if (cancelOrder.fulfilled.match(result)) {
+        setNotification({
+          open: true,
+          message: "Hủy đơn hàng thành công!",
+          severity: "success",
+        });
+        
+        // Refresh orders list
+        if (user?.id) {
+          dispatch(fetchOrdersByUserId(user.id));
+        }
+      } else {
+        setNotification({
+          open: true,
+          message: result.payload || "Không thể hủy đơn hàng. Vui lòng thử lại.",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error canceling order:", error);
+      setNotification({
+        open: true,
+        message: "Có lỗi xảy ra khi hủy đơn hàng",
+        severity: "error",
+      });
+    } finally {
+      setCancelingOrderId(null);
+    }
+  };
+
   const handleApproveProposal = async (proposalId) => {
     setActionLoading(true);
     const res = await approvePriceProposal(proposalId);
@@ -3716,6 +3757,34 @@ const OrderHistory = () => {
                                   }}
                                 >
                                   Xem hợp đồng
+                                </Button>
+                              )}
+                              {order.status === "PENDING_CONTRACT" && (
+                                <Button
+                                  variant="outlined"
+                                  color="error"
+                                  size="medium"
+                                  onClick={() => handleCancelOrder(order.id)}
+                                  disabled={cancelingOrderId === order.id}
+                                  startIcon={
+                                    cancelingOrderId === order.id ? (
+                                      <CircularProgress size={16} />
+                                    ) : (
+                                      <CloseIcon />
+                                    )
+                                  }
+                                  sx={{
+                                    width: "100%",
+                                    fontWeight: 600,
+                                    borderRadius: 2,
+                                    textTransform: "none",
+                                    "&:hover": {
+                                      transform: "translateY(-1px)",
+                                      boxShadow: "0 4px 8px rgba(244, 67, 54, 0.2)",
+                                    },
+                                  }}
+                                >
+                                  Hủy đơn hàng
                                 </Button>
                               )}
                               {order.status === "CONTRACT_CONFIRMED" && (
