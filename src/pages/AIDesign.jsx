@@ -73,6 +73,7 @@ import {
   fetchCustomerChoicePixelValue,
   selectPixelValue,
   selectPixelValueStatus,
+  clearCustomerDetail,
 } from "../store/features/customer/customerSlice";
 import { getProfileApi } from "../api/authService";
 import {
@@ -2804,6 +2805,15 @@ const AIDesign = () => {
       });
     };
   }, []); // Empty dependency array = only run on unmount
+  // Effect để clear customerDetail khi quay về step 2 để đảm bảo logic create/update chính xác
+  useEffect(() => {
+    if (currentStep === 2) {
+      // Clear customerDetail từ Redux để buộc fetch lại từ server
+      dispatch(clearCustomerDetail());
+      console.log("🔄 Cleared customerDetail from Redux at step 2");
+    }
+  }, [currentStep, dispatch]);
+
   // Use ref to track previous step to avoid infinite loops
   const prevStepRef = useRef(currentStep);
 
@@ -4260,7 +4270,7 @@ const AIDesign = () => {
           ).unwrap();
 
           // 3. Fetch total amount
-          const choiceResult = await dispatch(
+          await dispatch(
             fetchCustomerChoice(currentOrder.id)
           ).unwrap();
 
@@ -4484,31 +4494,45 @@ const AIDesign = () => {
     try {
       let resultCustomerDetail = null;
 
-      // LOGIC ĐƠN GIẢN: Nếu có customerDetail trong Redux thì update, không thì tạo mới
-      if (customerDetail && customerDetail.id) {
-        resultCustomerDetail = await dispatch(
-          updateCustomerDetail({
-            customerDetailId: customerDetail.id,
-            customerData,
-          })
+      // KIỂM TRA CHI TIẾT: Fetch customer detail từ server để đảm bảo tính chính xác
+      console.log("Checking existing customer detail for user:", user.id);
+      
+      try {
+        // Luôn fetch customer detail mới nhất từ server trước khi quyết định tạo/update
+        const existingCustomerDetail = await dispatch(
+          fetchCustomerDetailByUserId(user.id)
         ).unwrap();
+        
+        if (existingCustomerDetail && existingCustomerDetail.id) {
+          console.log("Found existing customer detail, updating...", existingCustomerDetail.id);
+          // Đã có customer detail → UPDATE
+          resultCustomerDetail = await dispatch(
+            updateCustomerDetail({
+              customerDetailId: existingCustomerDetail.id,
+              customerData,
+            })
+          ).unwrap();
 
-        if (resultCustomerDetail.warning) {
-          setSnackbar({
-            open: true,
-            message: `Thông tin đã được cập nhật nhưng ${resultCustomerDetail.warning}`,
-            severity: "warning",
-          });
+          if (resultCustomerDetail.warning) {
+            setSnackbar({
+              open: true,
+              message: `Thông tin đã được cập nhật nhưng ${resultCustomerDetail.warning}`,
+              severity: "warning",
+            });
+          } else {
+            setSnackbar({
+              open: true,
+              message: "Cập nhật thông tin doanh nghiệp thành công",
+              severity: "success",
+            });
+          }
         } else {
-          setSnackbar({
-            open: true,
-            message: "Cập nhật thông tin doanh nghiệp thành công",
-            severity: "success",
-          });
+          // Không tìm thấy customer detail → TẠO MỚI
+          throw new Error("No existing customer detail found");
         }
-      } else {
-        // LẦN ĐẦU: Tạo mới customer detail
-        console.log("Creating new customer detail for first time");
+      } catch (fetchError) {
+        // Không tìm thấy customer detail hoặc lỗi fetch → TẠO MỚI
+        console.log("No existing customer detail found, creating new one", fetchError.message || fetchError);
         resultCustomerDetail = await dispatch(
           createCustomer(customerData)
         ).unwrap();
@@ -4568,22 +4592,24 @@ const AIDesign = () => {
       // XỬ LÝ CỤ THỂ CÁC LOẠI LỖI
       if (
         error?.message?.includes("duplicate key") ||
-        error?.message?.includes("Database Error")
+        error?.message?.includes("Database Error") ||
+        error?.message?.includes("409") ||
+        error?.response?.status === 409
       ) {
         console.log(
-          "Duplicate key error detected, trying to fetch existing customer detail..."
+          "Conflict error detected (duplicate/409), trying to fetch and update existing customer detail..."
         );
 
         try {
-          // Thử fetch customer detail hiện có
+          // Thử fetch customer detail hiện có và cập nhật
           const existingCustomerDetail = await dispatch(
             fetchCustomerDetailByUserId(user.id)
           ).unwrap();
 
-          if (existingCustomerDetail) {
+          if (existingCustomerDetail && existingCustomerDetail.id) {
             console.log(
-              "Found existing customer detail after duplicate error:",
-              existingCustomerDetail
+              "Found existing customer detail after conflict error, updating:",
+              existingCustomerDetail.id
             );
 
             // Cập nhật thay vì tạo mới
@@ -4600,23 +4626,57 @@ const AIDesign = () => {
               severity: "success",
             });
 
-            // Tiếp tục với flow bình thường
-            setCurrentStep(3);
-            navigate("/ai-design?step=billboard");
+            // Tiếp tục với logic kiểm tra customer choices
+            const customerId = user.id;
+            try {
+              const customerChoicesResponse = await dispatch(
+                fetchCustomerChoices(customerId)
+              ).unwrap();
+
+              if (
+                customerChoicesResponse &&
+                customerChoicesResponse.productTypes?.id
+              ) {
+                const existingProductTypeId = customerChoicesResponse.productTypes.id;
+                console.log("Found existing product type ID:", existingProductTypeId);
+
+                setBillboardType(existingProductTypeId);
+                setCurrentStep(4);
+                dispatch(fetchAttributesByProductTypeId(existingProductTypeId));
+                navigate(`/ai-design?step=billboard&type=${existingProductTypeId}`);
+
+                setSnackbar({
+                  open: true,
+                  message: "Tiếp tục với thiết kế hiện tại",
+                  severity: "info",
+                });
+              } else {
+                setCurrentStep(3);
+                navigate("/ai-design?step=billboard");
+              }
+            } catch (choiceError) {
+              console.error("Error checking for existing customer choices:", choiceError);
+              setCurrentStep(3);
+              navigate("/ai-design?step=billboard");
+            }
             return;
           }
         } catch (fetchError) {
           console.error(
-            "Failed to fetch existing customer detail:",
+            "Failed to fetch existing customer detail after conflict:",
             fetchError
           );
         }
 
         setSnackbar({
           open: true,
-          message: "Thông tin doanh nghiệp đã tồn tại. Vui lòng kiểm tra lại.",
-          severity: "warning",
+          message: "Thông tin doanh nghiệp đã tồn tại. Đã cập nhật thành công.",
+          severity: "success",
         });
+        
+        // Vẫn tiếp tục flow để không làm gián đoạn trải nghiệm user
+        setCurrentStep(3);
+        navigate("/ai-design?step=billboard");
       } else if (error?.message?.includes("User not found")) {
         setSnackbar({
           open: true,
@@ -5120,7 +5180,7 @@ const AIDesign = () => {
       const userId = user.id;
 
       // Dispatch the action to link customer with product type
-      const resultAction = await dispatch(
+      await dispatch(
         linkCustomerToProductType({
           customerId: userId,
           productTypeId,

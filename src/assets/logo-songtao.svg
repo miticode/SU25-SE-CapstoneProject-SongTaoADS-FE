@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Red curve -->
+  <path d="M50 50 Q150 80 250 150 Q300 200 320 280" stroke="#E53E3E" stroke-width="20" fill="none"/>
+  
+  <!-- Blue curve -->
+  <path d="M80 30 Q180 60 280 130 Q330 180 350 260" stroke="#3182CE" stroke-width="20" fill="none"/>
+  
+  <!-- Green bird shape -->
+  <path d="M250 60 Q280 80 300 120 Q320 160 310 200 Q300 240 280 280 Q260 320 240 340 L250 330 Q270 310 290 270 Q310 230 300 190 Q290 150 270 120 Q250 90 230 80 Q240 70 250 60Z" fill="#38A169"/>
+  
+  <!-- Yellow curve -->
+  <path d="M100 200 Q200 220 300 240 Q350 250 380 280" stroke="#D69E2E" stroke-width="15" fill="none"/>
+  
+  <!-- Additional green accent -->
+  <path d="M270 300 Q280 320 290 340 L285 345 Q275 325 270 300Z" fill="#38A169"/>
+</svg>
