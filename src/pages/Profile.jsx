@@ -5,6 +5,7 @@ import {
   updateUserProfileApi,
   updateUserPasswordApi,
 } from "../api/authService";
+import { changeUserPasswordApi } from "../api/userService";
 import {
   fetchProfile,
   updateUserProfile,
@@ -95,10 +96,18 @@ const Profile = () => {
   const [confirmPwd, setConfirmPwd] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
 
+  // State cho dialog tạo mật khẩu (khi password là null)
+  const [openCreatePwd, setOpenCreatePwd] = useState(false);
+  const [createPwd, setCreatePwd] = useState("");
+  const [confirmCreatePwd, setConfirmCreatePwd] = useState("");
+  const [createPwdLoading, setCreatePwdLoading] = useState(false);
+
   // State cho việc hiển thị/ẩn mật khẩu
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showConfirmCreatePassword, setShowConfirmCreatePassword] = useState(false);
 
   // State cho dialog edit customer detail
   const [openCustomerDetail, setOpenCustomerDetail] = useState(false);
@@ -266,6 +275,47 @@ const Profile = () => {
       setSnackbar({
         open: true,
         message: res.error || "Đổi mật khẩu thất bại!",
+        severity: "error",
+      });
+    }
+  };
+
+  // Hàm tạo mật khẩu mới (khi password là null)
+  const handleCreatePassword = async () => {
+    if (!createPwd || !confirmCreatePwd) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng nhập đủ thông tin",
+        severity: "error",
+      });
+      return;
+    }
+    if (createPwd !== confirmCreatePwd) {
+      setSnackbar({
+        open: true,
+        message: "Mật khẩu không khớp",
+        severity: "error",
+      });
+      return;
+    }
+    setCreatePwdLoading(true);
+    const res = await changeUserPasswordApi(profile.id, createPwd);
+    setCreatePwdLoading(false);
+    if (res.success) {
+      setOpenCreatePwd(false);
+      setCreatePwd("");
+      setConfirmCreatePwd("");
+      // Refresh profile to update password status
+      dispatch(fetchProfile());
+      setSnackbar({
+        open: true,
+        message: "Tạo mật khẩu thành công!",
+        severity: "success",
+      });
+    } else {
+      setSnackbar({
+        open: true,
+        message: res.error || "Tạo mật khẩu thất bại!",
         severity: "error",
       });
     }
@@ -549,7 +599,7 @@ const Profile = () => {
                     Mật khẩu
                   </Typography>
                   <TextField
-                    value={"********"}
+                    value={profile.password ? "********" : "Chưa có mật khẩu"}
                     size="small"
                     fullWidth
                     disabled
@@ -558,23 +608,30 @@ const Profile = () => {
                         borderRadius: 2,
                         background: "rgba(0, 0, 0, 0.02)",
                       },
+                      "& .MuiOutlinedInput-input": {
+                        color: profile.password ? "inherit" : "#f59e0b",
+                        fontStyle: profile.password ? "normal" : "italic",
+                      },
                     }}
                   />
                 </Box>
                 <IconButton
-                  onClick={() => setOpenPwd(true)}
+                  onClick={() => profile.password ? setOpenPwd(true) : setOpenCreatePwd(true)}
                   sx={{
                     mt: 3,
-                    background: "#0C1528",
+                    background: profile.password ? "#0C1528" : "#f59e0b",
                     color: "white",
                     width: 40,
                     height: 40,
                     transition: "all 0.3s ease",
                     "&:hover": {
                       transform: "translateY(-2px) scale(1.05)",
-                      boxShadow: "0 8px 25px rgba(12, 21, 40, 0.3)",
+                      boxShadow: profile.password 
+                        ? "0 8px 25px rgba(12, 21, 40, 0.3)"
+                        : "0 8px 25px rgba(245, 158, 11, 0.3)",
                     },
                   }}
+                  title={profile.password ? "Đổi mật khẩu" : "Tạo mật khẩu"}
                 >
                   <Lock />
                 </IconButton>
@@ -1243,6 +1300,188 @@ const Profile = () => {
               }}
             >
               {pwdLoading ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog Create Password */}
+        <Dialog
+          open={openCreatePwd}
+          onClose={() => setOpenCreatePwd(false)}
+          PaperProps={{
+            sx: {
+              borderRadius: 4,
+              background: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 25px 45px rgba(0, 0, 0, 0.15)",
+              minWidth: { xs: "90%", sm: 400 },
+            },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontWeight: 700,
+              fontSize: "1.5rem",
+              textAlign: "center",
+              pb: 1,
+            }}
+          >
+            Tạo mật khẩu
+          </DialogTitle>
+          <DialogContent sx={{ pt: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 3,
+                textAlign: "center",
+                fontStyle: "italic",
+              }}
+            >
+              Bạn chưa có mật khẩu. Hãy tạo mật khẩu để bảo mật tài khoản.
+            </Typography>
+            <TextField
+              label="Mật khẩu mới"
+              type={showCreatePassword ? "text" : "password"}
+              fullWidth
+              value={createPwd}
+              onChange={(e) => setCreatePwd(e.target.value)}
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  background: "rgba(245, 158, 11, 0.04)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(245, 158, 11, 0.08)",
+                  },
+                  "&.Mui-focused": {
+                    background: "rgba(245, 158, 11, 0.08)",
+                    boxShadow: "0 4px 20px rgba(245, 158, 11, 0.2)",
+                  },
+                },
+                "& .MuiInputLabel-root": {
+                  color: "#f59e0b",
+                  "&.Mui-focused": {
+                    color: "#f59e0b",
+                  },
+                },
+              }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowCreatePassword(!showCreatePassword)}
+                      edge="end"
+                      sx={{
+                        color: "#f59e0b",
+                        "&:hover": {
+                          background: "rgba(245, 158, 11, 0.1)",
+                        },
+                      }}
+                    >
+                      {showCreatePassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              label="Xác nhận mật khẩu"
+              type={showConfirmCreatePassword ? "text" : "password"}
+              fullWidth
+              value={confirmCreatePwd}
+              onChange={(e) => setConfirmCreatePwd(e.target.value)}
+              sx={{
+                mb: 1,
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  background: "rgba(245, 158, 11, 0.04)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(245, 158, 11, 0.08)",
+                  },
+                  "&.Mui-focused": {
+                    background: "rgba(245, 158, 11, 0.08)",
+                    boxShadow: "0 4px 20px rgba(245, 158, 11, 0.2)",
+                  },
+                },
+                "& .MuiInputLabel-root": {
+                  color: "#f59e0b",
+                  "&.Mui-focused": {
+                    color: "#f59e0b",
+                  },
+                },
+              }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() =>
+                        setShowConfirmCreatePassword(!showConfirmCreatePassword)
+                      }
+                      edge="end"
+                      sx={{
+                        color: "#f59e0b",
+                        "&:hover": {
+                          background: "rgba(245, 158, 11, 0.1)",
+                        },
+                      }}
+                    >
+                      {showConfirmCreatePassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 3, pt: 1 }}>
+            <Button
+              onClick={() => {
+                setOpenCreatePwd(false);
+                setCreatePwd("");
+                setConfirmCreatePwd("");
+              }}
+              sx={{
+                color: "#6b7280",
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  background: "rgba(107, 114, 128, 0.1)",
+                  transform: "translateY(-1px)",
+                },
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleCreatePassword}
+              variant="contained"
+              disabled={createPwdLoading}
+              sx={{
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                borderRadius: 2,
+                fontWeight: 600,
+                px: 4,
+                py: 1,
+                boxShadow: "0 4px 15px rgba(245, 158, 11, 0.3)",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                  boxShadow: "0 6px 20px rgba(245, 158, 11, 0.4)",
+                },
+              }}
+            >
+              {createPwdLoading ? "Đang tạo..." : "Tạo mật khẩu"}
             </Button>
           </DialogActions>
         </Dialog>

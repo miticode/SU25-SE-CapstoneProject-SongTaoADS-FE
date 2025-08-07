@@ -6,6 +6,7 @@ import {
   updateUserApi,
   toggleUserStatusApi,
   getUsersByRoleApi,
+  changeUserPasswordApi,
 } from "../../../api/userService";
 
 // Initial state
@@ -94,6 +95,20 @@ export const toggleUserStatus = createAsyncThunk(
     }
 
     return { userId, isActive };
+  }
+);
+
+// Async thunk để thay đổi mật khẩu người dùng
+export const changeUserPassword = createAsyncThunk(
+  "users/changeUserPassword",
+  async ({ userId, password }, { rejectWithValue }) => {
+    const response = await changeUserPasswordApi(userId, password);
+
+    if (!response.success) {
+      return rejectWithValue(response.error || "Failed to change user password");
+    }
+
+    return response.data;
   }
 );
 
@@ -233,6 +248,28 @@ const userSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
+
+      // Change user password cases
+      .addCase(changeUserPassword.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(changeUserPassword.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        const updatedUser = action.payload;
+        const index = state.users.findIndex((user) => user.id === updatedUser.id);
+        if (index !== -1) {
+          state.users[index] = updatedUser;
+        }
+        if (state.currentUser && state.currentUser.id === updatedUser.id) {
+          state.currentUser = updatedUser;
+        }
+        state.error = null;
+      })
+      .addCase(changeUserPassword.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+
       .addCase(fetchUsersByRole.pending, (state) => {
         state.usersByRoleStatus = "loading";
       })
