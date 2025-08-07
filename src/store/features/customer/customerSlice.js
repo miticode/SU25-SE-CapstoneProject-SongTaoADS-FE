@@ -489,6 +489,12 @@ const customerSlice = createSlice({
     resetCustomerChoiceDetails: (state) => {
       state.customerChoiceDetails = {};
     },
+    clearCustomerDetail: (state) => {
+      // Clear customerDetail để đảm bảo logic create/update chính xác
+      state.customerDetail = null;
+      state.customerDetailStatus = "idle";
+      state.customerDetailError = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -824,6 +830,7 @@ export const {
   resetCustomerChoiceStatus,
   updateAttributeSubtotal,
   resetCustomerChoiceDetails,
+  clearCustomerDetail,
 } = customerSlice.actions;
 
 // Selectors
