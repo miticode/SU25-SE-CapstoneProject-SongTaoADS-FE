@@ -381,8 +381,7 @@ const Order = () => {
     locationStateOrderId: location.state?.existingOrderId,
     useExistingOrder,
     existingOrderId,
-    typeOfExistingOrderId: typeof existingOrderId,
-    shouldHideBackButton: !!existingOrderId
+    typeOfExistingOrderId: typeof existingOrderId
   });
 
   // Khôi phục AI design info từ localStorage nếu không có trong location.state
@@ -457,11 +456,13 @@ const Order = () => {
         customDesignRequestId: finalCustomDesignRequestId,
         customerChoiceId: finalCustomerChoiceId,
         hasConstruction: finalHasConstruction,
-        requirements: finalRequirements
+        requirements: finalRequirements,
+        selectedType: selectedType,
+        customerDetail: customerDetail
       };
       localStorage.setItem('orderCustomDesignInfo', JSON.stringify(customDesignInfo));
     }
-  }, [finalIsFromCustomDesign, finalCustomDesignRequestId, finalCustomerChoiceId, finalHasConstruction, finalRequirements]);
+  }, [finalIsFromCustomDesign, finalCustomDesignRequestId, finalCustomerChoiceId, finalHasConstruction, finalRequirements, selectedType, customerDetail]);
 
   const [formData, setFormData] = useState(() => {
     // Khôi phục formData từ localStorage khi component mount
@@ -498,6 +499,8 @@ const Order = () => {
   const [editedImageUrl, setEditedImageUrl] = useState(null);
   const [loadingEditedImage, setLoadingEditedImage] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
+  const [shouldRefreshOrderDetails, setShouldRefreshOrderDetails] = useState(false);
+  const [lastAddedDetailId, setLastAddedDetailId] = useState(null);
 
   // Cập nhật orderType khi component mount nếu từ AI Design hoặc Custom Design
   useEffect(() => {
@@ -597,14 +600,82 @@ const Order = () => {
       currentOrderId: currentOrder?.id,
       existingOrderId: existingOrderId,
       orderIdToFetch: orderIdToFetch,
-      typeOfOrderId: typeof orderIdToFetch
+      typeOfOrderId: typeof orderIdToFetch,
+      orderDetailsStatus,
+      orderDetailsLength: orderDetails?.length || 0,
+      shouldRefreshOrderDetails
     });
     
     if (currentStep === 3 && orderIdToFetch) {
       console.log("Order - Fetching order details for step 3:", orderIdToFetch);
+      console.log("Order - Current order info:", {
+        currentOrderId: currentOrder?.id,
+        currentOrderType: currentOrder?.orderType,
+        existingOrderId: existingOrderId,
+        orderIdToFetch: orderIdToFetch
+      });
+      
+      // Luôn fetch khi ở step 3 để đảm bảo có dữ liệu mới nhất
+      console.log("Order - Fetching order details for step 3");
       dispatch(fetchOrderDetails(orderIdToFetch));
+      setShouldRefreshOrderDetails(false);
+    } else if (currentStep === 3 && !orderIdToFetch) {
+      console.warn("Order - Không có orderId để fetch details:", {
+        currentStep,
+        currentOrderId: currentOrder?.id,
+        existingOrderId: existingOrderId
+      });
     }
-  }, [currentStep, currentOrder?.id, existingOrderId, dispatch]);
+  }, [currentStep, currentOrder?.id, existingOrderId, dispatch, shouldRefreshOrderDetails]);
+
+  // Debug orderDetails state
+  useEffect(() => {
+    console.log("Order - orderDetails state changed:", {
+      orderDetails,
+      orderDetailsLength: orderDetails?.length || 0,
+      orderDetailsStatus,
+      orderDetailsError,
+      orderDetailsType: typeof orderDetails,
+      isArray: Array.isArray(orderDetails),
+      currentStep
+    });
+    
+    // Log chi tiết từng order detail
+    if (orderDetails && Array.isArray(orderDetails)) {
+      orderDetails.forEach((detail, index) => {
+        console.log(`Order - Detail ${index + 1}:`, {
+          id: detail.id,
+          hasEditedDesigns: !!detail.editedDesigns,
+          hasCustomDesignRequests: !!detail.customDesignRequests,
+          editedDesigns: detail.editedDesigns,
+          customDesignRequests: detail.customDesignRequests,
+          createdAt: detail.createdAt,
+          updatedAt: detail.updatedAt
+        });
+      });
+    }
+  }, [orderDetails, orderDetailsStatus, orderDetailsError, currentStep]);
+
+  // Debug lastAddedDetailId
+  useEffect(() => {
+    if (lastAddedDetailId) {
+      console.log("Order - lastAddedDetailId changed:", lastAddedDetailId);
+      console.log("Order - Checking if new detail exists in orderDetails:", {
+        lastAddedDetailId,
+        orderDetailsLength: orderDetails?.length || 0,
+        orderDetails: orderDetails
+      });
+      
+      if (orderDetails && Array.isArray(orderDetails)) {
+        const foundDetail = orderDetails.find(detail => detail.id === lastAddedDetailId);
+        if (foundDetail) {
+          console.log("Order - ✅ New detail found in orderDetails:", foundDetail);
+        } else {
+          console.log("Order - ❌ New detail NOT found in orderDetails");
+        }
+      }
+    }
+  }, [lastAddedDetailId, orderDetails]);
 
   // Fetch S3 image when editedDesignDetail.editedImage is available
   useEffect(() => {
@@ -836,6 +907,12 @@ const Order = () => {
             editedDesignId: finalEditedDesignId,
             result,
           });
+          
+          // Lưu ID của detail mới được thêm
+          if (result && result.id) {
+            setLastAddedDetailId(result.id);
+            console.log("Order - Lưu ID detail mới (AI Design):", result.id);
+          }
         } else if (finalIsFromCustomDesign) {
           if (!finalCustomerChoiceId) {
             setErrorMessage(
@@ -900,8 +977,33 @@ const Order = () => {
             customDesignRequestId: finalCustomDesignRequestId,
             result,
           });
+          
+          // Lưu ID của detail mới được thêm
+          if (result && result.id) {
+            setLastAddedDetailId(result.id);
+            console.log("Order - Lưu ID detail mới:", result.id);
+          }
         } else {
           console.log("Xử lý đơn hàng thông thường (không từ AI Design hoặc Custom Design)");
+        }
+
+        // Đánh dấu cần refresh order details và fetch lại ngay lập tức
+        setShouldRefreshOrderDetails(true);
+        
+        // Fetch lại order details sau khi thêm thành công
+        const orderIdToFetch = currentOrder?.id || existingOrderId;
+        if (orderIdToFetch) {
+          console.log("Order - Fetching updated order details after adding new detail:", orderIdToFetch);
+          // Fetch ngay lập tức và sau đó fetch lại nhiều lần để đảm bảo
+          dispatch(fetchOrderDetails(orderIdToFetch));
+          setTimeout(() => {
+            console.log("Order - Re-fetching order details after 1 second");
+            dispatch(fetchOrderDetails(orderIdToFetch));
+          }, 1000);
+          setTimeout(() => {
+            console.log("Order - Re-fetching order details after 3 seconds");
+            dispatch(fetchOrderDetails(orderIdToFetch));
+          }, 3000);
         }
 
         setSuccessMessage("Đơn hàng đã được xác nhận thành công!");
@@ -917,7 +1019,13 @@ const Order = () => {
         setTimeout(() => {
           setCurrentStep(3);
           setSuccessMessage("");
-        }, 1500);
+          // Fetch lại order details khi chuyển sang step 3
+          const orderIdToFetch = currentOrder?.id || existingOrderId;
+          if (orderIdToFetch) {
+            console.log("Order - Final fetch order details when moving to step 3:", orderIdToFetch);
+            dispatch(fetchOrderDetails(orderIdToFetch));
+          }
+        }, 4000); // Tăng delay để đảm bảo API đã xử lý xong
       } catch (error) {
         console.error("Lỗi xác nhận đơn hàng:", error);
         setErrorMessage(error || "Xác nhận đơn hàng thất bại");
@@ -1869,16 +1977,86 @@ const Order = () => {
                         {/* Order Details */}
                         {orderDetails && orderDetails.length > 0 && (
                           <div className="space-y-4">
-                            <Typography
-                              variant="subtitle1"
-                              className="text-gray-700 font-semibold"
-                            >
-                              Chi tiết sản phẩm
-                            </Typography>
+                            <div className="flex items-center justify-between">
+                              <Typography
+                                variant="subtitle1"
+                                className="text-gray-700 font-semibold"
+                              >
+                                Chi tiết sản phẩm ({orderDetails.length} chi tiết)
+                              </Typography>
+                              <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                  <Typography variant="caption" className="text-gray-600">
+                                    AI Design: {orderDetails.filter(d => d.editedDesigns).length}
+                                  </Typography>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                                  <Typography variant="caption" className="text-gray-600">
+                                    Custom Design: {orderDetails.filter(d => d.customDesignRequests).length}
+                                  </Typography>
+                                </div>
+                              </div>
+                            </div>
                             {orderDetails.map((detail, index) => (
-                              <div key={detail.id || index} className="space-y-4">
-                                {/* Thông tin cơ bản của order detail */}
-                                <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                              <div key={detail.id || index} className="space-y-4 border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                                {/* Header cho từng order detail */}
+                                <div className={`p-3 rounded-t-xl border ${
+                                  detail.editedDesigns 
+                                    ? 'bg-gradient-to-r from-blue-500 to-cyan-600 border-blue-300' 
+                                    : 'bg-gradient-to-r from-purple-500 to-pink-600 border-purple-300'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                      <Typography variant="h6" className="text-white font-bold">
+                                        Chi tiết #{index + 1}
+                                      </Typography>
+                                      {index === orderDetails.length - 1 && (
+                                        <div className="px-2 py-1 bg-yellow-400 bg-opacity-80 rounded-full">
+                                          <Typography variant="caption" className="text-yellow-900 font-bold">
+                                            MỚI NHẤT
+                                          </Typography>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full">
+                                        <Typography variant="caption" className="text-white font-medium">
+                                          {detail.editedDesigns ? "AI Design" : "Custom Design"}
+                                        </Typography>
+                                      </div>
+                                      <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full">
+                                        <Typography variant="caption" className="text-white font-medium">
+                                          ID: {detail.id}
+                                        </Typography>
+                                      </div>
+                                      {detail.createdAt && (
+                                        <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full">
+                                          <Typography variant="caption" className="text-white font-medium">
+                                            {new Date(detail.createdAt).toLocaleDateString('vi-VN')}
+                                          </Typography>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                                                    {/* Thông tin cơ bản của order detail */}
+                                    <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <Typography variant="subtitle2" className="text-green-600 font-semibold">
+                                          Thông tin chi tiết
+                                        </Typography>
+                                        <div className="flex items-center space-x-2">
+                                          {detail.detailConstructionAmount && detail.detailDesignAmount && (
+                                            <div className="px-3 py-1 bg-green-200 rounded-full">
+                                              <Typography variant="caption" className="text-green-800 font-bold">
+                                                Tổng: {(detail.detailConstructionAmount + detail.detailDesignAmount).toLocaleString('vi-VN')} VNĐ
+                                              </Typography>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                       <Typography
@@ -2127,8 +2305,101 @@ const Order = () => {
                                     )}
                                   </div>
                                 )}
+
+                                {/* Custom Design Information - Độc lập với editedDesigns */}
+                                {detail.customDesignRequests && (
+                                  <div className="space-y-4">
+                                    {/* Requirements */}
+                                    {detail.customDesignRequests.requirements && (
+                                      <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-purple-600 font-semibold mb-3"
+                                        >
+                                          🎨 Yêu cầu thiết kế
+                                        </Typography>
+                                        <Typography variant="body2" className="text-purple-800">
+                                          {detail.customDesignRequests.requirements}
+                                        </Typography>
+                                      </div>
+                                    )}
+
+                                    {/* Has Construction */}
+                                    <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+                                      <Typography
+                                        variant="subtitle2"
+                                        className="text-orange-600 font-semibold mb-2"
+                                      >
+                                        🏗️ Thông tin thiết kế
+                                      </Typography>
+                                      <div className="flex items-center space-x-2">
+                                        <div className={`w-3 h-3 rounded-full ${detail.customDesignRequests.hasOrder ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                                        <Typography variant="body2" className="text-orange-800 font-medium">
+                                          {detail.customDesignRequests.hasOrder ? "Có thi công" : "Không thi công"}
+                                        </Typography>
+                                      </div>
+                                    </div>
+
+                                    {/* Customer Detail Info */}
+                                    {detail.customDesignRequests.customerDetail && (
+                                      <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-gray-600 font-semibold mb-2"
+                                        >
+                                          👤 Thông tin khách hàng
+                                        </Typography>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div>
+                                            <Typography variant="caption" className="text-gray-500">
+                                              Tên công ty:
+                                            </Typography>
+                                            <Typography variant="body2" className="text-gray-800 font-medium">
+                                              {detail.customDesignRequests.customerDetail.companyName}
+                                            </Typography>
+                                          </div>
+                                          <div>
+                                            <Typography variant="caption" className="text-gray-500">
+                                              Thông tin liên hệ:
+                                            </Typography>
+                                            <Typography variant="body2" className="text-gray-800 font-medium">
+                                              {detail.customDesignRequests.customerDetail.contactInfo}
+                                            </Typography>
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <Typography variant="caption" className="text-gray-500">
+                                              Địa chỉ công ty:
+                                            </Typography>
+                                            <Typography variant="body2" className="text-gray-800 font-medium">
+                                              {detail.customDesignRequests.customerDetail.address}
+                                            </Typography>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
+                            
+                            {/* Tổng kết order */}
+                            {orderDetails && orderDetails.length > 1 && (
+                              <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl border border-indigo-300">
+                                <div className="flex items-center justify-between">
+                                  <Typography variant="h6" className="text-white font-bold">
+                                    Tổng kết đơn hàng
+                                  </Typography>
+                                  <div className="text-right">
+                                    <Typography variant="h6" className="text-white font-bold">
+                                      {orderDetails.length} chi tiết
+                                    </Typography>
+                                    <Typography variant="caption" className="text-white opacity-80">
+                                      {orderDetails.filter(d => d.editedDesigns).length} AI Design, {orderDetails.filter(d => d.customDesignRequests).length} Custom Design
+                                    </Typography>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -2214,19 +2485,29 @@ const Order = () => {
                         localStorage.setItem('orderTypeForNewOrder', currentOrder.orderType || formData.orderType || '');
                       }
                       
-                      clearOrderLocalStorage();
-                      // Reset tất cả state về ban đầu
-                      setCurrentStep(1);
+                      // KHÔNG clear localStorage để giữ lại thông tin order hiện tại
+                      // clearOrderLocalStorage();
+                      
+                      // Reset chỉ form data, không reset order
                       setFormData({
-                        address: "",
-                        orderType: isFromAIDesign ? "AI_DESIGN" : "",
+                        address: currentOrder?.address || "",
+                        orderType: finalIsFromAIDesign ? "AI_DESIGN" : (finalIsFromCustomDesign ? (finalHasConstruction ? "CUSTOM_DESIGN_WITH_CONSTRUCTION" : "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") : ""),
                         quantity: 1,
                       });
                       setSuccessMessage("");
                       setErrorMessage("");
                       
-                      // Chuyển đến case 3 của trang AI Design (chọn loại biển hiệu)
-                      navigate("/ai-design?step=billboard");
+                      // Chuyển đến trang tương ứng dựa trên loại đơn hàng
+                      if (finalIsFromAIDesign) {
+                        // Chuyển đến case 3 của trang AI Design (chọn loại biển hiệu)
+                        navigate("/ai-design?step=billboard");
+                      } else if (finalIsFromCustomDesign) {
+                        // Chuyển đến step 3 của trang AI Design (chọn loại biển hiệu) cho Custom Design
+                        navigate("/ai-design?step=billboard");
+                      } else {
+                        // Mặc định chuyển đến AI Design
+                        navigate("/ai-design?step=billboard");
+                      }
                     }}
                     className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
                     sx={{

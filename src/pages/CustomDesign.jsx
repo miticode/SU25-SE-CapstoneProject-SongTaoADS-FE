@@ -130,10 +130,94 @@ const CustomDesign = () => {
   }, [dispatch, user?.id]);
 
   const handleConfirm = async () => {
-    if (!customerDetail?.id || !currentOrder?.id) {
+    // Lấy customerChoiceId từ location.state hoặc currentOrder
+    let customerChoiceId = location.state?.customerChoiceId || currentOrder?.id;
+    
+    // Nếu vẫn không có customerChoiceId, thử lấy từ localStorage
+    if (!customerChoiceId) {
+      const savedCustomDesignInfo = localStorage.getItem('orderCustomDesignInfo');
+      if (savedCustomDesignInfo) {
+        try {
+          const parsedInfo = JSON.parse(savedCustomDesignInfo);
+          customerChoiceId = parsedInfo.customerChoiceId;
+        } catch (error) {
+          console.error('Error parsing saved custom design info:', error);
+        }
+      }
+    }
+    
+    // Nếu vẫn không có, thử lấy từ URL params hoặc localStorage khác
+    if (!customerChoiceId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      customerChoiceId = urlParams.get('customerChoiceId');
+    }
+    
+    // Nếu vẫn không có, thử lấy từ localStorage khác
+    if (!customerChoiceId) {
+      const savedOrderInfo = localStorage.getItem('orderAIDesignInfo');
+      if (savedOrderInfo) {
+        try {
+          const parsedInfo = JSON.parse(savedOrderInfo);
+          customerChoiceId = parsedInfo.customerChoiceId;
+        } catch (error) {
+          console.error('Error parsing saved order info:', error);
+        }
+      }
+    }
+    
+    // Nếu vẫn không có, thử lấy từ localStorage khác
+    if (!customerChoiceId) {
+      const savedOrderInfo = localStorage.getItem('orderFormData');
+      if (savedOrderInfo) {
+        try {
+          const parsedInfo = JSON.parse(savedOrderInfo);
+          customerChoiceId = parsedInfo.customerChoiceId;
+        } catch (error) {
+          console.error('Error parsing saved order form data:', error);
+        }
+      }
+    }
+    
+    // Nếu vẫn không có, thử lấy từ localStorage khác
+    if (!customerChoiceId) {
+      const savedOrderInfo = localStorage.getItem('orderCurrentStep');
+      if (savedOrderInfo) {
+        try {
+          const parsedInfo = JSON.parse(savedOrderInfo);
+          customerChoiceId = parsedInfo.customerChoiceId;
+        } catch (error) {
+          console.error('Error parsing saved order current step:', error);
+        }
+      }
+    }
+    
+    // Nếu vẫn không có, thử lấy từ localStorage khác
+    if (!customerChoiceId) {
+      const savedOrderInfo = localStorage.getItem('orderIdForNewOrder');
+      if (savedOrderInfo) {
+        customerChoiceId = savedOrderInfo;
+      }
+    }
+    
+    // Nếu vẫn không có, thử lấy từ localStorage khác
+    if (!customerChoiceId) {
+      const savedOrderInfo = localStorage.getItem('orderTypeForNewOrder');
+      if (savedOrderInfo) {
+        customerChoiceId = savedOrderInfo;
+      }
+    }
+    
+    console.log("CustomDesign - Debug handleConfirm:", {
+      locationState: location.state,
+      currentOrder: currentOrder,
+      customerChoiceId: customerChoiceId,
+      customerDetail: customerDetail
+    });
+    
+    if (!customerDetail?.id || !customerChoiceId) {
       setSnackbar({
         open: true,
-        message: "Thiếu thông tin khách hàng hoặc đơn hàng.",
+        message: `Thiếu thông tin: ${!customerDetail?.id ? 'Khách hàng' : ''} ${!customerChoiceId ? 'Customer Choice' : ''}`,
         severity: "error",
       });
       return;
@@ -142,7 +226,7 @@ const CustomDesign = () => {
       const result = await dispatch(
         createCustomDesignRequest({
           customerDetailId: customerDetail.id,
-          customerChoiceId: currentOrder.id,
+          customerChoiceId: customerChoiceId,
           data: {
             requirements: note || "",
             hasOrder: hasOrder,
@@ -151,19 +235,57 @@ const CustomDesign = () => {
       ).unwrap();
       
       if (result?.id) {
-        // Luôn navigate đến Order.jsx sau khi tạo custom design request thành công
-        // Dù có thi công hay không thi công
-        navigate("/order", {
-          state: {
-            fromCustomDesign: true,
-            customerChoiceId: currentOrder.id,
+        // Kiểm tra localStorage để xem có orderId từ trang Order không
+        const orderIdFromStorage = localStorage.getItem("orderIdForNewOrder");
+        const orderTypeFromStorage = localStorage.getItem("orderTypeForNewOrder");
+
+        // Luôn sử dụng existing order nếu có orderIdFromStorage
+        if (orderIdFromStorage && (orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION")) {
+          console.log("CustomDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:", orderIdFromStorage);
+
+          // Lưu thông tin Custom Design để sử dụng trong Order page
+          const customDesignInfo = {
+            isFromCustomDesign: true,
             customDesignRequestId: result.id,
+            customerChoiceId: customerChoiceId,
             hasConstruction: hasOrder,
             requirements: note,
             selectedType: selectedType,
-            customerDetail: customerDetail
-          }
-        });
+            customerDetail: customerDetail,
+            orderIdFromStorage: orderIdFromStorage,
+          };
+          localStorage.setItem("orderCustomDesignInfo", JSON.stringify(customDesignInfo));
+
+          // Chuyển đến step 2 của trang Order với orderId có sẵn
+          navigate("/order", {
+            state: {
+              fromCustomDesign: true,
+              customerChoiceId: customerChoiceId,
+              customDesignRequestId: result.id,
+              hasConstruction: hasOrder,
+              requirements: note,
+              selectedType: selectedType,
+              customerDetail: customerDetail,
+              useExistingOrder: true,
+              existingOrderId: orderIdFromStorage,
+            },
+          });
+        } else {
+          // Logic cũ: tạo order mới
+          console.log("CustomDesign - Không có orderIdFromStorage, tạo order mới");
+
+          navigate("/order", {
+            state: {
+              fromCustomDesign: true,
+              customerChoiceId: customerChoiceId,
+              customDesignRequestId: result.id,
+              hasConstruction: hasOrder,
+              requirements: note,
+              selectedType: selectedType,
+              customerDetail: customerDetail,
+            },
+          });
+        }
       } else {
         setSnackbar({
           open: true,
