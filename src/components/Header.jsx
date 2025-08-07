@@ -6,17 +6,20 @@ import {
   FaSearch,
   FaUserCircle,
 } from "react-icons/fa";
-import { SiProbot } from "react-icons/si";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/features/auth/authSlice";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import logoSongTao from "../assets/logo-songtao.svg";
+import { getImageFromS3 } from "../api/s3Service";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [hideAnnouncement, setHideAnnouncement] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
 
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
@@ -61,9 +64,70 @@ export default function Header() {
     };
   }, [userMenuOpen]);
 
+  // Effect để fetch avatar từ S3 khi user thay đổi
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (user?.avatar && isAuthenticated) {
+        setAvatarLoading(true);
+        try {
+          const result = await getImageFromS3(user.avatar);
+          if (result.success) {
+            setAvatarUrl(result.imageUrl);
+          } else {
+            console.error("Failed to fetch avatar:", result.message);
+            setAvatarUrl(null);
+          }
+        } catch (error) {
+          console.error("Error fetching avatar:", error);
+          setAvatarUrl(null);
+        } finally {
+          setAvatarLoading(false);
+        }
+      } else {
+        setAvatarUrl(null);
+      }
+    };
+
+    fetchUserAvatar();
+
+    // Cleanup function để revoke URL khi component unmount hoặc user thay đổi
+    return () => {
+      if (avatarUrl && avatarUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarUrl);
+      }
+    };
+  }, [user?.avatar, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Component Avatar để hiển thị avatar hoặc fallback
+  const UserAvatar = ({ size = 20, className = "" }) => {
+    if (avatarLoading) {
+      return (
+        <div className={`rounded-full bg-gray-300 animate-pulse ${className}`} style={{ width: size, height: size }}>
+        </div>
+      );
+    }
+
+    if (avatarUrl) {
+      return (
+        <img
+          src={avatarUrl}
+          alt="User Avatar"
+          className={`rounded-full object-cover ${className}`}
+          style={{ width: size, height: size }}
+          onError={() => {
+            console.error("Failed to load avatar image");
+            setAvatarUrl(null);
+          }}
+        />
+      );
+    }
+
+    return <FaUserCircle size={size} className={`text-[#2B2F4A] ${className}`} />;
+  };
+
   return (
     <header
-      className={`sticky top-0 z-40 relative transition-all duration-500 ${
+      className={`sticky top-0 z-40 transition-all duration-500 ${
         isScrolled
           ? "shadow-xl bg-white/95 backdrop-blur-lg border-b border-gray-100"
           : "bg-gradient-to-r from-[#f8f9fa] via-[#ffffff] to-[#f1f5f9]"
@@ -89,7 +153,11 @@ export default function Header() {
       >
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <SiProbot className="text-[#2B2F4A] text-3xl transform hover:rotate-12 transition-all duration-300 hover:scale-110" />
+            <img
+              src={logoSongTao}
+              alt="Song Tạo ADS Logo"
+              className="w-8 h-8 transform hover:rotate-12 transition-all duration-300 hover:scale-110"
+            />
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full animate-pulse"></div>
           </div>
           <div>
@@ -97,7 +165,7 @@ export default function Header() {
               Song Tạo ADS
             </span>
             <div className="text-xs text-gray-500 font-medium">
-              AI Marketing Platform
+              AI Billboard Generator
             </div>
           </div>
         </div>
@@ -205,7 +273,7 @@ export default function Header() {
                 }}
                 className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
               >
-                <FaUserCircle size={20} className="text-[#2B2F4A]" />
+                <UserAvatar size={20} />
                 <span className="font-medium text-gray-700">
                   {user?.fullName || user?.email || "Tài khoản"}
                 </span>
@@ -320,7 +388,7 @@ export default function Header() {
             {isAuthenticated ? (
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md mb-2">
-                  <FaUserCircle size={18} className="text-[#2B2F4A]" />
+                  <UserAvatar size={18} />
                   <span className="font-medium text-gray-700 text-sm">
                     {user?.fullName || user?.email || "Tài khoản"}
                   </span>

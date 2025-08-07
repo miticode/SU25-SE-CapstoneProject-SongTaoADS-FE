@@ -34,8 +34,6 @@ import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   ShoppingCart as OrdersIcon,
-  BarChart as StatisticsIcon,
-  Settings as SettingsIcon,
   Notifications as NotificationsIcon,
   Logout as LogoutIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -160,20 +158,6 @@ const menuItems = [
     icon: <BuildCircleIcon />,
     color: "#607d8b",
     description: "Tinh chỉnh AI",
-  },
-  {
-    id: "statistics",
-    text: "Statistics",
-    icon: <StatisticsIcon />,
-    color: "#4caf50",
-    description: "Thống kê báo cáo",
-  },
-  {
-    id: "settings",
-    text: "Settings",
-    icon: <ManageAccountsIcon />,
-    color: "#607d8b",
-    description: "Cài đặt hệ thống",
   },
   {
     id: "support-ticket",
@@ -440,21 +424,6 @@ const ManagerLayout = () => {
             >
               <AccountCircleIcon fontSize="small" sx={{ mr: 1 }} />
               Profile
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                handleMenuClose();
-                setActiveTab("settings");
-              }}
-              sx={{
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                },
-                transition: "all 0.3s ease",
-              }}
-            >
-              <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
-              Settings
             </MenuItem>
             <Divider
               sx={{ my: 1, backgroundColor: "rgba(255, 255, 255, 0.2)" }}

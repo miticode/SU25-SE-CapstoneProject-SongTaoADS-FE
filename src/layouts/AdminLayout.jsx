@@ -81,28 +81,28 @@ const menuItems = [
   },
   { 
     id: 'users', 
-    text: 'Users', 
+    text: 'Người Dùng', 
     icon: <PeopleIcon />,
     color: '#9c27b0',
     description: 'Quản lý người dùng'
   },
   { 
     id: 'orders', 
-    text: 'Orders', 
+    text: 'Đơn Hàng', 
     icon: <OrdersIcon />,
     color: '#ff9800',
     description: 'Quản lý đơn hàng'
   },
   { 
     id: 'statistics', 
-    text: 'Statistics', 
+    text: 'Thống Kê', 
     icon: <StatisticsIcon />,
     color: '#4caf50',
     description: 'Thống kê báo cáo'
   },
   { 
     id: 'settings', 
-    text: 'Settings', 
+    text: 'Cài Đặt', 
     icon: <SettingsIcon />,
     color: '#607d8b',
     description: 'Cài đặt hệ thống'
@@ -212,7 +212,7 @@ const AdminLayout = () => {
               SongTao ADS
             </Typography>
             <Chip 
-              label="Admin Panel" 
+              label="Quản Trị Viên" 
               size="small" 
               sx={{ 
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -353,7 +353,7 @@ const AdminLayout = () => {
               }}
             >
               <AccountCircleIcon fontSize="small" sx={{ mr: 1 }} />
-              Profile
+              Hồ Sơ
             </MenuItem>
             <MenuItem 
               onClick={() => { handleMenuClose(); setActiveTab('settings'); }}
@@ -365,7 +365,7 @@ const AdminLayout = () => {
               }}
             >
               <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
-              Settings
+              Cài Đặt
             </MenuItem>
             <Divider sx={{ my: 1, backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <MenuItem 
@@ -379,7 +379,7 @@ const AdminLayout = () => {
               }}
             >
               <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-              Logout
+              Đăng Xuất
             </MenuItem>
           </Menu>
         </Toolbar>
@@ -418,7 +418,7 @@ const AdminLayout = () => {
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                Navigation
+                Điều Hướng
               </Typography>
               <IconButton 
                 onClick={handleDrawerToggle}
@@ -519,10 +519,10 @@ const AdminLayout = () => {
             }}>
               <CardContent sx={{ p: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  Welcome back!
+                  Chào mừng trở lại!
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.8rem' }}>
-                  {user?.fullName || user?.name || 'Admin User'}
+                  {user?.fullName || user?.name || 'Người Dùng Quản Trị'}
                 </Typography>
                 <Box sx={{
                   position: 'absolute',
@@ -555,7 +555,7 @@ const AdminLayout = () => {
                   <LogoutIcon sx={{ color: '#ef4444' }} />
                 </ListItemIcon>
                 <ListItemText 
-                  primary="Logout" 
+                  primary="Đăng Xuất" 
                   primaryTypographyProps={{ 
                     color: '#ef4444',
                     fontWeight: 600
