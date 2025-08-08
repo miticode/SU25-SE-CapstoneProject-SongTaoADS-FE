@@ -48,6 +48,8 @@ import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
@@ -854,12 +856,15 @@ const OrderHistory = () => {
     [dispatch, user?.id, pageSize]
   );
 
-  const handlePageChange = useCallback((event, newPage) => {
-    // console.log('Changing to page:', newPage);
-    setCurrentPage(newPage);
-    refreshOrders(newPage); // Gọi trực tiếp với newPage
-    scrollToTop(); // Scroll to top when changing page
-  }, [refreshOrders]);
+  const handlePageChange = useCallback(
+    (event, newPage) => {
+      // console.log('Changing to page:', newPage);
+      setCurrentPage(newPage);
+      refreshOrders(newPage); // Gọi trực tiếp với newPage
+      scrollToTop(); // Scroll to top when changing page
+    },
+    [refreshOrders]
+  );
 
   // Không cần useEffect này nữa vì đã gọi trực tiếp trong handlePageChange
   // useEffect(() => {
@@ -2049,29 +2054,32 @@ const OrderHistory = () => {
   };
 
   const handleOpenCancelDialog = (order) => {
-    // Implementation for opening cancel dialog
-    // console.log('Opening cancel dialog for order:', order.id);
+    setCancelDialog({
+      open: true,
+      orderId: order.id,
+      orderTitle: order.title || `Đơn hàng #${order.id}`,
+    });
   };
 
   // Function to scroll to top of page
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Scroll to top when component mounts
   useEffect(() => {
     scrollToTop();
-    
+
     // Add event listener for page reload/refresh
     const handleBeforeUnload = () => {
       window.scrollTo(0, 0);
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     // Cleanup event listener
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
@@ -2617,18 +2625,6 @@ const OrderHistory = () => {
     });
   };
 
-  const handleCancelOrder = async (orderId) => {
-    // Tìm thông tin order để hiển thị trong dialog
-    const order = orders.find((o) => o.id === orderId);
-
-    // Mở dialog xác nhận
-    setCancelDialog({
-      open: true,
-      orderId: orderId,
-      orderInfo: order,
-    });
-  };
-
   const handleConfirmCancelOrder = async () => {
     const { orderId } = cancelDialog;
 
@@ -3026,7 +3022,8 @@ const OrderHistory = () => {
                   transform: "translateX(-50%)",
                   width: 80,
                   height: 3,
-                  background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                  background:
+                    "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
                   borderRadius: 2,
                 },
               }}
@@ -3085,7 +3082,8 @@ const OrderHistory = () => {
                   color: "rgba(55, 65, 81, 1)",
                 },
                 "&.Mui-selected": {
-                  background: "linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%)",
+                  background:
+                    "linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%)",
                   color: "#4f46e5",
                   fontWeight: 700,
                 },
@@ -3249,46 +3247,53 @@ const OrderHistory = () => {
                             >
                               {order.orderType === "AI_DESIGN" ? (
                                 <Chip
-                                  icon={<SmartToyIcon />}
                                   label="🤖 AI Design"
                                   size="medium"
                                   sx={{
-                                    background: "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
                                     color: "white",
                                     fontWeight: 600,
                                     fontSize: "0.875rem",
                                     px: 1,
-                                    boxShadow: "0 2px 8px rgba(139, 92, 246, 0.3)",
+                                    boxShadow:
+                                      "0 2px 8px rgba(139, 92, 246, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
-                              ) : order.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
+                              ) : order.orderType ===
+                                "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
                                 <Chip
                                   icon={<BrushIcon />}
-                                  label="🏗️ Thiết kế + Thi công"
+                                  label=" Thiết kế + Thi công"
                                   size="medium"
                                   sx={{
-                                    background: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
                                     color: "white",
                                     fontWeight: 600,
                                     fontSize: "0.875rem",
                                     px: 1,
-                                    boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
+                                    boxShadow:
+                                      "0 2px 8px rgba(59, 130, 246, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
-                              ) : order.orderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
+                              ) : order.orderType ===
+                                "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
                                 <Chip
-                                  icon={<BrushIcon />}
+                                 
                                   label="🎨 Chỉ thiết kế"
                                   size="medium"
                                   sx={{
-                                    background: "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
                                     color: "white",
                                     fontWeight: 600,
                                     fontSize: "0.875rem",
                                     px: 1,
-                                    boxShadow: "0 2px 8px rgba(245, 158, 11, 0.3)",
+                                    boxShadow:
+                                      "0 2px 8px rgba(245, 158, 11, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
@@ -3298,12 +3303,14 @@ const OrderHistory = () => {
                                   label="🛍️ Đơn hàng mẫu"
                                   size="medium"
                                   sx={{
-                                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                                     color: "white",
                                     fontWeight: 600,
                                     fontSize: "0.875rem",
                                     px: 1,
-                                    boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)",
+                                    boxShadow:
+                                      "0 2px 8px rgba(16, 185, 129, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
@@ -3316,11 +3323,13 @@ const OrderHistory = () => {
                                 size="medium"
                                 sx={{
                                   background:
-                                    order.status === "COMPLETED" || order.status === "ORDER_COMPLETED"
+                                    order.status === "COMPLETED" ||
+                                    order.status === "ORDER_COMPLETED"
                                       ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
                                       : order.status === "CANCELLED"
                                       ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                                      : order.status === "IN_PROGRESS" || order.status === "PRODUCING"
+                                      : order.status === "IN_PROGRESS" ||
+                                        order.status === "PRODUCING"
                                       ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
                                       : order.status === "INSTALLED"
                                       ? "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
@@ -3551,47 +3560,72 @@ const OrderHistory = () => {
                                   border: "1px solid rgba(6, 182, 212, 0.2)",
                                 }}
                               >
-                                <Typography 
-                                  variant="h6" 
+                                <Typography
+                                  variant="h6"
                                   fontWeight={700}
-                                  sx={{ 
+                                  sx={{
                                     color: "#0891b2",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 1,
-                                    mb: 1
+                                    mb: 1,
                                   }}
                                 >
-                                  💰 Tổng tiền: {" "}
-                                  <span style={{ color: "#065f46", fontSize: "1.1em" }}>
-                                    {order.totalOrderAmount?.toLocaleString("vi-VN") ||
-                                      order.totalAmount?.toLocaleString("vi-VN") ||
-                                      "0"} VNĐ
+                                  💰 Tổng tiền:{" "}
+                                  <span
+                                    style={{
+                                      color: "#065f46",
+                                      fontSize: "1.1em",
+                                    }}
+                                  >
+                                    {order.totalOrderAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) ||
+                                      order.totalAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                      "0"}{" "}
+                                    VNĐ
                                   </span>
                                 </Typography>
-                                
+
                                 {order.status === "DEPOSITED" && (
-                                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 0.5,
+                                    }}
+                                  >
                                     <Typography
                                       color="#10b981"
                                       fontSize="0.875rem"
                                       fontWeight={600}
                                     >
-                                      ✅ Đã đặt cọc: {" "}
-                                      {order.totalOrderDepositAmount?.toLocaleString("vi-VN") ||
-                                        order.depositAmount?.toLocaleString("vi-VN") ||
-                                        "0"} VNĐ
-                                    VNĐ
-                                  </Typography>
+                                      ✅ Đã đặt cọc:{" "}
+                                      {order.totalOrderDepositAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                        order.depositAmount?.toLocaleString(
+                                          "vi-VN"
+                                        ) ||
+                                        "0"}{" "}
+                                      VNĐ VNĐ
+                                    </Typography>
                                     <Typography
                                       color="#f59e0b"
-                                      fontSize="0.875rem" 
+                                      fontSize="0.875rem"
                                       fontWeight={600}
                                     >
-                                      ⏳ Còn lại: {" "}
-                                      {order.totalOrderRemainingAmount?.toLocaleString("vi-VN") ||
-                                        order.remainingAmount?.toLocaleString("vi-VN") ||
-                                        "0"} VNĐ
+                                      ⏳ Còn lại:{" "}
+                                      {order.totalOrderRemainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                        order.remainingAmount?.toLocaleString(
+                                          "vi-VN"
+                                        ) ||
+                                        "0"}{" "}
+                                      VNĐ
                                     </Typography>
                                   </Box>
                                 )}
@@ -3615,27 +3649,38 @@ const OrderHistory = () => {
                                     ✅ Đã lắp đặt hoàn tất
                                   </Typography>
                                   <Typography
-                                    color="#10b981" 
+                                    color="#10b981"
                                     fontSize="0.875rem"
                                     fontWeight={600}
                                   >
-                                    💸 Đã đặt cọc: {" "}
-                                    {order.totalOrderDepositAmount?.toLocaleString("vi-VN") ||
-                                      order.depositAmount?.toLocaleString("vi-VN") ||
-                                      "0"} VNĐ
+                                    💸 Đã đặt cọc:{" "}
+                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) ||
+                                      order.depositAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                      "0"}{" "}
+                                    VNĐ
                                   </Typography>
-                                  
-                                  {(order.totalOrderRemainingAmount || order.remainingAmount) > 0 ? (
+
+                                  {(order.totalOrderRemainingAmount ||
+                                    order.remainingAmount) > 0 ? (
                                     <Typography
                                       color="#ef4444"
                                       fontSize="0.875rem"
                                       fontWeight={600}
                                       sx={{ mt: 1 }}
                                     >
-                                      ⚠️ Còn phải thanh toán: {" "}
-                                      {order.totalOrderRemainingAmount?.toLocaleString("vi-VN") ||
-                                        order.remainingAmount?.toLocaleString("vi-VN") ||
-                                        "0"} VNĐ
+                                      ⚠️ Còn phải thanh toán:{" "}
+                                      {order.totalOrderRemainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                        order.remainingAmount?.toLocaleString(
+                                          "vi-VN"
+                                        ) ||
+                                        "0"}{" "}
+                                      VNĐ
                                     </Typography>
                                   ) : (
                                     <Typography
@@ -3649,28 +3694,60 @@ const OrderHistory = () => {
                                   )}
                                 </Box>
                               )}
-                              {!["DEPOSITED", "INSTALLED"].includes(order.status) &&
+                              {!["DEPOSITED", "INSTALLED"].includes(
+                                order.status
+                              ) &&
                                 order.remainingAmount > 0 && (
                                   <Box
                                     sx={{
                                       p: 2,
-                                      backgroundColor: "rgba(254, 243, 199, 0.8)",
+                                      backgroundColor:
+                                        "rgba(254, 243, 199, 0.8)",
                                       borderRadius: 3,
-                                      border: "1px solid rgba(245, 158, 11, 0.2)",
+                                      border:
+                                        "1px solid rgba(245, 158, 11, 0.2)",
                                     }}
                                   >
-                                    <Typography 
-                                      color="#f59e0b" 
+                                    <Typography
+                                      color="#f59e0b"
                                       fontSize="0.875rem"
                                       fontWeight={600}
                                     >
-                                      ⏳ Số tiền còn lại: {" "}
-                                      {order.remainingAmount?.toLocaleString("vi-VN") || "0"} VNĐ
+                                      ⏳ Số tiền còn lại:{" "}
+                                      {order.remainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) || "0"}{" "}
+                                      VNĐ
                                     </Typography>
                                   </Box>
                                 )}
                               {/* Delivery Information */}
-                              {order.status === "IN_PROGRESS" && order.estimatedDeliveryDate && (
+                              {order.status === "IN_PROGRESS" &&
+                                order.estimatedDeliveryDate && (
+                                  <Box
+                                    sx={{
+                                      p: 2,
+                                      backgroundColor:
+                                        "rgba(219, 234, 254, 0.8)",
+                                      borderRadius: 3,
+                                      border:
+                                        "1px solid rgba(59, 130, 246, 0.2)",
+                                    }}
+                                  >
+                                    <Typography
+                                      color="#3b82f6"
+                                      fontSize="0.875rem"
+                                      fontWeight={600}
+                                    >
+                                      📅 Ngày giao dự kiến:{" "}
+                                      {new Date(
+                                        order.estimatedDeliveryDate
+                                      ).toLocaleDateString("vi-VN")}
+                                    </Typography>
+                                  </Box>
+                                )}
+
+                              {order.deliveryDate && (
                                 <Box
                                   sx={{
                                     p: 2,
@@ -3684,28 +3761,10 @@ const OrderHistory = () => {
                                     fontSize="0.875rem"
                                     fontWeight={600}
                                   >
-                                    📅 Ngày giao dự kiến: {" "}
-                                    {new Date(order.estimatedDeliveryDate).toLocaleDateString("vi-VN")}
-                                  </Typography>
-                                </Box>
-                              )}
-                              
-                              {order.deliveryDate && (
-                                <Box
-                                  sx={{
-                                    p: 2,
-                                    backgroundColor: "rgba(219, 234, 254, 0.8)",
-                                    borderRadius: 3,
-                                    border: "1px solid rgba(59, 130, 246, 0.2)",
-                                  }}
-                                >
-                                  <Typography 
-                                    color="#3b82f6" 
-                                    fontSize="0.875rem"
-                                    fontWeight={600}
-                                  >
-                                    🚚 Ngày giao hàng: {" "}
-                                    {new Date(order.deliveryDate).toLocaleDateString("vi-VN")}
+                                    🚚 Ngày giao hàng:{" "}
+                                    {new Date(
+                                      order.deliveryDate
+                                    ).toLocaleDateString("vi-VN")}
                                   </Typography>
                                 </Box>
                               )}
@@ -4022,7 +4081,19 @@ const OrderHistory = () => {
                                                               display: "block",
                                                             }}
                                                           >
-                                                            Giá vật liệu: {attr.materialPrice?.toLocaleString("vi-VN") || 0} VNĐ • Đơn giá: {attr.unitPrice?.toLocaleString("vi-VN") || 0} VNĐ • Thành tiền: {attr.subTotal?.toLocaleString("vi-VN") || 0} VNĐ
+                                                            Giá vật liệu:{" "}
+                                                            {attr.materialPrice?.toLocaleString(
+                                                              "vi-VN"
+                                                            ) || 0}{" "}
+                                                            VNĐ • Đơn giá:{" "}
+                                                            {attr.unitPrice?.toLocaleString(
+                                                              "vi-VN"
+                                                            ) || 0}{" "}
+                                                            VNĐ • Thành tiền:{" "}
+                                                            {attr.subTotal?.toLocaleString(
+                                                              "vi-VN"
+                                                            ) || 0}{" "}
+                                                            VNĐ
                                                           </Typography>
                                                           {attr.calculateFormula && (
                                                             <Typography
@@ -4320,13 +4391,16 @@ const OrderHistory = () => {
                                     )
                                   }
                                   sx={{
-                                    background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
                                     color: "white",
                                     fontWeight: 600,
-                                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+                                    boxShadow:
+                                      "0 4px 12px rgba(59, 130, 246, 0.3)",
                                     "&:hover": {
                                       transform: "translateY(-1px)",
-                                      boxShadow: "0 6px 16px rgba(59, 130, 246, 0.4)",
+                                      boxShadow:
+                                        "0 6px 16px rgba(59, 130, 246, 0.4)",
                                     },
                                   }}
                                 >
@@ -4347,13 +4421,16 @@ const OrderHistory = () => {
                                     ) : null
                                   }
                                   sx={{
-                                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                                     color: "white",
                                     fontWeight: 600,
-                                    boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                                    boxShadow:
+                                      "0 4px 12px rgba(16, 185, 129, 0.3)",
                                     "&:hover": {
                                       transform: "translateY(-1px)",
-                                      boxShadow: "0 6px 16px rgba(16, 185, 129, 0.4)",
+                                      boxShadow:
+                                        "0 6px 16px rgba(16, 185, 129, 0.4)",
                                     },
                                   }}
                                 >
@@ -4364,7 +4441,15 @@ const OrderHistory = () => {
                               )}
 
                               {/* Cancel Order */}
-                              {["PENDING", "APPROVED", "CONFIRMED"].includes(order.status) && (
+                              {[
+                                "PENDING_CONTRACT",
+                                "CONTRACT_SENT",
+                                "CONTRACT_SIGNED",
+                                "CONTRACT_DISCUSS",
+                                "CONTRACT_RESIGNED"
+                              ].includes(
+                                order.status
+                              ) && (
                                 <Button
                                   variant="outlined"
                                   size="medium"
@@ -4381,7 +4466,8 @@ const OrderHistory = () => {
                                     color: "#ef4444",
                                     fontWeight: 600,
                                     "&:hover": {
-                                      backgroundColor: "rgba(239, 68, 68, 0.08)",
+                                      backgroundColor:
+                                        "rgba(239, 68, 68, 0.08)",
                                       transform: "translateY(-1px)",
                                     },
                                   }}
@@ -4393,19 +4479,25 @@ const OrderHistory = () => {
                               )}
 
                               {/* Review Action */}
-                              {(order.status === "ORDER_COMPLETED" || order.status === "INSTALLED") && (
+                              {(order.status === "ORDER_COMPLETED" ||
+                                order.status === "INSTALLED") && (
                                 <Button
                                   variant="contained"
                                   size="medium"
-                                  onClick={() => handleOpenImpressionDialog(order.id)}
+                                  onClick={() =>
+                                    handleOpenImpressionDialog(order.id)
+                                  }
                                   sx={{
-                                    background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+                                    background:
+                                      "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
                                     color: "white",
                                     fontWeight: 600,
-                                    boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)",
+                                    boxShadow:
+                                      "0 4px 12px rgba(139, 92, 246, 0.3)",
                                     "&:hover": {
                                       transform: "translateY(-1px)",
-                                      boxShadow: "0 6px 16px rgba(139, 92, 246, 0.4)",
+                                      boxShadow:
+                                        "0 6px 16px rgba(139, 92, 246, 0.4)",
                                     },
                                   }}
                                   startIcon={<StarIcon />}
@@ -4413,10 +4505,35 @@ const OrderHistory = () => {
                                   ⭐ Đánh giá
                                 </Button>
                               )}
+
+                              {/* Support Request Button */}
+                              {!["CANCELLED"].includes(order.status) && (
+                                <Button
+                                  variant="outlined"
+                                  size="medium"
+                                  color="info"
+                                  onClick={() =>
+                                    handleOpenTicketDialog(order.id)
+                                  }
+                                  sx={{
+                                    borderColor: "#3b82f6",
+                                    color: "#3b82f6",
+                                    fontWeight: 600,
+                                    "&:hover": {
+                                      backgroundColor:
+                                        "rgba(59, 130, 246, 0.08)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                  }}
+                                  startIcon={<SupportAgentIcon />}
+                                >
+                                  Gửi yêu cầu hỗ trợ
+                                </Button>
+                              )}
                             </Box>
                           </Box>
                         </Box>
-                        
+
                         {order.status === "ORDER_COMPLETED" && (
                           <>
                             <Divider sx={{ my: 2 }} />
@@ -4733,7 +4850,7 @@ const OrderHistory = () => {
                     </Card>
                   );
                 })}
-                
+
                 {/* Pagination */}
                 {pagination && pagination.totalPages > 1 && (
                   <Box display="flex" justifyContent="center" mt={4}>
@@ -4746,21 +4863,22 @@ const OrderHistory = () => {
                       showFirstButton
                       showLastButton
                       sx={{
-                        '& .MuiPaginationItem-root': {
+                        "& .MuiPaginationItem-root": {
                           borderRadius: 3,
                           fontWeight: 600,
-                          color: 'rgba(55, 65, 81, 0.7)',
-                          border: '1px solid rgba(209, 213, 219, 0.4)',
-                          '&.Mui-selected': {
-                            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                            color: 'white',
-                            border: '1px solid transparent',
-                            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+                          color: "rgba(55, 65, 81, 0.7)",
+                          border: "1px solid rgba(209, 213, 219, 0.4)",
+                          "&.Mui-selected": {
+                            background:
+                              "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                            color: "white",
+                            border: "1px solid transparent",
+                            boxShadow: "0 4px 12px rgba(79, 70, 229, 0.25)",
                           },
-                          '&:hover:not(.Mui-selected)': {
-                            backgroundColor: 'rgba(79, 70, 229, 0.08)',
-                            border: '1px solid rgba(79, 70, 229, 0.2)',
-                            color: 'rgba(55, 65, 81, 1)',
+                          "&:hover:not(.Mui-selected)": {
+                            backgroundColor: "rgba(79, 70, 229, 0.08)",
+                            border: "1px solid rgba(79, 70, 229, 0.2)",
+                            color: "rgba(55, 65, 81, 1)",
                           },
                         },
                       }}
