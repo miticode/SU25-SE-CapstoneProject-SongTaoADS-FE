@@ -41,14 +41,11 @@ const CountdownTimer = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle resend
+  // Handle resend - chỉ gọi callback, không tự xử lý
   const handleResend = async () => {
-    if (onResend) {
+    if (onResend && !isResendLoading) {
       await onResend();
-      // Reset countdown after successful resend
-      setCountdown(initialSeconds);
-      setIsCountdownActive(true);
-      setShowResend(false);
+      // Không reset countdown ở đây nữa vì sẽ được xử lý bởi component cha
     }
   };
 
