@@ -192,10 +192,16 @@ const BillboardInfoForm = ({
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-blue-700">
+              <p className="text-sm text-blue-700 font-medium">
+                🎯 {isFromAIDesignOrder 
+                  ? "Đang tạo thêm thiết kế AI cho đơn hàng hiện có"
+                  : "Đang tạo thêm thiết kế tùy chỉnh cho đơn hàng hiện có"
+                }
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
                 {isFromAIDesignOrder 
-                  ? "Đang tạo thêm chi tiết cho đơn hàng thiết kế AI. Chỉ có thể tạo thêm thiết kế AI."
-                  : "Đang tạo thêm chi tiết cho đơn hàng thiết kế thủ công. Chỉ có thể tạo thêm thiết kế thủ công."
+                  ? "Chỉ có thể thêm thiết kế AI vào đơn hàng này"
+                  : "Chỉ có thể thêm thiết kế tùy chỉnh vào đơn hàng này"
                 }
               </p>
             </div>
