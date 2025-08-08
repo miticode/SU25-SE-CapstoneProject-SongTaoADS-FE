@@ -268,17 +268,24 @@ export const createAiOrderApi = async (
   }
 };
 // Hàm lấy danh sách đơn hàng
-export const getOrdersApi = async (orderStatus, page = 1, size = 10, orderType = null) => {
+export const getOrdersApi = async (orderStatus = null, page = 1, size = 10, orderType = null) => {
   try {
+    console.log("Gọi API lấy danh sách đơn hàng với params:", {
+      orderStatus,
+      page,
+      size,
+      orderType
+    });
+
     const params = { page, size };
 
-    // Only add orderStatus parameter if it's not empty string (for "Tất cả" option)
-    if (orderStatus && orderStatus !== "") {
+    // Thêm orderStatus vào query params nếu có và không phải empty string
+    if (orderStatus && orderStatus !== "" && orderStatus !== "ALL") {
       params.orderStatus = orderStatus;
     }
 
     // Thêm orderType vào query params nếu có
-    if (orderType) {
+    if (orderType && orderType !== "" && orderType !== "ALL") {
       params.orderType = orderType;
     }
 
@@ -292,26 +299,61 @@ export const getOrdersApi = async (orderStatus, page = 1, size = 10, orderType =
       totalPages,
       pageSize,
       totalElements,
+      timestamp
     } = response.data;
 
     if (success) {
+      console.log("Kết quả trả về từ API lấy danh sách đơn hàng:", {
+        success,
+        totalOrders: result?.length,
+        currentPage,
+        totalPages,
+        timestamp
+      });
+
       return {
         success: true,
-        data: result,
+        data: result || [],
         pagination: {
-          currentPage,
-          totalPages,
-          pageSize,
-          totalElements,
+          currentPage: currentPage || page,
+          totalPages: totalPages || 1,
+          pageSize: pageSize || size,
+          totalElements: totalElements || 0,
         },
+        timestamp,
+        message
       };
     }
 
     return { success: false, error: message || "Invalid response format" };
   } catch (error) {
+    console.error("Error fetching orders:", error.response?.data || error);
+    
+    // Xử lý lỗi cụ thể
+    if (error.code === "ERR_NETWORK") {
+      return {
+        success: false,
+        error: "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.",
+      };
+    }
+
+    if (error.response?.status === 401) {
+      return {
+        success: false,
+        error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    if (error.response?.status === 403) {
+      return {
+        success: false,
+        error: "Không có quyền truy cập danh sách đơn hàng.",
+      };
+    }
+
     return {
       success: false,
-      error: error.response?.data?.message || "Failed to fetch orders",
+      error: error.response?.data?.message || "Không thể tải danh sách đơn hàng. Vui lòng thử lại.",
     };
   }
 };

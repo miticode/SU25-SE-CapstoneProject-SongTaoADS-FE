@@ -75,13 +75,13 @@ const drawerWidth = 240;
 const SaleDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { orders } = useSelector((state) => state.order);
+  const { orders, pagination } = useSelector((state) => state.order);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [openDialog, setOpenDialog] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("PENDING_CONTRACT");
+  const [statusFilter, setStatusFilter] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
@@ -114,9 +114,14 @@ const SaleDashboard = () => {
   };
 
   useEffect(() => {
-    // Lấy đơn hàng với trạng thái mặc định "PENDING_CONTRACT" khi load trang
-    dispatch(fetchOrders("PENDING_CONTRACT"));
-  }, [dispatch]);
+    // Lấy đơn hàng AI với trạng thái mặc định "PENDING_CONTRACT" khi load trang
+    dispatch(fetchOrders({
+      orderStatus: "PENDING_CONTRACT",
+      orderType: "AI_DESIGN",
+      page: 1,
+      size: pagination.pageSize || 10
+    }));
+  }, [dispatch, pagination.pageSize]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
   const handleViewDetail = (orderId) => {
@@ -133,11 +138,20 @@ const SaleDashboard = () => {
     try {
       const res = await updateOrderStatusApi(orderId, { status: newStatus });
       if (res.success) {
-        // Refresh orders list with current filter
+        // Refresh orders list with current filter for AI orders only
         if (statusFilter) {
-          dispatch(fetchOrders(statusFilter));
+          dispatch(fetchOrders({
+            orderStatus: statusFilter,
+            orderType: "AI_DESIGN",
+            page: 1,
+            size: 10
+          }));
         } else {
-          dispatch(fetchOrders());
+          dispatch(fetchOrders({
+            orderType: "AI_DESIGN",
+            page: 1,
+            size: 10
+          }));
         }
         // Close dialog
         handleCloseDialog();
@@ -197,18 +211,72 @@ const SaleDashboard = () => {
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
     if (status) {
-      dispatch(fetchOrders(status));
+      dispatch(fetchOrders({
+        orderStatus: status,
+        orderType: "AI_DESIGN",
+        page: 1,
+        size: pagination.pageSize || 10
+      }));
     } else {
-      dispatch(fetchOrders());
+      dispatch(fetchOrders({
+        orderType: "AI_DESIGN",
+        page: 1,
+        size: pagination.pageSize || 10
+      }));
     }
   };
 
   // Hàm refresh danh sách orders
   const handleRefreshOrders = () => {
     if (statusFilter) {
-      dispatch(fetchOrders(statusFilter));
+      dispatch(fetchOrders({
+        orderStatus: statusFilter,
+        orderType: "AI_DESIGN",
+        page: pagination.currentPage || 1,
+        size: pagination.pageSize || 10
+      }));
     } else {
-      dispatch(fetchOrders());
+      dispatch(fetchOrders({
+        orderType: "AI_DESIGN",
+        page: pagination.currentPage || 1,
+        size: pagination.pageSize || 10
+      }));
+    }
+  };
+
+  // Callback khi thay đổi trang
+  const handlePageChange = (newPage) => {
+    if (statusFilter) {
+      dispatch(fetchOrders({
+        orderStatus: statusFilter,
+        orderType: "AI_DESIGN", 
+        page: newPage,
+        size: pagination.pageSize || 10
+      }));
+    } else {
+      dispatch(fetchOrders({
+        orderType: "AI_DESIGN",
+        page: newPage,
+        size: pagination.pageSize || 10
+      }));
+    }
+  };
+
+  // Callback khi thay đổi số dòng mỗi trang
+  const handleRowsPerPageChange = (newSize) => {
+    if (statusFilter) {
+      dispatch(fetchOrders({
+        orderStatus: statusFilter,
+        orderType: "AI_DESIGN",
+        page: 1, // Reset về trang đầu khi thay đổi page size
+        size: newSize
+      }));
+    } else {
+      dispatch(fetchOrders({
+        orderType: "AI_DESIGN",
+        page: 1,
+        size: newSize
+      }));
     }
   };
 
@@ -236,6 +304,9 @@ const SaleDashboard = () => {
             statusFilter={statusFilter}
             onStatusFilterChange={handleStatusFilterChange}
             onRefreshOrders={handleRefreshOrders}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            onRowsPerPageChange={handleRowsPerPageChange}
           />
         );
     }
@@ -285,7 +356,7 @@ const SaleDashboard = () => {
             mb: 2,
           }}
         >
-          Sale Panel
+          AI Design Panel
         </Typography>
         <List>
           {menuItems.map((item) => (
@@ -374,11 +445,20 @@ const SaleDashboard = () => {
     try {
       const res = await updateOrderStatusApi(orderId, "CANCELLED");
       if (res.success) {
-        // Refresh orders list with current filter
+        // Refresh AI orders list with current filter
         if (statusFilter) {
-          dispatch(fetchOrders(statusFilter));
+          dispatch(fetchOrders({
+            orderStatus: statusFilter,
+            orderType: "AI_DESIGN",
+            page: 1,
+            size: 10
+          }));
         } else {
-          dispatch(fetchOrders());
+          dispatch(fetchOrders({
+            orderType: "AI_DESIGN",
+            page: 1,
+            size: 10
+          }));
         }
         handleCloseDialog();
       } else {
@@ -395,11 +475,20 @@ const SaleDashboard = () => {
     try {
       const res = await saleConfirmOrderApi(selectedOrder.id, { deliveryDate });
       if (res.success) {
-        // Refresh orders list with current filter
+        // Refresh AI orders list with current filter
         if (statusFilter) {
-          dispatch(fetchOrders(statusFilter));
+          dispatch(fetchOrders({
+            orderStatus: statusFilter,
+            orderType: "AI_DESIGN",
+            page: 1,
+            size: 10
+          }));
         } else {
-          dispatch(fetchOrders());
+          dispatch(fetchOrders({
+            orderType: "AI_DESIGN",
+            page: 1,
+            size: 10
+          }));
         }
         setShowDeliveryPicker(false);
         setOpenDialog(false);
@@ -481,7 +570,7 @@ const SaleDashboard = () => {
               SongTao ADS
             </Typography>
             <Chip
-              label="Sale Panel"
+              label="AI Design Panel"
               size="small"
               sx={{
                 backgroundColor: "rgba(255, 255, 255, 0.2)",
