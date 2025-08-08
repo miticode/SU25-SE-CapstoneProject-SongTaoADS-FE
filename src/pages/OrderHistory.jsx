@@ -1813,6 +1813,7 @@ const OrderHistory = () => {
   const [latestDemo, setLatestDemo] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [feedbackImage, setFeedbackImage] = useState(null);
   const [demoActionLoading, setDemoActionLoading] = useState(false);
   const [payingRemaining, setPayingRemaining] = useState(false);
 
@@ -2693,10 +2694,19 @@ const OrderHistory = () => {
     if (!latestDemo) return;
     setDemoActionLoading(true);
     try {
+      const data = {
+        customerNote: rejectReason || "Khách hàng từ chối demo"
+      };
+      
+      // Thêm feedbackImage nếu có
+      if (feedbackImage) {
+        data.feedbackImage = feedbackImage;
+      }
+      
       await dispatch(
         rejectDemoDesign({
           customDesignId: latestDemo.id,
-          data: { customerNote: rejectReason || "Khách hàng từ chối demo" },
+          data: data,
         })
       ).unwrap();
       setNotification({
@@ -2705,6 +2715,8 @@ const OrderHistory = () => {
         severity: "success",
       });
       setRejectDialogOpen(false);
+      setRejectReason("");
+      setFeedbackImage(null);
       setOpenDetail(false);
     } catch (err) {
       setNotification({
@@ -2714,6 +2726,39 @@ const OrderHistory = () => {
       });
     }
     setDemoActionLoading(false);
+  };
+
+  // Xử lý thay đổi feedbackImage
+  const handleFeedbackImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Kiểm tra loại file
+      if (!file.type.startsWith('image/')) {
+        setNotification({
+          open: true,
+          message: "Vui lòng chọn file hình ảnh",
+          severity: "error",
+        });
+        return;
+      }
+      
+      // Kiểm tra kích thước file (giới hạn 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setNotification({
+          open: true,
+          message: "Kích thước file không được vượt quá 10MB",
+          severity: "error",
+        });
+        return;
+      }
+      
+      setFeedbackImage(file);
+    }
+  };
+
+  // Xử lý xóa feedbackImage
+  const handleRemoveFeedbackImage = () => {
+    setFeedbackImage(null);
   };
 
   // Xóa hàm handlePayCustomDesignRemaining - chuyển sang tab Lịch sử đơn hàng
@@ -3329,9 +3374,9 @@ const OrderHistory = () => {
 
                               <Typography color="text.secondary" fontSize={14}>
                                 Ngày đặt:{" "}
-                                {new Date(order.orderDate).toLocaleDateString(
+                                {order.orderDate ? new Date(order.orderDate).toLocaleDateString(
                                   "vi-VN"
-                                )}
+                                ) : "N/A"}
                               </Typography>
 
                               {/* Hiển thị địa chỉ nếu có */}
@@ -3546,17 +3591,17 @@ const OrderHistory = () => {
                                     fontWeight={500}
                                   >
                                     📅 Ngày giao dự kiến:{" "}
-                                    {new Date(
+                                    {order.estimatedDeliveryDate ? new Date(
                                       order.estimatedDeliveryDate
-                                    ).toLocaleDateString("vi-VN")}
+                                    ).toLocaleDateString("vi-VN") : "N/A"}
                                   </Typography>
                                 )}
                               {order.deliveryDate && (
                                 <Typography color="primary.main" fontSize={14}>
                                   Ngày giao dự kiến:{" "}
-                                  {new Date(
+                                  {order.deliveryDate ? new Date(
                                     order.deliveryDate
-                                  ).toLocaleDateString("vi-VN")}
+                                  ).toLocaleDateString("vi-VN") : "N/A"}
                                 </Typography>
                               )}
 
@@ -4372,9 +4417,9 @@ const OrderHistory = () => {
                                         color="text.secondary"
                                       >
                                         Gửi lúc:{" "}
-                                        {new Date(
+                                        {impression.sendAt ? new Date(
                                           impression.sendAt
-                                        ).toLocaleString("vi-VN")}
+                                        ).toLocaleString("vi-VN") : "N/A"}
                                       </Typography>
                                       <Chip
                                         label={
@@ -4424,9 +4469,9 @@ const OrderHistory = () => {
                                             sx={{ display: "block", mt: 1 }}
                                           >
                                             Phản hồi lúc:{" "}
-                                            {new Date(
+                                            {impression.responseAt ? new Date(
                                               impression.responseAt
-                                            ).toLocaleString("vi-VN")}
+                                            ).toLocaleString("vi-VN") : "N/A"}
                                           </Typography>
                                         )}
                                       </Box>
@@ -4744,9 +4789,9 @@ const OrderHistory = () => {
                             <Typography variant="body2" color="text.secondary">
                               📅 Ngày tạo:{" "}
                               <strong>
-                                {new Date(req.createAt).toLocaleDateString(
+                                {req.createdAt ? new Date(req.createdAt).toLocaleDateString(
                                   "vi-VN"
-                                )}
+                                ) : "N/A"}
                               </strong>
                             </Typography>
                           </Stack>
@@ -5419,9 +5464,9 @@ const OrderHistory = () => {
                             letterSpacing="-0.01em"
                           >
                             Demo #{idx + 1} -{" "}
-                            {new Date(demo.createAt).toLocaleDateString(
+                            {demo.createdAt ? new Date(demo.createdAt).toLocaleDateString(
                               "vi-VN"
-                            )}
+                            ) : "N/A"}
                           </Typography>
 
                           {/* Main Demo Image */}
@@ -5656,7 +5701,9 @@ const OrderHistory = () => {
                           {idx === demoList.length - 1 &&
                             (currentDesignRequest.status === "DEMO_SUBMITTED" ||
                               currentDesignRequest.status ===
-                                "REVISION_REQUESTED") && (
+                                "REVISION_REQUESTED") &&
+                            demo.status !== "APPROVED" &&
+                            demo.status !== "REJECTED" && (
                               <Box
                                 mt={3}
                                 p={3}
@@ -6606,9 +6653,9 @@ const OrderHistory = () => {
                                   >
                                     Ngày báo giá:{" "}
                                     <strong>
-                                      {new Date(
-                                        proposal.createAt
-                                      ).toLocaleDateString("vi-VN")}
+                                      {proposal.createdAt ? new Date(
+                                        proposal.createdAt
+                                      ).toLocaleDateString("vi-VN") : "N/A"}
                                     </strong>
                                   </Typography>
                                 </Stack>
@@ -6794,7 +6841,7 @@ const OrderHistory = () => {
                 <Dialog
                   open={rejectDialogOpen}
                   onClose={() => setRejectDialogOpen(false)}
-                  PaperProps={{ sx: { borderRadius: 3, minWidth: 350, p: 0 } }}
+                  PaperProps={{ sx: { borderRadius: 3, minWidth: 400, p: 0 } }}
                 >
                   <DialogTitle
                     sx={{
@@ -6815,14 +6862,82 @@ const OrderHistory = () => {
                       minRows={4}
                       autoFocus
                       variant="outlined"
+                      placeholder="Nhập lý do từ chối demo..."
                       sx={{ borderRadius: 2, mb: 2 }}
                     />
+                    
+                    {/* Upload feedbackImage */}
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                        Hình ảnh feedback (tùy chọn)
+                      </Typography>
+                      <input
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="feedback-image-upload"
+                        type="file"
+                        onChange={handleFeedbackImageChange}
+                      />
+                      <label htmlFor="feedback-image-upload">
+                        <Button
+                          variant="outlined"
+                          component="span"
+                          startIcon={<CameraAltIcon />}
+                          fullWidth
+                          sx={{ mb: 1 }}
+                        >
+                          Chọn hình ảnh feedback
+                        </Button>
+                      </label>
+                      
+                      {feedbackImage && (
+                        <Box sx={{ mt: 1 }}>
+                          <Paper
+                            sx={{
+                              p: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              bgcolor: 'grey.50',
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                              <img
+                                src={URL.createObjectURL(feedbackImage)}
+                                alt="Preview"
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  objectFit: 'cover',
+                                  borderRadius: 4,
+                                  marginRight: 8,
+                                }}
+                              />
+                              <Typography variant="body2" sx={{ flex: 1 }}>
+                                {feedbackImage.name}
+                              </Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={handleRemoveFeedbackImage}
+                              color="error"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Paper>
+                        </Box>
+                      )}
+                    </Box>
                   </DialogContent>
                   <DialogActions
                     sx={{ justifyContent: "center", pb: 2, pt: 0 }}
                   >
                     <Button
-                      onClick={() => setRejectDialogOpen(false)}
+                      onClick={() => {
+                        setRejectDialogOpen(false);
+                        setRejectReason("");
+                        setFeedbackImage(null);
+                      }}
                       disabled={demoActionLoading}
                       variant="text"
                       color="inherit"
@@ -7135,9 +7250,9 @@ const OrderHistory = () => {
                           ✍️ Ngày ký
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
-                          {new Date(
+                          {contractDialog.contract.signedDate ? new Date(
                             contractDialog.contract.signedDate
-                          ).toLocaleString("vi-VN")}
+                          ).toLocaleString("vi-VN") : "N/A"}
                         </Typography>
                       </Box>
                     )}
@@ -8242,9 +8357,9 @@ const OrderHistory = () => {
 
                 <Typography variant="body2" color="text.secondary">
                   <strong>Ngày tạo:</strong>{" "}
-                  {new Date(
+                  {cancelDialog.orderInfo.createdAt ? new Date(
                     cancelDialog.orderInfo.createdAt
-                  ).toLocaleDateString("vi-VN")}
+                  ).toLocaleDateString("vi-VN") : "N/A"}
                 </Typography>
               </Box>
             )}
