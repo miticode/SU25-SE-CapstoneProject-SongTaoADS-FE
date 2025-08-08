@@ -8,7 +8,8 @@ import {
   selectAuthUser,
   resetOutboundAuthStatus
 } from '../store/features/auth/authSlice';
-import { Box, CircularProgress, Typography, Alert } from '@mui/material';
+import { Box, CircularProgress, Typography, Alert, Button } from '@mui/material';
+import { FaCheckCircle, FaExclamationCircle, FaGoogle } from 'react-icons/fa';
 
 const Authenticate = () => {
   const dispatch = useDispatch();
@@ -83,83 +84,74 @@ const Authenticate = () => {
   // Handle authentication error
   if (outboundAuthStatus === 'failed') {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '30px',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          px: 2
-        }}
-      >
-        <Alert severity="error" sx={{ maxWidth: 400 }}>
-          <Typography variant="h6" gutterBottom>
-            Xác thực thất bại
-          </Typography>
-          <Typography variant="body2">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-100 to-white px-4">
+        <div className="bg-white/90 rounded-2xl shadow-xl p-8 max-w-md w-full flex flex-col items-center animate-fade-in">
+          <FaExclamationCircle className="text-red-500 text-5xl mb-4 animate-bounce" />
+          <Typography variant="h5" className="font-bold text-red-600 mb-2 text-center">Xác thực thất bại</Typography>
+          <Typography variant="body2" className="text-gray-700 text-center mb-4">
             {outboundAuthError || 'Có lỗi xảy ra trong quá trình xác thực'}
           </Typography>
-        </Alert>
-        <Typography 
-          variant="body2" 
-          color="text.secondary"
-          sx={{ cursor: 'pointer' }}
-          onClick={() => navigate('/auth/login')}
-        >
-          Quay lại trang đăng nhập
-        </Typography>
-      </Box>
+          <Button
+            variant="contained"
+            color="error"
+            className="w-full py-3 rounded-xl font-bold text-lg shadow-md hover:scale-105 transition mb-2"
+            onClick={() => navigate('/auth/login')}
+            sx={{
+              background: 'linear-gradient(90deg,#ef4444,#f59e42)',
+              color: '#fff',
+              borderRadius: 3,
+              fontWeight: 700,
+              fontSize: 16,
+              boxShadow: '0 8px 25px rgba(239,68,68,0.15)',
+              textTransform: 'none',
+            }}
+          >
+            Quay lại trang đăng nhập
+          </Button>
+        </div>
+      </div>
     );
   }
 
   // Handle successful authentication
   if (isLoggedin && user) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '30px',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        <Typography variant="h5" color="success.main">
-          ✅ Đăng nhập thành công!
-        </Typography>
-        <Typography variant="body1">
-          Chào mừng, {user.fullName || user.email}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Đang chuyển hướng...
-        </Typography>
-      </Box>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-100 to-white px-4">
+        <div className="bg-white/90 rounded-2xl shadow-xl p-8 max-w-md w-full flex flex-col items-center animate-fade-in">
+          <FaCheckCircle className="text-green-500 text-5xl mb-4 animate-bounce" />
+          <Typography variant="h5" className="font-bold text-green-700 mb-2 text-center">Đăng nhập thành công!</Typography>
+          <Typography variant="body1" className="text-gray-800 text-center mb-2">
+            Chào mừng, <span className="font-bold">{user.fullName || user.email}</span>
+          </Typography>
+          <Typography variant="body2" className="text-gray-500 text-center">
+            Đang chuyển hướng về trang chủ...
+          </Typography>
+        </div>
+      </div>
     );
   }
 
   // Default loading state
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '30px',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-      }}
-    >
-      <CircularProgress size={60} />
-      <Typography variant="h6">
-        Authenticating...
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Đang xử lý xác thực Google...
-      </Typography>
-    </Box>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-100 to-white px-4">
+      <div className="bg-white/90 rounded-2xl shadow-xl p-8 max-w-md w-full flex flex-col items-center animate-fade-in">
+        <div className="mb-4 flex flex-col items-center">
+          <span className="relative flex h-16 w-16 mb-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60"></span>
+            <span className="relative inline-flex rounded-full h-16 w-16 bg-gradient-to-br from-blue-400 to-green-400 items-center justify-center">
+              <FaGoogle className="text-white text-3xl" />
+            </span>
+          </span>
+          <CircularProgress size={48} sx={{ color: '#2563eb', marginTop: '-2.5rem', zIndex: 1, background: 'white', borderRadius: '50%' }} />
+        </div>
+        <Typography variant="h6" className="font-bold text-blue-700 mb-2 text-center">
+          Đang xác thực Google...
+        </Typography>
+        <Typography variant="body2" className="text-gray-500 text-center">
+          Vui lòng chờ trong giây lát, hệ thống đang xử lý đăng nhập Google của bạn.
+        </Typography>
+      </div>
+    </div>
   );
 };
 
