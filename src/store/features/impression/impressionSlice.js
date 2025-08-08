@@ -197,14 +197,8 @@ const impressionSlice = createSlice({
         state.fetchingAllImpressions = false;
         const { impressions, pagination } = action.payload;
 
-        // Nếu là trang đầu tiên, thay thế toàn bộ danh sách
-        if (pagination.currentPage === 1) {
-          state.allImpressions = impressions;
-        } else {
-          // Nếu là trang tiếp theo, thêm vào danh sách hiện tại (load more)
-          state.allImpressions = [...state.allImpressions, ...impressions];
-        }
-
+        // Luôn thay thế dữ liệu cho pagination mode
+        state.allImpressions = impressions;
         state.pagination = pagination;
       })
       .addCase(fetchAllImpressions.rejected, (state, action) => {

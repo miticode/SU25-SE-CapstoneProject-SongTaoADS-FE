@@ -44,9 +44,11 @@ import {
   selectRespondingToImpression, // Đổi từ selectRespondingToFeedback
   selectRespondToImpressionError, // Đổi từ selectRespondToFeedbackError
   clearError,
-  resetPagination,
   IMPRESSION_STATUS_MAP,
 } from '../../store/features/impression/impressionSlice';
+import {
+  fetchOrderById
+} from '../../store/features/order/orderSlice';
 import S3Avatar from '../../components/S3Avatar';
 import { getImageFromS3 } from '../../api/s3Service';
 
@@ -164,6 +166,45 @@ const FeedbackImage = ({ s3Key, alt = "Feedback Image", style = {}, onClick }) =
   );
 };
 
+// Component để hiển thị orderCode từ orderId
+const OrderCodeDisplay = ({ orderId }) => {
+  const dispatch = useDispatch();
+  const [orderCode, setOrderCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (orderId) {
+      setIsLoading(true);
+      dispatch(fetchOrderById(orderId))
+        .unwrap()
+        .then((order) => {
+          setOrderCode(order.orderCode || orderId);
+        })
+        .catch((error) => {
+          console.error('Error fetching order:', error);
+          setOrderCode(orderId); // Fallback to orderId
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [orderId, dispatch]);
+
+  if (isLoading) {
+    return (
+      <Typography variant="caption" color="text.secondary">
+        Đang tải mã đơn...
+      </Typography>
+    );
+  }
+
+  return (
+    <Typography variant="caption" color="text.secondary">
+      Mã đơn: {orderCode}
+    </Typography>
+  );
+};
+
 // Component FeedbackList
 const FeedbackList = ({ feedbacks, onView, onRefresh }) => {
   return (
@@ -200,9 +241,7 @@ const FeedbackList = ({ feedbacks, onView, onRefresh }) => {
                       <Typography variant="body2" color="text.secondary">
                         {feedback.sendBy?.email}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Mã đơn: {feedback.orderId}
-                      </Typography>
+                      <OrderCodeDisplay orderId={feedback.orderId} />
                     </Box>
                   </Box>
                   
@@ -402,9 +441,7 @@ const FeedbackDetailDialog = ({ open, feedback, onClose, onRespond }) => {
                   <Typography variant="body2" color="text.secondary">
                     {feedback.sendBy?.email}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Mã đơn: {feedback.orderId}
-                  </Typography>
+                  <OrderCodeDisplay orderId={feedback.orderId} />
                 </Box>
               </Box>
             </Box>
@@ -533,7 +570,7 @@ const FeedBack = () => {
   
   // Redux state
   const allFeedbacks = useSelector(selectAllImpressions); // Đổi selector
-  const pagination = useSelector(selectImpressionPagination); // Đổi selector
+  const pagination = useSelector(selectImpressionPagination); // Selector for pagination info
   const loading = useSelector(selectFetchingAllImpressions); // Đổi selector
   const error = useSelector(selectFetchAllImpressionsError);
   
@@ -541,25 +578,23 @@ const FeedBack = () => {
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Load feedbacks khi component mount hoặc khi filter thay đổi
-   useEffect(() => {
-    dispatch(fetchAllImpressions({ page: currentPage, size: pageSize })); // Đổi action
-  }, [dispatch, currentPage, pageSize]);
+  // Load feedbacks khi component mount hoặc khi page thay đổi
+  useEffect(() => {
+    // Nếu có search hoặc filter, fetch tất cả data để có thể filter client-side
+    if (searchTerm || statusFilter) {
+      dispatch(fetchAllImpressions()); // Fetch all data for filtering
+    } else {
+      dispatch(fetchAllImpressions({ page: currentPage, size: 10 })); // Fetch với pagination
+    }
+  }, [dispatch, currentPage, searchTerm, statusFilter]);
 
 
   // Handle page change
   const handlePageChange = (event, page) => {
     setCurrentPage(page);
-  };
-
-  // Handle page size change
-  const handlePageSizeChange = (event) => {
-    setPageSize(event.target.value);
-    setCurrentPage(1); // Reset về trang đầu
   };
 
   // Handle status filter change
@@ -575,9 +610,13 @@ const FeedBack = () => {
   // Refresh data
   const handleRefresh = () => {
     dispatch(clearError());
-    dispatch(resetPagination());
     setCurrentPage(1);
-    dispatch(fetchAllImpressions({ page: 1, size: pageSize })); // Đổi action
+    // Refresh theo điều kiện hiện tại
+    if (searchTerm || statusFilter) {
+      dispatch(fetchAllImpressions()); // Fetch all data for filtering
+    } else {
+      dispatch(fetchAllImpressions({ page: 1, size: 10 })); // Fetch với pagination
+    }
   };
   const handleViewFeedback = (feedback) => {
     setSelectedFeedback(feedback);
@@ -596,18 +635,49 @@ const FeedBack = () => {
     handleRefresh();
   };
 
-  // Filter feedbacks based on search term and status
-  const filteredFeedbacks = allFeedbacks.filter(feedback => {
+  // For server-side pagination, use all feedbacks directly without client filtering
+  const displayFeedbacks = allFeedbacks;
+
+  // Client-side pagination logic - use server pagination info
+  const itemsPerPage = pagination?.pageSize || 10;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  // Logic phân biệt server-side và client-side pagination:
+  // - Khi KHÔNG có search/filter: Sử dụng server-side pagination (hiệu quả hơn)
+  // - Khi CÓ search/filter: Sử dụng client-side pagination (vì API chưa hỗ trợ search/filter)
+  const shouldUseClientFiltering = searchTerm || statusFilter;
+  
+  const filteredFeedbacks = shouldUseClientFiltering ? displayFeedbacks.filter(feedback => {
     const matchesSearch = !searchTerm || 
       feedback.comment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       feedback.sendBy?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       feedback.sendBy?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.orderId?.toLowerCase().includes(searchTerm.toLowerCase());
+      feedback.orderCode?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = !statusFilter || feedback.status === statusFilter;
     
     return matchesSearch && matchesStatus;
-  });
+  }) : displayFeedbacks;
+
+  // Use server pagination when no client filtering, otherwise use client pagination
+  const finalFeedbacks = shouldUseClientFiltering ? 
+    filteredFeedbacks.slice(startIndex, endIndex) : // Client-side pagination
+    displayFeedbacks; // Server-side pagination (data đã được paginated từ server)
+
+  // Use server pagination when no client filtering, otherwise use client pagination
+  const displayTotalPages = shouldUseClientFiltering ? 
+    Math.ceil(filteredFeedbacks.length / itemsPerPage) : 
+    (pagination?.totalPages || 1);
+  const displayCurrentPage = shouldUseClientFiltering ? currentPage : (pagination?.currentPage || currentPage);
+  const displayTotalElements = shouldUseClientFiltering ? 
+    filteredFeedbacks.length : 
+    (pagination?.totalElements || displayFeedbacks.length);
+
+  // Reset current page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -632,16 +702,22 @@ const FeedBack = () => {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Chip 
-              label={`Tổng: ${pagination.totalElements || 0}`} 
+              label={`Tổng: ${displayTotalElements}`} 
               color="primary" 
               variant="outlined"
             />
             <Chip 
-              label={`Trang ${pagination.currentPage || 1}/${pagination.totalPages || 1}`} 
+              label={`Trang ${displayCurrentPage}/${displayTotalPages}`} 
               color="info" 
               variant="outlined"
+            />
+            <Chip 
+              label={`Hiển thị ${startIndex + 1}-${Math.min(endIndex, displayTotalElements)} của ${displayTotalElements}`} 
+              color="secondary" 
+              variant="outlined"
+              size="small"
             />
           </Box>
         </Stack>
@@ -684,21 +760,6 @@ const FeedBack = () => {
               ))}
             </Select>
           </FormControl>
-          
-          {/* Page Size */}
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel>Số lượng</InputLabel>
-            <Select
-              value={pageSize}
-              onChange={handlePageSizeChange}
-              label="Số lượng"
-            >
-              <MenuItem value={5}>5</MenuItem>
-              <MenuItem value={10}>10</MenuItem>
-              <MenuItem value={20}>20</MenuItem>
-              <MenuItem value={50}>50</MenuItem>
-            </Select>
-          </FormControl>
         </Stack>
       </Box>
 
@@ -729,7 +790,7 @@ const FeedBack = () => {
           >
             <CircularProgress size={40} />
           </Box>
-        ) : filteredFeedbacks.length === 0 ? (
+        ) : finalFeedbacks.length === 0 ? (
           <Box 
             sx={{ 
               display: 'flex', 
@@ -749,7 +810,7 @@ const FeedBack = () => {
           </Box>
         ) : (
           <FeedbackList
-            feedbacks={filteredFeedbacks}
+            feedbacks={finalFeedbacks}
             onView={handleViewFeedback}
             onRefresh={handleRefresh}
           />
@@ -757,16 +818,22 @@ const FeedBack = () => {
       </Paper>
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+      {displayTotalPages > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 3, gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Hiển thị {startIndex + 1}-{Math.min(endIndex, displayTotalElements)} của {displayTotalElements} feedback
+          </Typography>
+          
           <Pagination
-            count={pagination.totalPages}
-            page={currentPage}
+            count={displayTotalPages}
+            page={displayCurrentPage}
             onChange={handlePageChange}
             color="primary"
             size="large"
             showFirstButton
             showLastButton
+            siblingCount={1}
+            boundaryCount={1}
           />
         </Box>
       )}

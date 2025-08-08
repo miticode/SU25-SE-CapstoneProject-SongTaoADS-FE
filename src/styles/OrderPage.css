@@ -1,0 +1,273 @@
+/* OrderPage.css - Cải thiện UI/UX cho trang Order */
+
+/* Background gradients tùy chỉnh */
+.order-page-background {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+  min-height: 100vh;
+}
+
+/* Card styles với shadow mềm mại */
+.order-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.order-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Stepper improvements */
+.custom-stepper .MuiStepConnector-line {
+  border-color: #e2e8f0 !important;
+  border-top-width: 2px !important;
+}
+
+.custom-stepper .MuiStepConnector-active .MuiStepConnector-line,
+.custom-stepper .MuiStepConnector-completed .MuiStepConnector-line {
+  border-color: #0D1528 !important;
+}
+
+/* Form field improvements */
+.custom-form-field .MuiOutlinedInput-root {
+  background-color: #f8fafc;
+  transition: all 0.3s ease;
+}
+
+.custom-form-field .MuiOutlinedInput-root:hover {
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #0D1528;
+}
+
+.custom-form-field .MuiOutlinedInput-root.Mui-focused {
+  background-color: #ffffff;
+  box-shadow: 0 4px 12px rgba(13, 21, 40, 0.15);
+  border-color: #0D1528;
+}
+
+/* Button improvements */
+.custom-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.custom-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.custom-button:hover::before {
+  left: 100%;
+}
+
+/* Info cards với màu sắc nhẹ nhàng */
+.info-card-ai {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  transition: all 0.3s ease;
+}
+
+.info-card-ai:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.info-card-custom {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #a7f3d0;
+  transition: all 0.3s ease;
+}
+
+.info-card-custom:hover {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+}
+
+.info-card-template {
+  background: linear-gradient(135deg, #fdf4ff 0%, #f3e8ff 100%);
+  border: 1px solid #c4b5fd;
+  transition: all 0.3s ease;
+}
+
+.info-card-template:hover {
+  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.15);
+}
+
+/* Progress indicators */
+.progress-indicator {
+  background: #0D1528;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(13, 21, 40, 0.3);
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.progress-indicator.completed {
+  background: #0D1528;
+  box-shadow: 0 2px 8px rgba(13, 21, 40, 0.4);
+}
+
+/* Image container improvements */
+.image-container {
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.image-container:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.image-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Alert improvements */
+.custom-alert {
+  border-radius: 12px;
+  border-left: 4px solid;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.custom-alert.success {
+  background: rgba(220, 252, 231, 0.9);
+  border-left-color: #059669;
+}
+
+.custom-alert.error {
+  background: rgba(254, 242, 242, 0.9);
+  border-left-color: #dc2626;
+}
+
+.custom-alert.warning {
+  background: rgba(255, 251, 235, 0.9);
+  border-left-color: #d97706;
+}
+
+/* Loading states */
+.loading-overlay {
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .order-card {
+    margin: 8px;
+    border-radius: 16px;
+  }
+  
+  .custom-button {
+    font-size: 0.9rem;
+    padding: 12px 20px;
+  }
+  
+  .image-container {
+    max-width: 100%;
+    margin: 0 auto;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Typography improvements */
+.order-title {
+  color: #0D1528;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.order-subtitle {
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.order-caption {
+  color: #0D1528;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
