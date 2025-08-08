@@ -59,6 +59,18 @@ import {
 const DEFAULT_AVATAR = "https://i.imgur.com/HeIi0wU.png";
 
 const Profile = () => {
+  // State kiểm tra độ mạnh mật khẩu khi tạo mới (giống trang Signup)
+  const [createPwdValidation, setCreatePwdValidation] = useState({
+    length: false,
+    hasLetter: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
+  const [confirmCreatePwdValidation, setConfirmCreatePwdValidation] = useState({
+    matches: false,
+    isValid: false,
+  });
+  const [createPwdError, setCreatePwdError] = useState("");
   const dispatch = useDispatch();
   const profile = useSelector(selectAuthUser);
   const loading = useSelector(selectAuthStatus) === "loading";
@@ -102,6 +114,60 @@ const Profile = () => {
   const [confirmCreatePwd, setConfirmCreatePwd] = useState("");
   const [createPwdLoading, setCreatePwdLoading] = useState(false);
 
+  // Hàm kiểm tra độ mạnh mật khẩu (giống Signup)
+  const checkCreatePwdStrength = (pwd) => {
+    const validation = {
+      length: pwd.length >= 7,
+      hasLetter: /[A-Za-z]/.test(pwd),
+      hasNumber: /\d/.test(pwd),
+      hasSpecial: /[@$!%*#?&]/.test(pwd),
+    };
+    setCreatePwdValidation(validation);
+    return validation;
+  };
+
+  // Hàm kiểm tra xác nhận mật khẩu
+  const checkConfirmCreatePwdMatch = (confirmPwd, originalPwd = createPwd) => {
+    const validation = {
+      matches: confirmPwd === originalPwd && confirmPwd !== "",
+      isValid: confirmPwd !== "" && confirmPwd === originalPwd,
+    };
+    setConfirmCreatePwdValidation(validation);
+    return validation;
+  };
+
+  // Xử lý thay đổi mật khẩu mới
+  const handleCreatePwdChange = (e) => {
+    const newPwd = e.target.value;
+    setCreatePwd(newPwd);
+    checkCreatePwdStrength(newPwd);
+    if (confirmCreatePwd) {
+      checkConfirmCreatePwdMatch(confirmCreatePwd, newPwd);
+    }
+  };
+
+  // Xử lý thay đổi xác nhận mật khẩu
+  const handleConfirmCreatePwdChange = (e) => {
+    const newConfirmPwd = e.target.value;
+    setConfirmCreatePwd(newConfirmPwd);
+    checkConfirmCreatePwdMatch(newConfirmPwd);
+  };
+
+  // Validate mật khẩu trước khi gửi
+  const validateCreatePwdForm = () => {
+    setCreatePwdError("");
+    if (createPwd !== confirmCreatePwd) {
+      setCreatePwdError("Mật khẩu xác nhận không khớp");
+      return false;
+    }
+    // Regex giống Signup
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{7,}$/;
+    if (!passwordRegex.test(createPwd)) {
+      setCreatePwdError("Mật khẩu phải có ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt");
+      return false;
+    }
+    return true;
+  };
   // State cho việc hiển thị/ẩn mật khẩu
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -283,19 +349,10 @@ const Profile = () => {
   // Hàm tạo mật khẩu mới (khi password là null)
   const handleCreatePassword = async () => {
     if (!createPwd || !confirmCreatePwd) {
-      setSnackbar({
-        open: true,
-        message: "Vui lòng nhập đủ thông tin",
-        severity: "error",
-      });
+      setCreatePwdError("Vui lòng nhập đủ thông tin");
       return;
     }
-    if (createPwd !== confirmCreatePwd) {
-      setSnackbar({
-        open: true,
-        message: "Mật khẩu không khớp",
-        severity: "error",
-      });
+    if (!validateCreatePwdForm()) {
       return;
     }
     setCreatePwdLoading(true);
@@ -305,6 +362,9 @@ const Profile = () => {
       setOpenCreatePwd(false);
       setCreatePwd("");
       setConfirmCreatePwd("");
+      setCreatePwdValidation({ length: false, hasLetter: false, hasNumber: false, hasSpecial: false });
+      setConfirmCreatePwdValidation({ matches: false, isValid: false });
+      setCreatePwdError("");
       // Refresh profile to update password status
       dispatch(fetchProfile());
       setSnackbar({
@@ -313,11 +373,7 @@ const Profile = () => {
         severity: "success",
       });
     } else {
-      setSnackbar({
-        open: true,
-        message: res.error || "Tạo mật khẩu thất bại!",
-        severity: "error",
-      });
+      setCreatePwdError(res.error || "Tạo mật khẩu thất bại!");
     }
   };
 
@@ -1350,9 +1406,9 @@ const Profile = () => {
               type={showCreatePassword ? "text" : "password"}
               fullWidth
               value={createPwd}
-              onChange={(e) => setCreatePwd(e.target.value)}
+              onChange={handleCreatePwdChange}
               sx={{
-                mb: 3,
+                mb: 1,
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
                   background: "rgba(245, 158, 11, 0.04)",
@@ -1391,12 +1447,43 @@ const Profile = () => {
                 ),
               }}
             />
+            {/* Checklist yêu cầu mật khẩu */}
+            {createPwd && (
+              <Box sx={{ mt: 1, mb: 2 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#6b7280', mb: 0.5 }}>
+                  Yêu cầu mật khẩu:
+                </Typography>
+                <Box sx={{ pl: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 13, color: createPwdValidation.length ? 'green' : '#aaa', mb: 0.5 }}>
+                    <Box component="span" sx={{ width: 18, height: 18, borderRadius: '50%', mr: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', bgcolor: createPwdValidation.length ? 'green' : '#ddd', color: 'white', fontWeight: 700 }}>{createPwdValidation.length ? '✓' : '○'}</Box>
+                    Ít nhất 7 ký tự
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 13, color: createPwdValidation.hasLetter ? 'green' : '#aaa', mb: 0.5 }}>
+                    <Box component="span" sx={{ width: 18, height: 18, borderRadius: '50%', mr: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', bgcolor: createPwdValidation.hasLetter ? 'green' : '#ddd', color: 'white', fontWeight: 700 }}>{createPwdValidation.hasLetter ? '✓' : '○'}</Box>
+                    Có chữ cái
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 13, color: createPwdValidation.hasNumber ? 'green' : '#aaa', mb: 0.5 }}>
+                    <Box component="span" sx={{ width: 18, height: 18, borderRadius: '50%', mr: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', bgcolor: createPwdValidation.hasNumber ? 'green' : '#ddd', color: 'white', fontWeight: 700 }}>{createPwdValidation.hasNumber ? '✓' : '○'}</Box>
+                    Có số
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 13, color: createPwdValidation.hasSpecial ? 'green' : '#aaa', mb: 0.5 }}>
+                    <Box component="span" sx={{ width: 18, height: 18, borderRadius: '50%', mr: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', bgcolor: createPwdValidation.hasSpecial ? 'green' : '#ddd', color: 'white', fontWeight: 700 }}>{createPwdValidation.hasSpecial ? '✓' : '○'}</Box>
+                    Có ký tự đặc biệt (@$!%*#?&)
+                  </Box>
+                </Box>
+              </Box>
+            )}
+            {!createPwd && (
+              <Typography sx={{ mt: 1, mb: 2, fontSize: 13, color: '#888' }}>
+                💡 Ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt
+              </Typography>
+            )}
             <TextField
               label="Xác nhận mật khẩu"
               type={showConfirmCreatePassword ? "text" : "password"}
               fullWidth
               value={confirmCreatePwd}
-              onChange={(e) => setConfirmCreatePwd(e.target.value)}
+              onChange={handleConfirmCreatePwdChange}
               sx={{
                 mb: 1,
                 "& .MuiOutlinedInput-root": {
@@ -1439,6 +1526,22 @@ const Profile = () => {
                 ),
               }}
             />
+            {/* Hiển thị xác nhận mật khẩu */}
+            {confirmCreatePwd && (
+              <Box sx={{ mt: 1, mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', fontSize: 13, color: confirmCreatePwdValidation.matches ? 'green' : 'red' }}>
+                  <Box component="span" sx={{ width: 18, height: 18, borderRadius: '50%', mr: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', bgcolor: confirmCreatePwdValidation.matches ? 'green' : 'red', color: 'white', fontWeight: 700 }}>{confirmCreatePwdValidation.matches ? '✓' : '✗'}</Box>
+                  {confirmCreatePwdValidation.matches ? 'Mật khẩu khớp' : 'Mật khẩu không khớp'}
+                </Box>
+              </Box>
+            )}
+            {createPwdError && (
+              <Box sx={{ width: '100%', mt: 1 }}>
+                <Alert severity="warning" sx={{ py: 1, alignItems: 'center', borderRadius: '8px', fontSize: '13px' }}>
+                  {createPwdError}
+                </Alert>
+              </Box>
+            )}
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 1 }}>
             <Button
