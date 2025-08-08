@@ -408,12 +408,13 @@ export const updateUserAvatarApi = async (userId, file) => {
   }
 };
 
-// Cập nhật họ tên và số điện thoại
-export const updateUserProfileApi = async (userId, fullName, phone) => {
+// Cập nhật họ tên, số điện thoại và địa chỉ
+export const updateUserProfileApi = async (userId, fullName, phone, address) => {
   try {
     const response = await authService.patch(`/api/users/${userId}/profile`, {
       fullName,
       phone,
+      address,
     });
     const { success, result, message } = response.data;
     if (success) {
@@ -479,12 +480,17 @@ export const resendVerificationApi = async (userData) => {
 // Hàm gửi email đặt lại mật khẩu
 export const forgotPasswordApi = async (email) => {
   try {
-    const response = await authService.post("/api/password-reset/resend", {
-      email,
-    });
+    console.log("Calling forgotPasswordApi with email:", email);
+    const requestBody = { email };
+    console.log("Request body:", requestBody);
+
+    const response = await authService.post("/api/password-reset/resend", requestBody);
+    console.log("Forgot password API response:", response.data);
+
     const { success, message, result } = response.data;
     return { success, message, result };
   } catch (error) {
+    console.error("Forgot password API error:", error.response?.data || error.message);
     return {
       success: false,
       error:
