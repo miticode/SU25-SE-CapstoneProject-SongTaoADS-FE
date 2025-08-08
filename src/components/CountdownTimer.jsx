@@ -54,15 +54,17 @@ const CountdownTimer = ({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Countdown timer */}
-      {isCountdownActive && (
-        <div className="flex items-center justify-center space-x-2">
-          <div className="text-sm text-gray-600">Thời gian còn lại:</div>
-          <div className="text-lg font-bold text-red-600 bg-red-100 px-3 py-1 rounded-lg">
-            {formatTime(countdown)}
-          </div>
+      {/* Countdown timer - luôn hiển thị */}
+      <div className="flex items-center justify-center space-x-2">
+        <div className="text-sm text-gray-600">Thời gian còn lại:</div>
+        <div className={`text-lg font-bold px-3 py-1 rounded-lg ${
+          countdown > 0 
+            ? "text-red-600 bg-red-100" 
+            : "text-gray-600 bg-gray-100"
+        }`}>
+          {formatTime(countdown)}
         </div>
-      )}
+      </div>
       
       {/* Resend button */}
       {showResendButton && showResend && (
