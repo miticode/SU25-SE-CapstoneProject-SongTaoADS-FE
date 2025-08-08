@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -501,6 +501,24 @@ const Order = () => {
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [shouldRefreshOrderDetails, setShouldRefreshOrderDetails] = useState(false);
   const [lastAddedDetailId, setLastAddedDetailId] = useState(null);
+  
+  // State để track xem user có click vào buttons chính ở step 3 không
+  const [userClickedMainButtons, setUserClickedMainButtons] = useState(false);
+
+  // Clear localStorage khi navigate sang trang khác từ step 3
+  const clearOrderLocalStorage = () => {
+    localStorage.removeItem('orderCurrentStep');
+    localStorage.removeItem('orderFormData');
+    localStorage.removeItem('orderAIDesignInfo'); 
+    localStorage.removeItem('orderCustomDesignInfo');
+  };
+
+  // Clear localStorage bao gồm cả order info cho navigation
+  const clearAllOrderLocalStorage = useCallback(() => {
+    clearOrderLocalStorage();
+    localStorage.removeItem('orderIdForNewOrder');
+    localStorage.removeItem('orderTypeForNewOrder');
+  }, []);
 
   // Cập nhật orderType khi component mount nếu từ AI Design hoặc Custom Design
   useEffect(() => {
@@ -524,6 +542,11 @@ const Order = () => {
   // Lưu currentStep vào localStorage mỗi khi thay đổi
   useEffect(() => {
     localStorage.setItem('orderCurrentStep', currentStep.toString());
+    
+    // Reset userClickedMainButtons khi vào step 3
+    if (currentStep === 3) {
+      setUserClickedMainButtons(false);
+    }
   }, [currentStep]);
 
   // Lưu formData vào localStorage mỗi khi thay đổi
@@ -552,13 +575,23 @@ const Order = () => {
 
   // Xử lý trường hợp sử dụng existing order từ localStorage
   useEffect(() => {
-    if (useExistingOrder && existingOrderId && finalIsFromAIDesign) {
+    if (useExistingOrder && existingOrderId && (finalIsFromAIDesign || finalIsFromCustomDesign)) {
       console.log("Order - Sử dụng existing order:", existingOrderId);
+      
+      // Xác định orderType dựa trên loại thiết kế
+      let orderType;
+      if (finalIsFromAIDesign) {
+        orderType = "AI_DESIGN";
+      } else if (finalIsFromCustomDesign) {
+        orderType = finalHasConstruction 
+          ? "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+          : "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION";
+      }
       
       // Tạo mock currentOrder object với existingOrderId
       const mockOrder = {
         id: existingOrderId, // Giữ nguyên UUID string, không parse thành integer
-        orderType: "AI_DESIGN",
+        orderType: orderType,
         // Các thông tin khác sẽ được fetch từ API nếu cần
       };
       
@@ -569,9 +602,14 @@ const Order = () => {
       setCurrentStep(2);
       localStorage.setItem('orderCurrentStep', '2');
       
-      console.log("Order - Đã setup existing order và chuyển đến step 2");
+      console.log("Order - Đã setup existing order và chuyển đến step 2", {
+        orderType,
+        isFromAIDesign: finalIsFromAIDesign,
+        isFromCustomDesign: finalIsFromCustomDesign,
+        hasConstruction: finalHasConstruction
+      });
     }
-  }, [useExistingOrder, existingOrderId, finalIsFromAIDesign, dispatch]);
+  }, [useExistingOrder, existingOrderId, finalIsFromAIDesign, finalIsFromCustomDesign, finalHasConstruction, dispatch]);
 
   // Fetch edited design detail khi ở step 2 và có editedDesignId
   useEffect(() => {
@@ -713,31 +751,87 @@ const Order = () => {
 
   // Cleanup localStorage khi component unmount
   useEffect(() => {
-    return () => {
-      // Chỉ clear localStorage nếu đã hoàn tất đơn hàng (step 3)
+    // Đánh dấu component đã mount
+    const componentId = Date.now().toString();
+    sessionStorage.setItem('orderPageComponentId', componentId);
+    
+    // Clear pageUnloading flag nếu component mount thành công (tức là refresh thành công)
+    sessionStorage.removeItem('pageUnloading');
+
+    // Event listener cho việc navigate trong SPA
+    const handlePopState = () => {
       const savedStep = localStorage.getItem('orderCurrentStep');
-      if (savedStep && parseInt(savedStep, 10) === 3) {
-        // Có thể clear sau một thời gian delay để user có thể reload ở step 3
-        // localStorage.removeItem('orderCurrentStep');
-        // localStorage.removeItem('orderFormData');
+      if (savedStep && parseInt(savedStep, 10) === 3 && !userClickedMainButtons) {
+        console.log("User navigate away from step 3 without clicking main buttons - clearing localStorage");
+        clearAllOrderLocalStorage();
       }
     };
-  }, []);
 
-  // Clear localStorage khi navigate sang trang khác từ step 3
-  const clearOrderLocalStorage = () => {
-    localStorage.removeItem('orderCurrentStep');
-    localStorage.removeItem('orderFormData');
-    localStorage.removeItem('orderAIDesignInfo'); 
-    localStorage.removeItem('orderCustomDesignInfo');
-  };
+    // Event listener để detect page visibility change (user switch tab, minimize, etc.)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // User switched away from tab - don't clear localStorage
+        console.log("Page visibility hidden - keeping localStorage for potential return");
+      }
+    };
 
-  // Clear localStorage bao gồm cả order info cho navigation
-  const clearAllOrderLocalStorage = () => {
-    clearOrderLocalStorage();
-    localStorage.removeItem('orderIdForNewOrder');
-    localStorage.removeItem('orderTypeForNewOrder');
-  };
+    // Event listener để detect page unload (close tab/browser)
+    const handleBeforeUnload = () => {
+      const savedStep = localStorage.getItem('orderCurrentStep');
+      if (savedStep && parseInt(savedStep, 10) === 3 && !userClickedMainButtons) {
+        // Set flag để biết user đang close tab/browser
+        sessionStorage.setItem('pageUnloading', 'true');
+        console.log("Page unloading detected - will cleanup if not refresh");
+      }
+    };
+
+    // Thêm event listeners
+    window.addEventListener('popstate', handlePopState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      // Remove event listeners
+      window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+
+      // Chỉ cleanup khi thực sự unmount và không phải do refresh
+      const savedStep = localStorage.getItem('orderCurrentStep');
+      const currentComponentId = sessionStorage.getItem('orderPageComponentId');
+      const pageUnloading = sessionStorage.getItem('pageUnloading');
+      
+      if (savedStep && parseInt(savedStep, 10) === 3 && !userClickedMainButtons) {
+        // Sử dụng setTimeout để check sau khi component có cơ hội remount (trong trường hợp refresh)
+        setTimeout(() => {
+          const newComponentId = sessionStorage.getItem('orderPageComponentId');
+          
+          // Nếu page đang unload và component ID không thay đổi -> user đóng tab/browser
+          if (pageUnloading && currentComponentId === newComponentId) {
+            console.log("Page truly unloading - clearing localStorage");
+            clearAllOrderLocalStorage();
+          }
+          // Nếu component ID khác -> component mới đã mount (refresh) -> không xóa localStorage
+          else if (currentComponentId !== newComponentId) {
+            console.log("Component remounted (page refresh) - keeping localStorage");
+          }
+          // Nếu không có pageUnloading nhưng component unmount -> SPA navigation
+          else if (!pageUnloading) {
+            console.log("SPA navigation from step 3 - clearing localStorage");
+            clearAllOrderLocalStorage();
+          }
+          
+          // Cleanup session storage
+          sessionStorage.removeItem('orderPageComponentId');
+          sessionStorage.removeItem('pageUnloading');
+        }, 100);
+      } else {
+        // Cleanup session storage cho các cases khác
+        sessionStorage.removeItem('orderPageComponentId');
+        sessionStorage.removeItem('pageUnloading');
+      }
+    };
+  }, [userClickedMainButtons, clearAllOrderLocalStorage]);
 
   // Cleanup blob URL khi component unmount
   useEffect(() => {
@@ -2434,6 +2528,7 @@ const Order = () => {
                       size="large"
                       fullWidth
                       onClick={() => {
+                        setUserClickedMainButtons(true);
                         clearAllOrderLocalStorage();
                         navigate("/order-history");
                       }}
@@ -2456,6 +2551,7 @@ const Order = () => {
                       size="large"
                       fullWidth
                       onClick={() => {
+                        setUserClickedMainButtons(true);
                         clearAllOrderLocalStorage();
                         navigate("/");
                       }}
@@ -2479,6 +2575,8 @@ const Order = () => {
                     size="large"
                     fullWidth
                     onClick={() => {
+                      setUserClickedMainButtons(true);
+                      
                       // Lưu order ID và order Type vào localStorage
                       if (currentOrder?.id) {
                         localStorage.setItem('orderIdForNewOrder', currentOrder.id.toString());

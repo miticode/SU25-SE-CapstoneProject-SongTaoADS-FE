@@ -239,6 +239,13 @@ const CustomDesign = () => {
         const orderIdFromStorage = localStorage.getItem("orderIdForNewOrder");
         const orderTypeFromStorage = localStorage.getItem("orderTypeForNewOrder");
 
+        console.log("CustomDesign - Debug after create custom design request:", {
+          resultId: result.id,
+          orderIdFromStorage,
+          orderTypeFromStorage,
+          hasOrder
+        });
+
         // Luôn sử dụng existing order nếu có orderIdFromStorage
         if (orderIdFromStorage && (orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION")) {
           console.log("CustomDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:", orderIdFromStorage);
@@ -252,9 +259,11 @@ const CustomDesign = () => {
             requirements: note,
             selectedType: selectedType,
             customerDetail: customerDetail,
-            orderIdFromStorage: orderIdFromStorage,
           };
           localStorage.setItem("orderCustomDesignInfo", JSON.stringify(customDesignInfo));
+
+          // Cập nhật current step trong localStorage để Order component nhận biết
+          localStorage.setItem("orderCurrentStep", "2");
 
           // Chuyển đến step 2 của trang Order với orderId có sẵn
           navigate("/order", {
@@ -273,6 +282,9 @@ const CustomDesign = () => {
         } else {
           // Logic cũ: tạo order mới
           console.log("CustomDesign - Không có orderIdFromStorage, tạo order mới");
+
+          // Reset current step về 1 cho order mới
+          localStorage.setItem("orderCurrentStep", "1");
 
           navigate("/order", {
             state: {
@@ -344,6 +356,67 @@ const CustomDesign = () => {
             Xác nhận thông tin và yêu cầu thiết kế
           </Typography>
         </Box>
+
+        {/* Thông báo khi đang tạo thêm order detail cho existing order */}
+        {(() => {
+          const existingOrderId = localStorage.getItem('orderIdForNewOrder');
+          const existingOrderType = localStorage.getItem('orderTypeForNewOrder');
+          const isFromCustomDesignOrder = existingOrderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' || existingOrderType === 'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION';
+          
+          if (existingOrderId && isFromCustomDesignOrder) {
+            return (
+              <Box sx={{ mb: 4 }}>
+                <Card 
+                  elevation={1}
+                  sx={{
+                    borderRadius: 2,
+                    border: '2px solid #3498db',
+                    background: 'linear-gradient(135deg, #ebf3fd 0%, #f8fbff 100%)'
+                  }}
+                >
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar sx={{ bgcolor: '#3498db', mr: 2, width: 32, height: 32 }}>
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </Avatar>
+                      <Typography variant="h6" fontWeight={600} color="#2c3e50">
+                        🎯 Đang tạo thêm thiết kế tùy chỉnh
+                      </Typography>
+                    </Box>
+                    <Typography variant="body1" color="#34495e" sx={{ mb: 2 }}>
+                      Bạn đang tạo thêm một thiết kế tùy chỉnh cho đơn hàng hiện có.
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Chip
+                        label={`Order ID: ${existingOrderId.slice(0, 8)}...`}
+                        variant="outlined"
+                        size="small"
+                        sx={{ 
+                          borderColor: '#3498db',
+                          color: '#2980b9',
+                          backgroundColor: '#ffffff'
+                        }}
+                      />
+                      <Chip
+                        label={existingOrderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? 'Có thi công' : 'Không thi công'}
+                        variant="outlined"
+                        size="small"
+                        sx={{ 
+                          borderColor: '#27ae60',
+                          color: '#229954',
+                          backgroundColor: '#ffffff'
+                        }}
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            );
+          }
+          return null;
+        })()}
 
         <Grid container spacing={3}>
           {/* Thông tin doanh nghiệp */}
@@ -530,7 +603,7 @@ const CustomDesign = () => {
                 
                 {customerChoiceDetailsList && customerChoiceDetailsList.length > 0 ? (
                   <Grid container spacing={2}>
-                    {customerChoiceDetailsList.map((attr, index) => (
+                    {customerChoiceDetailsList.map((attr) => (
                       <Grid item xs={12} sm={6} md={4} key={attr.id}>
                         <Paper
                           elevation={1}
