@@ -103,52 +103,64 @@ export const createAiOrder = createAsyncThunk(
 export const fetchOrders = createAsyncThunk(
   "order/fetchOrders",
   async (params, { rejectWithValue }) => {
-    // Kiểm tra nếu params là object hoặc string
-    let orderStatus, page, size, orderType;
+    try {
+      // Kiểm tra nếu params là object hoặc string
+      let orderStatus, page, size, orderType;
 
-    if (typeof params === "object" && params !== null) {
-      // Nếu là object, trích xuất tham số
-      orderStatus = params.orderStatus;
-      page = params.page || 1;
-      size = params.size || 10;
-      orderType = params.orderType || null;
-    } else {
-      // Nếu là string, xem như orderStatus
-      orderStatus = params;
-      page = 1;
-      size = 10;
-      orderType = null;
-    }
+      if (typeof params === "object" && params !== null) {
+        // Nếu là object, trích xuất tham số
+        orderStatus = params.orderStatus;
+        page = params.page || 1;
+        size = params.size || 10;
+        orderType = params.orderType || null;
+      } else {
+        // Nếu là string, xem như orderStatus
+        orderStatus = params;
+        page = 1;
+        size = 10;
+        orderType = null;
+      }
 
-    // Nếu orderStatus là mảng, gọi api cho từng trạng thái
-    if (Array.isArray(orderStatus)) {
-      let allOrders = [];
-      let pagination = null;
+      // Nếu orderStatus là mảng, gọi api cho từng trạng thái
+      if (Array.isArray(orderStatus)) {
+        let allOrders = [];
+        let pagination = null;
+        let lastTimestamp = null;
+        let lastMessage = null;
 
-      for (const status of orderStatus) {
-        const response = await getOrdersApi(status, page, size, orderType);
-        if (response.success) {
-          allOrders = allOrders.concat(response.data);
-          // Lấy pagination của lần gọi cuối cùng
-          pagination = response.pagination;
+        for (const status of orderStatus) {
+          const response = await getOrdersApi(status, page, size, orderType);
+          if (response.success) {
+            allOrders = allOrders.concat(response.data || []);
+            // Lấy pagination của lần gọi cuối cùng
+            pagination = response.pagination;
+            lastTimestamp = response.timestamp;
+            lastMessage = response.message;
+          }
         }
-      }
 
-      return {
-        orders: allOrders,
-        pagination,
-      };
-    } else {
-      // Nếu orderStatus là string
-      const response = await getOrdersApi(orderStatus, page, size, orderType);
-
-      if (response.success) {
         return {
-          orders: response.data,
-          pagination: response.pagination,
+          orders: allOrders,
+          pagination,
+          timestamp: lastTimestamp,
+          message: lastMessage,
         };
+      } else {
+        // Nếu orderStatus là string hoặc null
+        const response = await getOrdersApi(orderStatus, page, size, orderType);
+
+        if (response.success) {
+          return {
+            orders: response.data || [],
+            pagination: response.pagination,
+            timestamp: response.timestamp,
+            message: response.message,
+          };
+        }
+        return rejectWithValue(response.error);
       }
-      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tải danh sách đơn hàng");
     }
   }
 );
@@ -387,6 +399,8 @@ const initialState = {
   orderDetails: null,
   orderDetailsStatus: "idle",
   orderDetailsError: null,
+  lastUpdated: null, // Timestamp của lần cập nhật cuối
+  lastMessage: null, // Message từ API response
   pagination: {
     currentPage: 1,
     totalPages: 1,
@@ -409,6 +423,9 @@ const orderSlice = createSlice({
       state.orderDetails = null;
       state.orderDetailsStatus = "idle";
       state.orderDetailsError = null;
+    },
+    clearLastMessage: (state) => {
+      state.lastMessage = null;
     },
   },
   extraReducers: (builder) => {
@@ -464,10 +481,13 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload.orders;
+        state.orders = action.payload.orders || [];
         if (action.payload.pagination) {
           state.pagination = action.payload.pagination;
         }
+        // Lưu timestamp và message từ API response
+        state.lastUpdated = action.payload.timestamp || new Date().toISOString();
+        state.lastMessage = action.payload.message;
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
@@ -486,6 +506,7 @@ const orderSlice = createSlice({
         if (index !== -1) {
           state.orders[index] = action.payload;
         }
+        state.lastUpdated = new Date().toISOString();
       })
       .addCase(updateOrderStatus.rejected, (state, action) => {
         state.loading = false;
@@ -522,10 +543,12 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrdersByUserId.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload.orders;
+        state.orders = action.payload.orders || [];
         if (action.payload.pagination) {
           state.pagination = action.payload.pagination;
         }
+        state.lastUpdated = action.payload.timestamp || new Date().toISOString();
+        state.lastMessage = action.payload.message;
       })
       .addCase(fetchOrdersByUserId.rejected, (state, action) => {
         state.loading = false;
@@ -794,7 +817,7 @@ const orderSlice = createSlice({
   },
 });
 
-export const { clearError, setCurrentOrder, clearOrderDetails } = orderSlice.actions;
+export const { clearError, setCurrentOrder, clearOrderDetails, clearLastMessage } = orderSlice.actions;
 export default orderSlice.reducer;
 
 export const selectCurrentOrder = (state) => state.order.currentOrder;
@@ -809,6 +832,8 @@ export const selectOrderPagination = (state) => state.order.pagination;
 export const selectOrderDetails = (state) => state.order.orderDetails;
 export const selectOrderDetailsStatus = (state) => state.order.orderDetailsStatus;
 export const selectOrderDetailsError = (state) => state.order.orderDetailsError;
+export const selectLastUpdated = (state) => state.order.lastUpdated;
+export const selectLastMessage = (state) => state.order.lastMessage;
 
 // Selector để filter orders theo orderType
 export const selectOrdersByType = (state, orderTypes) => {
