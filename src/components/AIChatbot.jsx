@@ -68,8 +68,8 @@ import {
 const FAQS = [
   "Song Tạo có bảo hành biển quảng cáo không?",
   "Biển hiệu hiện đại là gì?",
-  "Cửa hàng có mấy loại Decal ?",
-  "Công thức tính giá biển hiệu truyền thống?",
+  "Bên bạn có những dịch vụ gì nổi bật ?",
+  "Cửa hàng địa chỉ ở đâu ?",
 ];
 
 // Advanced detailed questions by category
@@ -751,9 +751,19 @@ const AIChatbot = () => {
               <Box
                 sx={{
                   flex: 1,
-                  overflowY: "auto",
+                  overflowY: "auto", // Main scroll for the entire content area
                   display: "flex",
                   flexDirection: "column",
+                  // Scrollbar styles moved from Body to here for the main scroll
+                  scrollbarWidth: "thin",
+                  "&::-webkit-scrollbar": {
+                    width: 6,
+                    background: "transparent",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "#e0e3ef",
+                    borderRadius: 8,
+                  },
                 }}
               >
                 {/* Quick Actions Tab */}
@@ -941,7 +951,7 @@ const AIChatbot = () => {
                                 color: "#3949ab",
                                 textTransform: "none",
                                 fontSize: 13,
-                                borderRadius: 999,
+                                borderRadius: 2, // Thay đổi từ 999 thành 2 để tạo hình vuông
                                 mb: 1,
                                 px: 2,
                                 py: 0.5,
@@ -974,22 +984,9 @@ const AIChatbot = () => {
                   sx={{
                     flex: 1,
                     p: 2,
-                    overflowY: "auto",
                     bgcolor: "#f4f6fb",
                     display: "flex",
                     flexDirection: "column",
-                    scrollbarWidth: "thin",
-                    minHeight: isAdvancedMode 
-                      ? (isPricingFlow ? "450px" : "400px") 
-                      : (isPricingFlow ? "450px" : "350px"),
-                    "&::-webkit-scrollbar": {
-                      width: 6,
-                      background: "transparent",
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                      background: "#e0e3ef",
-                      borderRadius: 8,
-                    },
                   }}
                 >
                   <Stack spacing={1.5}>

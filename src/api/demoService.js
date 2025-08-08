@@ -45,7 +45,23 @@ export const createDemoDesignApi = async (customDesignRequestId, data) => {
 // Khách hàng từ chối bản demo
 export const rejectDemoDesignApi = async (customDesignId, data) => {
   try {
-    const res = await demoService.patch(`/api/demo-designs/${customDesignId}/reject`, data);
+    const formData = new FormData();
+
+    // Thêm customerNote nếu có
+    if (data.customerNote) {
+      formData.append('customerNote', data.customerNote);
+    }
+
+    // Thêm feedbackImage nếu có
+    if (data.feedbackImage) {
+      formData.append('feedbackImage', data.feedbackImage);
+    }
+
+    const res = await demoService.patch(`/api/demo-designs/${customDesignId}/reject`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return res.data;
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Failed to reject demo design' };
