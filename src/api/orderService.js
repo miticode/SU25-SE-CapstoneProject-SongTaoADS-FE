@@ -359,13 +359,35 @@ export const getOrderByIdApi = async (orderId) => {
 };
 
 // Lấy danh sách đơn hàng theo userId
-export const getOrdersByUserIdApi = async (userId) => {
+export const getOrdersByUserIdApi = async (userId, page = 1, size = 10) => {
   try {
-    const response = await orderService.get(`/api/users/${userId}/orders`);
-    const { success, result, message } = response.data;
+    const params = { page, size };
+    
+    const response = await orderService.get(`/api/users/${userId}/orders`, { params });
+    
+    const {
+      success,
+      result,
+      message,
+      currentPage,
+      totalPages,
+      pageSize,
+      totalElements,
+    } = response.data;
+    
     if (success) {
-      return { success: true, data: result };
+      return {
+        success: true,
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements,
+        },
+      };
     }
+    
     return { success: false, error: message || "Invalid response format" };
   } catch (error) {
     return {

@@ -32,6 +32,7 @@ import {
   TableRow,
   Tooltip,
   Backdrop,
+  Pagination,
 } from "@mui/material";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +48,8 @@ import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
@@ -602,6 +605,16 @@ const OrderHistory = () => {
   const orderLoading = useSelector((state) => state.order.loading);
   const orderError = useSelector((state) => state.order.error);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [pagination, setPagination] = useState(null);
+
+  // Debug logs after state initialization
+  // console.log('Current orders from Redux:', orders?.length || 0, 'orders');
+  // console.log('Current page:', currentPage);
+  // console.log('Pagination:', pagination);
+
   // State để lưu order details cho mỗi đơn hàng
   const [orderDetailsMap, setOrderDetailsMap] = useState({}); // { orderId: orderDetails }
   const [loadingOrderDetails, setLoadingOrderDetails] = useState({}); // { orderId: boolean }
@@ -817,6 +830,46 @@ const OrderHistory = () => {
   const isLoadingProgressLogImages = (progressLogId) => {
     return loadingProgressLogImages[progressLogId] || false;
   };
+
+  // Pagination helper functions
+  const refreshOrders = useCallback(
+    async (page = 1) => {
+      // console.log('Refreshing orders for page:', page, 'userId:', user?.id);
+      if (user?.id) {
+        scrollToTop(); // Scroll to top when refreshing orders
+        const result = await dispatch(
+          fetchOrdersByUserId({
+            userId: user.id,
+            page,
+            size: pageSize,
+          })
+        );
+
+        // console.log('API result:', result);
+        if (fetchOrdersByUserId.fulfilled.match(result)) {
+          // console.log('Orders fetched:', result.payload.orders.length);
+          // console.log('Pagination info:', result.payload.pagination);
+          setPagination(result.payload.pagination);
+        }
+      }
+    },
+    [dispatch, user?.id, pageSize]
+  );
+
+  const handlePageChange = useCallback(
+    (event, newPage) => {
+      // console.log('Changing to page:', newPage);
+      setCurrentPage(newPage);
+      refreshOrders(newPage); // Gọi trực tiếp với newPage
+      scrollToTop(); // Scroll to top when changing page
+    },
+    [refreshOrders]
+  );
+
+  // Không cần useEffect này nữa vì đã gọi trực tiếp trong handlePageChange
+  // useEffect(() => {
+  //   refreshOrders(currentPage);
+  // }, [currentPage, refreshOrders]);
 
   // Hàm fetch ảnh progress log cho một progress log
   const fetchProgressLogImagesForLog = useCallback(
@@ -1742,7 +1795,7 @@ const OrderHistory = () => {
 
         // Tự động refresh trang để hiển thị trạng thái mới
         if (user?.id) {
-          dispatch(fetchOrdersByUserId(user.id));
+          refreshOrders(currentPage);
         }
       } else {
         setNotification({
@@ -1789,7 +1842,7 @@ const OrderHistory = () => {
 
         // Tự động refresh trang để hiển thị trạng thái mới
         if (user?.id) {
-          dispatch(fetchOrdersByUserId(user.id));
+          refreshOrders(currentPage);
         }
       } else {
         setNotification({
@@ -1910,7 +1963,7 @@ const OrderHistory = () => {
 
               // Tải lại danh sách đơn hàng
               if (user?.id) {
-                dispatch(fetchOrdersByUserId(user.id));
+                refreshOrders(currentPage);
               }
             } else {
               setNotification({
@@ -1996,9 +2049,45 @@ const OrderHistory = () => {
     });
   };
 
+  const handlePayDeposit = (order) => {
+    // Implementation for deposit payment
+    // console.log('Paying deposit for order:', order.id);
+  };
+
+  const handleOpenCancelDialog = (order) => {
+    setCancelDialog({
+      open: true,
+      orderId: order.id,
+      orderTitle: order.title || `Đơn hàng #${order.id}`,
+    });
+  };
+
+  // Function to scroll to top of page
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    scrollToTop();
+
+    // Add event listener for page reload/refresh
+    const handleBeforeUnload = () => {
+      window.scrollTo(0, 0);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      dispatch(fetchOrdersByUserId(user.id));
+      refreshOrders(1); // Load trang đầu tiên
+      scrollToTop(); // Scroll to top when refreshing orders
       dispatch(fetchCustomerDetailByUserId(user.id)).then((res) => {
         // Redux Toolkit unwraps the promise, so res.payload là kết quả
         const detail = res.payload;
@@ -2011,8 +2100,10 @@ const OrderHistory = () => {
     } else {
       // Clear cache khi user logout
       setFetchedImpressionsOrders(new Set());
+      setPagination(null);
+      setCurrentPage(1);
     }
-  }, [isAuthenticated, user, dispatch]);
+  }, [isAuthenticated, user?.id, refreshOrders]);
 
   // Fetch impressions khi user được authenticate (để đảm bảo load data ngay từ đầu)
   useEffect(() => {
@@ -2508,7 +2599,7 @@ const OrderHistory = () => {
 
       // Reload lại orders và impressions để cập nhật trạng thái
       if (user?.id) {
-        dispatch(fetchOrdersByUserId(user.id));
+        refreshOrders(currentPage);
         dispatch(fetchImpressionsByOrderId(impressionDialog.orderId));
       }
     } catch {
@@ -2535,18 +2626,6 @@ const OrderHistory = () => {
     });
   };
 
-  const handleCancelOrder = async (orderId) => {
-    // Tìm thông tin order để hiển thị trong dialog
-    const order = orders.find((o) => o.id === orderId);
-
-    // Mở dialog xác nhận
-    setCancelDialog({
-      open: true,
-      orderId: orderId,
-      orderInfo: order,
-    });
-  };
-
   const handleConfirmCancelOrder = async () => {
     const { orderId } = cancelDialog;
 
@@ -2570,7 +2649,7 @@ const OrderHistory = () => {
 
         // Refresh orders list
         if (user?.id) {
-          dispatch(fetchOrdersByUserId(user.id));
+          refreshOrders(currentPage);
         }
       } else {
         setNotification({
@@ -2918,7 +2997,7 @@ const OrderHistory = () => {
   return (
     <Box
       sx={{
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
         minHeight: "100vh",
         py: 6,
         position: "relative",
@@ -2967,15 +3046,15 @@ const OrderHistory = () => {
             <HistoryIcon
               sx={{
                 fontSize: 40,
-                color: "#667eea",
-                filter: "drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3))",
+                color: "#4f46e5",
+                filter: "drop-shadow(0 2px 4px rgba(79, 70, 229, 0.3))",
               }}
             />
             <Typography
               variant="h4"
               fontWeight={700}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #374151 0%, #1f2937 100%)",
                 backgroundClip: "text",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
@@ -2989,7 +3068,7 @@ const OrderHistory = () => {
                   width: 80,
                   height: 3,
                   background:
-                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
                   borderRadius: 2,
                 },
               }}
@@ -2999,7 +3078,7 @@ const OrderHistory = () => {
           </Box>
           <Typography
             variant="body1"
-            color="text.secondary"
+            color="rgba(55, 65, 81, 0.7)"
             sx={{
               mt: 2,
               fontSize: "1.1rem",
@@ -3014,13 +3093,13 @@ const OrderHistory = () => {
         {/* Tabs Section */}
         <Box
           sx={{
-            background: "rgba(255, 255, 255, 0.95)",
+            background: "rgba(255, 255, 255, 0.98)",
             backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            borderRadius: 3,
+            border: "1px solid rgba(220, 225, 235, 0.6)",
+            borderRadius: 4,
             p: 2,
             mb: 3,
-            boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.05)",
           }}
         >
           <Tabs
@@ -3029,7 +3108,7 @@ const OrderHistory = () => {
             variant="fullWidth"
             sx={{
               "& .MuiTabs-indicator": {
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
                 height: 3,
                 borderRadius: 2,
               },
@@ -3037,19 +3116,20 @@ const OrderHistory = () => {
                 fontWeight: 600,
                 textTransform: "none",
                 fontSize: "1.1rem",
-                color: "rgba(0, 0, 0, 0.6)",
+                color: "rgba(55, 65, 81, 0.8)",
                 transition: "all 0.3s ease",
-                borderRadius: 2,
+                borderRadius: 3,
                 margin: "0 8px",
                 minHeight: 56,
                 "&:hover": {
-                  background: "rgba(102, 126, 234, 0.08)",
+                  background: "rgba(79, 70, 229, 0.08)",
                   transform: "translateY(-1px)",
+                  color: "rgba(55, 65, 81, 1)",
                 },
                 "&.Mui-selected": {
                   background:
-                    "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-                  color: "#667eea",
+                    "linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%)",
+                  color: "#4f46e5",
                   fontWeight: 700,
                 },
               },
@@ -3081,19 +3161,19 @@ const OrderHistory = () => {
                 justifyContent="center"
                 py={6}
                 sx={{
-                  background: "rgba(255, 255, 255, 0.95)",
+                  background: "rgba(255, 255, 255, 0.98)",
                   backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: 3,
-                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+                  border: "1px solid rgba(220, 225, 235, 0.6)",
+                  borderRadius: 4,
+                  boxShadow: "0 8px 20px rgba(0, 0, 0, 0.04)",
                 }}
               >
                 <Box sx={{ textAlign: "center" }}>
                   <CircularProgress
                     size={60}
-                    sx={{ color: "#667eea", mb: 2 }}
+                    sx={{ color: "#4f46e5", mb: 2 }}
                   />
-                  <Typography variant="h6" color="text.secondary">
+                  <Typography variant="h6" color="rgba(55, 65, 81, 0.8)">
                     Đang tải dữ liệu...
                   </Typography>
                 </Box>
@@ -3101,29 +3181,29 @@ const OrderHistory = () => {
             ) : orderError ? (
               <Box
                 sx={{
-                  background: "rgba(255, 255, 255, 0.95)",
+                  background: "rgba(254, 242, 242, 0.98)",
                   backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: 3,
+                  border: "1px solid rgba(252, 165, 165, 0.3)",
+                  borderRadius: 4,
                   p: 4,
                   textAlign: "center",
-                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 8px 20px rgba(239, 68, 68, 0.08)",
                 }}
               >
-                <Typography color="error" variant="h6">
+                <Typography color="#dc2626" variant="h6" fontWeight={600}>
                   ⚠️ {orderError}
                 </Typography>
               </Box>
             ) : orders.length === 0 ? (
               <Box
                 sx={{
-                  background: "rgba(255, 255, 255, 0.95)",
+                  background: "rgba(249, 250, 251, 0.98)",
                   backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: 3,
+                  border: "1px solid rgba(209, 213, 219, 0.4)",
+                  borderRadius: 4,
                   p: 6,
                   textAlign: "center",
-                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 8px 20px rgba(0, 0, 0, 0.04)",
                 }}
               >
                 <HistoryIcon
@@ -3149,35 +3229,35 @@ const OrderHistory = () => {
                       key={order.id}
                       sx={{
                         borderRadius: 4,
-                        background: "rgba(255, 255, 255, 0.95)",
+                        background: "rgba(255, 255, 255, 0.98)",
                         backdropFilter: "blur(20px)",
-                        border: "1px solid rgba(255, 255, 255, 0.2)",
-                        boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+                        border: "1px solid rgba(220, 225, 235, 0.6)",
+                        boxShadow: "0 8px 20px rgba(0, 0, 0, 0.06)",
                         transition: "all 0.3s ease",
                         position: "relative",
                         overflow: "hidden",
                         "&:hover": {
-                          transform: "translateY(-3px)",
-                          boxShadow: "0 25px 45px rgba(0, 0, 0, 0.15)",
+                          transform: "translateY(-2px)",
+                          boxShadow: "0 12px 30px rgba(0, 0, 0, 0.1)",
                         },
                         "&::before": {
                           content: '""',
                           position: "absolute",
                           top: 0,
                           left: 0,
-                          width: 6,
+                          width: 4,
                           height: "100%",
                           background:
                             order.orderType === "AI_DESIGN"
-                              ? "linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)"
+                              ? "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)"
                               : order.orderType ===
                                 "CUSTOM_DESIGN_WITH_CONSTRUCTION"
-                              ? "linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)"
+                              ? "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)"
                               : order.orderType ===
                                 "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION"
-                              ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)"
-                              : "linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)",
-                          boxShadow: "2px 0 8px rgba(0,0,0,0.1)",
+                              ? "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)"
+                              : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                          boxShadow: "2px 0 8px rgba(0,0,0,0.05)",
                         },
                       }}
                     >
@@ -3205,21 +3285,24 @@ const OrderHistory = () => {
                               sx={{
                                 display: "flex",
                                 flexWrap: "wrap",
-                                gap: 1,
+                                gap: 1.5,
                                 alignItems: "center",
-                                mb: 1,
+                                mb: 2,
                               }}
                             >
                               {order.orderType === "AI_DESIGN" ? (
                                 <Chip
-                                  icon={<SmartToyIcon />}
-                                  label="🤖 Đơn hàng AI"
-                                  size="small"
+                                  label="🤖 AI Design"
+                                  size="medium"
                                   sx={{
                                     background:
-                                      "linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)",
+                                      "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
                                     color: "white",
                                     fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    px: 1,
+                                    boxShadow:
+                                      "0 2px 8px rgba(139, 92, 246, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
@@ -3227,40 +3310,52 @@ const OrderHistory = () => {
                                 "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
                                 <Chip
                                   icon={<BrushIcon />}
-                                  label="🏗️ Thiết kế thủ công (có thi công)"
-                                  size="small"
+                                  label=" Thiết kế + Thi công"
+                                  size="medium"
                                   sx={{
                                     background:
-                                      "linear-gradient(135deg, #2196f3 0%, #21cbf3 100%)",
+                                      "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
                                     color: "white",
                                     fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    px: 1,
+                                    boxShadow:
+                                      "0 2px 8px rgba(59, 130, 246, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
                               ) : order.orderType ===
                                 "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
                                 <Chip
-                                  icon={<BrushIcon />}
-                                  label="🎨 Thiết kế thủ công (không thi công)"
-                                  size="small"
+                                 
+                                  label="🎨 Chỉ thiết kế"
+                                  size="medium"
                                   sx={{
                                     background:
-                                      "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)",
+                                      "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
                                     color: "white",
                                     fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    px: 1,
+                                    boxShadow:
+                                      "0 2px 8px rgba(245, 158, 11, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
                               ) : (
                                 <Chip
                                   icon={<ShoppingBagIcon />}
-                                  label="🛍️ Đơn hàng thường"
-                                  size="small"
+                                  label="🛍️ Đơn hàng mẫu"
+                                  size="medium"
                                   sx={{
                                     background:
-                                      "linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)",
+                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                                     color: "white",
                                     fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    px: 1,
+                                    boxShadow:
+                                      "0 2px 8px rgba(16, 185, 129, 0.3)",
                                     "& .MuiChip-icon": { color: "white" },
                                   }}
                                 />
@@ -3270,19 +3365,25 @@ const OrderHistory = () => {
                                 label={
                                   statusMap[order.status]?.label || order.status
                                 }
-                                size="small"
+                                size="medium"
                                 sx={{
                                   background:
-                                    order.status === "COMPLETED"
-                                      ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
+                                    order.status === "COMPLETED" ||
+                                    order.status === "ORDER_COMPLETED"
+                                      ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
                                       : order.status === "CANCELLED"
                                       ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                                      : order.status === "IN_PROGRESS"
+                                      : order.status === "IN_PROGRESS" ||
+                                        order.status === "PRODUCING"
                                       ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                                      : order.status === "INSTALLED"
+                                      ? "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
                                       : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
                                   color: "white",
                                   fontWeight: 600,
-                                  "& .MuiChip-icon": { color: "white" },
+                                  fontSize: "0.875rem",
+                                  px: 1.5,
+                                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
                                 }}
                               />
                             </Box>
@@ -3292,20 +3393,25 @@ const OrderHistory = () => {
                               sx={{
                                 display: "flex",
                                 flexDirection: "column",
-                                gap: 1.5,
+                                gap: 2,
+                                p: 2,
+                                backgroundColor: "rgba(248, 250, 252, 0.6)",
+                                borderRadius: 3,
+                                border: "1px solid rgba(226, 232, 240, 0.8)",
                               }}
                             >
                               <Typography
-                                variant="h6"
+                                variant="h5"
                                 fontWeight={700}
                                 sx={{
                                   wordBreak: "break-all",
                                   overflowWrap: "break-word",
-                                  color: "#667eea",
-                                  mb: 1,
+                                  color: "#4f46e5",
+                                  mb: 0.5,
+                                  fontSize: "1.25rem",
                                 }}
                               >
-                                Mã đơn: #{order.orderCode || order.id}
+                                #{order.orderCode || order.id}
                               </Typography>
 
                               {(order.orderType ===
@@ -3489,100 +3595,178 @@ const OrderHistory = () => {
                                 </Box>
                               )}
 
-                              <Typography color="text.secondary" fontSize={14}>
-                                Tổng tiền:{" "}
-                                {order.totalOrderAmount?.toLocaleString(
-                                  "vi-VN"
-                                ) ||
-                                  order.totalAmount?.toLocaleString("vi-VN") ||
-                                  0}
-                                VNĐ
-                              </Typography>
-                              {order.status === "DEPOSITED" && (
-                                <>
-                                  <Typography
-                                    color="success.main"
-                                    fontSize={14}
+                              {/* Price Summary Section */}
+                              <Box
+                                sx={{
+                                  mt: 2,
+                                  p: 2,
+                                  backgroundColor: "rgba(236, 254, 255, 0.8)",
+                                  borderRadius: 3,
+                                  border: "1px solid rgba(6, 182, 212, 0.2)",
+                                }}
+                              >
+                                <Typography
+                                  variant="h6"
+                                  fontWeight={700}
+                                  sx={{
+                                    color: "#0891b2",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 1,
+                                  }}
+                                >
+                                  💰 Tổng tiền:{" "}
+                                  <span
+                                    style={{
+                                      color: "#065f46",
+                                      fontSize: "1.1em",
+                                    }}
                                   >
-                                    Đã đặt cọc:{" "}
-                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                    {order.totalOrderAmount?.toLocaleString(
                                       "vi-VN"
                                     ) ||
-                                      order.depositAmount?.toLocaleString(
+                                      order.totalAmount?.toLocaleString(
                                         "vi-VN"
                                       ) ||
-                                      0}
+                                      "0"}{" "}
                                     VNĐ
-                                  </Typography>
-                                  <Typography color="info.main" fontSize={14}>
-                                    Còn lại:{" "}
-                                    {order.totalOrderRemainingAmount?.toLocaleString(
-                                      "vi-VN"
-                                    ) ||
-                                      order.remainingAmount?.toLocaleString(
-                                        "vi-VN"
-                                      ) ||
-                                      0}
-                                    VNĐ
-                                  </Typography>
-                                </>
-                              )}
-                              {order.status === "INSTALLED" && (
-                                <>
-                                  <Typography
-                                    color="success.main"
-                                    fontSize={14}
+                                  </span>
+                                </Typography>
+
+                                {order.status === "DEPOSITED" && (
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 0.5,
+                                    }}
                                   >
-                                    Đã đặt cọc:{" "}
-                                    {order.totalOrderDepositAmount?.toLocaleString(
-                                      "vi-VN"
-                                    ) ||
-                                      order.depositAmount?.toLocaleString(
-                                        "vi-VN"
-                                      ) ||
-                                      0}
-                                    VNĐ
-                                  </Typography>
-                                  {(order.totalOrderRemainingAmount ||
-                                    order.remainingAmount) > 0 ? (
                                     <Typography
-                                      color="warning.main"
-                                      fontSize={14}
+                                      color="#10b981"
+                                      fontSize="0.875rem"
                                       fontWeight={600}
                                     >
-                                      🔔 Còn lại cần thanh toán:{" "}
+                                      ✅ Đã đặt cọc:{" "}
+                                      {order.totalOrderDepositAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                        order.depositAmount?.toLocaleString(
+                                          "vi-VN"
+                                        ) ||
+                                        "0"}{" "}
+                                      VNĐ VNĐ
+                                    </Typography>
+                                    <Typography
+                                      color="#f59e0b"
+                                      fontSize="0.875rem"
+                                      fontWeight={600}
+                                    >
+                                      ⏳ Còn lại:{" "}
                                       {order.totalOrderRemainingAmount?.toLocaleString(
                                         "vi-VN"
                                       ) ||
                                         order.remainingAmount?.toLocaleString(
                                           "vi-VN"
                                         ) ||
-                                        0}
+                                        "0"}{" "}
+                                      VNĐ
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+
+                              {order.status === "INSTALLED" && (
+                                <Box
+                                  sx={{
+                                    p: 2,
+                                    backgroundColor: "rgba(240, 253, 244, 0.8)",
+                                    borderRadius: 3,
+                                    border: "1px solid rgba(34, 197, 94, 0.2)",
+                                  }}
+                                >
+                                  <Typography
+                                    color="#10b981"
+                                    fontSize="0.875rem"
+                                    fontWeight={600}
+                                    sx={{ mb: 1 }}
+                                  >
+                                    ✅ Đã lắp đặt hoàn tất
+                                  </Typography>
+                                  <Typography
+                                    color="#10b981"
+                                    fontSize="0.875rem"
+                                    fontWeight={600}
+                                  >
+                                    💸 Đã đặt cọc:{" "}
+                                    {order.totalOrderDepositAmount?.toLocaleString(
+                                      "vi-VN"
+                                    ) ||
+                                      order.depositAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                      "0"}{" "}
+                                    VNĐ
+                                  </Typography>
+
+                                  {(order.totalOrderRemainingAmount ||
+                                    order.remainingAmount) > 0 ? (
+                                    <Typography
+                                      color="#ef4444"
+                                      fontSize="0.875rem"
+                                      fontWeight={600}
+                                      sx={{ mt: 1 }}
+                                    >
+                                      ⚠️ Còn phải thanh toán:{" "}
+                                      {order.totalOrderRemainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) ||
+                                        order.remainingAmount?.toLocaleString(
+                                          "vi-VN"
+                                        ) ||
+                                        "0"}{" "}
                                       VNĐ
                                     </Typography>
                                   ) : (
                                     <Typography
-                                      color="success.main"
-                                      fontSize={14}
+                                      color="#10b981"
+                                      fontSize="0.875rem"
                                       fontWeight={600}
+                                      sx={{ mt: 1 }}
                                     >
                                       ✅ Đã thanh toán đầy đủ
                                     </Typography>
                                   )}
-                                </>
+                                </Box>
                               )}
                               {!["DEPOSITED", "INSTALLED"].includes(
                                 order.status
                               ) &&
                                 order.remainingAmount > 0 && (
-                                  <Typography color="info.main" fontSize={14}>
-                                    Còn lại:{" "}
-                                    {order.remainingAmount?.toLocaleString(
-                                      "vi-VN"
-                                    ) || 0}
-                                    VNĐ
-                                  </Typography>
+                                  <Box
+                                    sx={{
+                                      p: 2,
+                                      backgroundColor:
+                                        "rgba(254, 243, 199, 0.8)",
+                                      borderRadius: 3,
+                                      border:
+                                        "1px solid rgba(245, 158, 11, 0.2)",
+                                    }}
+                                  >
+                                    <Typography
+                                      color="#f59e0b"
+                                      fontSize="0.875rem"
+                                      fontWeight={600}
+                                    >
+                                      ⏳ Số tiền còn lại:{" "}
+                                      {order.remainingAmount?.toLocaleString(
+                                        "vi-VN"
+                                      ) || "0"}{" "}
+                                      VNĐ
+                                    </Typography>
+                                  </Box>
                                 )}
+                              {/* Delivery Information */}
                               {order.status === "IN_PROGRESS" &&
                                 order.estimatedDeliveryDate && (
                                   <Typography
@@ -3591,17 +3775,18 @@ const OrderHistory = () => {
                                     fontWeight={500}
                                   >
                                     📅 Ngày giao dự kiến:{" "}
-                                    {order.estimatedDeliveryDate ? new Date(
+                                    {new Date(
                                       order.estimatedDeliveryDate
-                                    ).toLocaleDateString("vi-VN") : "N/A"}
+                                    ).toLocaleDateString("vi-VN")}
                                   </Typography>
                                 )}
+
                               {order.deliveryDate && (
                                 <Typography color="primary.main" fontSize={14}>
                                   Ngày giao dự kiến:{" "}
-                                  {order.deliveryDate ? new Date(
+                                  {new Date(
                                     order.deliveryDate
-                                  ).toLocaleDateString("vi-VN") : "N/A"}
+                                  ).toLocaleDateString("vi-VN")}
                                 </Typography>
                               )}
 
@@ -3920,16 +4105,16 @@ const OrderHistory = () => {
                                                             Giá vật liệu:{" "}
                                                             {attr.materialPrice?.toLocaleString(
                                                               "vi-VN"
-                                                            ) || 0}
-                                                            ₫ • Đơn giá:{" "}
+                                                            ) || 0}{" "}
+                                                            VNĐ • Đơn giá:{" "}
                                                             {attr.unitPrice?.toLocaleString(
                                                               "vi-VN"
-                                                            ) || 0}
-                                                            ₫ • Thành tiền:{" "}
+                                                            ) || 0}{" "}
+                                                            VNĐ • Thành tiền:{" "}
                                                             {attr.subTotal?.toLocaleString(
                                                               "vi-VN"
-                                                            ) || 0}
-                                                            ₫
+                                                            ) || 0}{" "}
+                                                            VNĐ
                                                           </Typography>
                                                           {attr.calculateFormula && (
                                                             <Typography
@@ -4188,8 +4373,12 @@ const OrderHistory = () => {
                               display: "flex",
                               flexDirection: "column",
                               gap: 2,
-                              minWidth: { xs: "100%", md: 200 },
+                              minWidth: { xs: "100%", md: 220 },
                               alignItems: { xs: "stretch", md: "flex-end" },
+                              p: 2,
+                              backgroundColor: "rgba(248, 250, 252, 0.6)",
+                              borderRadius: 3,
+                              border: "1px solid rgba(226, 232, 240, 0.8)",
                             }}
                           >
                             {/* Action Buttons */}
@@ -4197,10 +4386,11 @@ const OrderHistory = () => {
                               sx={{
                                 display: "flex",
                                 flexDirection: "column",
-                                gap: 1.5,
+                                gap: 2,
                                 width: "100%",
                               }}
                             >
+                              {/* Contract Actions */}
                               {[
                                 "CONTRACT_SENT",
                                 "CONTRACT_SIGNED",
@@ -4210,8 +4400,7 @@ const OrderHistory = () => {
                                 (order.status || "").toUpperCase()
                               ) && (
                                 <Button
-                                  variant="outlined"
-                                  color="info"
+                                  variant="contained"
                                   size="medium"
                                   onClick={() => handleGetContract(order.id)}
                                   disabled={contractLoading}
@@ -4223,100 +4412,149 @@ const OrderHistory = () => {
                                     )
                                   }
                                   sx={{
-                                    width: "100%",
+                                    background:
+                                      "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                                    color: "white",
                                     fontWeight: 600,
-                                    borderRadius: 2,
-                                    textTransform: "none",
+                                    boxShadow:
+                                      "0 4px 12px rgba(59, 130, 246, 0.3)",
                                     "&:hover": {
                                       transform: "translateY(-1px)",
-                                      boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                                      boxShadow:
+                                        "0 6px 16px rgba(59, 130, 246, 0.4)",
                                     },
                                   }}
                                 >
-                                  Xem hợp đồng
+                                  📄 Xem hợp đồng
                                 </Button>
                               )}
-                              {order.status === "PENDING_CONTRACT" && (
+
+                              {/* Payment Actions */}
+                              {order.status === "PENDING" && (
+                                <Button
+                                  variant="contained"
+                                  size="medium"
+                                  onClick={() => handlePayDeposit(order)}
+                                  disabled={depositLoadingId === order.id}
+                                  startIcon={
+                                    depositLoadingId === order.id ? (
+                                      <CircularProgress size={16} />
+                                    ) : null
+                                  }
+                                  sx={{
+                                    background:
+                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    boxShadow:
+                                      "0 4px 12px rgba(16, 185, 129, 0.3)",
+                                    "&:hover": {
+                                      transform: "translateY(-1px)",
+                                      boxShadow:
+                                        "0 6px 16px rgba(16, 185, 129, 0.4)",
+                                    },
+                                  }}
+                                >
+                                  {depositLoadingId === order.id
+                                    ? "Đang xử lý..."
+                                    : "💳 Đặt cọc ngay"}
+                                </Button>
+                              )}
+
+                              {/* Cancel Order */}
+                              {[
+                                "PENDING_CONTRACT",
+                                "CONTRACT_SENT",
+                                "CONTRACT_SIGNED",
+                                "CONTRACT_DISCUSS",
+                                "CONTRACT_RESIGNED"
+                              ].includes(
+                                order.status
+                              ) && (
                                 <Button
                                   variant="outlined"
-                                  color="error"
                                   size="medium"
-                                  onClick={() => handleCancelOrder(order.id)}
+                                  color="error"
+                                  onClick={() => handleOpenCancelDialog(order)}
                                   disabled={cancelingOrderId === order.id}
                                   startIcon={
                                     cancelingOrderId === order.id ? (
                                       <CircularProgress size={16} />
-                                    ) : (
-                                      <CloseIcon />
-                                    )
+                                    ) : null
                                   }
                                   sx={{
-                                    width: "100%",
+                                    borderColor: "#ef4444",
+                                    color: "#ef4444",
                                     fontWeight: 600,
-                                    borderRadius: 2,
-                                    textTransform: "none",
                                     "&:hover": {
+                                      backgroundColor:
+                                        "rgba(239, 68, 68, 0.08)",
                                       transform: "translateY(-1px)",
-                                      boxShadow:
-                                        "0 4px 8px rgba(244, 67, 54, 0.2)",
                                     },
                                   }}
                                 >
-                                  Hủy đơn hàng
+                                  {cancelingOrderId === order.id
+                                    ? "Đang hủy..."
+                                    : "❌ Hủy đơn"}
                                 </Button>
                               )}
-                              {order.status === "CONTRACT_CONFIRMED" && (
+
+                              {/* Review Action */}
+                              {(order.status === "ORDER_COMPLETED" ||
+                                order.status === "INSTALLED") && (
                                 <Button
                                   variant="contained"
-                                  color="warning"
                                   size="medium"
-                                  onClick={() => handleDeposit(order)}
+                                  onClick={() =>
+                                    handleOpenImpressionDialog(order.id)
+                                  }
                                   sx={{
-                                    width: "100%",
-                                    fontWeight: 700,
-                                    borderRadius: 2,
-                                    textTransform: "none",
                                     background:
-                                      "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)",
+                                      "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    boxShadow:
+                                      "0 4px 12px rgba(139, 92, 246, 0.3)",
                                     "&:hover": {
-                                      background:
-                                        "linear-gradient(135deg, #f57c00 0%, #ef6c00 100%)",
                                       transform: "translateY(-1px)",
                                       boxShadow:
-                                        "0 6px 12px rgba(255, 152, 0, 0.3)",
+                                        "0 6px 16px rgba(139, 92, 246, 0.4)",
                                     },
                                   }}
+                                  startIcon={<StarIcon />}
                                 >
-                                  💰 ĐẶT CỌC NGAY
+                                  ⭐ Đánh giá
                                 </Button>
                               )}
-                              <Button
-                                variant="outlined"
-                                color="secondary"
-                                size="medium"
-                                onClick={() => handleOpenTicketDialog(order.id)}
-                                startIcon={<FeedbackIcon />}
-                                sx={{
-                                  width: "100%",
-                                  fontWeight: 600,
-                                  borderRadius: 2,
-                                  textTransform: "none",
-                                  borderColor: "#9c27b0",
-                                  color: "#9c27b0",
-                                  "&:hover": {
-                                    borderColor: "#7b1fa2",
-                                    backgroundColor: "rgba(156, 39, 176, 0.04)",
-                                    transform: "translateY(-1px)",
-                                    boxShadow:
-                                      "0 4px 8px rgba(156, 39, 176, 0.2)",
-                                  },
-                                }}
-                              >
-                                Yêu cầu hỗ trợ
-                              </Button>
+
+                              {/* Support Request Button */}
+                              {!["CANCELLED"].includes(order.status) && (
+                                <Button
+                                  variant="outlined"
+                                  size="medium"
+                                  color="info"
+                                  onClick={() =>
+                                    handleOpenTicketDialog(order.id)
+                                  }
+                                  sx={{
+                                    borderColor: "#3b82f6",
+                                    color: "#3b82f6",
+                                    fontWeight: 600,
+                                    "&:hover": {
+                                      backgroundColor:
+                                        "rgba(59, 130, 246, 0.08)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                  }}
+                                  startIcon={<SupportAgentIcon />}
+                                >
+                                  Gửi yêu cầu hỗ trợ
+                                </Button>
+                              )}
                             </Box>
                           </Box>
                         </Box>
+
                         {order.status === "ORDER_COMPLETED" && (
                           <>
                             <Divider sx={{ my: 2 }} />
@@ -4633,6 +4871,41 @@ const OrderHistory = () => {
                     </Card>
                   );
                 })}
+
+                {/* Pagination */}
+                {pagination && pagination.totalPages > 1 && (
+                  <Box display="flex" justifyContent="center" mt={4}>
+                    <Pagination
+                      count={pagination.totalPages}
+                      page={currentPage}
+                      onChange={handlePageChange}
+                      color="primary"
+                      size="large"
+                      showFirstButton
+                      showLastButton
+                      sx={{
+                        "& .MuiPaginationItem-root": {
+                          borderRadius: 3,
+                          fontWeight: 600,
+                          color: "rgba(55, 65, 81, 0.7)",
+                          border: "1px solid rgba(209, 213, 219, 0.4)",
+                          "&.Mui-selected": {
+                            background:
+                              "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                            color: "white",
+                            border: "1px solid transparent",
+                            boxShadow: "0 4px 12px rgba(79, 70, 229, 0.25)",
+                          },
+                          "&:hover:not(.Mui-selected)": {
+                            backgroundColor: "rgba(79, 70, 229, 0.08)",
+                            border: "1px solid rgba(79, 70, 229, 0.2)",
+                            color: "rgba(55, 65, 81, 1)",
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                )}
               </Stack>
             )}
           </>
@@ -4644,19 +4917,19 @@ const OrderHistory = () => {
                 justifyContent="center"
                 py={6}
                 sx={{
-                  background: "rgba(255, 255, 255, 0.95)",
+                  background: "rgba(255, 255, 255, 0.98)",
                   backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: 3,
-                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+                  border: "1px solid rgba(220, 225, 235, 0.6)",
+                  borderRadius: 4,
+                  boxShadow: "0 8px 20px rgba(0, 0, 0, 0.04)",
                 }}
               >
                 <Box sx={{ textAlign: "center" }}>
                   <CircularProgress
                     size={60}
-                    sx={{ color: "#667eea", mb: 2 }}
+                    sx={{ color: "#4f46e5", mb: 2 }}
                   />
-                  <Typography variant="h6" color="text.secondary">
+                  <Typography variant="h6" color="rgba(55, 65, 81, 0.8)">
                     Đang tải thiết kế...
                   </Typography>
                 </Box>
@@ -4664,26 +4937,26 @@ const OrderHistory = () => {
             ) : customError ? (
               <Box
                 sx={{
-                  background: "rgba(255, 255, 255, 0.95)",
+                  background: "rgba(254, 242, 242, 0.98)",
                   backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: 3,
+                  border: "1px solid rgba(252, 165, 165, 0.3)",
+                  borderRadius: 4,
                   p: 4,
                   textAlign: "center",
-                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
+                  boxShadow: "0 8px 20px rgba(239, 68, 68, 0.08)",
                 }}
               >
-                <Typography color="error" variant="h6">
+                <Typography color="#dc2626" variant="h6" fontWeight={600}>
                   ⚠️ {customError}
                 </Typography>
               </Box>
             ) : designRequests.length === 0 ? (
               <Box
                 sx={{
-                  background: "rgba(255, 255, 255, 0.95)",
+                  background: "rgba(249, 250, 251, 0.98)",
                   backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: 3,
+                  border: "1px solid rgba(209, 213, 219, 0.4)",
+                  borderRadius: 4,
                   p: 6,
                   textAlign: "center",
                   boxShadow: "0 15px 35px rgba(0, 0, 0, 0.08)",
