@@ -175,10 +175,28 @@ export const fetchOrderById = createAsyncThunk(
 
 export const fetchOrdersByUserId = createAsyncThunk(
   "order/fetchOrdersByUserId",
-  async (userId, { rejectWithValue }) => {
-    const response = await getOrdersByUserIdApi(userId);
+  async (params, { rejectWithValue }) => {
+    // Kiểm tra nếu params là object hoặc string (userId)
+    let userId, page, size;
+
+    if (typeof params === "object" && params !== null) {
+      // Nếu là object, trích xuất tham số
+      userId = params.userId;
+      page = params.page || 1;
+      size = params.size || 10;
+    } else {
+      // Nếu là string, xem như userId
+      userId = params;
+      page = 1;
+      size = 10;
+    }
+
+    const response = await getOrdersByUserIdApi(userId, page, size);
     if (response.success) {
-      return response.data;
+      return {
+        orders: response.data,
+        pagination: response.pagination,
+      };
     }
     return rejectWithValue(response.error);
   }
@@ -504,7 +522,10 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrdersByUserId.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload;
+        state.orders = action.payload.orders;
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
       })
       .addCase(fetchOrdersByUserId.rejected, (state, action) => {
         state.loading = false;

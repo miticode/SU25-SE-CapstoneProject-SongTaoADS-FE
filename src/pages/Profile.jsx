@@ -83,6 +83,7 @@ const Profile = () => {
 
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editUserAddress, setEditUserAddress] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -224,11 +225,12 @@ const Profile = () => {
     }
   }, [dispatch, profile?.id]);
 
-  // Đồng bộ editName, editPhone khi profile Redux thay đổi
+  // Đồng bộ editName, editPhone, editUserAddress khi profile Redux thay đổi
   useEffect(() => {
     if (profile) {
       setEditName(profile.fullName || "");
       setEditPhone(profile.phone || "");
+      setEditUserAddress(profile.address || "");
     }
   }, [profile]);
 
@@ -282,7 +284,7 @@ const Profile = () => {
       return;
     }
     setEditLoading(true);
-    const res = await updateUserProfileApi(profile.id, editName, editPhone);
+    const res = await updateUserProfileApi(profile.id, editName, editPhone, editUserAddress);
     setEditLoading(false);
     if (res.success) {
       // Dispatch action để cập nhật profile trong Redux store
@@ -290,6 +292,7 @@ const Profile = () => {
         updateUserProfile({
           fullName: editName,
           phone: editPhone,
+          address: editUserAddress,
         })
       );
       setSnackbar({
@@ -711,6 +714,46 @@ const Profile = () => {
                   onChange={(e) => setEditPhone(e.target.value)}
                   size="small"
                   fullWidth
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      background: "rgba(12, 21, 40, 0.04)",
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(12, 21, 40, 0.08)",
+                        transform: "translateY(-1px)",
+                      },
+                      "&.Mui-focused": {
+                        background: "rgba(12, 21, 40, 0.08)",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 4px 20px rgba(12, 21, 40, 0.2)",
+                      },
+                    },
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: "#0C1528",
+                    mb: 1,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Địa chỉ
+                </Typography>
+                <TextField
+                  value={editUserAddress}
+                  onChange={(e) => setEditUserAddress(e.target.value)}
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  placeholder="Nhập địa chỉ của bạn"
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
