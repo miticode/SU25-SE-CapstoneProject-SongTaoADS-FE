@@ -113,6 +113,8 @@ export const fetchOrders = createAsyncThunk(
         page = params.page || 1;
         size = params.size || 10;
         orderType = params.orderType || null;
+
+        // Debug: fetchOrders called with pagination parameters
       } else {
         // Nếu là string, xem như orderStatus
         orderStatus = params;

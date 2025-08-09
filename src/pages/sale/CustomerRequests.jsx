@@ -42,6 +42,7 @@ import {
   Fade,
   Zoom,
   TextField,
+  Pagination,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -348,30 +349,61 @@ const CustomerRequests = () => {
   const [rejectingRequest, setRejectingRequest] = useState(false);
   const [currentTab, setCurrentTab] = useState(0); // 0: Design Requests, 1: Custom Design Orders
   const [orderLoading, setOrderLoading] = useState(false);
+  
+  // Pagination states
+  const [designRequestsPage, setDesignRequestsPage] = useState(1);
+  const [designRequestsTotalPages, setDesignRequestsTotalPages] = useState(1);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(1);
   const [contractId, setContractId] = useState(null);
   const [fetchingContract, setFetchingContract] = useState(false);
+  // Removed fetchingOrders state as it's not needed for server-side pagination
   const allOrders = useSelector(selectOrders);
-  // Filter chỉ lấy custom design orders (không phải AI design)
-  const customDesignOrderTypes = [
-    'CUSTOM_DESIGN_WITH_CONSTRUCTION',
-    'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION'
-  ];
-  const orders = useSelector(state => selectOrdersByType(state, customDesignOrderTypes));
+  // Filter out AI_DESIGN orders for custom design tab
+  const filteredOrders = allOrders.filter(order => order.orderType !== 'AI_DESIGN');
   
-  // Debug: Log order type breakdown
+  // Client-side pagination for custom design tab
+  const itemsPerPage = 10;
+  const startIndex = (ordersPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFilteredOrders = filteredOrders.slice(startIndex, endIndex);
+  
+  const orders = currentTab === 1 ? paginatedFilteredOrders : allOrders; // Use paginated filtered orders for custom design tab
+  const ordersPagination = useSelector((state) => state.order.pagination); // Get pagination from Redux
+  
+  // Calculate pagination for filtered orders whenever data changes
   useEffect(() => {
-    if (currentTab === 1 && allOrders.length > 0) {
-      const orderTypeCount = allOrders.reduce((acc, order) => {
+    if (currentTab === 1) {
+      const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+      setOrdersTotalPages(filteredTotalPages || 1);
+    }
+  }, [currentTab, filteredOrders.length, itemsPerPage]);
+
+  // Debug: Log order type breakdown and pagination (Client-side)
+  useEffect(() => {
+    if (currentTab === 1) {
+      const orderTypeCount = orders.reduce((acc, order) => {
         acc[order.orderType] = (acc[order.orderType] || 0) + 1;
         return acc;
       }, {});
       
-      console.log('Order type breakdown:', orderTypeCount);
-      console.log('Total orders from API:', allOrders.length);
-      console.log('Custom design orders (filtered):', orders.length);
-      console.log('Custom design order types:', customDesignOrderTypes);
+      console.log('📊 Order breakdown (Client-side pagination):');
+      console.log('  - Total filtered orders:', filteredOrders.length);
+      console.log('  - Current page orders:', orders.length);
+      console.log('  - Order type breakdown:', orderTypeCount);
+      console.log('📄 Pagination info:');
+      console.log('  - Current page:', ordersPage);
+      console.log('  - Total pages:', ordersTotalPages);
     }
-  }, [currentTab, allOrders, orders, customDesignOrderTypes]);
+  }, [currentTab, orders, ordersPage, ordersTotalPages, filteredOrders.length]);
+
+  // Reset page if current page exceeds total pages
+  useEffect(() => {
+    if (ordersPage > ordersTotalPages && ordersTotalPages > 0) {
+      console.log('⚠️ Current page exceeds total pages, resetting to page 1');
+      setOrdersPage(1);
+    }
+  }, [ordersPage, ordersTotalPages]);
   
   const orderStatus = useSelector(selectOrderStatus);
   const orderError = useSelector(selectOrderError);
@@ -437,32 +469,76 @@ const CustomerRequests = () => {
   useEffect(() => {
     if (currentTab === 0) {
       dispatch(
-        fetchAllDesignRequests({ status: selectedStatus, page: 1, size: 1000 })
-      );
+        fetchAllDesignRequests({ status: selectedStatus, page: designRequestsPage, size: 10 })
+      ).then((action) => {
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
+        }
+      });
     }
-  }, [currentTab, dispatch, selectedStatus]);
+  }, [currentTab, dispatch, selectedStatus, designRequestsPage]);
 
   useEffect(() => {
     if (currentTab === 1) {
+      const fetchTimestamp = Date.now();
+      console.log(`🚀 [${fetchTimestamp}] Tab 1 active - fetching CUSTOM DESIGN orders:`, {
+        status: selectedOrderStatus,
+        page: ordersPage,
+        size: 10
+      });
+      
       // Thêm memoization để tránh fetch quá nhiều lần
       const controller = new AbortController();
       const signal = controller.signal;
 
+      // For custom design tab, we need both orderTypes
+      const orderTypes = ['CUSTOM_DESIGN_WITH_CONSTRUCTION', 'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION'];
+      
+      // Since API only accepts single orderType, we'll call for each type and combine
+      // Or if backend supports multiple types, we can pass as comma-separated
       dispatch(
         fetchOrders({
-          orderStatus: selectedOrderStatus,
-          page: 1,
-          size: 1000,
+          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
+          page: 1, // Always get page 1 since we'll do client-side pagination
+          size: 100, // Get more data to ensure enough custom design orders for pagination
+          orderType: null, // Don't filter by orderType, we'll filter client-side to exclude AI_DESIGN
           signal,
+          _timestamp: fetchTimestamp, // Debug identifier
         })
-      );
+      ).then((action) => {
+        console.log(`✅ [${fetchTimestamp}] Orders API Response:`, action.payload);
+        if (action.payload && action.payload.orders) {
+          // Calculate client-side pagination for filtered orders
+          const totalOrders = action.payload.orders || [];
+          const customDesignOrders = totalOrders.filter(order => order.orderType !== 'AI_DESIGN');
+          const filteredTotalPages = Math.ceil(customDesignOrders.length / itemsPerPage);
+          
+          setOrdersTotalPages(filteredTotalPages || 1);
+          console.log(`📊 [${fetchTimestamp}] Server Total Orders:`, totalOrders.length);
+          console.log(`📊 [${fetchTimestamp}] Custom Design Orders:`, customDesignOrders.length);
+          console.log(`📊 [${fetchTimestamp}] Client-side Pages:`, filteredTotalPages);
+        }
+        if (action.payload && action.payload.orders) {
+          console.log(`🔍 [${fetchTimestamp}] Order types:`, action.payload.orders.map(o => o.orderType));
+        }
+      });
 
       // Cleanup function để hủy fetch nếu component re-render
       return () => {
         controller.abort();
       };
     }
-  }, [currentTab, selectedOrderStatus]);
+  }, [currentTab, selectedOrderStatus]); // Remove ordersPage since we do client-side pagination
+
+  // Pagination handlers
+  const handleDesignRequestsPageChange = (event, newPage) => {
+    setDesignRequestsPage(newPage);
+  };
+
+  const handleOrdersPageChange = (event, newPage) => {
+    setOrdersPage(newPage);
+    console.log('🔄 Changing to orders page:', newPage);
+  };
 
   const handleUpdateEstimatedDeliveryDate = async (orderId, deliveryDate) => {
     if (!deliveryDate) {
@@ -495,9 +571,10 @@ const CustomerRequests = () => {
         // Refresh orders list
         dispatch(
           fetchOrders({
-            orderStatus: selectedOrderStatus,
+            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
             page: 1,
-            size: 1000,
+            size: 100,
+            orderType: null, // Get all orders, filter client-side
           })
         );
 
@@ -542,9 +619,10 @@ const CustomerRequests = () => {
             // Refresh danh sách orders
             await dispatch(
               fetchOrders({
-                orderStatus: selectedOrderStatus,
+                orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
                 page: 1,
-                size: 1000,
+                size: 100,
+                orderType: null, // Get all orders, filter client-side
               })
             );
 
@@ -690,9 +768,10 @@ const CustomerRequests = () => {
         // Refresh data
         dispatch(
           fetchOrders({
-            orderStatus: selectedOrderStatus,
+            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
             page: 1,
-            size: 1000,
+            size: 100,
+            orderType: null, // Get all orders, filter client-side
           })
         );
 
@@ -773,9 +852,10 @@ const CustomerRequests = () => {
         setTimeout(() => {
           dispatch(
             fetchOrders({
-              orderStatus: selectedOrderStatus,
+              orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
               page: 1,
-              size: 1000,
+              size: 100,
+              orderType: null, // Get all orders, filter client-side
             })
           );
         }, 300);
@@ -802,9 +882,10 @@ const CustomerRequests = () => {
       setTimeout(() => {
         dispatch(
           fetchOrders({
-            orderStatus: selectedOrderStatus,
+            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
             page: 1,
-            size: 1000,
+            size: 100,
+            orderType: null, // Get all orders, filter client-side
           })
         );
       }, 300);
@@ -816,6 +897,7 @@ const CustomerRequests = () => {
   };
   const handleOrderStatusChange = (e) => {
     setSelectedOrderStatus(e.target.value);
+    setOrdersPage(1); // Reset to first page when changing status
   };
   const handleViewOrderDetails = async (order) => {
     console.log("Order data structure:", order);
@@ -875,9 +957,10 @@ const CustomerRequests = () => {
         // Sử dụng Redux dispatch thay vì gọi fetchCustomDesignOrders
         dispatch(
           fetchOrders({
-            orderStatus: selectedOrderStatus,
+            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
             page: 1,
-            size: 1000,
+            size: 100,
+            orderType: null, // Get all orders, filter client-side
           })
         );
 
@@ -980,9 +1063,10 @@ const CustomerRequests = () => {
       // Refresh danh sách orders để cập nhật thông tin mới
       dispatch(
         fetchOrders({
-          orderStatus: selectedOrderStatus,
+          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
           page: 1,
-          size: 1000,
+          size: 100,
+          orderType: null, // Get all orders, filter client-side
         })
       );
 
@@ -1064,7 +1148,7 @@ const CustomerRequests = () => {
           fetchAllDesignRequests({
             status: selectedStatus,
             page: 1,
-            size: 1000,
+            size: 100,
           })
         );
 
@@ -1116,7 +1200,7 @@ const CustomerRequests = () => {
           fetchAllDesignRequests({
             status: selectedStatus,
             page: 1,
-            size: 1000,
+            size: 100,
           })
         );
 
@@ -1167,7 +1251,7 @@ const CustomerRequests = () => {
           fetchAllDesignRequests({
             status: selectedStatus,
             page: 1,
-            size: 1000,
+            size: 100,
           })
         );
 
@@ -1252,10 +1336,11 @@ const CustomerRequests = () => {
   // Format currency
   const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return "";
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount);
+    return new Intl.NumberFormat("en-US", {
+      style: "decimal",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount) + " VND";
   };
 
   // Hàm báo giá
@@ -1502,7 +1587,10 @@ const CustomerRequests = () => {
                   labelId="status-filter-label"
                   value={selectedStatus}
                   label="Lọc theo trạng thái"
-                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setDesignRequestsPage(1); // Reset to first page when changing status
+                  }}
                   startAdornment={
                     <Box sx={{ mr: 1 }}>
                       <Chip 
@@ -1598,7 +1686,7 @@ const CustomerRequests = () => {
                         >
                           <TableCell>
                             <Typography variant="body2" fontWeight="bold" color="primary.main">
-                              {request.code || "Chưa có mã"}
+                              {request.code || ""}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -1671,6 +1759,21 @@ const CustomerRequests = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                
+                {/* Pagination for Design Requests */}
+                {designRequestsTotalPages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={designRequestsTotalPages}
+                      page={designRequestsPage}
+                      onChange={handleDesignRequestsPageChange}
+                      color="primary"
+                      size="large"
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Box>
+                )}
               </Card>
             )}
           </>
@@ -1905,6 +2008,21 @@ const CustomerRequests = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  
+                  {/* Pagination for Orders */}
+                  {ordersTotalPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                      <Pagination
+                        count={ordersTotalPages}
+                        page={ordersPage}
+                        onChange={handleOrdersPageChange}
+                        color="primary"
+                        size="large"
+                        showFirstButton
+                        showLastButton
+                      />
+                    </Box>
+                  )}
                 </Card>
               </>
             )}
@@ -1945,6 +2063,9 @@ const CustomerRequests = () => {
                       Chi tiết yêu cầu thiết kế
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      {selectedRequest.code ? `Mã: ${selectedRequest.code}` : "Chưa có mã"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
                       {getCustomerName(selectedRequest.customerDetail)}
                     </Typography>
                   </Box>
@@ -1976,9 +2097,32 @@ const CustomerRequests = () => {
                           Thông tin công ty
                         </Typography>
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">
-                        {selectedRequest.customerDetail?.companyName || "Chưa có thông tin"}
-                      </Typography>
+                      <Stack spacing={1}>
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            Tên công ty:
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium">
+                            {selectedRequest.customerDetail?.companyName || "Chưa có thông tin"}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            Địa chỉ:
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium">
+                            {selectedRequest.customerDetail?.address || "Chưa có thông tin"}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            Liên hệ:
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium">
+                            {selectedRequest.customerDetail?.contactInfo || "Chưa có thông tin"}
+                          </Typography>
+                        </Box>
+                      </Stack>
                     </Card>
                   </Grid>
 
@@ -2210,7 +2354,7 @@ const CustomerRequests = () => {
                         <Box sx={{ textAlign: "center", py: 3 }}>
                           <AttachMoneyIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
                           <Typography variant="body1" color="text.secondary">
-                            Chưa có báo giá nào
+                           
                           </Typography>
                         </Box>
                       ) : (
@@ -2245,7 +2389,7 @@ const CustomerRequests = () => {
                                 {proposal.totalPriceOffer && (
                                   <Grid item xs={12} sm={6}>
                                     <Typography variant="body2" color="text.secondary">
-                                      Giá offer:
+                                      Giá đề xuất :
                                     </Typography>
                                     <Typography variant="body1" fontWeight="bold" color="warning.main">
                                       {formatCurrency(proposal.totalPriceOffer)}
@@ -2255,7 +2399,7 @@ const CustomerRequests = () => {
                                 {proposal.depositAmountOffer && (
                                   <Grid item xs={12} sm={6}>
                                     <Typography variant="body2" color="text.secondary">
-                                      Cọc offer:
+                                      Cọc đề xuất :
                                     </Typography>
                                     <Typography variant="body1" fontWeight="bold" color="warning.main">
                                       {formatCurrency(proposal.depositAmountOffer)}
@@ -2277,7 +2421,7 @@ const CustomerRequests = () => {
                                     Ngày báo giá:
                                   </Typography>
                                   <Typography variant="body2" fontWeight="medium">
-                                    {new Date(proposal.createAt).toLocaleString("vi-VN")}
+                                    {new Date(proposal.createdAt).toLocaleDateString("vi-VN")}
                                   </Typography>
                                 </Grid>
                               </Grid>
