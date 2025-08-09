@@ -50,6 +50,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import PaymentIcon from "@mui/icons-material/Payment";
+import ReceiptIcon from "@mui/icons-material/Receipt";
 import {
   fetchCustomDesignRequestsByCustomerDetail,
   setCurrentDesignRequest,
@@ -79,6 +81,10 @@ import {
   payDesignRemainingThunk,
   payOrderRemainingThunk,
   selectPaymentLoading,
+  getOrderPaymentsThunk,
+  selectOrderPayments,
+  selectOrderPaymentsPagination,
+  selectOrderPaymentsLoading,
 } from "../store/features/payment/paymentSlice";
 import {
   getDemoDesigns,
@@ -556,6 +562,357 @@ const FeedbackImage = ({ feedbackImageKey, altText = "Ảnh feedback" }) => {
 };
 
 const OrderHistory = () => {
+  // Payment History Section Component
+  const PaymentHistorySection = ({ order }) => {
+    const payments = getOrderPayments(order.id);
+    const loading = isLoadingOrderPayments(order.id);
+    const expanded = isPaymentHistoryExpanded(order.id);
+    const pagination = getPaymentPagination(order.id);
+
+    // Fetch payment history when component mounts
+    useEffect(() => {
+      fetchPaymentHistoryForOrder(order.id);
+    }, [order.id]);
+
+    // Get payment status color and Vietnamese translation
+    const getStatusColor = (status) => {
+      switch (status) {
+        case "SUCCESS":
+          return "success";
+        case "PENDING":
+          return "warning";
+        case "FAILED":
+          return "error";
+        case "CANCELLED":
+          return "default";
+        default:
+          return "info";
+      }
+    };
+
+    const getStatusLabel = (status) => {
+      switch (status) {
+        case "SUCCESS":
+          return "Thành công";
+        case "PENDING":
+          return "Đang xử lý";
+        case "FAILED":
+          return "Thất bại";
+        case "CANCELLED":
+          return "Đã hủy";
+        default:
+          return status;
+      }
+    };
+
+    const getPaymentTypeLabel = (type) => {
+      switch (type) {
+        case "DEPOSIT_CONSTRUCTION":
+          return "Cọc thi công";
+        case "DEPOSIT_DESIGN":
+          return "Cọc thiết kế";
+        case "REMAINING_CONSTRUCTION":
+          return "Còn lại thi công";
+        case "REMAINING_DESIGN":
+          return "Còn lại thiết kế";
+        case "FULL_PAYMENT":
+          return "Thanh toán đầy đủ";
+        default:
+          return type;
+      }
+    };
+
+    const getPaymentMethodLabel = (method) => {
+      switch (method) {
+        case "VN_PAY":
+          return "VNPay";
+        case "PAYOS":
+          return "PayOS";
+        case "CASH":
+          return "Tiền mặt";
+        case "BANK_TRANSFER":
+          return "Chuyển khoản";
+        default:
+          return method;
+      }
+    };
+
+    const formatCurrency = (amount) => {
+      return amount.toLocaleString("vi-VN") + " VND";
+    };
+
+    const formatDate = (dateString) => {
+      return new Date(dateString).toLocaleString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    };
+
+    const handleToggleExpanded = () => {
+      togglePaymentHistoryExpanded(order.id);
+    };
+
+    // Display count with loading state
+    const getPaymentCountDisplay = () => {
+      if (loading && payments.length === 0) {
+        return "...";
+      }
+      return payments.length;
+    };
+
+    return (
+      <Box
+        sx={{
+          mt: 2,
+          border: "1px solid",
+          borderColor: "grey.200",
+          borderRadius: 2,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            p: 2,
+            backgroundColor: "grey.50",
+            cursor: "pointer",
+          }}
+          onClick={handleToggleExpanded}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <PaymentIcon color="primary" />
+            <Typography variant="subtitle2" fontWeight={600}>
+              Lịch sử thanh toán ({getPaymentCountDisplay()})
+            </Typography>
+            {loading && payments.length === 0 && (
+              <CircularProgress size={16} sx={{ ml: 1 }} />
+            )}
+          </Box>
+          <IconButton size="small">
+            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
+
+        {expanded && (
+          <Box sx={{ p: 2 }}>
+            {loading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+                <CircularProgress size={24} />
+                <Typography variant="body2" sx={{ ml: 1 }}>
+                  Đang tải lịch sử thanh toán...
+                </Typography>
+              </Box>
+            ) : payments.length > 0 ? (
+              <Box>
+                {/* Desktop Table View */}
+                <Box sx={{ display: { xs: "none", md: "block" } }}>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>
+                            <strong>Mã giao dịch</strong>
+                          </TableCell>
+                          <TableCell>
+                            <strong>Loại</strong>
+                          </TableCell>
+                          <TableCell>
+                            <strong>Phương thức</strong>
+                          </TableCell>
+                          <TableCell align="right">
+                            <strong>Số tiền</strong>
+                          </TableCell>
+                          <TableCell align="center">
+                            <strong>Trạng thái</strong>
+                          </TableCell>
+                          <TableCell>
+                            <strong>Thời gian</strong>
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {payments.map((payment) => (
+                          <TableRow key={payment.id} hover>
+                            <TableCell>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                }}
+                              >
+                                <ReceiptIcon
+                                  sx={{ fontSize: 16, color: "text.secondary" }}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontFamily: "monospace" }}
+                                >
+                                  {payment.code}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {getPaymentTypeLabel(payment.type)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {getPaymentMethodLabel(payment.method)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight={600}>
+                                {formatCurrency(payment.amount)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={getStatusLabel(payment.status)}
+                                color={getStatusColor(payment.status)}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {formatDate(payment.createdAt)}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+
+                {/* Mobile Card View */}
+                <Box sx={{ display: { xs: "block", md: "none" } }}>
+                  <Stack spacing={2}>
+                    {payments.map((payment) => (
+                      <Paper
+                        key={payment.id}
+                        sx={{
+                          p: 2,
+                          border: "1px solid",
+                          borderColor: "grey.200",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "start",
+                            mb: 1,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <ReceiptIcon
+                              sx={{ fontSize: 16, color: "text.secondary" }}
+                            />
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontFamily: "monospace",
+                                fontSize: "0.8rem",
+                              }}
+                            >
+                              {payment.code}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={getStatusLabel(payment.status)}
+                            color={getStatusColor(payment.status)}
+                            size="small"
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 1,
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Loại:
+                            </Typography>
+                            <Typography variant="body2">
+                              {getPaymentTypeLabel(payment.type)}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Phương thức:
+                            </Typography>
+                            <Typography variant="body2">
+                              {getPaymentMethodLabel(payment.method)}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Số tiền:
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="primary.main"
+                            >
+                              {formatCurrency(payment.amount)}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Thời gian:
+                            </Typography>
+                            <Typography variant="body2">
+                              {formatDate(payment.createdAt)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ textAlign: "center", py: 3 }}>
+                <ReceiptIcon
+                  sx={{ fontSize: 48, color: "text.disabled", mb: 1 }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  Chưa có giao dịch nào cho đơn hàng này
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+      </Box>
+    );
+  };
   // Order type mapping cho hiển thị
   const ORDER_TYPE_MAP = {
     TEMPLATE: "Đơn hàng mẫu",
@@ -689,9 +1046,93 @@ const OrderHistory = () => {
 
   // S3 images selector
   const s3Images = useSelector((state) => state.s3.images);
+
+  // Payment history states
+  const [paymentHistoryExpanded, setPaymentHistoryExpanded] = useState({}); // { orderId: boolean }
+  const [orderPaymentsMap, setOrderPaymentsMap] = useState({}); // { orderId: payments[] }
+  const [loadingOrderPayments, setLoadingOrderPayments] = useState({}); // { orderId: boolean }
+  const [paymentPaginationMap, setPaymentPaginationMap] = useState({}); // { orderId: pagination }
+
   const getOrderImpressions = (orderId) => {
     return allImpressionsByOrder[orderId] || [];
   };
+
+  // Payment history helper functions
+  const togglePaymentHistoryExpanded = (orderId) => {
+    setPaymentHistoryExpanded((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
+  };
+
+  const isPaymentHistoryExpanded = (orderId) => {
+    return paymentHistoryExpanded[orderId] || false;
+  };
+
+  const getOrderPayments = (orderId) => {
+    return orderPaymentsMap[orderId] || [];
+  };
+
+  const isLoadingOrderPayments = (orderId) => {
+    return loadingOrderPayments[orderId] || false;
+  };
+
+  const getPaymentPagination = (orderId) => {
+    return (
+      paymentPaginationMap[orderId] || {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0,
+      }
+    );
+  };
+
+  // Fetch payment history for an order
+  const fetchPaymentHistoryForOrder = useCallback(
+    async (orderId, force = false) => {
+      if (
+        !force &&
+        (orderPaymentsMap[orderId] || loadingOrderPayments[orderId])
+      ) {
+        return; // Already have data or loading, skip unless forced
+      }
+
+      setLoadingOrderPayments((prev) => ({ ...prev, [orderId]: true }));
+
+      try {
+        const result = await dispatch(
+          getOrderPaymentsThunk({
+            orderId: orderId,
+            page: 1,
+            size: 10,
+          })
+        );
+
+        if (getOrderPaymentsThunk.fulfilled.match(result)) {
+          setOrderPaymentsMap((prev) => ({
+            ...prev,
+            [orderId]: result.payload.data,
+          }));
+          setPaymentPaginationMap((prev) => ({
+            ...prev,
+            [orderId]: result.payload.pagination,
+          }));
+          console.log(`Payment history for ${orderId}:`, result.payload.data);
+        } else {
+          console.error(
+            `Failed to fetch payment history for ${orderId}:`,
+            result.payload
+          );
+        }
+      } catch (error) {
+        console.error(`Error fetching payment history for ${orderId}:`, error);
+      } finally {
+        setLoadingOrderPayments((prev) => ({ ...prev, [orderId]: false }));
+      }
+    },
+    [dispatch, orderPaymentsMap, loadingOrderPayments]
+  );
 
   // Helper function để lấy order details
   const getOrderDetails = (orderId) => {
@@ -2774,14 +3215,14 @@ const OrderHistory = () => {
     setDemoActionLoading(true);
     try {
       const data = {
-        customerNote: rejectReason || "Khách hàng từ chối demo"
+        customerNote: rejectReason || "Khách hàng từ chối demo",
       };
-      
+
       // Thêm feedbackImage nếu có
       if (feedbackImage) {
         data.feedbackImage = feedbackImage;
       }
-      
+
       await dispatch(
         rejectDemoDesign({
           customDesignId: latestDemo.id,
@@ -2812,7 +3253,7 @@ const OrderHistory = () => {
     const file = e.target.files[0];
     if (file) {
       // Kiểm tra loại file
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         setNotification({
           open: true,
           message: "Vui lòng chọn file hình ảnh",
@@ -2820,7 +3261,7 @@ const OrderHistory = () => {
         });
         return;
       }
-      
+
       // Kiểm tra kích thước file (giới hạn 10MB)
       if (file.size > 10 * 1024 * 1024) {
         setNotification({
@@ -2830,7 +3271,7 @@ const OrderHistory = () => {
         });
         return;
       }
-      
+
       setFeedbackImage(file);
     }
   };
@@ -3327,7 +3768,6 @@ const OrderHistory = () => {
                               ) : order.orderType ===
                                 "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
                                 <Chip
-                                 
                                   label="🎨 Chỉ thiết kế"
                                   size="medium"
                                   sx={{
@@ -3480,9 +3920,11 @@ const OrderHistory = () => {
 
                               <Typography color="text.secondary" fontSize={14}>
                                 Ngày đặt:{" "}
-                                {order.orderDate ? new Date(order.orderDate).toLocaleDateString(
-                                  "vi-VN"
-                                ) : "N/A"}
+                                {order.orderDate
+                                  ? new Date(
+                                      order.orderDate
+                                    ).toLocaleDateString("vi-VN")
+                                  : "N/A"}
                               </Typography>
 
                               {/* Hiển thị địa chỉ nếu có */}
@@ -4202,15 +4644,6 @@ const OrderHistory = () => {
                               flexShrink={0} // Ngăn không cho phần này bị co lại
                               minWidth={{ xs: "100%", sm: "auto" }} // Trên mobile chiếm full width
                             >
-                              <Chip
-                                label={
-                                  statusMap[order.status]?.label || order.status
-                                }
-                                color={
-                                  statusMap[order.status]?.color || "default"
-                                }
-                              />
-
                               {/* Chip outline THANH TOÁN TIỀN CÒN LẠI nếu status là WAITING_FULL_PAYMENT */}
                               {order.status === "WAITING_FULL_PAYMENT" && (
                                 <Chip
@@ -4223,17 +4656,7 @@ const OrderHistory = () => {
                                   }}
                                 />
                               )}
-                              {/* {order.status === "IN_PROGRESS" && (
-                          <Chip
-                            label="Đang thực hiện"
-                            color="info"
-                            variant="outlined"
-                            sx={{
-                              minWidth: "fit-content",
-                              whiteSpace: "nowrap",
-                            }}
-                          />
-                        )} */}
+
                               {order.status === "DEPOSITED" && (
                                 <Chip
                                   label="Đang chờ ngày giao dự kiến"
@@ -4467,10 +4890,8 @@ const OrderHistory = () => {
                                 "CONTRACT_SENT",
                                 "CONTRACT_SIGNED",
                                 "CONTRACT_DISCUSS",
-                                "CONTRACT_RESIGNED"
-                              ].includes(
-                                order.status
-                              ) && (
+                                "CONTRACT_RESIGNED",
+                              ].includes(order.status) && (
                                 <Button
                                   variant="outlined"
                                   size="medium"
@@ -4554,6 +4975,9 @@ const OrderHistory = () => {
                             </Box>
                           </Box>
                         </Box>
+
+                        {/* Payment History Section */}
+                        <PaymentHistorySection order={order} />
 
                         {order.status === "ORDER_COMPLETED" && (
                           <>
@@ -4655,9 +5079,11 @@ const OrderHistory = () => {
                                         color="text.secondary"
                                       >
                                         Gửi lúc:{" "}
-                                        {impression.sendAt ? new Date(
-                                          impression.sendAt
-                                        ).toLocaleString("vi-VN") : "N/A"}
+                                        {impression.sendAt
+                                          ? new Date(
+                                              impression.sendAt
+                                            ).toLocaleString("vi-VN")
+                                          : "N/A"}
                                       </Typography>
                                       <Chip
                                         label={
@@ -4707,9 +5133,11 @@ const OrderHistory = () => {
                                             sx={{ display: "block", mt: 1 }}
                                           >
                                             Phản hồi lúc:{" "}
-                                            {impression.responseAt ? new Date(
-                                              impression.responseAt
-                                            ).toLocaleString("vi-VN") : "N/A"}
+                                            {impression.responseAt
+                                              ? new Date(
+                                                  impression.responseAt
+                                                ).toLocaleString("vi-VN")
+                                              : "N/A"}
                                           </Typography>
                                         )}
                                       </Box>
@@ -4756,7 +5184,7 @@ const OrderHistory = () => {
                                     mb: 1,
                                   }}
                                 >
-                                  <StarIcon /> Đơn hàng đã hoàn thành
+                                  <StarIcon /> Chia sẻ trải nghiệm của bạn
                                 </Typography>
 
                                 <Typography
@@ -4792,6 +5220,7 @@ const OrderHistory = () => {
                             )}
                           </>
                         )}
+
                         {order.status === "INSTALLED" &&
                           (order.totalOrderRemainingAmount ||
                             order.remainingAmount) > 0 && (
@@ -5062,9 +5491,11 @@ const OrderHistory = () => {
                             <Typography variant="body2" color="text.secondary">
                               📅 Ngày tạo:{" "}
                               <strong>
-                                {req.createdAt ? new Date(req.createdAt).toLocaleDateString(
-                                  "vi-VN"
-                                ) : "N/A"}
+                                {req.createdAt
+                                  ? new Date(req.createdAt).toLocaleDateString(
+                                      "vi-VN"
+                                    )
+                                  : "N/A"}
                               </strong>
                             </Typography>
                           </Stack>
@@ -5737,9 +6168,11 @@ const OrderHistory = () => {
                             letterSpacing="-0.01em"
                           >
                             Demo #{idx + 1} -{" "}
-                            {demo.createdAt ? new Date(demo.createdAt).toLocaleDateString(
-                              "vi-VN"
-                            ) : "N/A"}
+                            {demo.createdAt
+                              ? new Date(demo.createdAt).toLocaleDateString(
+                                  "vi-VN"
+                                )
+                              : "N/A"}
                           </Typography>
 
                           {/* Main Demo Image */}
@@ -6926,9 +7359,11 @@ const OrderHistory = () => {
                                   >
                                     Ngày báo giá:{" "}
                                     <strong>
-                                      {proposal.createdAt ? new Date(
-                                        proposal.createdAt
-                                      ).toLocaleDateString("vi-VN") : "N/A"}
+                                      {proposal.createdAt
+                                        ? new Date(
+                                            proposal.createdAt
+                                          ).toLocaleDateString("vi-VN")
+                                        : "N/A"}
                                     </strong>
                                   </Typography>
                                 </Stack>
@@ -7138,15 +7573,18 @@ const OrderHistory = () => {
                       placeholder="Nhập lý do từ chối demo..."
                       sx={{ borderRadius: 2, mb: 2 }}
                     />
-                    
+
                     {/* Upload feedbackImage */}
                     <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ mb: 1, fontWeight: 600 }}
+                      >
                         Hình ảnh feedback (tùy chọn)
                       </Typography>
                       <input
                         accept="image/*"
-                        style={{ display: 'none' }}
+                        style={{ display: "none" }}
                         id="feedback-image-upload"
                         type="file"
                         onChange={handleFeedbackImageChange}
@@ -7162,26 +7600,32 @@ const OrderHistory = () => {
                           Chọn hình ảnh feedback
                         </Button>
                       </label>
-                      
+
                       {feedbackImage && (
                         <Box sx={{ mt: 1 }}>
                           <Paper
                             sx={{
                               p: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              bgcolor: 'grey.50',
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              bgcolor: "grey.50",
                             }}
                           >
-                            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                flex: 1,
+                              }}
+                            >
                               <img
                                 src={URL.createObjectURL(feedbackImage)}
                                 alt="Preview"
                                 style={{
                                   width: 40,
                                   height: 40,
-                                  objectFit: 'cover',
+                                  objectFit: "cover",
                                   borderRadius: 4,
                                   marginRight: 8,
                                 }}
@@ -7523,9 +7967,11 @@ const OrderHistory = () => {
                           ✍️ Ngày ký
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
-                          {contractDialog.contract.signedDate ? new Date(
-                            contractDialog.contract.signedDate
-                          ).toLocaleString("vi-VN") : "N/A"}
+                          {contractDialog.contract.signedDate
+                            ? new Date(
+                                contractDialog.contract.signedDate
+                              ).toLocaleString("vi-VN")
+                            : "N/A"}
                         </Typography>
                       </Box>
                     )}
@@ -8630,9 +9076,11 @@ const OrderHistory = () => {
 
                 <Typography variant="body2" color="text.secondary">
                   <strong>Ngày tạo:</strong>{" "}
-                  {cancelDialog.orderInfo.createdAt ? new Date(
-                    cancelDialog.orderInfo.createdAt
-                  ).toLocaleDateString("vi-VN") : "N/A"}
+                  {cancelDialog.orderInfo.createdAt
+                    ? new Date(
+                        cancelDialog.orderInfo.createdAt
+                      ).toLocaleDateString("vi-VN")
+                    : "N/A"}
                 </Typography>
               </Box>
             )}
