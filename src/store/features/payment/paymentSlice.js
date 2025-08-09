@@ -5,7 +5,9 @@ import {
   payOrderRemaining,
   payOrderDeposit,
   payDesignRemaining,
-  payDesignDeposit
+  payDesignDeposit,
+  getUserPayments,
+  getOrderPayments
 } from '../../../api/paymentService';
 
 // ================== PAYMENT THUNKS ==================
@@ -106,6 +108,44 @@ export const payDesignDepositThunk = createAsyncThunk(
   }
 );
 
+// 7. Lấy danh sách payments của user
+export const getUserPaymentsThunk = createAsyncThunk(
+  'payment/getUserPayments',
+  async ({ userId, page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await getUserPayments(userId, page, size);
+      console.log("GetUserPayments response:", response); // Debug log
+
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("GetUserPaymentsThunk error:", error);
+      return rejectWithValue(error.message || 'Không thể lấy danh sách thanh toán');
+    }
+  }
+);
+
+// 8. Lấy danh sách payments theo orderId
+export const getOrderPaymentsThunk = createAsyncThunk(
+  'payment/getOrderPayments',
+  async ({ orderId, page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await getOrderPayments(orderId, page, size);
+      console.log("GetOrderPayments response:", response); // Debug log
+
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("GetOrderPaymentsThunk error:", error);
+      return rejectWithValue(error.message || 'Không thể lấy danh sách thanh toán của đơn hàng');
+    }
+  }
+);
+
 const initialState = {
   loading: false,
   error: null,
@@ -116,6 +156,24 @@ const initialState = {
   orderDepositResult: null,
   designRemainingResult: null,
   designDepositResult: null,
+  // User payments
+  userPayments: [],
+  userPaymentsPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0
+  },
+  userPaymentsLoading: false,
+  // Order payments
+  orderPayments: [],
+  orderPaymentsPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0
+  },
+  orderPaymentsLoading: false,
 };
 
 const paymentSlice = createSlice({
@@ -132,6 +190,22 @@ const paymentSlice = createSlice({
       state.orderDepositResult = null;
       state.designRemainingResult = null;
       state.designDepositResult = null;
+      state.userPayments = [];
+      state.userPaymentsPagination = {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0
+      };
+      state.userPaymentsLoading = false;
+      state.orderPayments = [];
+      state.orderPaymentsPagination = {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0
+      };
+      state.orderPaymentsLoading = false;
     },
   },
   extraReducers: (builder) => {
@@ -231,6 +305,48 @@ const paymentSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.success = false;
+      })
+      // Get User Payments
+      .addCase(getUserPaymentsThunk.pending, (state) => {
+        state.userPaymentsLoading = true;
+        state.error = null;
+      })
+      .addCase(getUserPaymentsThunk.fulfilled, (state, action) => {
+        state.userPaymentsLoading = false;
+        state.userPayments = action.payload.data;
+        state.userPaymentsPagination = action.payload.pagination;
+      })
+      .addCase(getUserPaymentsThunk.rejected, (state, action) => {
+        state.userPaymentsLoading = false;
+        state.error = action.payload;
+        state.userPayments = [];
+        state.userPaymentsPagination = {
+          currentPage: 1,
+          totalPages: 1,
+          pageSize: 10,
+          totalElements: 0
+        };
+      })
+      // Get Order Payments
+      .addCase(getOrderPaymentsThunk.pending, (state) => {
+        state.orderPaymentsLoading = true;
+        state.error = null;
+      })
+      .addCase(getOrderPaymentsThunk.fulfilled, (state, action) => {
+        state.orderPaymentsLoading = false;
+        state.orderPayments = action.payload.data;
+        state.orderPaymentsPagination = action.payload.pagination;
+      })
+      .addCase(getOrderPaymentsThunk.rejected, (state, action) => {
+        state.orderPaymentsLoading = false;
+        state.error = action.payload;
+        state.orderPayments = [];
+        state.orderPaymentsPagination = {
+          currentPage: 1,
+          totalPages: 1,
+          pageSize: 10,
+          totalElements: 0
+        };
       });
   },
 });
@@ -247,5 +363,11 @@ export const selectOrderRemainingResult = (state) => state.payment.orderRemainin
 export const selectOrderDepositResult = (state) => state.payment.orderDepositResult;
 export const selectDesignRemainingResult = (state) => state.payment.designRemainingResult;
 export const selectDesignDepositResult = (state) => state.payment.designDepositResult;
+export const selectUserPayments = (state) => state.payment.userPayments;
+export const selectUserPaymentsPagination = (state) => state.payment.userPaymentsPagination;
+export const selectUserPaymentsLoading = (state) => state.payment.userPaymentsLoading;
+export const selectOrderPayments = (state) => state.payment.orderPayments;
+export const selectOrderPaymentsPagination = (state) => state.payment.orderPaymentsPagination;
+export const selectOrderPaymentsLoading = (state) => state.payment.orderPaymentsLoading;
 
 export default paymentSlice.reducer; 

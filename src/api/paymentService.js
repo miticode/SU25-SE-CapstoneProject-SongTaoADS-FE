@@ -213,3 +213,83 @@ export const payDesignDeposit = async (orderId) => {
     };
   }
 };
+
+// 7. Lấy danh sách payments của user
+export const getUserPayments = async (userId, page = 1, size = 10) => {
+  try {
+    const response = await paymentService.get(`/api/users/${userId}/payments`, {
+      params: {
+        page,
+        size
+      }
+    });
+
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+
+    if (success) {
+      return {
+        success: true,
+        data: result,
+        message: message,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
+    }
+
+    return {
+      success: false,
+      error: message || 'Không thể lấy danh sách thanh toán',
+    };
+  } catch (error) {
+    console.error("Error in getUserPayments:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể lấy danh sách thanh toán',
+    };
+  }
+};
+
+// 8. Lấy danh sách payments theo orderId
+export const getOrderPayments = async (orderId, page = 1, size = 10) => {
+  try {
+    const response = await paymentService.get(`/api/orders/${orderId}/payments`, {
+      params: {
+        page,
+        size
+      }
+    });
+
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
+
+    if (success) {
+      return {
+        success: true,
+        data: result,
+        message: message,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
+    }
+
+    return {
+      success: false,
+      error: message || 'Không thể lấy danh sách thanh toán của đơn hàng',
+    };
+  } catch (error) {
+    console.error("Error in getOrderPayments:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể lấy danh sách thanh toán của đơn hàng',
+    };
+  }
+};

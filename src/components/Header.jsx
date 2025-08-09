@@ -291,6 +291,13 @@ export default function Header() {
                       Thông tin cá nhân
                     </Link>
                     <Link
+                      to="/payment-history"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      Lịch sử thanh toán
+                    </Link>
+                    <Link
                       to="/my-ticket"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setUserMenuOpen(false)}
@@ -393,6 +400,20 @@ export default function Header() {
                     {user?.fullName || user?.email || "Tài khoản"}
                   </span>
                 </div>
+                <Link
+                  to="/profile"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Thông tin cá nhân
+                </Link>
+                <Link
+                  to="/payment-history"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Lịch sử thanh toán
+                </Link>
                 <Link
                   to="/dashboard"
                   className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
