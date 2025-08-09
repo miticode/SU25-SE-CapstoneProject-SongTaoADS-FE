@@ -30,6 +30,10 @@ import progressLogReducer from "./features/progressLog/progressLogSlice";
 
 import dashboardReducer from "./features/dashboard/dashboardSlice";
 
+import topicReducer from "./features/topic/topicSlice";
+import questionReducer from "./features/question/questionSlice";
+
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -42,7 +46,9 @@ export const store = configureStore({
     users: userReducer,
     ai: aiReducer,
     size: sizeReducer,
+
     price: priceReducer,
+
     s3: s3Reducer,
     chat: chatReducer,
     customDesign: customDesignReducer,
@@ -61,6 +67,8 @@ export const store = configureStore({
     contractor: contractorReducer,
     progressLog: progressLogReducer,
     dashboard: dashboardReducer,
+    topic: topicReducer,
+    question: questionReducer,
   },
 });
 

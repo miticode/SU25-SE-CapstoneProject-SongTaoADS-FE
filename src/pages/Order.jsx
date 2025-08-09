@@ -52,6 +52,7 @@ import {
   clearEditedDesignDetail
 } from "../store/features/background/backgroundSlice";
 import { getImageFromS3 } from "../api/s3Service";
+import "../styles/OrderPage.css";
 
 // Component để load ảnh từ S3 với auto-detect tỷ lệ
 const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, showDimensions = false, onClick }) => {
@@ -216,7 +217,7 @@ const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, s
           justifyContent: "center",
           minHeight: size === "small" ? 120 : size === "medium" ? 180 : 200,
           p: 2,
-          border: "1px dashed #ccc",
+          border: "1px dashed #d1d5db",
           borderRadius: 2,
           backgroundColor: "#f8f9fa",
         }}
@@ -239,9 +240,9 @@ const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, s
           justifyContent: "center",
           minHeight: size === "small" ? 120 : size === "medium" ? 180 : 200,
           p: 2,
-          border: "1px dashed #ccc",
+          border: "1px dashed #d1d5db",
           borderRadius: 2,
-          backgroundColor: "#f5f5f5",
+          backgroundColor: "#f8f9fa",
         }}
       >
         <Typography variant="caption" color="text.secondary">
@@ -262,8 +263,8 @@ const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, s
             right: 8,
             zIndex: 2,
             backgroundColor: 
-              imageType === 'SQUARE' ? '#2196f3' :
-              imageType === 'HORIZONTAL' ? '#4caf50' : '#ff9800',
+              imageType === 'SQUARE' ? 'rgba(0,0,0,0.7)' :
+              imageType === 'HORIZONTAL' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.7)',
             color: "white",
             px: 1,
             py: 0.5,
@@ -1164,17 +1165,17 @@ const Order = () => {
   const steps = ["Thông tin đơn hàng", "Xác nhận đơn hàng", "Hoàn tất đơn hàng"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="order-page-background">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header với animation */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg mb-4 transform hover:scale-105 transition-transform duration-300">
+        <div className="text-center mb-8 fade-in-up">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 transform hover:scale-105 transition-transform duration-300" style={{backgroundColor: '#0D1528'}}>
             <ShoppingCart className="text-white text-3xl" />
           </div>
           <Typography
             variant="h3"
             component="h1"
-            className="font-bold text-gray-800 mb-2 text-2xl sm:text-3xl lg:text-4xl"
+            className="order-title mb-2 text-2xl sm:text-3xl lg:text-4xl"
           >
             {(() => {
               if (currentStep === 1) {
@@ -1187,7 +1188,7 @@ const Order = () => {
             })()}
           </Typography>
           <Box 
-            className="text-gray-600 max-w-2xl mx-auto text-center px-4"
+            className="order-subtitle max-w-2xl mx-auto text-center px-4"
             sx={{ 
               lineHeight: 1.6,
               wordBreak: 'break-word',
@@ -1222,19 +1223,20 @@ const Order = () => {
         <div className="mb-8">
           <Paper
             elevation={0}
-            className="p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-gray-200"
+            className="order-card p-4 rounded-xl"
           >
-            <Stepper activeStep={currentStep - 1} alternativeLabel>
+            <Stepper activeStep={currentStep - 1} alternativeLabel className="custom-stepper">
               {steps.map((label, index) => (
                 <Step key={label}>
                   <StepLabel
                     StepIconComponent={({ active, completed }) => (
                       <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
-                          completed || active
-                            ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300`}
+                        style={{
+                          backgroundColor: completed || active ? '#0D1528' : '#e5e7eb',
+                          color: completed || active ? 'white' : '#6b7280',
+                          boxShadow: completed || active ? '0 4px 12px rgba(13, 21, 40, 0.3)' : 'none'
+                        }}
                       >
                         {completed ? (
                           <CheckCircle className="w-6 h-6" />
@@ -1246,7 +1248,7 @@ const Order = () => {
                       </div>
                     )}
                   >
-                    <Typography className="text-sm font-medium text-gray-700 mt-2">
+                    <Typography className="order-caption mt-2">
                       {label}
                     </Typography>
                   </StepLabel>
@@ -1261,12 +1263,12 @@ const Order = () => {
         {/* Main Content Card */}
         <Paper
           elevation={0}
-          className="bg-white/80 backdrop-blur-sm border border-gray-200 shadow-xl rounded-2xl overflow-hidden"
+          className="order-card rounded-2xl overflow-hidden"
         >
           <div
             className={`p-6 sm:p-8 lg:p-10 ${
               currentStep === 1
-                ? "bg-gradient-to-r from-gray-50 to-blue-50"
+                ? "bg-gradient-to-r from-slate-50 to-gray-50"
                 : currentStep === 2
                 ? "bg-gradient-to-r from-green-50 to-emerald-50"
                 : "bg-gradient-to-r from-blue-50 to-indigo-50"
@@ -1277,8 +1279,8 @@ const Order = () => {
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Address Input */}
                 <div className="space-y-3">
-                  <label className="flex items-center text-lg font-semibold text-gray-700 mb-2">
-                    <LocationOn className="w-5 h-5 mr-2 text-blue-500" />
+                  <label className="flex items-center text-lg font-semibold mb-2" style={{color: '#0D1528'}}>
+                    <LocationOn className="w-5 h-5 mr-2" style={{color: '#0D1528'}} />
                     Địa chỉ giao hàng
                   </label>
                   <TextField
@@ -1291,16 +1293,16 @@ const Order = () => {
                     required
                     multiline
                     rows={3}
-                    className="bg-white"
+                    className="custom-form-field bg-white"
                     sx={{
                       "& .MuiOutlinedInput-root": {
                         borderRadius: "16px",
                         fontSize: "1rem",
                         "&:hover fieldset": {
-                          borderColor: "#3B82F6",
+                          borderColor: "#0D1528",
                         },
                         "&.Mui-focused fieldset": {
-                          borderColor: "#3B82F6",
+                          borderColor: "#0D1528",
                           borderWidth: "2px",
                         },
                       },
@@ -1311,8 +1313,8 @@ const Order = () => {
                 {/* Order Type Select - Chỉ hiển thị nếu không phải từ AI Design hoặc Custom Design */}
                 {!finalIsFromAIDesign && !finalIsFromCustomDesign && (
                   <div className="space-y-3">
-                    <label className="flex items-center text-lg font-semibold text-gray-700 mb-2">
-                      <Category className="w-5 h-5 mr-2 text-purple-500" />
+                    <label className="flex items-center text-lg font-semibold mb-2" style={{color: '#0D1528'}}>
+                      <Category className="w-5 h-5 mr-2" style={{color: '#0D1528'}} />
                       Loại đơn hàng
                     </label>
                     <FormControl fullWidth required>
@@ -1321,23 +1323,23 @@ const Order = () => {
                         value={formData.orderType}
                         onChange={handleInputChange}
                         displayEmpty
-                        className="bg-white"
+                        className="custom-form-field bg-white"
                         sx={{
                           borderRadius: "16px",
                           "& .MuiOutlinedInput-notchedOutline": {
                             borderRadius: "16px",
                           },
                           "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#3B82F6",
+                            borderColor: "#0D1528",
                           },
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#3B82F6",
+                            borderColor: "#0D1528",
                             borderWidth: "2px",
                           },
                         }}
                       >
                         <MenuItem value="" disabled>
-                          <Typography className="text-gray-500">
+                          <Typography className="text-slate-500">
                             Chọn loại đơn hàng
                           </Typography>
                         </MenuItem>
@@ -1347,7 +1349,7 @@ const Order = () => {
                               <div
                                 className={`w-4 h-4 rounded-full`}
                                 style={{
-                                  backgroundColor: `var(--${value.color}-500, #3B82F6)`,
+                                  backgroundColor: `var(--${value.color}-500, #0D1528)`,
                                 }}
                               />
                               <Typography className="font-medium">
@@ -1363,9 +1365,9 @@ const Order = () => {
 
                 {/* AI Design Order Type Display */}
                 {finalIsFromAIDesign && (
-                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+                  <div className="info-card-ai p-4 rounded-xl">
                     <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-6 h-6 text-green-500" />
+                      <CheckCircle className="w-6 h-6 text-green-600" />
                       <div>
                         <Typography
                           variant="h6"
@@ -1374,7 +1376,7 @@ const Order = () => {
                           Loại đơn hàng:{" "}
                           {ORDER_TYPE_MAP.AI_DESIGN?.label || "Thiết kế AI"}
                         </Typography>
-                        <Typography variant="body2" className="text-green-600">
+                        <Typography variant="body2" className="text-green-700">
                           Đã được thiết lập tự động cho đơn hàng thiết kế AI
                         </Typography>
                       </div>
@@ -1384,9 +1386,9 @@ const Order = () => {
 
                 {/* Custom Design Order Type Display */}
                 {finalIsFromCustomDesign && (
-                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl">
+                  <div className="info-card-template p-4 rounded-xl">
                     <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-6 h-6 text-purple-500" />
+                      <CheckCircle className="w-6 h-6 text-purple-600" />
                       <div>
                         <Typography
                           variant="h6"
@@ -1395,7 +1397,7 @@ const Order = () => {
                           Loại đơn hàng:{" "}
                           {ORDER_TYPE_MAP[formData.orderType]?.label || "Thiết kế tùy chỉnh"}
                         </Typography>
-                        <Typography variant="body2" className="text-purple-600">
+                        <Typography variant="body2" className="text-purple-700">
                           Đã được thiết lập tự động cho đơn hàng thiết kế tùy chỉnh
                         </Typography>
                       </div>
@@ -1432,17 +1434,14 @@ const Order = () => {
                     size="large"
                     fullWidth
                     disabled={orderStatus === "loading"}
-                    className="py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
+                    className="custom-button py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
                     sx={{
-                      background:
-                        "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)",
+                      background: "#0D1528",
                       "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
+                        background: "#1a2332",
                       },
                       "&:disabled": {
-                        background:
-                          "linear-gradient(135deg, #9CA3AF 0%, #D1D5DB 100%)",
+                        background: "#9ca3af",
                       },
                     }}
                     startIcon={
@@ -1465,18 +1464,19 @@ const Order = () => {
                 <div className="text-center mb-6">
                   <Typography
                     variant="h5"
-                    className="text-gray-800 font-bold mb-2"
+                    className="font-bold mb-2"
+                    style={{color: '#0D1528'}}
                   >
                     Kiểm tra thông tin đơn hàng
                   </Typography>
-                  <Typography variant="body1" className="text-gray-600">
+                  <Typography variant="body1" className="text-slate-600">
                     Vui lòng xác nhận lại thông tin trước khi hoàn tất đơn hàng
                   </Typography>
                 </div>
 
                 {/* Order Information Card */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
+                  <div className="px-6 py-4" style={{backgroundColor: '#0D1528'}}>
                     <Typography
                       variant="h6"
                       className="text-white font-semibold"
@@ -1488,19 +1488,21 @@ const Order = () => {
                   <div className="p-6 space-y-6">
                     {/* Address */}
                     <div className="flex items-start space-x-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <LocationOn className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{backgroundColor: 'rgba(13, 21, 40, 0.1)'}}>
+                        <LocationOn className="w-5 h-5" style={{color: '#0D1528'}} />
                       </div>
                       <div className="flex-1">
                         <Typography
                           variant="subtitle2"
-                          className="text-gray-500 uppercase tracking-wide text-xs font-semibold mb-1"
+                          className="uppercase tracking-wide text-xs font-semibold mb-1"
+                          style={{color: '#0D1528'}}
                         >
                           Địa chỉ giao hàng
                         </Typography>
                         <Typography
                           variant="body1"
-                          className="text-gray-800 font-medium"
+                          className="font-medium"
+                          style={{color: '#0D1528'}}
                         >
                           {formData.address}
                         </Typography>
@@ -1515,7 +1517,8 @@ const Order = () => {
                       <div className="flex-1">
                         <Typography
                           variant="subtitle2"
-                          className="text-gray-500 uppercase tracking-wide text-xs font-semibold mb-1"
+                          className="uppercase tracking-wide text-xs font-semibold mb-1"
+                          style={{color: '#0D1528'}}
                         >
                           Loại đơn hàng
                         </Typography>
@@ -1528,13 +1531,14 @@ const Order = () => {
                                   finalIsFromAIDesign
                                     ? "AI_DESIGN"
                                     : formData.orderType
-                                ]?.color || "blue"
-                              }-500, #3B82F6)`,
+                                ]?.color || "slate"
+                              }-500, #0D1528)`,
                             }}
                           />
                           <Typography
                             variant="body1"
-                            className="text-gray-800 font-medium"
+                            className="font-medium"
+                            style={{color: '#0D1528'}}
                           >
                             {ORDER_TYPE_MAP[
                               finalIsFromAIDesign ? "AI_DESIGN" : formData.orderType
@@ -1552,7 +1556,8 @@ const Order = () => {
                       <div className="flex-1">
                         <Typography
                           variant="subtitle2"
-                          className="text-gray-500 uppercase tracking-wide text-xs font-semibold mb-1"
+                          className="uppercase tracking-wide text-xs font-semibold mb-1"
+                          style={{color: '#0D1528'}}
                         >
                           Số lượng
                         </Typography>
@@ -1575,19 +1580,19 @@ const Order = () => {
                               "& .MuiOutlinedInput-root": {
                                 borderRadius: "12px",
                                 "& fieldset": {
-                                  borderColor: "#10B981",
+                                  borderColor: "#0D1528",
                                 },
                                 "&:hover fieldset": {
-                                  borderColor: "#059669",
+                                  borderColor: "#1a2332",
                                 },
                                 "&.Mui-focused fieldset": {
-                                  borderColor: "#059669",
+                                  borderColor: "#0D1528",
                                   borderWidth: "2px",
                                 },
                               },
                             }}
                           />
-                          <Typography variant="body2" className="text-gray-600">
+                          <Typography variant="body2" className="text-slate-600">
                             sản phẩm
                           </Typography>
                         </div>
@@ -1606,7 +1611,7 @@ const Order = () => {
                             <div className="space-y-3">
                               <Typography
                                 variant="subtitle2"
-                                className="text-gray-700 font-semibold"
+                                className="text-slate-700 font-semibold"
                               >
                                 Ảnh thiết kế đã chỉnh sửa
                               </Typography>
@@ -1616,7 +1621,7 @@ const Order = () => {
                                   <div className="h-64 flex items-center justify-center">
                                     <div className="text-center">
                                       <CircularProgress size={40} className="mb-4" />
-                                      <Typography variant="body2" className="text-gray-600">
+                                      <Typography variant="body2" className="text-slate-600">
                                         Đang tải thông tin thiết kế...
                                       </Typography>
                                     </div>
@@ -1650,7 +1655,7 @@ const Order = () => {
                                   </div>
                                 ) : (
                                   <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                                    <Typography variant="body2" className="text-gray-500">
+                                    <Typography variant="body2" className="text-slate-500">
                                       {editedDesignDetailStatus === 'succeeded' 
                                         ? "Không có ảnh thiết kế" 
                                         : "Đang tải thông tin thiết kế..."}
@@ -1947,23 +1952,24 @@ const Order = () => {
               // Bước 3: Hoàn tất đơn hàng
               <div className="space-y-8">
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-lg mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full shadow-lg mb-4" style={{backgroundColor: '#0D1528'}}>
                     <CheckCircle className="text-white text-2xl" />
                   </div>
                   <Typography
                     variant="h4"
-                    className="text-gray-800 font-bold mb-2"
+                    className="font-bold mb-2"
+                    style={{color: '#0D1528'}}
                   >
                     Đơn hàng đã được tạo thành công!
                   </Typography>
-                  <Typography variant="body1" className="text-gray-600">
+                  <Typography variant="body1" className="text-slate-600">
                     Cảm ơn bạn đã tin tướng và sử dụng dịch vụ của chúng tôi
                   </Typography>
                 </div>
 
                 {/* Order Success Information */}
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                  <div className="px-6 py-4" style={{backgroundColor: '#0D1528'}}>
                     <Typography
                       variant="h6"
                       className="text-white font-semibold"
@@ -1976,7 +1982,7 @@ const Order = () => {
                     {orderDetailsStatus === 'loading' ? (
                       <div className="text-center py-8">
                         <CircularProgress size={40} className="mb-4" />
-                        <Typography variant="body2" className="text-gray-600">
+                        <Typography variant="body2" className="text-slate-600">
                           Đang tải thông tin đơn hàng...
                         </Typography>
                       </div>
@@ -2609,12 +2615,12 @@ const Order = () => {
                     }}
                     className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
                     sx={{
-                      borderColor: "#10B981",
-                      color: "#10B981",
+                      borderColor: "#059669",
+                      color: "#059669",
                       "&:hover": {
-                        borderColor: "#059669",
-                        color: "#059669",
-                        backgroundColor: "#F0FDF4",
+                        borderColor: "#047857",
+                        color: "#047857",
+                        backgroundColor: "#f8f9fa",
                       },
                     }}
                   >
@@ -2631,9 +2637,9 @@ const Order = () => {
           <div className="mt-8">
             <Paper
               elevation={0}
-              className="bg-white/70 backdrop-blur-sm border border-gray-200 rounded-2xl overflow-hidden"
+              className="order-card rounded-2xl overflow-hidden"
             >
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
+              <div className="px-6 py-4" style={{backgroundColor: '#0D1528'}}>
                 <Typography variant="h6" className="text-white font-semibold">
                   💡 Thông tin về các loại đơn hàng
                 </Typography>
@@ -2641,23 +2647,24 @@ const Order = () => {
 
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="info-card-ai p-4 rounded-xl">
                     <div className="flex items-center space-x-2 mb-3">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#0D1528'}}></div>
                       <Typography
                         variant="subtitle1"
-                        className="font-semibold text-blue-800"
+                        className="font-semibold"
+                        style={{color: '#0D1528'}}
                       >
                         Thiết kế AI
                       </Typography>
                     </div>
-                    <Typography variant="body2" className="text-blue-700">
+                    <Typography variant="body2" className="text-slate-700">
                       Đơn hàng sử dụng thiết kế được tạo bởi trí tuệ nhân tạo
                       với độ chính xác cao
                     </Typography>
                   </div>
 
-                  <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                  <div className="info-card-custom p-4 rounded-xl">
                     <div className="flex items-center space-x-2 mb-3">
                       <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                       <Typography
@@ -2673,7 +2680,7 @@ const Order = () => {
                     </Typography>
                   </div>
 
-                  <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                  <div className="info-card-template p-4 rounded-xl">
                     <div className="flex items-center space-x-2 mb-3">
                       <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                       <Typography
