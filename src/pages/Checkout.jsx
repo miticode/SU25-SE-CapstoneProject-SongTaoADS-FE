@@ -448,23 +448,251 @@ const Checkout = () => {
                         >
                           Thông tin đơn hàng
                         </Typography>
-                        {currentOrder.customDesignRequests
-                          ?.finalDesignImage && (
-                          <Box mb={3}>
+                        
+                        {/* Thông tin cơ bản */}
+                        <Stack spacing={2} mb={3}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body1" color="text.secondary">
+                              Mã đơn hàng:
+                            </Typography>
+                            <Typography variant="body1" fontWeight={600}>
+                              {currentOrder.orderCode || currentOrder.id}
+                            </Typography>
+                          </Stack>
+                          
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body1" color="text.secondary">
+                              Loại đơn hàng:
+                            </Typography>
+                            <Typography variant="body1" fontWeight={600} color="info.main">
+                              {currentOrder.orderType === "AI_DESIGN" ? "AI Design" : currentOrder.orderType}
+                            </Typography>
+                          </Stack>
+
+                        </Stack>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* Thông tin tài chính chi tiết */}
+                        <Typography variant="h6" fontWeight={600} mb={2} color="secondary.main">
+                          Chi tiết tài chính
+                        </Typography>
+                        
+                        <Stack spacing={2} mb={3}>
+                          {/* Tổng đơn hàng */}
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body1" color="text.secondary" fontWeight={600}>
+                              💰 Tổng đơn hàng:
+                            </Typography>
+                            <Typography variant="h6" fontWeight={700} color="success.main">
+                              {currentOrder.totalOrderAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+
+                          {/* Tiền cọc tổng */}
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body1" color="text.secondary" fontWeight={600}>
+                              🟡 Tiền cọc (tổng):
+                            </Typography>
+                            <Typography variant="body1" fontWeight={600} color="warning.main">
+                              {currentOrder.totalOrderDepositAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+
+                          {/* Số tiền còn lại */}
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body1" color="text.secondary" fontWeight={600}>
+                              🔄 Số tiền còn lại:
+                            </Typography>
+                            <Typography variant="body1" fontWeight={600} color="error.main">
+                              {currentOrder.totalOrderRemainingAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                        </Stack>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* Chi phí thi công */}
+                        <Typography variant="subtitle1" fontWeight={600} mb={2} color="info.main">
+                          🔨 Chi phí thi công
+                        </Typography>
+                        <Stack spacing={1} mb={3} sx={{ pl: 2 }}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Tổng chi phí thi công:
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {currentOrder.totalConstructionAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Đã cọc thi công:
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600} color="success.main">
+                              {currentOrder.depositConstructionAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Còn lại thi công:
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600} color="warning.main">
+                              {currentOrder.remainingConstructionAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                        </Stack>
+
+                        {/* Chi phí thiết kế */}
+                        <Typography variant="subtitle1" fontWeight={600} mb={2} color="secondary.main">
+                          🎨 Chi phí thiết kế
+                        </Typography>
+                        <Stack spacing={1} mb={3} sx={{ pl: 2 }}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Tổng chi phí thiết kế:
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {currentOrder.totalDesignAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Đã cọc thiết kế:
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600} color="success.main">
+                              {currentOrder.depositDesignAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Còn lại thiết kế:
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600} color="warning.main">
+                              {currentOrder.remainingDesignAmount?.toLocaleString("vi-VN")} VND
+                            </Typography>
+                          </Stack>
+                        </Stack>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* Thông tin giao hàng và ghi chú */}
+                        <Typography variant="h6" fontWeight={600} mb={2} color="primary.main">
+                          Thông tin giao hàng
+                        </Typography>
+                        <Stack spacing={2} mb={3}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body1" color="text.secondary">
+                              📍 Địa chỉ giao hàng:
+                            </Typography>
                             <Typography
-                              variant="subtitle1"
-                              fontWeight={600}
-                              mb={2}
-                              color="secondary"
+                              variant="body1"
+                              fontWeight={500}
+                              sx={{ maxWidth: 300, textAlign: "right" }}
                             >
-                              Thiết kế cuối cùng
+                              {currentOrder.address || "Chưa có địa chỉ"}
+                            </Typography>
+                          </Stack>
+
+                          {currentOrder.estimatedDeliveryDate && (
+                            <Stack direction="row" justifyContent="space-between">
+                              <Typography variant="body1" color="text.secondary">
+                                🚚 Ngày giao dự kiến:
+                              </Typography>
+                              <Typography variant="body1" fontWeight={500}>
+                                {new Date(currentOrder.estimatedDeliveryDate).toLocaleDateString("vi-VN")}
+                              </Typography>
+                            </Stack>
+                          )}
+
+                          {currentOrder.note && (
+                            <Stack direction="row" justifyContent="space-between">
+                              <Typography variant="body1" color="text.secondary">
+                                📝 Ghi chú:
+                              </Typography>
+                              <Typography
+                                variant="body1"
+                                fontWeight={500}
+                                sx={{ maxWidth: 300, textAlign: "right" }}
+                              >
+                                {currentOrder.note}
+                              </Typography>
+                            </Stack>
+                          )}
+                        </Stack>
+
+                        {/* Thông tin khách hàng */}
+                        {currentOrder.users && (
+                          <>
+                            <Divider sx={{ my: 2 }} />
+                            <Typography variant="h6" fontWeight={600} mb={2} color="info.main">
+                              Thông tin khách hàng
+                            </Typography>
+                            <Stack spacing={2} mb={3}>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="body1" color="text.secondary">
+                                  👤 Họ tên:
+                                </Typography>
+                                <Typography variant="body1" fontWeight={500}>
+                                  {currentOrder.users.fullName}
+                                </Typography>
+                              </Stack>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="body1" color="text.secondary">
+                                  📧 Email:
+                                </Typography>
+                                <Typography variant="body1" fontWeight={500}>
+                                  {currentOrder.users.email}
+                                </Typography>
+                              </Stack>
+                              {currentOrder.users.phone && (
+                                <Stack direction="row" justifyContent="space-between">
+                                  <Typography variant="body1" color="text.secondary">
+                                    📱 Số điện thoại:
+                                  </Typography>
+                                  <Typography variant="body1" fontWeight={500}>
+                                    {currentOrder.users.phone}
+                                  </Typography>
+                                </Stack>
+                              )}
+                            </Stack>
+                          </>
+                        )}
+
+                        {/* Thông tin thời gian */}
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" fontWeight={600} mb={2} color="text.secondary">
+                          Thông tin thời gian
+                        </Typography>
+                        <Stack spacing={1}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Ngày tạo:
+                            </Typography>
+                            <Typography variant="body2">
+                              {new Date(currentOrder.createdAt).toLocaleString("vi-VN")}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Cập nhật lần cuối:
+                            </Typography>
+                            <Typography variant="body2">
+                              {new Date(currentOrder.updatedAt).toLocaleString("vi-VN")}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+
+                        {/* Hiển thị thiết kế nếu có */}
+                        {currentOrder.customDesignRequests?.finalDesignImage && (
+                          <>
+                            <Divider sx={{ my: 2 }} />
+                            <Typography variant="h6" fontWeight={600} mb={2} color="secondary.main">
+                              🎨 Thiết kế cuối cùng
                             </Typography>
                             <Box
                               component="img"
-                              src={
-                                currentOrder.customDesignRequests
-                                  .finalDesignImage
-                              }
+                              src={currentOrder.customDesignRequests.finalDesignImage}
                               alt="Thiết kế cuối cùng"
                               sx={{
                                 width: "100%",
@@ -481,108 +709,18 @@ const Checkout = () => {
                               }}
                               onClick={() =>
                                 window.open(
-                                  currentOrder.customDesignRequests
-                                    .finalDesignImage,
+                                  currentOrder.customDesignRequests.finalDesignImage,
                                   "_blank"
                                 )
                               }
                             />
-                          </Box>
+                            {currentOrder.customDesignRequests.requirements && (
+                              <Typography variant="body2" color="text.secondary" mt={1}>
+                                <strong>Yêu cầu thiết kế:</strong> {currentOrder.customDesignRequests.requirements}
+                              </Typography>
+                            )}
+                          </>
                         )}
-                        <Stack spacing={2}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              Mã đơn hàng:
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {currentOrder.id}
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              Tổng tiền:
-                            </Typography>
-                            <Typography
-                              variant="body1"
-                              fontWeight={600}
-                              color="success.main"
-                            >
-                              {currentOrder.totalAmount?.toLocaleString(
-                                "vi-VN"
-                              )}{" "}
-                              VND
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              Tiền cọc:
-                            </Typography>
-                            <Typography
-                              variant="body1"
-                              fontWeight={600}
-                              color="warning.main"
-                            >
-                              {currentOrder.depositAmount?.toLocaleString(
-                                "vi-VN"
-                              )}{" "}
-                              VND
-                            </Typography>
-                          </Stack>
-
-                          <Divider />
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              Địa chỉ giao hàng:
-                            </Typography>
-                            <Typography
-                              variant="body1"
-                              fontWeight={500}
-                              sx={{ maxWidth: 300, textAlign: "right" }}
-                            >
-                              {currentOrder.address || "Chưa có địa chỉ"}
-                            </Typography>
-                          </Stack>
-                          {currentOrder.note && (
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Ghi chú:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={500}
-                                sx={{ maxWidth: 300, textAlign: "right" }}
-                              >
-                                {currentOrder.note}
-                              </Typography>
-                            </Stack>
-                          )}
-                          {currentOrder.customDesignRequests?.requirements && (
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Yêu cầu thiết kế:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={500}
-                                sx={{ maxWidth: 300, textAlign: "right" }}
-                              >
-                                {currentOrder.customDesignRequests.requirements}
-                              </Typography>
-                            </Stack>
-                          )}
-                        </Stack>
                       </Paper>
                     )}
 
@@ -1019,7 +1157,7 @@ const Checkout = () => {
                             <Typography variant="body2" fontWeight={500}>
                               {
                                 (currentOrder || updatedOrderInfo || orderInfo)
-                                  ?.id
+                                  ?.orderCode || (currentOrder || updatedOrderInfo || orderInfo)?.id
                               }
                             </Typography>
                           </Stack>
@@ -1036,21 +1174,32 @@ const Checkout = () => {
                                 currentOrder ||
                                 updatedOrderInfo ||
                                 orderInfo
+                              )?.totalOrderDepositAmount?.toLocaleString("vi-VN") || 
+                              (currentOrder ||
+                                updatedOrderInfo ||
+                                orderInfo
                               )?.depositAmount?.toLocaleString("vi-VN")}{" "}
                               VND
                             </Typography>
                           </Stack>
                           <Stack direction="row" justifyContent="space-between">
                             <Typography variant="body2" color="text.secondary">
-                              Trạng thái đơn hàng:
+                              Tổng giá trị đơn hàng:
                             </Typography>
-                            <Typography variant="body2" fontWeight={500}>
-                              {
-                                (currentOrder || updatedOrderInfo || orderInfo)
-                                  ?.status
-                              }
+                            <Typography variant="body2" fontWeight={500} color="success.main">
+                              {(
+                                currentOrder ||
+                                updatedOrderInfo ||
+                                orderInfo
+                              )?.totalOrderAmount?.toLocaleString("vi-VN") ||
+                              (currentOrder ||
+                                updatedOrderInfo ||
+                                orderInfo
+                              )?.totalAmount?.toLocaleString("vi-VN")}{" "}
+                              VND
                             </Typography>
                           </Stack>
+                         
                         </Stack>
                       </Paper>
                     )}

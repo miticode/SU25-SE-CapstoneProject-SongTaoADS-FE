@@ -1492,7 +1492,6 @@ const OrderCard = memo(
     onUploadContract,
     onUploadRevisedContract,
     onViewContract,
-    onRequestResign,
     onConfirmSigned,
     contractViewLoading,
   }) => {
@@ -1666,7 +1665,7 @@ const OrderCard = memo(
               </Button>
             )}
 
-            {order.status === "CONTRACT_SIGNED" && (
+            {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT") && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 <Button
                   variant="outlined"
@@ -1686,45 +1685,55 @@ const OrderCard = memo(
                   {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
                 </Button>
                 
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      size="small"
-                      startIcon={<UploadIcon />}
-                      onClick={() => onRequestResign(order.id || order.orderId)}
-                      fullWidth
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: "medium",
-                        py: 1,
-                      }}
-                    >
-                      Yêu cầu ký lại
-                    </Button>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size="small"
-                      startIcon={<DescriptionIcon />}
-                      onClick={() => onConfirmSigned(order.id || order.orderId)}
-                      fullWidth
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: "medium",
-                        py: 1,
-                      }}
-                    >
-                      Xác nhận đã ký
-                    </Button>
-                  </Grid>
-                </Grid>
+                {/* Chỉ hiển thị nút Xác nhận hoàn tất ở trạng thái CONTRACT_SIGNED */}
+                {order.status === "CONTRACT_SIGNED" && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="medium"
+                    startIcon={<DescriptionIcon />}
+                    onClick={() => onConfirmSigned(order.id || order.orderId)}
+                    fullWidth
+                    sx={{
+                      borderRadius: 3,
+                      textTransform: "none",
+                      fontWeight: "600",
+                      py: 1.5,
+                      fontSize: "0.875rem",
+                      boxShadow: 2,
+                      background: "linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-1px)",
+                        background: "linear-gradient(135deg, #43a047 0%, #5cb85c 100%)",
+                      },
+                    }}
+                  >
+                     Xác nhận hoàn tất ký kết
+                  </Button>
+                )}
               </Box>
+            )}
+
+            {/* Nút xem hợp đồng cho trạng thái PRODUCTION_COMPLETED và ORDER_COMPLETED */}
+            {(order.status === "PRODUCTION_COMPLETED" || order.status === "ORDER_COMPLETED") && (
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                startIcon={contractViewLoading ? <CircularProgress size={16} /> : <DescriptionIcon />}
+                onClick={() => onViewContract(order.id || order.orderId)}
+                disabled={contractViewLoading}
+                fullWidth
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: "medium",
+                  py: 1,
+                }}
+              >
+                {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
+              </Button>
             )}
           </Box>
         </CardContent>
@@ -1751,7 +1760,6 @@ const OrderRow = memo(
     onUploadContract,
     onUploadRevisedContract,
     onViewContract,
-    onRequestResign,
     onConfirmSigned,
     contractViewLoading,
   }) => {
@@ -1852,8 +1860,16 @@ const OrderRow = memo(
               }}
             />
           </TableCell>
-          <TableCell>
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <TableCell sx={{ minWidth: 250, maxWidth: 320 }}>
+            <Box 
+              sx={{ 
+                display: "flex", 
+                gap: 0.5, 
+                alignItems: "flex-start",
+                flexWrap: "wrap"
+              }}
+            >
+              {/* Nút chi tiết/báo giao hàng - luôn hiển thị đầu tiên */}
               <Button
                 variant="contained"
                 color={order.status === "DEPOSITED" ? "info" : "primary"}
@@ -1864,6 +1880,11 @@ const OrderRow = memo(
                   borderRadius: 2,
                   textTransform: "none",
                   fontWeight: "medium",
+                  fontSize: "0.75rem",
+                  px: 1.5,
+                  py: 0.5,
+                  minWidth: order.status === "DEPOSITED" ? 100 : 70,
+                  height: 30,
                   boxShadow: 2,
                   "&:hover": {
                     boxShadow: 4,
@@ -1871,7 +1892,7 @@ const OrderRow = memo(
                   },
                 }}
               >
-                {order.status === "DEPOSITED" ? "Báo ngày giao dự kiến" : "Xem chi tiết"}
+                {order.status === "DEPOSITED" ? "Báo giao hàng" : "Chi tiết"}
               </Button>
 
               {/* Nút tải lên hợp đồng cho trạng thái PENDING_CONTRACT */}
@@ -1886,6 +1907,10 @@ const OrderRow = memo(
                     borderRadius: 2,
                     textTransform: "none",
                     fontWeight: "medium",
+                    fontSize: "0.75rem",
+                    px: 1.5,
+                    py: 0.5,
+                    height: 30,
                     boxShadow: 1,
                     "&:hover": {
                       boxShadow: 2,
@@ -1909,6 +1934,10 @@ const OrderRow = memo(
                     borderRadius: 2,
                     textTransform: "none",
                     fontWeight: "medium",
+                    fontSize: "0.75rem",
+                    px: 1.5,
+                    py: 0.5,
+                    height: 30,
                     boxShadow: 1,
                     "&:hover": {
                       boxShadow: 2,
@@ -1920,70 +1949,91 @@ const OrderRow = memo(
                 </Button>
               )}
 
-              {/* Nút xem hợp đồng cho trạng thái CONTRACT_SIGNED */}
+              {/* Nút xem hợp đồng cho trạng thái CONTRACT_SIGNED và CONTRACT_SENT */}
+              {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT") && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  startIcon={contractViewLoading ? <CircularProgress size={16} /> : <DescriptionIcon />}
+                  onClick={() => onViewContract(order.id || order.orderId)}
+                  disabled={contractViewLoading}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: "medium",
+                    fontSize: "0.75rem",
+                    px: 1.5,
+                    py: 0.5,
+                    height: 30,
+                    boxShadow: 1,
+                    "&:hover": {
+                      boxShadow: 2,
+                      transform: "translateY(-1px)",
+                    },
+                  }}
+                >
+                  {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
+                </Button>
+              )}
+              
+              {/* Nút xác nhận hoàn tất cho trạng thái CONTRACT_SIGNED */}
               {order.status === "CONTRACT_SIGNED" && (
-                <>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    startIcon={contractViewLoading ? <CircularProgress size={16} /> : <DescriptionIcon />}
-                    onClick={() => onViewContract(order.id || order.orderId)}
-                    disabled={contractViewLoading}
-                    sx={{
-                      borderRadius: 2,
-                      textTransform: "none",
-                      fontWeight: "medium",
-                      boxShadow: 1,
-                      "&:hover": {
-                        boxShadow: 2,
-                        transform: "translateY(-1px)",
-                      },
-                    }}
-                  >
-                    {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
-                  </Button>
-                  
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    size="small"
-                    startIcon={<UploadIcon />}
-                    onClick={() => onRequestResign(order.id || order.orderId)}
-                    sx={{
-                      borderRadius: 2,
-                      textTransform: "none",
-                      fontWeight: "medium",
-                      boxShadow: 1,
-                      "&:hover": {
-                        boxShadow: 2,
-                        transform: "translateY(-1px)",
-                      },
-                    }}
-                  >
-                    Yêu cầu ký lại
-                  </Button>
-                  
-                  <Button
-                    variant="contained"
-                    color="success"
-                    size="small"
-                    startIcon={<DescriptionIcon />}
-                    onClick={() => onConfirmSigned(order.id || order.orderId)}
-                    sx={{
-                      borderRadius: 2,
-                      textTransform: "none",
-                      fontWeight: "medium",
-                      boxShadow: 1,
-                      "&:hover": {
-                        boxShadow: 2,
-                        transform: "translateY(-1px)",
-                      },
-                    }}
-                  >
-                    Xác nhận đã ký
-                  </Button>
-                </>
+                <Button
+                  variant="contained"
+                  color="success"
+                  size="small"
+                  startIcon={<DescriptionIcon />}
+                  onClick={() => onConfirmSigned(order.id || order.orderId)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: "medium",
+                    fontSize: "0.75rem",
+                    px: 1.5,
+                    py: 0.5,
+                    height: 30,
+                    minWidth: 140,
+                    boxShadow: 2,
+                    mt: 0.5,
+                    background: "linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)",
+                    "&:hover": {
+                      boxShadow: 3,
+                      transform: "translateY(-1px)",
+                      background: "linear-gradient(135deg, #43a047 0%, #5cb85c 100%)",
+                    },
+                  }}
+                >
+                   Xác nhận hoàn tất
+                </Button>
+              )}
+
+              {/* Nút xem hợp đồng cho trạng thái PRODUCTION_COMPLETED và ORDER_COMPLETED */}
+              {(order.status === "PRODUCTION_COMPLETED" || order.status === "ORDER_COMPLETED") && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  startIcon={contractViewLoading ? <CircularProgress size={16} /> : <DescriptionIcon />}
+                  onClick={() => onViewContract(order.id || order.orderId)}
+                  disabled={contractViewLoading}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: "medium",
+                    fontSize: "0.75rem",
+                    px: 1.5,
+                    py: 0.5,
+                    height: 30,
+                    boxShadow: 1,
+                    "&:hover": {
+                      boxShadow: 2,
+                      transform: "translateY(-1px)",
+                    },
+                  }}
+                >
+                  {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
+                </Button>
               )}
             </Box>
           </TableCell>
@@ -2002,6 +2052,7 @@ const DashboardContent = ({
   pagination = { currentPage: 1, totalPages: 1, pageSize: 10, totalElements: 0 }, // Thông tin phân trang
   onPageChange, // Callback khi chuyển trang
   onRowsPerPageChange, // Callback khi thay đổi số dòng/trang
+  onSearchChange, // Callback khi search term thay đổi
 }) => {
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -2061,10 +2112,15 @@ const DashboardContent = ({
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
       setIsSearching(false);
+      
+      // Gọi callback để thông báo search term đã thay đổi (nếu có)
+      if (onSearchChange) {
+        onSearchChange(search);
+      }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [search, debouncedSearch]);
+  }, [search, debouncedSearch, onSearchChange]);
 
   // Lấy orderDetails cho mỗi đơn hàng khi orders thay đổi
   useEffect(() => {
@@ -2537,6 +2593,8 @@ const DashboardContent = ({
     console.log('🔍 Filtering orders:', {
       totalOrders: orders.length,
       statusFilter,
+      searchTerm: debouncedSearch,
+      hasSearchCallback: !!onSearchChange,
       ordersWithAIDesign: orders.filter(o => o.orderType === "AI_DESIGN").length,
       ordersWithPendingContract: orders.filter(o => o.status === "PENDING_CONTRACT").length,
       aiDesignPendingContract: orders.filter(o => o.orderType === "AI_DESIGN" && o.status === "PENDING_CONTRACT").length
@@ -2553,19 +2611,31 @@ const DashboardContent = ({
         return false;
       }
 
-      // Then filter by search term
+      // Nếu có onSearchChange callback thì search sẽ được xử lý ở server-side
+      // Chúng ta chỉ cần return true cho tất cả orders đã pass qua filter ở trên
+      if (onSearchChange) {
+        return true;
+      }
+
+      // Client-side search (chỉ khi không có server-side search)
       if (debouncedSearch) {
         const searchLower = debouncedSearch.toLowerCase();
-        const customerName = getCustomerName(order).toLowerCase();
-        const customerPhone = getCustomerPhone(order).toLowerCase();
-        const customerEmail = getCustomerEmail(order).toLowerCase();
-        const orderIdStr = String(order.id || order.orderId || "");
+        
+        // Search in order information
+        const orderCode = String(order.orderCode || "").toLowerCase();
+        
+        // Search in user information
+        const customerName = String(order?.users?.fullName || "").toLowerCase();
+        const customerEmail = String(order?.users?.email || "").toLowerCase();
+        const customerPhone = String(order?.users?.phone || "").toLowerCase();
+        const customerAddress = String(order?.users?.address || "").toLowerCase();
 
         return (
+          orderCode.includes(searchLower) ||
           customerName.includes(searchLower) ||
-          customerPhone.includes(searchLower) ||
           customerEmail.includes(searchLower) ||
-          orderIdStr.includes(debouncedSearch)
+          customerPhone.includes(searchLower) ||
+          customerAddress.includes(searchLower)
         );
       }
 
@@ -2575,9 +2645,7 @@ const DashboardContent = ({
     orders,
     debouncedSearch,
     statusFilter,
-    getCustomerName,
-    getCustomerPhone,
-    getCustomerEmail,
+    onSearchChange,
   ]);
 
   // Memoized stats formatting for better performance
@@ -2739,7 +2807,7 @@ const DashboardContent = ({
             </Select>
           </FormControl>
           <TextField
-            placeholder="Tìm kiếm theo tên khách hoặc mã đơn"
+            placeholder="Tìm kiếm theo mã đơn hàng, tên, email, SĐT, địa chỉ khách"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -2753,6 +2821,7 @@ const DashboardContent = ({
                 </InputAdornment>
               ),
             }}
+           
             sx={{ flex: 1, minWidth: { xs: "100%", sm: 220 } }}
           />
         </Stack>
@@ -2872,7 +2941,6 @@ const DashboardContent = ({
                       onUploadContract={handleUploadContract}
                       onUploadRevisedContract={handleUploadRevisedContract}
                       onViewContract={handleViewContract}
-                      onRequestResign={handleRequestResign}
                       onConfirmSigned={handleConfirmSigned}
                       contractViewLoading={contractViewLoading}
                     />
@@ -3065,7 +3133,6 @@ const DashboardContent = ({
                   onUploadContract={handleUploadContract}
                   onUploadRevisedContract={handleUploadRevisedContract}
                   onViewContract={handleViewContract}
-                  onRequestResign={handleRequestResign}
                   onConfirmSigned={handleConfirmSigned}
                   contractViewLoading={contractViewLoading}
                 />
@@ -3215,8 +3282,35 @@ const DashboardContent = ({
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseContractDialog}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          {/* Hiển thị nút "Yêu cầu ký lại" cho hợp đồng đã ký (dựa trên orderId) */}
+          {contractDialog.orderId && (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<UploadIcon />}
+              onClick={() => {
+                handleRequestResign(contractDialog.orderId);
+                handleCloseContractDialog(); // Đóng dialog sau khi thực hiện
+              }}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: "medium",
+                borderWidth: 2,
+                "&:hover": {
+                  borderWidth: 2,
+                  boxShadow: 2,
+                  transform: "translateY(-1px)",
+                  background: "rgba(255, 152, 0, 0.04)",
+                },
+              }}
+            >
+               Yêu cầu ký lại
+            </Button>
+          )}
+          
+          <Button onClick={handleCloseContractDialog} sx={{ ml: "auto" }}>
             Đóng
           </Button>
         </DialogActions>
