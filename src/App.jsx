@@ -48,6 +48,7 @@ import RoleBasedRoute from "./components/RoleBasedRoute";
 import { ROLES } from "./utils/roleUtils";
 import Order from "./pages/Order";
 import Authenticate from "./pages/Authenticate";
+import PaymentHistory from "./pages/PaymentHistory";
 
 // Custom event để theo dõi đăng nhập thành công
 const loginSuccessEvent = new CustomEvent("loginSuccess");
@@ -287,6 +288,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Order />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="payment-history"
+                element={
+                  <ProtectedRoute>
+                    <PaymentHistory/>
                   </ProtectedRoute>
                 }
               />
