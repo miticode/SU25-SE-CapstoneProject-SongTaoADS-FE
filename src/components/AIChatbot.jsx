@@ -61,9 +61,17 @@ import {
   addUserMessage,
   selectChatMessages,
   selectChatStatus,
-  getTraditionalPricing,
-  getModernPricing,
 } from "../store/features/chat/chatSlice";
+import {
+  fetchAllTopics,
+  selectAllTopics,
+  selectTopicLoading,
+} from "../store/features/topic/topicSlice";
+import {
+  fetchQuestionsByTopic,
+  selectQuestionsByTopic,
+  selectQuestionLoading,
+} from "../store/features/question/questionSlice";
 
 const FAQS = [
   "Song Tạo có bảo hành biển quảng cáo không?",
@@ -72,49 +80,7 @@ const FAQS = [
   "Cửa hàng địa chỉ ở đâu ?",
 ];
 
-// Advanced detailed questions by category
-const DETAILED_QUESTIONS = {
-  "Thiết kế & Sản xuất": [
-    "Tôi muốn thiết kế biển hiệu cho cửa hàng ăn, có gợi ý gì không?",
-    "Biển LED có tốn điện không và tuổi thọ bao lâu?",
-    "Có thể thiết kế biển hiệu theo phong cách vintage không?",
-    "Quy trình sản xuất biển hiệu mất bao lâu?",
-    "Có thể xem mẫu thiết kế trước khi sản xuất không?",
-    "Biển hiệu ngoài trời có chống nước không?",
-  ],
-  "Báo giá & Thanh toán": [
-    "Bảng giá biển hiệu có cập nhật mới nhất không?",
-    "Có chương trình khuyến mãi cho khách hàng mới không?",
-    "Thanh toán có thể trả góp không?",
-    "Có giảm giá khi đặt số lượng lớn không?",
-    "Phí vận chuyển và lắp đặt tính như thế nào?",
-    "Có bảo hành miễn phí không?",
-  ],
-  "Dịch vụ & Hỗ trợ": [
-    "Có dịch vụ lắp đặt tại nhà không?",
-    "Có bảo trì định kỳ không?",
-    "Thời gian làm việc và liên hệ khẩn cấp?",
-    "Có hỗ trợ thiết kế miễn phí không?",
-    "Có thể chỉnh sửa thiết kế sau khi đặt hàng không?",
-    "Có dịch vụ bảo hành mở rộng không?",
-  ],
-  "Sản phẩm & Chất lượng": [
-    "Chất liệu nào bền nhất cho biển ngoài trời?",
-    "Có biển hiệu phù hợp với không gian nhỏ không?",
-    "Biển hiệu có thể tùy chỉnh kích thước không?",
-    "Có biển hiệu thân thiện môi trường không?",
-    "Chất liệu nào phù hợp cho biển trong nhà?",
-    "Có biển hiệu chống cháy không?",
-  ],
-  "Quy trình & Thời gian": [
-    "Quy trình đặt hàng như thế nào?",
-    "Thời gian sản xuất biển hiệu mất bao lâu?",
-    "Có thể gấp rút trong 24h không?",
-    "Quy trình thanh toán và giao hàng?",
-    "Có thể theo dõi tiến độ sản xuất không?",
-    "Thời gian bảo hành và sửa chữa?",
-  ],
-};
+
 
 const QUICK_ACTIONS = [
   {
@@ -171,115 +137,6 @@ const ADVANCED_FEATURES = [
     description: "AI nhớ cuộc trò chuyện trước đó",
     icon: <AutoAwesomeIcon />,
     enabled: true,
-  },
-];
-
-const PRICING_FIELDS = [
-  { 
-    key: "frame", 
-    label: "CHỌN KHUNG BẢNG", 
-    placeholder: "VD: Chọn khung sắt vuông cùng với kích thước của bạn",
-    suggestions: ["Sắt vuông 20x20x1mm", "Sắt vuông 25x25x0.9mm", "Sắt vuông 25x25x1mm", "Sắt vuông 30x30x1mm", "Sắt vuông 30x30x1.2mm"]
-  },
-  { 
-    key: "background", 
-    label: "CHỌN NỀN BẢNG", 
-    placeholder: "VD: Chọn nền bảng",
-    suggestions: ["Không lót tôn ", "Lót tôn dầy 6dem", "Lót tôn mỏng 4dem"]
-  },
-  { 
-    key: "border", 
-    label: "CHỌN VIỀN BẢNG", 
-    placeholder: "VD:Chọn chất liệu làm viền bảng",
-    suggestions: ["Nhôm V20 trắng mờ", "Nhôm V20 trắng sữa", "V inox vàng/ trắng"]
-  },
-  { 
-    key: "numberOfFaces", 
-    label: "SỐ MẶT BẢNG", 
-    placeholder: "VD: 1 mặt, 2 mặt, 3 mặt...",
-    suggestions: ["1", "2", "3", "4"]
-  },
-  { 
-    key: "billboardFace", 
-    label: "CHỌN MẶT BẢNG", 
-    placeholder: "VD: Chọn chất liệu làm mặt bảng",
-    suggestions: ["Căng bạt thường dầy 320gsm", "Căng bạt 2da dầy 360gsm", "Hộp đèn bạt thường", "Dán decal trắng, cán màng bóng","Dán decal trắng in UV"]
-  },
-  {
-    key: "installationMethod",
-    label: "QUY CÁCH GẮN",
-    placeholder: "VD: Chọn quy cách gắn",
-    suggestions: ["Gắn trên mái", "Chân tự đứng", "Chôn trụ phi 60", "Chôn trụ phi 90", "Hộp đèn treo"]
-  },
- 
-  { 
-    key: "height", 
-    label: "CHIỀU CAO (m)?", 
-    placeholder: "VD: 1.5, 2.0, 3.0...(đơn vị mét)",
-    suggestions: ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"]
-  },
-  { 
-    key: "width", 
-    label: "CHIỀU NGANG (m)?", 
-    placeholder: "VD: 1.0, 1.5, 2.0...(đơn vị mét)",
-    suggestions: ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"]
-  },
-];
-
-const MODERN_PRICING_FIELDS = [
-  { 
-    key: "frame", 
-    label: "CHỌN KHUNG BẢNG", 
-    placeholder: "VD: Chọn khung sắt vuông cùng với kích thước của bạn",
-    suggestions: ["Sắt vuông 20x20x1mm", "Sắt vuông 25x25x0.9mm", "Sắt vuông 25x25x1mm", "Sắt vuông 30x30x1mm", "Sắt vuông 30x30x1.2mm"]
-  },
-  { 
-    key: "background", 
-    label: "CHỌN NỀN BẢNG ", 
-    placeholder: "VD: Alu Arado, Alu Alcorest , Alu Trieuchen, tấm Pima...",
-    suggestions: ["Alu Arado 3mm (rẻ)", "Alu Alcorest 3mm (thường)", "Alu Trieuchen 3mm (tốt)", "Tấm pima (nhựa giả đá) ", "Nhựa giả gỗ dạng sóng cao 0.15 x 2.9m"]
-  },
-  { 
-    key: "border", 
-    label: "CHỌN VIỀN BẢNG", 
-    placeholder: "VD: Chọn viền sắt vuông cùng với kích thước của bạn",
-    suggestions: ["Nhôm V20 trắng mờ", "V inox vàng/ trắng", "Viền giật hộp Alu thường không đèn", "Viền giật hộp mica có đèn led sáng", "Viền LED bát sáng full màu"]
-  },
-  { 
-    key: "textAndLogo", 
-    label: "CHẤT LIỆU CHỮ VÀ LOGO", 
-    placeholder: "VD: Chọn chất liệu chữ và logo",
-    suggestions: ["Mica Đài Loan 2mm ", "Alu Alcorest 3mm (thường)", "Chữ Inox, mặt inox không đèn", "Chữ Inox, mặt inox mica", "Chữ hạt Acrylic đổ keo", "Mica hút nổi"]
-  },
-  { 
-    key: "textSpecification", 
-    label: "QUY CÁCH CHỮ", 
-    placeholder: "VD: Chọn quy cách chữ",
-    suggestions: ["Dán trực tiếp (Dán dẹt)", "Form 3mm cao 3cm", "Hông form có đèn LED âm", "LED âm loại thường", "LED âm loại tốt"]
-  },
-  {
-    key: "installationMethod",
-    label: "QUY CÁCH GẮN?",
-    placeholder: "VD: Treo tường, cắm đất, dán kính...",
-    suggestions: ["Gắn trên mái", "Chân tự đứng", "Chôn trụ phi 60", "Chôn trụ phi 90", "Hộp đèn treo"]
-  },
-  { 
-    key: "height", 
-    label: "CHIỀU CAO (m)?", 
-    placeholder: "VD: 1.5, 2.0, 3.0...(đơn vị mét)",
-    suggestions: ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"]
-  },
-  { 
-    key: "width", 
-    label: "CHIỀU NGANG (m)?", 
-    placeholder: "VD: 1.0, 1.5, 2.0...(đơn vị mét)",
-    suggestions: ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"]
-  },
-  { 
-    key: "textSize", 
-    label: "KÍCH THƯỚC CHỮ", 
-    placeholder: "VD: 1.0, 1.5, 2.0...(đơn vị mét)",
-    suggestions: ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"]
   },
 ];
 
@@ -343,6 +200,17 @@ const AIChatbot = () => {
   const dispatch = useDispatch();
   const messages = useSelector(selectChatMessages);
   const status = useSelector(selectChatStatus);
+  const topics = useSelector(selectAllTopics);
+  const topicLoading = useSelector(selectTopicLoading);
+  
+  // Debug topics state
+  console.log('🎯 Current topics state:', topics);
+  console.log('🎯 Topic loading state:', topicLoading);
+  
+
+  const questionsByTopic = useSelector(selectQuestionsByTopic);
+  const questionLoading = useSelector(selectQuestionLoading);
+  const [topicQuestions, setTopicQuestions] = useState({});
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isHover, setIsHover] = useState(false);
@@ -350,16 +218,17 @@ const AIChatbot = () => {
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [showFAQ, setShowFAQ] = useState(true);
+  const [expandedTopics, setExpandedTopics] = useState({});
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
-  const [isPricingFlow, setIsPricingFlow] = useState(false);
-  const [pricingType, setPricingType] = useState("traditional"); // "traditional" or "modern"
-  const [pricingStep, setPricingStep] = useState(0);
-  const [pricingData, setPricingData] = useState({});
-  const [pricingResult, setPricingResult] = useState(null);
-  const [pricingError, setPricingError] = useState(null);
-  const [currentPricingInput, setCurrentPricingInput] = useState("");
+
+  // Load topics when component mounts
+  useEffect(() => {
+    dispatch(fetchAllTopics()).then((result) => {
+      console.log('🎯 Topics data structure:', result.payload);
+    });
+  }, [dispatch]);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -419,40 +288,6 @@ const AIChatbot = () => {
     const userMessage = msg || input.trim();
     setInput("");
     
-    // Nếu đang ở flow báo giá
-    if (isPricingFlow) {
-      const fields = pricingType === "traditional" ? PRICING_FIELDS : MODERN_PRICING_FIELDS;
-      const field = fields[pricingStep];
-      const nextData = { ...pricingData, [field.key]: userMessage };
-      setPricingData(nextData);
-      
-      if (pricingStep < fields.length - 1) {
-        setPricingStep(pricingStep + 1);
-        // Không thêm câu hỏi vào chat, chỉ cập nhật step
-      } else {
-        // Hoàn thành flow báo giá - gọi API
-        setIsPricingFlow(false);
-        setCurrentPricingInput("");
-        
-        try {
-          const result = pricingType === "traditional" 
-            ? await dispatch(getTraditionalPricing(nextData)).unwrap()
-            : await dispatch(getModernPricing(nextData)).unwrap();
-            
-          if (result && Array.isArray(result)) {
-            // Hiển thị kết quả báo giá trực tiếp trong chat, không gọi API chat
-            const pricingResult = result.join('\n');
-            dispatch(addUserMessage(`Báo giá ${pricingType === "traditional" ? "truyền thống" : "hiện đại"}: ${pricingResult}`));
-          } else {
-            dispatch(addUserMessage("Không thể tính toán báo giá. Vui lòng thử lại."));
-          }
-        } catch (err) {
-          dispatch(addUserMessage(`Lỗi khi báo giá: ${err.message || "Không xác định"}`));
-        }
-      }
-      return;
-    }
-    
     // Chat thông thường
     dispatch(addUserMessage(userMessage));
     try {
@@ -475,40 +310,28 @@ const AIChatbot = () => {
     handleSend(question);
   };
 
-  const handleStartPricingFlow = (type = "traditional") => {
-    setIsPricingFlow(true);
-    setPricingType(type);
-    setPricingStep(0);
-    setPricingData({});
-    setCurrentPricingInput("");
-    // Không thêm vào chat, chỉ hiển thị câu hỏi trong pricing flow
-  };
-
-  const handleCancelPricingFlow = () => {
-    setIsPricingFlow(false);
-    setPricingType("traditional");
-    setPricingStep(0);
-    setPricingData({});
-    setCurrentPricingInput("");
-    setPricingResult(null);
-    setPricingError(null);
-    // Không thêm vào chat, chỉ reset state
-  };
-
-  const handlePricingInputChange = (e) => {
-    setCurrentPricingInput(e.target.value);
-  };
-
-  const handlePricingInputSubmit = () => {
-    if (currentPricingInput.trim()) {
-      handleSend(currentPricingInput);
-      setCurrentPricingInput("");
-    }
-  };
-
-  const handlePricingInputKeyDown = (e) => {
-    if (e.key === "Enter" && currentPricingInput.trim()) {
-      handlePricingInputSubmit();
+  const handleTopicExpand = async (topicId) => {
+    setExpandedTopics(prev => ({
+      ...prev,
+      [topicId]: !prev[topicId]
+    }));
+    
+    // Load questions for this topic if not already loaded
+    if (!topicQuestions[topicId]) {
+      try {
+        const result = await dispatch(fetchQuestionsByTopic(topicId)).unwrap();
+        console.log('🎯 Questions data structure for topic', topicId, ':', result);
+        setTopicQuestions(prev => ({
+          ...prev,
+          [topicId]: result.questions || result || []
+        }));
+      } catch (error) {
+        console.error('Error loading questions for topic:', topicId, error);
+        setTopicQuestions(prev => ({
+          ...prev,
+          [topicId]: []
+        }));
+      }
     }
   };
 
@@ -742,7 +565,7 @@ const AIChatbot = () => {
                     }}
                   >
                     <Tab label="Chat" />
-                    <Tab label="Hướng dẫn" />
+                    <Tab label="Chủ đề" />
                   </Tabs>
                 </Box>
               )}
@@ -766,40 +589,9 @@ const AIChatbot = () => {
                   },
                 }}
               >
-                {/* Quick Actions Tab */}
+                {/* Topics Tab */}
                 {isAdvancedMode && activeTab === 1 && (
                   <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#f4f6fb" }}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ mb: 1, color: "#1a237e" }}
-                    >
-                      Hành động nhanh:
-                    </Typography>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      flexWrap="wrap"
-                      sx={{ mb: 2 }}
-                    >
-                      {QUICK_ACTIONS.map((action, idx) => (
-                        <Chip
-                          key={idx}
-                          label={action.label}
-                          icon={action.icon}
-                          onClick={() => handleQuickAction(action)}
-                          sx={{
-                            bgcolor: action.color,
-                            color: "#fff",
-                            fontSize: 11,
-                            "&:hover": {
-                              bgcolor: action.color,
-                              opacity: 0.8,
-                            },
-                          }}
-                        />
-                      ))}
-                    </Stack>
-
                     <Typography
                       variant="subtitle2"
                       sx={{ mb: 1, color: "#1a237e" }}
@@ -807,134 +599,92 @@ const AIChatbot = () => {
                       Câu hỏi chi tiết theo chủ đề:
                     </Typography>
                     <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
-                      {Object.entries(DETAILED_QUESTIONS).map(
-                        ([category, questions]) => (
-                          <Accordion key={category} sx={{ mb: 1 }}>
+                      {topicLoading ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+                          <Typography variant="body2" color="#3949ab">
+                            Đang tải chủ đề...
+                          </Typography>
+                        </Box>
+                      ) : topics && topics.length > 0 ? (
+                        console.log('🔍 Rendering topics:', topics) ||
+                        topics.map((topic) => (
+                          <Accordion 
+                            key={topic.id} 
+                            sx={{ mb: 1 }}
+                            expanded={expandedTopics[topic.id] || false}
+                            onChange={() => handleTopicExpand(topic.id)}
+                          >
                             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                               <Typography variant="body2" fontWeight={500}>
-                                {category}
+                                {topic.title}
                               </Typography>
                             </AccordionSummary>
                             <AccordionDetails>
                               <Stack spacing={1}>
-                                {questions.map((question, idx) => (
-                                  <Button
-                                    key={idx}
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() =>
-                                      handleDetailedQuestion(question)
-                                    }
-                                    disabled={status === "loading"}
-                                    sx={{
-                                      borderColor: "#3949ab",
-                                      color: "#3949ab",
-                                      textTransform: "none",
-                                      fontSize: 11,
-                                      textAlign: "left",
-                                      justifyContent: "flex-start",
-                                      "&:hover": {
-                                        borderColor: "#1a237e",
-                                        color: "#1a237e",
-                                        bgcolor: "#e8eaf6",
-                                      },
-                                    }}
-                                  >
-                                    {question}
-                                  </Button>
-                                ))}
+                                {expandedTopics[topic.id] && (
+                                  <>
+                                    {!topicQuestions[topic.id] && questionLoading ? (
+                                      <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
+                                        <Typography variant="body2" color="#3949ab" fontSize={11}>
+                                          Đang tải câu hỏi...
+                                        </Typography>
+                                      </Box>
+                                    ) : topicQuestions[topic.id] && topicQuestions[topic.id].length > 0 ? (
+                                      topicQuestions[topic.id].map((question) => (
+                                        <Button
+                                          key={question.id}
+                                          size="small"
+                                          variant="outlined"
+                                          onClick={() =>
+                                            handleDetailedQuestion(question.question)
+                                          }
+                                          disabled={status === "loading"}
+                                          sx={{
+                                            borderColor: "#3949ab",
+                                            color: "#3949ab",
+                                            textTransform: "none",
+                                            fontSize: 11,
+                                            textAlign: "left",
+                                            justifyContent: "flex-start",
+                                            "&:hover": {
+                                              borderColor: "#1a237e",
+                                              color: "#1a237e",
+                                              bgcolor: "#e8eaf6",
+                                            },
+                                          }}
+                                        >
+                                          {question.question}
+                                        </Button>
+                                      ))
+                                    ) : (
+                                      <Typography variant="body2" color="#666" fontSize={11}>
+                                        Chưa có câu hỏi cho chủ đề này
+                                      </Typography>
+                                    )}
+                                  </>
+                                )}
                               </Stack>
                             </AccordionDetails>
                           </Accordion>
-                        )
+                        ))
+                      ) : (
+                        <Box sx={{ textAlign: "center", p: 2 }}>
+                          <Typography variant="body2" color="#666">
+                            {topicLoading ? "Đang tải chủ đề..." : "Chưa có chủ đề nào"}
+                          </Typography>
+                          {!topicLoading && (
+                            <Typography variant="caption" color="#999" sx={{ mt: 1, display: "block" }}>
+                              Vui lòng thử lại sau hoặc liên hệ hỗ trợ
+                            </Typography>
+                          )}
+                        </Box>
                       )}
                     </Box>
                   </Box>
                 )}
 
-                {/* Pricing Options - Always show in Advanced mode */}
-                {isAdvancedMode && (
-                  <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Typography variant="subtitle2" sx={{ color: "#1a237e", flex: 1, fontWeight: 600 }}>
-                        Tư vấn báo giá:
-                      </Typography>
-                      <Chip
-                        label="Advanced Mode"
-                        size="small"
-                        icon={<RocketLaunchIcon />}
-                        sx={{
-                          bgcolor: "#e3f2fd",
-                          color: "#1976d2",
-                          fontWeight: 500,
-                          fontSize: 11,
-                        }}
-                      />
-                    </Stack>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      <Zoom in={true} style={{ transitionDelay: "100ms" }}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => handleStartPricingFlow("traditional")}
-                          disabled={isPricingFlow}
-                          startIcon={<BusinessIcon />}
-                          sx={{
-                            bgcolor: "#2196f3",
-                            color: "#fff",
-                            textTransform: "none",
-                            fontSize: 13,
-                            borderRadius: 999,
-                            mb: 1,
-                            px: 2,
-                            py: 0.5,
-                            boxShadow: "0 2px 8px rgba(33,150,243,0.3)",
-                            transition: "all 0.2s ease",
-                            "&:hover": {
-                              bgcolor: "#1976d2",
-                              transform: "translateY(-1px)",
-                              boxShadow: "0 4px 12px rgba(33,150,243,0.4)",
-                            },
-                          }}
-                        >
-                          Tư vấn báo giá biển truyền thống
-                        </Button>
-                      </Zoom>
-                      <Zoom in={true} style={{ transitionDelay: "200ms" }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleStartPricingFlow("modern")}
-                          disabled={isPricingFlow}
-                          startIcon={<AutoAwesomeIcon />}
-                          sx={{
-                            borderColor: "#2196f3",
-                            color: "#2196f3",
-                            textTransform: "none",
-                            fontSize: 13,
-                            borderRadius: 999,
-                            mb: 1,
-                            px: 2,
-                            py: 0.5,
-                            transition: "all 0.2s ease",
-                            "&:hover": {
-                              borderColor: "#1976d2",
-                              color: "#1976d2",
-                              bgcolor: "#e3f2fd",
-                              transform: "translateY(-1px)",
-                              boxShadow: "0 2px 8px rgba(33,150,243,0.2)",
-                            },
-                          }}
-                        >
-                          Tư vấn báo giá biển hiện đại
-                        </Button>
-                      </Zoom>
-                    </Stack>
-                  </Box>
-                )}
-
                 {/* FAQ Quick Replies - Also show in normal mode when not in pricing flow */}
-                {!isAdvancedMode && !isPricingFlow && (
+                {!isAdvancedMode && (
                   <Fade in={true} timeout={400}>
                     <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
                       <Typography variant="subtitle2" sx={{ mb: 1.5, color: "#1a237e", fontWeight: 600 }}>
@@ -1057,102 +807,6 @@ const AIChatbot = () => {
                       </Box>
                     ))}
                     
-                    {/* Hiển thị gợi ý cho trường hiện tại trong flow báo giá - Cải thiện UI */}
-                    {isPricingFlow && (
-                      <Fade in={true} timeout={300}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "row",
-                            alignItems: "flex-end",
-                            gap: 1,
-                          }}
-                        >
-                          <Avatar
-                            sx={{
-                              bgcolor: "#fff",
-                              color: "#2196f3",
-                              width: 32,
-                              height: 32,
-                              boxShadow: 1,
-                              border: "2px solid #2196f3",
-                              mt: 0.5,
-                              mr: 1,
-                            }}
-                              src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
-                            alt="AI Bot"
-                          />
-                          <Card
-                            sx={{
-                              bgcolor: "#e3f2fd",
-                              color: "#1565c0",
-                              px: 2,
-                              py: 1.5,
-                              borderRadius: 2.5,
-                              maxWidth: "85%",
-                              boxShadow: "0 4px 12px rgba(33, 150, 243, 0.15)",
-                              border: "1px solid #2196f3",
-                              borderTopLeftRadius: 16,
-                              borderTopRightRadius: 6,
-                              borderBottomLeftRadius: 16,
-                              borderBottomRightRadius: 16,
-                            }}
-                          >
-                            <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
-                              <Typography variant="body2" fontWeight={600} mb={1.5} color="#1976d2">
-                                Chọn {(() => {
-                                  const fields = pricingType === "traditional" ? PRICING_FIELDS : MODERN_PRICING_FIELDS;
-                                  return fields[pricingStep]?.label.toLowerCase();
-                                })()}:
-                              </Typography>
-                              <Stack direction="row" spacing={1} flexWrap="wrap">
-                                {(() => {
-                                  const fields = pricingType === "traditional" ? PRICING_FIELDS : MODERN_PRICING_FIELDS;
-                                  return fields[pricingStep]?.suggestions.map((suggestion, idx) => (
-                                    <Zoom in={true} style={{ transitionDelay: `${idx * 50}ms` }} key={idx}>
-                                      <Button
-                                        size="small"
-                                        variant="contained"
-                                        onClick={() => {
-                                          setCurrentPricingInput(suggestion);
-                                          handleSend(suggestion);
-                                        }}
-                                        sx={{
-                                          bgcolor: "#fff",
-                                          color: "#1976d2",
-                                          border: "1px solid #2196f3",
-                                          fontSize: 12,
-                                          fontWeight: 500,
-                                          borderRadius: 999,
-                                          px: 2,
-                                          py: 0.5,
-                                          textTransform: "none",
-                                          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-                                          transition: "all 0.2s ease",
-                                          "&:hover": {
-                                            bgcolor: "#2196f3",
-                                            color: "#fff",
-                                            transform: "translateY(-2px)",
-                                            boxShadow: "0 4px 12px rgba(33,150,243,0.4)",
-                                          },
-                                          "&:active": {
-                                            transform: "translateY(0)",
-                                            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-                                          },
-                                        }}
-                                      >
-                                        {suggestion}
-                                      </Button>
-                                    </Zoom>
-                                  ));
-                                })()}
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                        </Box>
-                      </Fade>
-                    )}
-                    
                     {status === "loading" && (
                       <Box
                         sx={{
@@ -1215,144 +869,64 @@ const AIChatbot = () => {
                   alignItems: "center",
                   boxShadow: "0 -2px 8px 0 rgba(26,35,126,0.04)",
                   position: "relative",
-                  mt: isPricingFlow ? 5 : 0, // Add margin top when in pricing flow to avoid overlap
+                  mt: 0, // Remove margin top when in pricing flow to avoid overlap
                   minHeight: isAdvancedMode ? "80px" : "70px", // Ensure minimum height in Advanced mode
                 }}
               >
-                  {isPricingFlow && (
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        top: -50, // Move up more to avoid overlap
-                        left: 16,
-                        right: 16,
-                        bgcolor: "#e3f2fd",
-                        borderRadius: 2,
-                        p: 1.5,
-                        border: "1px solid #2196f3",
-                        zIndex: 1,
-                      }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Box
-                          sx={{
-                            width: 16,
-                            height: 16,
-                            borderRadius: "50%",
-                            bgcolor: "#2196f3",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#fff",
-                            fontSize: 10,
-                            fontWeight: "bold",
-                          }}
-                        >
-                          {pricingStep + 1}
-                        </Box>
-                        <Typography variant="caption" color="primary" fontWeight={500}>
-                          Báo giá {pricingType === "traditional" ? "truyền thống" : "hiện đại"} ({pricingStep + 1}/{(() => {
-                            const fields = pricingType === "traditional" ? PRICING_FIELDS : MODERN_PRICING_FIELDS;
-                            return fields.length;
-                          })()})
-                        </Typography>
-                        
-                        {/* Progress Bar */}
-                        <Box
-                          sx={{
-                            flex: 1,
-                            height: 4,
-                            bgcolor: "#e0e0e0",
-                            borderRadius: 2,
-                            overflow: "hidden",
-                            ml: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              height: "100%",
-                              bgcolor: "#2196f3",
-                              borderRadius: 2,
-                              width: `${((pricingStep + 1) / (() => {
-                                const fields = pricingType === "traditional" ? PRICING_FIELDS : MODERN_PRICING_FIELDS;
-                                return fields.length;
-                              })()) * 100}%`,
-                              transition: "width 0.3s ease",
-                            }}
-                          />
-                        </Box>
-                        
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          onClick={handleCancelPricingFlow}
-                          sx={{ ml: 1, fontSize: 11 }}
-                        >
-                          Hủy
-                        </Button>
-                      </Stack>
-                    </Box>
-                  )}
                   
                   <TextField
                     size="small"
                     fullWidth
                     placeholder={
-                      isPricingFlow
-                        ? `Nhập ${(() => {
-                            const fields = pricingType === "traditional" ? PRICING_FIELDS : MODERN_PRICING_FIELDS;
-                            return fields[pricingStep]?.label.toLowerCase();
-                          })()}...`
-                        : isAdvancedMode
+                      isAdvancedMode
                         ? "Nhập tin nhắn hoặc chọn câu hỏi gợi ý..."
                         : "Bạn cần hỗ trợ gì?..."
                     }
-                    value={isPricingFlow ? currentPricingInput : input}
+                    value={input}
                     inputRef={inputRef}
-                    onChange={isPricingFlow ? handlePricingInputChange : (e) => setInput(e.target.value)}
-                    onKeyDown={isPricingFlow ? handlePricingInputKeyDown : (e) => e.key === "Enter" && handleSend()}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     sx={{
                       bgcolor: "#f8f9fa",
                       borderRadius: 999,
-                      border: isPricingFlow ? "2px solid #2196f3" : "none",
+                      border: "none",
                       "& .MuiOutlinedInput-root": {
-                        "& fieldset": { borderColor: isPricingFlow ? "#2196f3" : "#e0e3ef" },
-                        "&:hover fieldset": { borderColor: isPricingFlow ? "#1976d2" : "#3949ab" },
-                        "&.Mui-focused fieldset": { borderColor: isPricingFlow ? "#1565c0" : "#1a237e" },
+                        "& fieldset": { borderColor: "#e0e3ef" },
+                        "&:hover fieldset": { borderColor: "#3949ab" },
+                        "&.Mui-focused fieldset": { borderColor: "#1a237e" },
                       },
                       "& .MuiInputBase-input": {
                         color: "#1a237e",
                         fontSize: 15,
                         py: 1.2,
-                        fontWeight: isPricingFlow ? 500 : 400,
+                        fontWeight: 400,
                       },
                       "& .MuiInputBase-input::placeholder": {
-                        color: isPricingFlow ? "#1976d2" : "#3949ab",
+                        color: "#3949ab",
                         opacity: 0.7,
-                        fontWeight: isPricingFlow ? 500 : 400,
+                        fontWeight: 400,
                       },
-                      boxShadow: isPricingFlow ? "0 2px 8px rgba(33,150,243,0.15)" : "none",
+                      boxShadow: "none",
                     }}
                     disabled={status === "loading"}
                   />
                   <IconButton
-                    onClick={isPricingFlow ? handlePricingInputSubmit : () => handleSend()}
-                    disabled={status === "loading" || (isPricingFlow ? !currentPricingInput.trim() : !input.trim())}
+                    onClick={() => handleSend()}
+                    disabled={status === "loading" || !input.trim()}
                     sx={{
-                      bgcolor: isPricingFlow ? "#2196f3" : "#3949ab",
+                      bgcolor: "#3949ab",
                       color: "#fff",
                       borderRadius: "50%",
                       width: 44,
                       height: 44,
                       ml: 1,
-                      border: `2px solid ${isPricingFlow ? "#2196f3" : "#3949ab"}`,
+                      border: `2px solid #3949ab`,
                       p: 0,
                       transition: "all 0.2s",
                       "&:hover": {
-                        bgcolor: isPricingFlow ? "#1976d2" : "#1a237e",
+                        bgcolor: "#1a237e",
                         color: "#fff",
-                        border: `2px solid ${isPricingFlow ? "#1976d2" : "#1a237e"}`,
+                        border: `2px solid #1a237e`,
                       },
                     }}
                   >
@@ -1369,22 +943,6 @@ const AIChatbot = () => {
 
       {/* Flow nhập từng trường báo giá truyền thống - REMOVED */}
       {/* Hiển thị kết quả báo giá sau khi gọi API - REMOVED */}
-      {pricingError && (
-        <Dialog
-          open={!!pricingError}
-          onClose={() => setPricingError(null)}
-          maxWidth="xs"
-          fullWidth
-        >
-          <DialogTitle>Lỗi báo giá</DialogTitle>
-          <DialogContent>
-            <Typography color="error">{pricingError}</Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setPricingError(null)}>Đóng</Button>
-          </DialogActions>
-        </Dialog>
-      )}
     </>
   );
 };
