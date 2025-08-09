@@ -13,9 +13,7 @@ import chatReducer from "./features/chat/chatSlice";
 import attributeValueReducer from "./features/attribute/attributeValueSlice";
 import customDesignReducer from "./features/customeDesign/customerDesignSlice";
 import priceReducer from "./features/price/priceSlice";
-
 import contractReducer from "./features/contract/contractSlice";
-
 import paymentReducer from "./features/payment/paymentSlice";
 import demoReducer from "./features/demo/demoSlice";
 import impressionReducer from "./features/impression/impressionSlice";
@@ -26,6 +24,9 @@ import costypeReducer from "./features/costype/costypeSlice";
 import contractorReducer from "./features/contractor/contractorSlice";
 import progressLogReducer from "./features/progressLog/progressLogSlice";
 import dashboardReducer from "./features/dashboard/dashboardSlice";
+import topicReducer from "./features/topic/topicSlice";
+import questionReducer from "./features/question/questionSlice";
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -37,7 +38,6 @@ export const store = configureStore({
     users: userReducer,
     ai: aiReducer,
     size: sizeReducer,
-
     s3: s3Reducer,
     attributeValue: attributeValueReducer,
     chat: chatReducer,
@@ -54,6 +54,8 @@ export const store = configureStore({
     contractor: contractorReducer,
     progressLog: progressLogReducer,
     dashboard: dashboardReducer,
+    topic: topicReducer,
+    question: questionReducer,
   },
 });
 
