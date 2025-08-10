@@ -3,6 +3,7 @@ import {
   getProductTypesApi,
   getProductTypeByIdApi,
   getProductTypeSizesByProductTypeIdApi,
+  addProductTypeApi,
   addSizeToProductTypeApi,
   deleteProductTypeSizeApi,
 } from "../../../api/productTypeService";
@@ -13,6 +14,9 @@ const initialState = {
   currentProductType: null,
   status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
+  // State cho việc tạo mới product type
+  addStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  addError: null,
   productTypeSizes: [],
   sizesError: null,
   sizesStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -68,6 +72,19 @@ export const fetchProductTypeSizesByProductTypeId = createAsyncThunk(
   }
 );
 
+export const addProductType = createAsyncThunk(
+  "productType/addProductType",
+  async (productTypeData, { rejectWithValue }) => {
+    const response = await addProductTypeApi(productTypeData);
+    if (!response.success) {
+      return rejectWithValue(
+        response.error || "Failed to add product type"
+      );
+    }
+    return response.data;
+  }
+);
+
 export const addSizeToProductType = createAsyncThunk(
   "productType/addSizeToProductType",
   async ({ productTypeId, sizeId }, { rejectWithValue }) => {
@@ -103,6 +120,10 @@ const productTypeSlice = createSlice({
     resetProductTypeStatus: (state) => {
       state.status = "idle";
       state.error = null;
+    },
+    resetAddProductTypeStatus: (state) => {
+      state.addStatus = "idle";
+      state.addError = null;
     },
     clearCurrentProductType: (state) => {
       state.currentProductType = null;
@@ -148,6 +169,24 @@ const productTypeSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
+
+      // Add product type cases
+      .addCase(addProductType.pending, (state) => {
+        state.addStatus = "loading";
+        state.addError = null;
+      })
+      .addCase(addProductType.fulfilled, (state, action) => {
+        state.addStatus = "succeeded";
+        // Thêm product type mới vào danh sách
+        state.productTypes.push(action.payload);
+        state.addError = null;
+      })
+      .addCase(addProductType.rejected, (state, action) => {
+        state.addStatus = "failed";
+        state.addError = action.payload;
+      })
+
+      // Fetch product type sizes cases
       .addCase(fetchProductTypeSizesByProductTypeId.pending, (state) => {
         state.sizesStatus = "loading";
       })
@@ -171,6 +210,7 @@ const productTypeSlice = createSlice({
 
 export const {
   resetProductTypeStatus,
+  resetAddProductTypeStatus,
   clearCurrentProductType,
   resetProductTypeSizesStatus,
   clearProductTypeSizes,
@@ -183,6 +223,9 @@ export const selectCurrentProductType = (state) =>
   state.productType.currentProductType;
 export const selectProductTypeStatus = (state) => state.productType.status;
 export const selectProductTypeError = (state) => state.productType.error;
+// Selectors cho việc tạo mới product type
+export const selectAddProductTypeStatus = (state) => state.productType.addStatus;
+export const selectAddProductTypeError = (state) => state.productType.addError;
 export const selectProductTypeSizes = (state) =>
   state.productType.productTypeSizes;
 export const selectProductTypeSizesStatus = (state) =>

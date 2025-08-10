@@ -1,4 +1,22 @@
 import React, { useEffect, useState, useCallback } from "react";
+
+/*
+ * CÁCH SỬ DỤNG CÁC FUNCTION REFRESH:
+ * 
+ * 1. refreshCustomDesignData() - Refresh data cho tab "Đơn thiết kế thủ công"
+ *    - Sử dụng sau khi: approve/reject proposal, gửi offer, approve/reject demo, thay đổi lựa chọn thi công
+ * 
+ * 2. refreshOrdersData() - Refresh data cho tab "Lịch sử đơn hàng"  
+ *    - Sử dụng sau khi: upload hợp đồng, thảo luận hợp đồng, gửi đánh giá, hủy đơn hàng, tạo ticket
+ * 
+ * 3. refreshImpressionsData(orderId) - Refresh impressions cho một đơn hàng cụ thể
+ *    - Sử dụng sau khi: gửi đánh giá
+ * 
+ * 4. refreshAllData() - Refresh tất cả data (thông minh theo tab hiện tại)
+ *    - Sử dụng khi không chắc chắn cần refresh gì
+ * 
+ * LƯU Ý: Không cần reload trang nữa, chỉ cần gọi các function này!
+ */
 import {
   Box,
   Typography,
@@ -1410,30 +1428,68 @@ const OrderHistory = () => {
       setRemainingPaymentLoading((prev) => ({ ...prev, [order.id]: false }));
     }
   };
-  // useEffect(() => {
-  //   if (orderRemainingResult?.success) {
-  //     setNotification({
-  //       open: true,
-  //       message: "Tạo thanh toán thành công! Đang chuyển hướng...",
-  //       severity: "success",
-  //     });
-  //
-  //     // Clear state sau khi xử lý
-  //     dispatch(clearPaymentState());
-  //   }
-  // }, [orderRemainingResult, dispatch]);
-  // useEffect(() => {
-  //   if (paymentError) {
-  //     setNotification({
-  //       open: true,
-  //       message: paymentError,
-  //       severity: "error",
-  //     });
-  //
-  //     // Clear error sau khi hiển thị
-  //     dispatch(clearPaymentState());
-  //   }
-  // }, [paymentError, dispatch]);
+
+  // ===== CÁC FUNCTION REFRESH DATA =====
+  // Sử dụng các function này thay vì reload trang để cập nhật UI tự động
+  
+  // Tạo function refresh chung cho tất cả data
+  const refreshCustomDesignData = async () => {
+    if (!customerDetailId) return;
+    
+    try {
+      // Reload custom design requests
+      await dispatch(
+        fetchCustomDesignRequestsByCustomerDetail({
+          customerDetailId: customerDetailId,
+          page: 1,
+          size: 10,
+        })
+      );
+      
+      // Reload price proposals nếu đang mở detail
+      if (openDetail && currentDesignRequest) {
+        const proposalsRes = await getPriceProposals(currentDesignRequest.id);
+        if (proposalsRes.success) {
+          setPriceProposals(proposalsRes.result);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing custom design data:", error);
+    }
+  };
+
+  // Function refresh cho orders (tab lịch sử đơn hàng)
+  const refreshOrdersData = async () => {
+    if (user?.id) {
+      await refreshOrders(currentPage);
+    }
+  };
+
+  // Function refresh cho impressions
+  const refreshImpressionsData = async (orderId) => {
+    if (orderId) {
+      await dispatch(fetchImpressionsByOrderId(orderId));
+    }
+  };
+
+  // Function refresh tổng thể - có thể gọi từ bất kỳ đâu
+  // Sử dụng khi cần refresh cả 2 tab hoặc không chắc chắn đang ở tab nào
+  const refreshAllData = async () => {
+    try {
+      // Refresh custom design data nếu đang ở tab thiết kế thủ công
+      if (tab === 1 && customerDetailId) {
+        await refreshCustomDesignData();
+      }
+      
+      // Refresh orders data nếu đang ở tab lịch sử đơn hàng
+      if (tab === 0 && user?.id) {
+        await refreshOrdersData();
+      }
+    } catch (error) {
+      console.error("Error refreshing all data:", error);
+    }
+  };
+
   const getProductionProgress = (status) => {
     const steps = [
       { key: "PRODUCING", label: "Đang thi công", progress: 25 },
@@ -2236,7 +2292,7 @@ const OrderHistory = () => {
 
         // Tự động refresh trang để hiển thị trạng thái mới
         if (user?.id) {
-          refreshOrders(currentPage);
+          refreshOrdersData();
         }
       } else {
         setNotification({
@@ -2283,7 +2339,7 @@ const OrderHistory = () => {
 
         // Tự động refresh trang để hiển thị trạng thái mới
         if (user?.id) {
-          refreshOrders(currentPage);
+          refreshOrdersData();
         }
       } else {
         setNotification({
@@ -2404,7 +2460,7 @@ const OrderHistory = () => {
 
               // Tải lại danh sách đơn hàng
               if (user?.id) {
-                refreshOrders(currentPage);
+                refreshOrdersData();
               }
             } else {
               setNotification({
@@ -2429,13 +2485,7 @@ const OrderHistory = () => {
       }
 
       // Cập nhật lại danh sách đơn thiết kế để hiển thị đúng trạng thái
-      dispatch(
-        fetchCustomDesignRequestsByCustomerDetail({
-          customerDetailId: customerDetailId,
-          page: 1,
-          size: 10,
-        })
-      );
+      refreshCustomDesignData();
     } else {
       setNotification({
         open: true,
@@ -3040,8 +3090,8 @@ const OrderHistory = () => {
 
       // Reload lại orders và impressions để cập nhật trạng thái
       if (user?.id) {
-        refreshOrders(currentPage);
-        dispatch(fetchImpressionsByOrderId(impressionDialog.orderId));
+        await refreshOrdersData();
+        await refreshImpressionsData(impressionDialog.orderId);
       }
     } catch {
       setNotification({
@@ -3090,7 +3140,7 @@ const OrderHistory = () => {
 
         // Refresh orders list
         if (user?.id) {
-          refreshOrders(currentPage);
+          await refreshOrdersData();
         }
       } else {
         setNotification({
@@ -3122,25 +3172,32 @@ const OrderHistory = () => {
 
   const handleApproveProposal = async (proposalId) => {
     setActionLoading(true);
-    const res = await approvePriceProposal(proposalId);
-    if (res.success) {
+    try {
+      const res = await approvePriceProposal(proposalId);
+      if (res.success) {
+        setNotification({
+          open: true,
+          message: "Chấp nhận báo giá thành công!",
+          severity: "success",
+        });
+        // Refresh toàn bộ data
+        await refreshCustomDesignData();
+      } else {
+        setNotification({
+          open: true,
+          message: res.error || "Chấp nhận báo giá thất bại",
+          severity: "error",
+        });
+      }
+    } catch (error) {
       setNotification({
         open: true,
-        message: "Chấp nhận báo giá thành công!",
-        severity: "success",
-      });
-      // Reload proposals
-      getPriceProposals(currentDesignRequest.id).then(
-        (r) => r.success && setPriceProposals(r.result)
-      );
-    } else {
-      setNotification({
-        open: true,
-        message: res.error || "Chấp nhận báo giá thất bại",
+        message: "Có lỗi xảy ra khi chấp nhận báo giá",
         severity: "error",
       });
+    } finally {
+      setActionLoading(false);
     }
-    setActionLoading(false);
   };
 
   const handleOpenOfferDialog = (proposalId) => {
@@ -3163,27 +3220,35 @@ const OrderHistory = () => {
       totalPriceOffer: Number(offerForm.totalPriceOffer),
       depositAmountOffer: Number(offerForm.depositAmountOffer),
     };
-    const res = await offerPriceProposal(proposalId, data);
-    if (res.success) {
+    
+    try {
+      const res = await offerPriceProposal(proposalId, data);
+      if (res.success) {
+        setNotification({
+          open: true,
+          message: "Gửi offer giá mới thành công!",
+          severity: "success",
+        });
+        handleCloseOfferDialog();
+        
+        // Refresh toàn bộ data
+        await refreshCustomDesignData();
+      } else {
+        setNotification({
+          open: true,
+          message: res.error || "Gửi offer thất bại",
+          severity: "error",
+        });
+      }
+    } catch (error) {
       setNotification({
         open: true,
-        message: "Gửi offer giá mới thành công!",
-        severity: "success",
-      });
-      handleCloseOfferDialog();
-      // Reload lại proposal và custom design request
-      getPriceProposals(currentDesignRequest.id).then(
-        (r) => r.success && setPriceProposals(r.result)
-      );
-      // Có thể reload lại custom design request nếu cần
-    } else {
-      setNotification({
-        open: true,
-        message: res.error || "Gửi offer thất bại",
+        message: "Có lỗi xảy ra khi gửi offer",
         severity: "error",
       });
+    } finally {
+      setActionLoading(false);
     }
-    setActionLoading(false);
   };
 
   // Xóa hàm handleCustomDeposit - chuyển sang tab Lịch sử đơn hàng
@@ -3200,14 +3265,18 @@ const OrderHistory = () => {
         severity: "success",
       });
       setOpenDetail(false);
+      
+      // Refresh data sau khi chấp nhận demo
+      await refreshCustomDesignData();
     } catch (err) {
       setNotification({
         open: true,
         message: err || "Chấp nhận demo thất bại",
         severity: "error",
       });
+    } finally {
+      setDemoActionLoading(false);
     }
-    setDemoActionLoading(false);
   };
   // Xử lý từ chối demo
   const handleRejectDemo = async () => {
@@ -3238,14 +3307,18 @@ const OrderHistory = () => {
       setRejectReason("");
       setFeedbackImage(null);
       setOpenDetail(false);
+      
+      // Refresh data sau khi từ chối demo
+      await refreshCustomDesignData();
     } catch (err) {
       setNotification({
         open: true,
         message: err || "Từ chối demo thất bại",
         severity: "error",
       });
+    } finally {
+      setDemoActionLoading(false);
     }
-    setDemoActionLoading(false);
   };
 
   // Xử lý thay đổi feedbackImage
@@ -3396,6 +3469,8 @@ const OrderHistory = () => {
     if (createStatus === "succeeded") {
       setTimeout(() => {
         handleCloseTicketDialog();
+        // Refresh orders data sau khi tạo ticket thành công
+        refreshOrdersData();
       }, 1200);
     }
   }, [createStatus]);

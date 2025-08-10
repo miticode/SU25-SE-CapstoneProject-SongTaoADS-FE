@@ -246,4 +246,20 @@ export const fetchDesignRequestsByDesignerApi = async (designerId, page = 1, siz
   }
 };
 
+// Lấy các yêu cầu thiết kế cần hỗ trợ
+export const getDesignRequestsNeedSupport = async (page = 1, size = 10) => {
+  try {
+    const response = await customDesignService.get('/api/custom-design-requests/need-support', {
+      params: { page, size }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch design requests need support'
+    };
+  }
+};
+
 export default customDesignService;
