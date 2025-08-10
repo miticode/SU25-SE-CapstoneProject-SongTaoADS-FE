@@ -114,9 +114,8 @@ const SaleDashboard = () => {
   };
 
   useEffect(() => {
-    // Lấy đơn hàng AI với trạng thái mặc định "PENDING_CONTRACT" khi load trang
+    // Lấy tất cả đơn hàng AI khi load trang (không filter theo trạng thái)
     dispatch(fetchOrders({
-      orderStatus: "PENDING_CONTRACT",
       orderType: "AI_DESIGN",
       page: 1,
       size: pagination.pageSize || 10
