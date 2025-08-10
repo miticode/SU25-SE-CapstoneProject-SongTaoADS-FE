@@ -101,20 +101,29 @@ userService.interceptors.response.use(
 );
 
 // Hàm API lấy danh sách tất cả người dùng
-export const getAllUsersApi = async (page = 1, limit = 10, searchQuery = '') => {
+export const getAllUsersApi = async (page = 1, size = 10, searchQuery = '') => {
   try {
     const response = await userService.get('/api/users', {
       params: {
         page,
-        limit,
+        size,
         search: searchQuery
       }
     });
     
-    const { success, result, message } = response.data;
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
     
     if (success) {
-      return { success: true, data: result };
+      return { 
+        success: true, 
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
     }
     
     return { success: false, error: message || 'Failed to fetch users' };
@@ -147,14 +156,21 @@ export const getUserDetailApi = async (userId) => {
 };
 
 // Hàm API tạo người dùng mới
+// Request body: { fullName, email, phone, password, avatar, isActive, roleName }
+// Response: { success, timestamp, message, result: { id, fullName, email, password, phone, avatar, address, isActive, isBanned, createdAt, updatedAt, roles: { id, name, description, orderCode } } }
 export const createUserApi = async (userData) => {
   try {
     const response = await userService.post('/api/users', userData);
     
-    const { success, result, message } = response.data;
+    const { success, result, message, timestamp } = response.data;
     
     if (success) {
-      return { success: true, data: result };
+      return { 
+        success: true, 
+        data: result,
+        message,
+        timestamp
+      };
     }
     
     return { success: false, error: message || 'Failed to create user' };
@@ -222,6 +238,35 @@ export const changeUserPasswordApi = async (userId, password) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to change user password'
+    };
+  }
+};
+
+// Hàm API ban/unban người dùng
+export const banUserApi = async (userId, isBanned) => {
+  try {
+    const response = await userService.patch(`/api/users/${userId}/ban-decision`, null, {
+      params: {
+        isBanned
+      }
+    });
+    
+    const { success, result, message, timestamp } = response.data;
+    
+    if (success) {
+      return { 
+        success: true, 
+        data: result,
+        message,
+        timestamp
+      };
+    }
+    
+    return { success: false, error: message || 'Failed to update user ban status' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to update user ban status'
     };
   }
 };

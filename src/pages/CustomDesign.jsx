@@ -83,6 +83,9 @@ const CustomDesign = () => {
   const user = useSelector(selectAuthUser);
   const accessToken = useSelector((state) => state.auth.accessToken);
 
+  // Lấy orderType từ localStorage để điều khiển hiển thị nút thi công
+  const orderTypeFromStorage = localStorage.getItem("orderTypeForNewOrder");
+
   // Khi vào trang, nếu có customerChoiceId thì fetch kích thước và thuộc tính
   useEffect(() => {
     const id = location.state?.customerChoiceId;
@@ -131,6 +134,15 @@ const CustomDesign = () => {
       dispatch(fetchCustomerDetailByUserId(user.id));
     }
   }, [dispatch, user?.id]);
+
+  // Tự động set hasOrder dựa trên orderType
+  useEffect(() => {
+    if (orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION") {
+      setHasOrder(true);
+    } else if (orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") {
+      setHasOrder(false);
+    }
+  }, [orderTypeFromStorage]);
 
   const handleConfirm = async () => {
     // Lấy customerChoiceId từ location.state hoặc currentOrder
@@ -890,6 +902,33 @@ const CustomDesign = () => {
                     🔨 Bạn có muốn chúng tôi thi công biển hiệu sau khi thiết kế không?
                   </Typography>
                   
+                  {/* Hiển thị thông báo khi chỉ có một lựa chọn */}
+                  {(orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") && (
+                    <Box sx={{ mb: 3 }}>
+                      <Alert 
+                        severity="info" 
+                        variant="filled"
+                        sx={{ 
+                          borderRadius: 2,
+                          '& .MuiAlert-icon': {
+                            fontSize: '1.2rem'
+                          }
+                        }}
+                      >
+                        <Typography variant="body1" fontWeight={600}>
+                          {orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+                            ? "🏗️ Đơn hàng của bạn đã bao gồm thi công" 
+                            : "🎨 Đơn hàng của bạn chỉ bao gồm thiết kế"}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+                          {orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                            ? "Lựa chọn thi công đã được xác định trước cho đơn hàng này."
+                            : "Đơn hàng này chỉ yêu cầu dịch vụ thiết kế, không bao gồm thi công."}
+                        </Typography>
+                      </Alert>
+                    </Box>
+                  )}
+                  
                   <FormControl component="fieldset" fullWidth>
                     <RadioGroup
                       row
@@ -898,92 +937,99 @@ const CustomDesign = () => {
                       name="hasOrderRadio"
                       sx={{ gap: 4 }}
                     >
-                      <FormControlLabel
-                        value="yes"
-                        control={
-                          <Radio 
-                            sx={{
-                              color: '#27ae60',
-                              '&.Mui-checked': {
+                      {/* Hiển thị nút "Có thi công" nếu orderType không phải CUSTOM_DESIGN_WITHOUT_CONSTRUCTION */}
+                      {orderTypeFromStorage !== "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" && (
+                        <FormControlLabel
+                          value="yes"
+                          control={
+                            <Radio 
+                              sx={{
                                 color: '#27ae60',
-                              },
-                            }}
-                          />
-                        }
-                        label={
-                          <Paper
-                            elevation={hasOrder ? 4 : 1}
-                            sx={{
-                              p: 3,
-                              borderRadius: 2,
-                              border: hasOrder ? '2px solid #27ae60' : '1px solid #e9ecef',
-                              background: hasOrder ? 'linear-gradient(135deg, #d5f4e6 0%, #e8f8f5 100%)' : '#ffffff',
-                              transition: 'all 0.3s ease',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                transform: 'translateY(-2px)',
-                                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-                              }
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Chip 
-                                label="Có thi công" 
-                                color="success" 
-                                variant={hasOrder ? "filled" : "outlined"}
-                                size="medium"
-                                sx={{ mr: 2, fontWeight: 600 }}
-                              />
-                              <Typography variant="body1" color="#2c3e50" fontWeight={500}>
-                                (Bao gồm thiết kế + thi công)
-                              </Typography>
-                            </Box>
-                          </Paper>
-                        }
-                      />
-                      <FormControlLabel
-                        value="no"
-                        control={
-                          <Radio 
-                            sx={{
-                              color: '#3498db',
-                              '&.Mui-checked': {
+                                '&.Mui-checked': {
+                                  color: '#27ae60',
+                                },
+                              }}
+                            />
+                          }
+                          label={
+                            <Paper
+                              elevation={hasOrder ? 4 : 1}
+                              sx={{
+                                p: 3,
+                                borderRadius: 2,
+                                border: hasOrder ? '2px solid #27ae60' : '1px solid #e9ecef',
+                                background: hasOrder ? 'linear-gradient(135deg, #d5f4e6 0%, #e8f8f5 100%)' : '#ffffff',
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+                                }
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Chip 
+                                  label="Có thi công" 
+                                  color="success" 
+                                  variant={hasOrder ? "filled" : "outlined"}
+                                  size="medium"
+                                  sx={{ mr: 2, fontWeight: 600 }}
+                                />
+                                <Typography variant="body1" color="#2c3e50" fontWeight={500}>
+                                  (Bao gồm thiết kế + thi công)
+                                </Typography>
+                              </Box>
+                            </Paper>
+                          }
+                        />
+                      )}
+                      
+                      {/* Hiển thị nút "Không thi công" nếu orderType không phải CUSTOM_DESIGN_WITH_CONSTRUCTION */}
+                      {orderTypeFromStorage !== "CUSTOM_DESIGN_WITH_CONSTRUCTION" && (
+                        <FormControlLabel
+                          value="no"
+                          control={
+                            <Radio 
+                              sx={{
                                 color: '#3498db',
-                              },
-                            }}
-                          />
-                        }
-                        label={
-                          <Paper
-                            elevation={!hasOrder ? 4 : 1}
-                            sx={{
-                              p: 3,
-                              borderRadius: 2,
-                              border: !hasOrder ? '2px solid #3498db' : '1px solid #e9ecef',
-                              background: !hasOrder ? 'linear-gradient(135deg, #ebf3fd 0%, #f8fbff 100%)' : '#ffffff',
-                              transition: 'all 0.3s ease',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                transform: 'translateY(-2px)',
-                                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-                              }
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Chip 
-                                label="Không thi công" 
-                                color="info" 
-                                variant={!hasOrder ? "filled" : "outlined"}
-                                size="medium"
-                                sx={{ mr: 2, fontWeight: 600 }}
-                              />
-                              <Typography variant="body1" color="#2c3e50" fontWeight={500}>
-                                (Chỉ thiết kế)
-                              </Typography>
-                            </Box>
-                          </Paper>
-                        }
-                      />
+                                '&.Mui-checked': {
+                                  color: '#3498db',
+                                },
+                              }}
+                            />
+                          }
+                          label={
+                            <Paper
+                              elevation={!hasOrder ? 4 : 1}
+                              sx={{
+                                p: 3,
+                                borderRadius: 2,
+                                border: !hasOrder ? '2px solid #3498db' : '1px solid #e9ecef',
+                                background: !hasOrder ? 'linear-gradient(135deg, #ebf3fd 0%, #f8fbff 100%)' : '#ffffff',
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+                                }
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Chip 
+                                  label="Không thi công" 
+                                  color="info" 
+                                  variant={!hasOrder ? "filled" : "outlined"}
+                                  size="medium"
+                                  sx={{ mr: 2, fontWeight: 600 }}
+                                />
+                                <Typography variant="body1" color="#2c3e50" fontWeight={500}>
+                                  (Chỉ thiết kế)
+                                </Typography>
+                              </Box>
+                            </Paper>
+                          }
+                        />
+                      )}
                     </RadioGroup>
                   </FormControl>
                 </Paper>

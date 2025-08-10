@@ -1399,23 +1399,23 @@ const ModernBillboardForm = ({
                                         wordBreak: "break-word", // Cho phép xuống dòng nếu cần
                                       }}
                                     >
-                                      {value.name}
+                                    {value.name}
                                     </Typography>
                                     {value.unitPrice !== undefined && (
                                       <Typography
                                         sx={{
                                           ml: 1,
-                                          color: "green.600",
+                                          color: value.isMultiplier ? "primary.main" : "green.600",
                                           fontWeight: "medium",
                                           flexShrink: 0,
                                           fontSize: "0.8rem",
                                           whiteSpace: "nowrap",
                                         }}
                                       >
-                                        {value.unitPrice.toLocaleString(
-                                          "vi-VN"
-                                        )}{" "}
-                                        đ
+                                        {value.isMultiplier 
+                                          ? `×${(value.unitPrice / 10).toLocaleString("vi-VN")}`
+                                          : `${value.unitPrice.toLocaleString("vi-VN")} đ`
+                                        }
                                       </Typography>
                                     )}
                                   </MenuItem>
@@ -1436,7 +1436,7 @@ const ModernBillboardForm = ({
                                 </Box>
                               )}
 
-                              {/* Show attribute price if available */}
+                              {/* Show attribute price or multiplier if available */}
                               {(attributePrices[attr.id]?.subTotal !==
                                 undefined ||
                                 previousSubTotalsRef.current[attr.id]) && (
@@ -1453,42 +1453,60 @@ const ModernBillboardForm = ({
                                         : 1,
                                   }}
                                 >
-                                  <Typography
-                                    variant="caption"
-                                    color="success.main"
-                                    fontWeight="medium"
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      bgcolor: "success.lightest",
-                                      py: 0.5,
-                                      px: 1,
-                                      borderRadius: 1,
-                                    }}
-                                  >
-                                    {fetchCustomerChoiceStatus === "loading" ? (
-                                      <CircularProgress
-                                        size={10}
-                                        sx={{ mr: 0.5 }}
-                                      />
-                                    ) : (
-                                      <FaCheckCircle
-                                        size={10}
-                                        className="mr-1 text-green-500"
-                                      />
-                                    )}
-                                    Giá:{" "}
-                                    <span className="font-bold ml-1">
-                                      {(attributePrices[attr.id]?.subTotal !==
-                                      undefined
+                                  {(() => {
+                                    // Tìm attributeValue được chọn
+                                    const selectedValueId = formData[attr.id];
+                                    const selectedValue = attributeValues.find(
+                                      (value) => value.id === selectedValueId
+                                    );
+                                    const isMultiplier = selectedValue?.isMultiplier;
+                                    
+                                    // Tính hệ số nếu isMultiplier = true
+                                    let displayValue, displayLabel;
+                                    if (isMultiplier && selectedValue?.unitPrice) {
+                                      const multiplier = selectedValue.unitPrice / 10;
+                                      displayValue = multiplier.toLocaleString("vi-VN");
+                                      displayLabel = "Hệ số";
+                                    } else {
+                                      const subTotal = attributePrices[attr.id]?.subTotal !== undefined
                                         ? attributePrices[attr.id].subTotal
-                                        : previousSubTotalsRef.current[
-                                            attr.id
-                                          ] || 0
-                                      ).toLocaleString("vi-VN")}{" "}
-                                      đ
-                                    </span>
-                                  </Typography>
+                                        : previousSubTotalsRef.current[attr.id] || 0;
+                                      displayValue = subTotal.toLocaleString("vi-VN");
+                                      displayLabel = "Giá";
+                                    }
+
+                                    return (
+                                      <Typography
+                                        variant="caption"
+                                        color="success.main"
+                                        fontWeight="medium"
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          bgcolor: isMultiplier ? "primary.lightest" : "success.lightest",
+                                          py: 0.5,
+                                          px: 1,
+                                          borderRadius: 1,
+                                        }}
+                                      >
+                                        {fetchCustomerChoiceStatus === "loading" ? (
+                                          <CircularProgress
+                                            size={10}
+                                            sx={{ mr: 0.5 }}
+                                          />
+                                        ) : (
+                                          <FaCheckCircle
+                                            size={10}
+                                            className={`mr-1 text-green-500`}
+                                          />
+                                        )}
+                                        {displayLabel}:{" "}
+                                        <span className="font-bold ml-1">
+                                          {displayValue}{isMultiplier ? "" : " đ"}
+                                        </span>
+                                      </Typography>
+                                    );
+                                  })()}
                                 </Box>
                               )}
                             </FormControl>
