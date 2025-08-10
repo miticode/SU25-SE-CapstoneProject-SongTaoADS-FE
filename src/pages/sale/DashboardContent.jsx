@@ -1665,7 +1665,7 @@ const OrderCard = memo(
               </Button>
             )}
 
-            {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT") && (
+            {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT" || order.status === "CONTRACT_CONFIRMED") && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 <Button
                   variant="outlined"
@@ -1949,8 +1949,8 @@ const OrderRow = memo(
                 </Button>
               )}
 
-              {/* Nút xem hợp đồng cho trạng thái CONTRACT_SIGNED và CONTRACT_SENT */}
-              {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT") && (
+              {/* Nút xem hợp đồng cho trạng thái CONTRACT_SIGNED, CONTRACT_SENT và CONTRACT_CONFIRMED */}
+              {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT" || order.status === "CONTRACT_CONFIRMED") && (
                 <Button
                   variant="outlined"
                   color="primary"
