@@ -42,6 +42,7 @@ const DesignEditor = ({
   containerVariants,
   itemVariants,
   pixelValueData,
+  hasExportedInCurrentSession,
 }) => {
   return (
     <motion.div
@@ -549,13 +550,13 @@ const DesignEditor = ({
 
         <motion.button
           whileHover={{
-            scale: currentAIDesign && !isOrdering ? 1.05 : 1,
+            scale: hasExportedInCurrentSession && !isOrdering ? 1.05 : 1,
           }}
-          whileTap={{ scale: currentAIDesign && !isOrdering ? 0.95 : 1 }}
+          whileTap={{ scale: hasExportedInCurrentSession && !isOrdering ? 0.95 : 1 }}
           onClick={handleConfirm}
-          disabled={!currentAIDesign || isOrdering}
+          disabled={!hasExportedInCurrentSession || isOrdering}
           className={`order-button px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-            currentAIDesign && !isOrdering
+            hasExportedInCurrentSession && !isOrdering
               ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -565,7 +566,7 @@ const DesignEditor = ({
               <CircularProgress size={20} color="inherit" className="mr-2" />
               Đang xử lý...
             </>
-          ) : !currentAIDesign ? (
+          ) : !hasExportedInCurrentSession ? (
             <>
               <FaCheck className="mr-2" />
               {selectedBackgroundForCanvas

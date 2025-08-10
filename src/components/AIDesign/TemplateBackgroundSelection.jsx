@@ -135,14 +135,6 @@ const TemplateBackgroundSelection = ({
         });
         return;
       }
-      if (!customerNote.trim()) {
-        setSnackbar({
-          open: true,
-          message: "Vui lòng nhập ghi chú thiết kế trước khi tiếp tục",
-          severity: "warning",
-        });
-        return;
-      }
 
       console.log(
         "🔵 [Background Selection] Starting background continue process"
@@ -325,7 +317,7 @@ const TemplateBackgroundSelection = ({
 
   const isButtonEnabled =
     (isAiGenerated && selectedSampleProduct && customerNote.trim()) ||
-    (!isAiGenerated && selectedBackgroundId && customerNote.trim());
+    (!isAiGenerated && selectedBackgroundId);
 
   return (
     <motion.div
@@ -803,47 +795,6 @@ const TemplateBackgroundSelection = ({
                 </div>
               )}
             </div>
-          )}
-
-          {/* Customer Note cho Background */}
-          {selectedBackgroundId && (
-            <motion.div
-              className="mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                <h3 className="text-xl font-semibold mb-4 flex items-center">
-                  <span className="inline-block w-1 h-4 bg-purple-500 mr-2 rounded"></span>
-                  Ghi chú thiết kế với background{" "}
-                  <span className="text-red-500 ml-1">*</span>
-                </h3>
-                <textarea
-                  className={`w-full px-4 py-3 border ${
-                    selectedBackgroundId && !customerNote.trim()
-                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
-                      : "border-gray-200 focus:ring-custom-primary focus:border-custom-primary"
-                  } rounded-lg focus:ring-2 transition-all`}
-                  rows="3"
-                  name="backgroundNotes"
-                  placeholder="Mô tả cách bạn muốn sử dụng background này cho thiết kế..."
-                  value={customerNote}
-                  onChange={(e) => setCustomerNote(e.target.value)}
-                ></textarea>
-                <div className="flex justify-between mt-2">
-                  <p className="text-gray-500 text-sm italic">
-                    Mô tả chi tiết sẽ giúp chúng tôi thiết kế phù hợp hơn với
-                    background đã chọn
-                  </p>
-                  <p className="text-red-500 text-sm">
-                    {selectedBackgroundId && !customerNote.trim()
-                      ? "Vui lòng nhập ghi chú thiết kế"
-                      : ""}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
           )}
         </motion.div>
       )}

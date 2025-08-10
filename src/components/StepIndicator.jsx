@@ -2,7 +2,7 @@ import React from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 
-const StepIndicator = ({ steps, currentStep, onStepClick }) => {
+const StepIndicator = ({ steps, currentStep }) => {
   return (
     <div className="flex flex-col items-center mb-16 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Desktop View */}
@@ -33,21 +33,14 @@ const StepIndicator = ({ steps, currentStep, onStepClick }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.6 }}
             >
-              <motion.button
-                onClick={() => onStepClick(step.number)}
-                disabled={step.number > currentStep}
-                whileHover={step.number <= currentStep ? { 
-                  scale: 1.15, 
-                  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15)" 
-                } : {}}
-                whileTap={step.number <= currentStep ? { scale: 0.95 } : {}}
-                className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 font-bold text-lg border-2 shadow-lg group-hover:shadow-xl ${
+              <motion.div
+                className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 font-bold text-lg border-2 shadow-lg cursor-default ${
                   step.number === currentStep
                     ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white border-blue-300 shadow-blue-200"
                     : step.number < currentStep
                     ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white border-green-300 shadow-green-200"
-                    : "bg-white text-gray-500 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-                } ${step.number <= currentStep ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                    : "bg-white text-gray-500 border-gray-300"
+                }`}
               >
                 {step.number < currentStep ? (
                   <motion.svg
@@ -106,7 +99,7 @@ const StepIndicator = ({ steps, currentStep, onStepClick }) => {
                     />
                   </>
                 )}
-              </motion.button>
+              </motion.div>
 
               {/* Step Label */}
               <motion.div
@@ -197,20 +190,18 @@ const StepIndicator = ({ steps, currentStep, onStepClick }) => {
         {/* Mobile Step Navigation */}
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-4">
           {steps.map((step, index) => (
-            <motion.button
+            <motion.div
               key={step.number}
-              onClick={() => onStepClick(step.number)}
-              disabled={step.number > currentStep}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.05, duration: 0.4 }}
-              className={`relative h-12 rounded-lg flex flex-col items-center justify-center transition-all duration-300 border-2 ${
+              className={`relative h-12 rounded-lg flex flex-col items-center justify-center transition-all duration-300 border-2 cursor-default ${
                 step.number === currentStep
                   ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white border-blue-300 shadow-md"
                   : step.number < currentStep
                   ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white border-green-300 shadow-md"
                   : "bg-gray-50 text-gray-400 border-gray-200"
-              } ${step.number <= currentStep ? 'cursor-pointer hover:shadow-lg' : 'cursor-not-allowed'}`}
+              }`}
             >
               {step.number < currentStep ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -222,7 +213,7 @@ const StepIndicator = ({ steps, currentStep, onStepClick }) => {
               <span className="text-xs font-medium mt-0.5 leading-none">
                 {step.label.split(' ')[0]}
               </span>
-            </motion.button>
+            </motion.div>
           ))}
         </div>
       </div>
