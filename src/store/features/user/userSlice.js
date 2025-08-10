@@ -7,6 +7,7 @@ import {
   toggleUserStatusApi,
   getUsersByRoleApi,
   changeUserPasswordApi,
+  banUserApi,
 } from "../../../api/userService";
 
 // Initial state
@@ -18,6 +19,8 @@ const initialState = {
   totalUsers: 0,
   currentPage: 1,
   totalPages: 1,
+  pageSize: 10,
+  totalElements: 0,
   searchQuery: "",
   designers: [],
   designersStatus: "idle",
@@ -27,8 +30,8 @@ const initialState = {
 // Async thunk để lấy danh sách người dùng
 export const fetchUsers = createAsyncThunk(
   "users/fetchUsers",
-  async ({ page = 1, limit = 10, search = "" }, { rejectWithValue }) => {
-    const response = await getAllUsersApi(page, limit, search);
+  async ({ page = 1, size = 10, search = "" }, { rejectWithValue }) => {
+    const response = await getAllUsersApi(page, size, search);
 
     if (!response.success) {
       return rejectWithValue(response.error || "Failed to fetch users");
@@ -36,8 +39,7 @@ export const fetchUsers = createAsyncThunk(
 
     return {
       users: response.data,
-      totalUsers: response.data.length, // Adjust if API provides total count
-      totalPages: Math.ceil(response.data.length / limit), // Adjust if API provides total pages
+      pagination: response.pagination
     };
   }
 );
@@ -112,6 +114,20 @@ export const changeUserPassword = createAsyncThunk(
   }
 );
 
+// Async thunk để ban/unban người dùng
+export const banUser = createAsyncThunk(
+  "users/banUser",
+  async ({ userId, isBanned }, { rejectWithValue }) => {
+    const response = await banUserApi(userId, isBanned);
+
+    if (!response.success) {
+      return rejectWithValue(response.error || "Failed to update user ban status");
+    }
+
+    return { userId, isBanned, userData: response.data };
+  }
+);
+
 export const fetchUsersByRole = createAsyncThunk(
   "users/fetchUsersByRole",
   async ({ roleName, page = 1, size = 10 }, { rejectWithValue }) => {
@@ -169,8 +185,12 @@ const userSlice = createSlice({
       .addCase(fetchUsers.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.users = action.payload.users;
-        state.totalUsers = action.payload.totalUsers;
-        state.totalPages = action.payload.totalPages;
+        // Don't update currentPage from API response to avoid infinite loop
+        // state.currentPage = action.payload.pagination.currentPage;
+        state.totalPages = action.payload.pagination.totalPages;
+        state.pageSize = action.payload.pagination.pageSize;
+        state.totalElements = action.payload.pagination.totalElements;
+        state.totalUsers = action.payload.pagination.totalElements; // Keep for backward compatibility
         state.error = null;
       })
       .addCase(fetchUsers.rejected, (state, action) => {
@@ -266,6 +286,27 @@ const userSlice = createSlice({
         state.error = null;
       })
       .addCase(changeUserPassword.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+
+      // Ban user cases
+      .addCase(banUser.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(banUser.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        const { userId, userData } = action.payload;
+        const index = state.users.findIndex((user) => user.id === userId);
+        if (index !== -1) {
+          state.users[index] = userData;
+        }
+        if (state.currentUser && state.currentUser.id === userId) {
+          state.currentUser = userData;
+        }
+        state.error = null;
+      })
+      .addCase(banUser.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       })

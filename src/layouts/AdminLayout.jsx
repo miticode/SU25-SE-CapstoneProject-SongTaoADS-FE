@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import '../styles/adminLayout.css';
 import { 
   Box, 
@@ -33,8 +33,6 @@ import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   ShoppingCart as OrdersIcon,
-  BarChart as StatisticsIcon,
-  Settings as SettingsIcon,
   Notifications as NotificationsIcon,
   Logout as LogoutIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -93,34 +91,38 @@ const menuItems = [
     color: '#ff9800',
     description: 'Quản lý đơn hàng'
   },
-  { 
-    id: 'statistics', 
-    text: 'Thống Kê', 
-    icon: <StatisticsIcon />,
-    color: '#4caf50',
-    description: 'Thống kê báo cáo'
-  },
-  { 
-    id: 'settings', 
-    text: 'Cài Đặt', 
-    icon: <SettingsIcon />,
-    color: '#607d8b',
-    description: 'Cài đặt hệ thống'
-  },
 ];
+
+// Helper function to get active tab from location
+const getActiveTabFromLocation = (pathname) => {
+  if (pathname === '/admin' || pathname === '/admin/') {
+    return 'dashboard';
+  } else if (pathname.includes('/admin/users')) {
+    return 'users';
+  } else if (pathname.includes('/admin/orders')) {
+    return 'orders';
+  }
+  return 'dashboard';
+};
 
 const AdminLayout = () => {
   const [open, setOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  // Current active tab state - passed to outlet context
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Current active tab state - based on current location
+  const [activeTab, setActiveTab] = useState(getActiveTabFromLocation(location.pathname));
+
+  // Update activeTab when location changes
+  React.useEffect(() => {
+    setActiveTab(getActiveTabFromLocation(location.pathname));
+  }, [location.pathname]);
 
   // Auto-close sidebar on mobile
   React.useEffect(() => {
@@ -157,9 +159,25 @@ const AdminLayout = () => {
     }
   };
 
-  // Handle menu item click - set active tab instead of navigating
+  // Handle menu item click - navigate to the route
   const handleMenuItemClick = (tabId) => {
     setActiveTab(tabId);
+    
+    // Navigate to the appropriate route
+    switch (tabId) {
+      case 'dashboard':
+        navigate('/admin');
+        break;
+      case 'users':
+        navigate('/admin/users');
+        break;
+      case 'orders':
+        navigate('/admin/orders');
+        break;
+      default:
+        navigate('/admin');
+    }
+    
     if (isMobile) {
       setOpen(false);
     }
@@ -354,18 +372,6 @@ const AdminLayout = () => {
             >
               <AccountCircleIcon fontSize="small" sx={{ mr: 1 }} />
               Hồ Sơ
-            </MenuItem>
-            <MenuItem 
-              onClick={() => { handleMenuClose(); setActiveTab('settings'); }}
-              sx={{
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                },
-                transition: 'all 0.3s ease',
-              }}
-            >
-              <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
-              Cài Đặt
             </MenuItem>
             <Divider sx={{ my: 1, backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <MenuItem 
