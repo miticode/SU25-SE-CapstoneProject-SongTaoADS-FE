@@ -82,6 +82,7 @@ import {
   selectAllAttributes,
   selectAttributeError,
   selectAttributeStatus,
+  clearAttributes,
 } from "../store/features/attribute/attributeSlice";
 import { createOrderApi } from "../api/orderService";
 import { createAiOrder, createOrder } from "../store/features/order/orderSlice";
@@ -183,8 +184,52 @@ const ModernBillboardForm = ({
   useEffect(() => {
     if (currentStep === 4) {
       hasRestoredAttributesRef.current = false;
+
+      // Clean form nếu có orderTypeForNewOrder trong localStorage
+      const orderTypeForNewOrder = localStorage.getItem("orderTypeForNewOrder");
+
+      if (orderTypeForNewOrder) {
+        console.log(
+          "Found orderTypeForNewOrder in localStorage, cleaning form..."
+        );
+
+        // Reset form data
+        setFormData({});
+
+        // Reset sizes
+        setSizesConfirmed(false);
+        setCustomerChoiceSizes({});
+        setEditedSizes({});
+        setIsEditingSizes(false);
+
+        // Reset validation errors
+        setValidationErrors({});
+        setSizeValidationError("");
+
+        // Reset attribute prices
+        setAttributePrices({});
+
+        // Reset core attributes validation
+        setCoreAttributesValidation({});
+        setCoreAttributesReady(false);
+
+        // Reset refresh counter
+        setRefreshCounter(0);
+
+        // Reset restoration flags
+        hasRestoredSizesRef.current = false;
+        hasRestoredAttributesRef.current = false;
+        hasRestoredDataRef.current = false;
+
+        // Clear attribute values from Redux store
+        dispatch(clearAttributes());
+
+        console.log(
+          "Form cleaned successfully due to orderTypeForNewOrder in localStorage"
+        );
+      }
     }
-  }, [currentStep]);
+  }, [currentStep, setCoreAttributesReady, dispatch]);
 
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const productTypeSizesStatus = useSelector(selectProductTypeSizesStatus);
@@ -1399,23 +1444,28 @@ const ModernBillboardForm = ({
                                         wordBreak: "break-word", // Cho phép xuống dòng nếu cần
                                       }}
                                     >
-                                    {value.name}
+                                      {value.name}
                                     </Typography>
                                     {value.unitPrice !== undefined && (
                                       <Typography
                                         sx={{
                                           ml: 1,
-                                          color: value.isMultiplier ? "primary.main" : "green.600",
+                                          color: value.isMultiplier
+                                            ? "primary.main"
+                                            : "green.600",
                                           fontWeight: "medium",
                                           flexShrink: 0,
                                           fontSize: "0.8rem",
                                           whiteSpace: "nowrap",
                                         }}
                                       >
-                                        {value.isMultiplier 
-                                          ? `×${(value.unitPrice / 10).toLocaleString("vi-VN")}`
-                                          : `${value.unitPrice.toLocaleString("vi-VN")} đ`
-                                        }
+                                        {value.isMultiplier
+                                          ? `×${(
+                                              value.unitPrice / 10
+                                            ).toLocaleString("vi-VN")}`
+                                          : `${value.unitPrice.toLocaleString(
+                                              "vi-VN"
+                                            )} đ`}
                                       </Typography>
                                     )}
                                   </MenuItem>
@@ -1459,19 +1509,30 @@ const ModernBillboardForm = ({
                                     const selectedValue = attributeValues.find(
                                       (value) => value.id === selectedValueId
                                     );
-                                    const isMultiplier = selectedValue?.isMultiplier;
-                                    
+                                    const isMultiplier =
+                                      selectedValue?.isMultiplier;
+
                                     // Tính hệ số nếu isMultiplier = true
                                     let displayValue, displayLabel;
-                                    if (isMultiplier && selectedValue?.unitPrice) {
-                                      const multiplier = selectedValue.unitPrice / 10;
-                                      displayValue = multiplier.toLocaleString("vi-VN");
+                                    if (
+                                      isMultiplier &&
+                                      selectedValue?.unitPrice
+                                    ) {
+                                      const multiplier =
+                                        selectedValue.unitPrice / 10;
+                                      displayValue =
+                                        multiplier.toLocaleString("vi-VN");
                                       displayLabel = "Hệ số";
                                     } else {
-                                      const subTotal = attributePrices[attr.id]?.subTotal !== undefined
-                                        ? attributePrices[attr.id].subTotal
-                                        : previousSubTotalsRef.current[attr.id] || 0;
-                                      displayValue = subTotal.toLocaleString("vi-VN");
+                                      const subTotal =
+                                        attributePrices[attr.id]?.subTotal !==
+                                        undefined
+                                          ? attributePrices[attr.id].subTotal
+                                          : previousSubTotalsRef.current[
+                                              attr.id
+                                            ] || 0;
+                                      displayValue =
+                                        subTotal.toLocaleString("vi-VN");
                                       displayLabel = "Giá";
                                     }
 
@@ -1483,13 +1544,16 @@ const ModernBillboardForm = ({
                                         sx={{
                                           display: "flex",
                                           alignItems: "center",
-                                          bgcolor: isMultiplier ? "primary.lightest" : "success.lightest",
+                                          bgcolor: isMultiplier
+                                            ? "primary.lightest"
+                                            : "success.lightest",
                                           py: 0.5,
                                           px: 1,
                                           borderRadius: 1,
                                         }}
                                       >
-                                        {fetchCustomerChoiceStatus === "loading" ? (
+                                        {fetchCustomerChoiceStatus ===
+                                        "loading" ? (
                                           <CircularProgress
                                             size={10}
                                             sx={{ mr: 0.5 }}
@@ -1502,7 +1566,8 @@ const ModernBillboardForm = ({
                                         )}
                                         {displayLabel}:{" "}
                                         <span className="font-bold ml-1">
-                                          {displayValue}{isMultiplier ? "" : " đ"}
+                                          {displayValue}
+                                          {isMultiplier ? "" : " đ"}
                                         </span>
                                       </Typography>
                                     );
@@ -1755,6 +1820,10 @@ const AIDesign = () => {
   const [progressDelta, setProgressDelta] = useState(0);
   const [lastProgressUpdate, setLastProgressUpdate] = useState(null);
   const [isOrdering, setIsOrdering] = useState(false);
+
+  // State để theo dõi việc đã xuất thiết kế trong phiên hiện tại
+  const [hasExportedInCurrentSession, setHasExportedInCurrentSession] =
+    useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadImagePreview, setUploadImagePreview] = useState("");
   const [processedLogoUrl, setProcessedLogoUrl] = useState("");
@@ -3900,6 +3969,9 @@ const AIDesign = () => {
           orderButton.classList.remove("animate-pulse");
         }, 3000);
       }
+
+      // Đánh dấu đã xuất thiết kế trong phiên hiện tại
+      setHasExportedInCurrentSession(true);
     } catch (error) {
       console.error(
         "🎯 [EXPORT BACKGROUND] Error exporting background design:",
@@ -4093,6 +4165,9 @@ const AIDesign = () => {
             orderButton.classList.remove("animate-pulse");
           }, 3000);
         }
+
+        // Đánh dấu đã xuất thiết kế trong phiên hiện tại
+        setHasExportedInCurrentSession(true);
       } else {
         console.error("Failed to create AI design:", resultAction.error);
         setSnackbar({
@@ -4288,9 +4363,7 @@ const AIDesign = () => {
           ).unwrap();
 
           // 3. Fetch total amount
-          await dispatch(
-            fetchCustomerChoice(currentOrder.id)
-          ).unwrap();
+          await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
 
           // CHỈ HIỂN thị thông báo nếu thực sự có dữ liệu để khôi phục
           const hasChoiceDetails =
@@ -4514,15 +4587,18 @@ const AIDesign = () => {
 
       // KIỂM TRA CHI TIẾT: Fetch customer detail từ server để đảm bảo tính chính xác
       console.log("Checking existing customer detail for user:", user.id);
-      
+
       try {
         // Luôn fetch customer detail mới nhất từ server trước khi quyết định tạo/update
         const existingCustomerDetail = await dispatch(
           fetchCustomerDetailByUserId(user.id)
         ).unwrap();
-        
+
         if (existingCustomerDetail && existingCustomerDetail.id) {
-          console.log("Found existing customer detail, updating...", existingCustomerDetail.id);
+          console.log(
+            "Found existing customer detail, updating...",
+            existingCustomerDetail.id
+          );
           // Đã có customer detail → UPDATE
           resultCustomerDetail = await dispatch(
             updateCustomerDetail({
@@ -4550,7 +4626,10 @@ const AIDesign = () => {
         }
       } catch (fetchError) {
         // Không tìm thấy customer detail hoặc lỗi fetch → TẠO MỚI
-        console.log("No existing customer detail found, creating new one", fetchError.message || fetchError);
+        console.log(
+          "No existing customer detail found, creating new one",
+          fetchError.message || fetchError
+        );
         resultCustomerDetail = await dispatch(
           createCustomer(customerData)
         ).unwrap();
@@ -4655,13 +4734,19 @@ const AIDesign = () => {
                 customerChoicesResponse &&
                 customerChoicesResponse.productTypes?.id
               ) {
-                const existingProductTypeId = customerChoicesResponse.productTypes.id;
-                console.log("Found existing product type ID:", existingProductTypeId);
+                const existingProductTypeId =
+                  customerChoicesResponse.productTypes.id;
+                console.log(
+                  "Found existing product type ID:",
+                  existingProductTypeId
+                );
 
                 setBillboardType(existingProductTypeId);
                 setCurrentStep(4);
                 dispatch(fetchAttributesByProductTypeId(existingProductTypeId));
-                navigate(`/ai-design?step=billboard&type=${existingProductTypeId}`);
+                navigate(
+                  `/ai-design?step=billboard&type=${existingProductTypeId}`
+                );
 
                 setSnackbar({
                   open: true,
@@ -4673,7 +4758,10 @@ const AIDesign = () => {
                 navigate("/ai-design?step=billboard");
               }
             } catch (choiceError) {
-              console.error("Error checking for existing customer choices:", choiceError);
+              console.error(
+                "Error checking for existing customer choices:",
+                choiceError
+              );
               setCurrentStep(3);
               navigate("/ai-design?step=billboard");
             }
@@ -4691,7 +4779,7 @@ const AIDesign = () => {
           message: "Thông tin doanh nghiệp đã tồn tại. Đã cập nhật thành công.",
           severity: "success",
         });
-        
+
         // Vẫn tiếp tục flow để không làm gián đoạn trải nghiệm user
         setCurrentStep(3);
         navigate("/ai-design?step=billboard");
@@ -5627,27 +5715,6 @@ const AIDesign = () => {
     livePreviewUpdateKey,
   ]);
 
-  const handleStepClick = (step) => {
-    if (step < currentStep) {
-      switch (step) {
-        case 1:
-          setCurrentStep(1);
-          navigate("/ai-design");
-          break;
-        case 2:
-          setCurrentStep(2);
-          navigate("/ai-design?step=business");
-          break;
-        case 3:
-          setCurrentStep(3);
-          navigate("/ai-design?step=billboard");
-          break;
-        default:
-          break;
-      }
-    }
-  };
-
   const steps = [
     { number: 1, label: "Bắt đầu" },
     { number: 2, label: "Thông tin doanh nghiệp" },
@@ -5691,6 +5758,16 @@ const AIDesign = () => {
       console.log(`⏰ Timestamp: ${timestamp}`);
     }
   }, [stableDiffusionProgress?.progress, lastProgressUpdate]);
+
+  // useEffect để cuộn lên đầu trang khi chuyển step
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Reset trạng thái xuất thiết kế khi chuyển step (trừ step 7)
+    if (currentStep !== 7) {
+      setHasExportedInCurrentSession(false);
+    }
+  }, [currentStep]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -5935,6 +6012,7 @@ const AIDesign = () => {
             containerVariants={containerVariants}
             itemVariants={itemVariants}
             pixelValueData={pixelValueData}
+            hasExportedInCurrentSession={hasExportedInCurrentSession}
           />
         );
       default:
@@ -5945,11 +6023,7 @@ const AIDesign = () => {
   return (
     <div className="min-h-screen bg-gradient-animated px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto py-8">
-        <StepIndicator
-          steps={steps}
-          currentStep={currentStep}
-          onStepClick={handleStepClick}
-        />
+        <StepIndicator steps={steps} currentStep={currentStep} />
         {renderContent()}
       </div>
 
