@@ -1,13 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchProductTypes,
   selectAllProductTypes,
   selectProductTypeStatus,
   selectProductTypeError,
-  fetchProductTypeSizesByProductTypeId, // Add this import
-  selectProductTypeSizes, // Add this import
-  selectProductTypeSizesStatus, // Add this import
+  addProductType, // Add this import for Redux action
+  selectAddProductTypeStatus, // Add this import
+  resetAddProductTypeStatus, // Add this import
 } from "../../store/features/productType/productTypeSlice";
 import {
   Box,
@@ -34,8 +34,14 @@ import {
   ListItem,
   ListItemText,
   Divider,
-   Menu,
+  Menu,
   MenuItem,
+  FormControlLabel,
+  Checkbox,
+  Avatar,
+  Radio,
+  RadioGroup,
+  Chip,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -43,19 +49,15 @@ import {
   Delete as DeleteIcon,
   Close as CloseIcon,
   InfoOutlined as InfoOutlinedIcon,
-   ArrowDropDown as ArrowDropDownIcon,
+  ArrowDropDown as ArrowDropDownIcon,
   ArrowDropUp as ArrowDropUpIcon,
+  CloudUpload as UploadIcon,
+  Image as ImageIcon,
 } from "@mui/icons-material";
 import {
-  addProductTypeApi,
   deleteProductTypeApi,
   updateProductTypeApi,
 } from "../../api/productTypeService";
-import {
-  fetchAttributesByProductTypeId,
-  selectAllAttributes,
-  selectAttributeStatus,
-} from "../../store/features/attribute/attributeSlice";
 import dayjs from "dayjs";
 
 const Illustration = () => (
@@ -79,45 +81,46 @@ const ProductTypeManager = () => {
   const productTypes = useSelector(selectAllProductTypes);
   const status = useSelector(selectProductTypeStatus);
   const error = useSelector(selectProductTypeError);
-  const attributes = useSelector(selectAllAttributes);
-  const attributeStatus = useSelector(selectAttributeStatus);
-  const [showSizes, setShowSizes] = useState(false);
-  const productTypeSizes = useSelector(selectProductTypeSizes);
-  const sizesStatus = useSelector(selectProductTypeSizesStatus);
+  
+  // Add status và error cho việc tạo mới
+  const addStatus = useSelector(selectAddProductTypeStatus);
+  
+
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState("add"); // 'add' | 'edit'
-  const [form, setForm] = useState({ name: "", calculateFormula: "" });
+  
+  // Cập nhật state form với các trường mới
+  const [form, setForm] = useState({ 
+    name: "", 
+    calculateFormula: "",
+    isAiGenerated: false,
+    isAvailable: false,
+    productTypeImage: null
+  });
+  
+  const [imagePreview, setImagePreview] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editId, setEditId] = useState(null);
-  const [showAttributes, setShowAttributes] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
-  });
-  const [anchorEl, setAnchorEl] = useState(null); // Thêm state cho menu
-  const formulaRef = useRef(null); 
+  }); 
   useEffect(() => {
     dispatch(fetchProductTypes());
   }, [dispatch]);
-  useEffect(() => {
-    if (dialogMode === "edit" && editId && openDialog && showSizes) {
-      dispatch(fetchProductTypeSizesByProductTypeId(editId));
-    }
-  }, [dialogMode, editId, openDialog, showSizes, dispatch]);
-  // Fetch attributes when editing a product type
-  useEffect(() => {
-    if (dialogMode === "edit" && editId && openDialog) {
-      dispatch(fetchAttributesByProductTypeId(editId));
-    }
-  }, [dialogMode, editId, openDialog, dispatch]);
-
   const handleOpenAdd = () => {
     setDialogMode("add");
-    setForm({ name: "", calculateFormula: "" });
+    setForm({ 
+      name: "", 
+      calculateFormula: "",
+      isAiGenerated: false,
+      isAvailable: false,
+      productTypeImage: null
+    });
+    setImagePreview(null);
     setEditId(null);
-    setShowAttributes(false);
     setOpenDialog(true);
   };
 
@@ -126,35 +129,88 @@ const ProductTypeManager = () => {
     setForm({
       name: row.name || "",
       calculateFormula: row.calculateFormula || "",
+      isAiGenerated: row.isAiGenerated || false,
+      isAvailable: row.isAvailable !== undefined ? row.isAvailable : true,
+      productTypeImage: null
     });
+    setImagePreview(row.image || null);
     setEditId(row.id);
-    setShowAttributes(false);
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setShowAttributes(false);
+    setImagePreview(null);
+    // Reset add status khi đóng dialog
+    dispatch(resetAddProductTypeStatus());
+  };
+
+  // Hàm xử lý file upload
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Kiểm tra file type
+      if (!file.type.startsWith('image/')) {
+        setSnackbar({
+          open: true,
+          message: "Vui lòng chọn file hình ảnh!",
+          severity: "error",
+        });
+        return;
+      }
+      
+      // Kiểm tra file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setSnackbar({
+          open: true,
+          message: "File hình ảnh phải nhỏ hơn 5MB!",
+          severity: "error",
+        });
+        return;
+      }
+
+      setForm({ ...form, productTypeImage: file });
+      
+      // Tạo preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Hàm xóa image
+  const handleRemoveImage = () => {
+    setForm({ ...form, productTypeImage: null });
+    setImagePreview(null);
   };
 
   const handleSubmit = async () => {
     if (dialogMode === "add") {
-      const res = await addProductTypeApi({
+      const formData = {
         name: form.name,
         calculateFormula: form.calculateFormula,
-        isAvailable: true,
-      });
-      if (res.success) {
+        isAiGenerated: form.isAiGenerated,
+        isAvailable: form.isAvailable,
+        productTypeImage: form.productTypeImage,
+      };
+      
+      const result = await dispatch(addProductType(formData));
+      
+      if (addProductType.fulfilled.match(result)) {
+        // Refresh danh sách product types
         dispatch(fetchProductTypes());
         setSnackbar({
           open: true,
-          message: "Thêm thành công!",
+          message: "Thêm loại biển hiệu thành công!",
           severity: "success",
         });
+        setOpenDialog(false);
       } else {
         setSnackbar({
           open: true,
-          message: res.error || "Add failed",
+          message: result.payload || "Thêm thất bại!",
           severity: "error",
         });
       }
@@ -162,7 +218,8 @@ const ProductTypeManager = () => {
       const res = await updateProductTypeApi(editId, {
         name: form.name,
         calculateFormula: form.calculateFormula,
-        isAvailable: true,
+        isAiGenerated: form.isAiGenerated,
+        isAvailable: form.isAvailable,
       });
       if (res.success) {
         dispatch(fetchProductTypes());
@@ -171,6 +228,7 @@ const ProductTypeManager = () => {
           message: "Cập nhật thành công!",
           severity: "success",
         });
+        setOpenDialog(false);
       } else {
         setSnackbar({
           open: true,
@@ -179,7 +237,6 @@ const ProductTypeManager = () => {
         });
       }
     }
-    setOpenDialog(false);
   };
 
   const handleDelete = (row) => {
@@ -214,101 +271,6 @@ const ProductTypeManager = () => {
     setDeleteTarget(null);
   };
 
-  // Insert attribute name into formula
-const insertAttributeToFormula = (attribute) => {
-  if (!attribute || !attribute.name) {
-    console.error("Invalid attribute:", attribute);
-    return;
-  }
-
-  // Format the attribute name by removing spaces and converting to uppercase
-  const attributeName = `#${attribute.name.toUpperCase().replace(/\s+/g, "")}`;
-
-  // Get cursor position or end of text
-  const cursorPosition = formulaRef.current?.selectionStart || form.calculateFormula.length;
-  const formulaText = form.calculateFormula;
-
-  // Insert attribute at cursor position without adding * automatically
-  const newFormula = 
-    formulaText.substring(0, cursorPosition) +
-    attributeName +
-    formulaText.substring(cursorPosition);
-
-  setForm({
-    ...form,
-    calculateFormula: newFormula,
-  });
-  
-  // Focus back on formula input and position cursor after inserted attribute
-  setTimeout(() => {
-    if (formulaRef.current) {
-      formulaRef.current.focus();
-      formulaRef.current.setSelectionRange(
-        cursorPosition + attributeName.length,
-        cursorPosition + attributeName.length
-      );
-    }
-  }, 100);
-};
- const insertSizeToFormula = (sizeItem) => {
-  if (!sizeItem || !sizeItem.sizes || !sizeItem.sizes.name) {
-    console.error("Invalid size:", sizeItem);
-    return;
-  }
-
-  // Format tên kích thước
-  const sizeName = `#${sizeItem.sizes.name.toUpperCase().replace(/\s+/g, "")}`;
-
-  // Get cursor position or end of text
-  const cursorPosition = formulaRef.current?.selectionStart || form.calculateFormula.length;
-  const formulaText = form.calculateFormula;
-
-  // Insert size at cursor position without adding * automatically
-  const newFormula = 
-    formulaText.substring(0, cursorPosition) +
-    sizeName +
-    formulaText.substring(cursorPosition);
-
-  setForm({
-    ...form,
-    calculateFormula: newFormula,
-  });
-  
-  // Focus back on formula input and position cursor after inserted size
-  setTimeout(() => {
-    if (formulaRef.current) {
-      formulaRef.current.focus();
-      formulaRef.current.setSelectionRange(
-        cursorPosition + sizeName.length,
-        cursorPosition + sizeName.length
-      );
-    }
-  }, 100);
-};
-   const insertOperator = (operator) => {
-    // Get cursor position or end of text
-    const cursorPosition = formulaRef.current?.selectionStart || form.calculateFormula.length;
-    const formulaText = form.calculateFormula;
-
-    // Insert the operator at the cursor position
-    const newFormula =
-      formulaText.substring(0, cursorPosition) +
-      ` ${operator} ` +
-      formulaText.substring(cursorPosition);
-
-    setForm({ ...form, calculateFormula: newFormula });
-
-    // Focus back on formula input and position cursor after inserted operator
-    setTimeout(() => {
-      if (formulaRef.current) {
-        formulaRef.current.focus();
-        formulaRef.current.setSelectionRange(
-          cursorPosition + operator.length + 2, // +2 for the spaces before and after
-          cursorPosition + operator.length + 2
-        );
-      }
-    }, 100);
-  };
   return (
     <Box>
       <Box
@@ -351,6 +313,7 @@ const insertAttributeToFormula = (attribute) => {
               <TableCell sx={{ fontWeight: 700 }}>
                 Công thức tính toán
               </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Ngày tạo</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Ngày cập nhật</TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>
@@ -361,7 +324,7 @@ const insertAttributeToFormula = (attribute) => {
           <TableBody>
             {productTypes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center">
+                <TableCell colSpan={6} align="center">
                   <Illustration />
                 </TableCell>
               </TableRow>
@@ -392,13 +355,24 @@ const insertAttributeToFormula = (attribute) => {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    {row.createAt
-                      ? dayjs(row.createAt).format("DD/MM/YYYY")
+                    <Chip
+                      label={row.isAvailable ? "Có sẵn" : "Không có sẵn"}
+                      color={row.isAvailable ? "success" : "default"}
+                      size="small"
+                      sx={{
+                        fontWeight: 500,
+                        minWidth: 90,
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {row.createdAt
+                      ? dayjs(row.createdAt).format("DD/MM/YYYY")
                       : ""}
                   </TableCell>
                   <TableCell>
-                    {row.updateAt
-                      ? dayjs(row.updateAt).format("DD/MM/YYYY")
+                    {row.updatedAt
+                      ? dayjs(row.updatedAt).format("DD/MM/YYYY")
                       : ""}
                   </TableCell>
                   <TableCell align="right">
@@ -491,7 +465,7 @@ const insertAttributeToFormula = (attribute) => {
                   autoFocus
                   name="name"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
                   fullWidth
                   required
                   variant="outlined"
@@ -505,441 +479,101 @@ const insertAttributeToFormula = (attribute) => {
                 />
               </Box>
 
-              {/* Công thức tính toán */}
-               <Box>
+        {/* Upload hình ảnh */}
+        <Box>
           <Typography
             variant="subtitle1"
             fontWeight="500"
             sx={{ mb: 1, color: "text.primary" }}
           >
-            Công thức tính toán
+            Hình ảnh loại biển hiệu
           </Typography>
-          <TextField
-            name="calculateFormula"
-            value={form.calculateFormula}
-            onChange={(e) =>
-              setForm({ ...form, calculateFormula: e.target.value })
-            }
-            inputRef={formulaRef} // Thêm ref cho input
-            fullWidth
-            multiline
-            rows={3}
-            variant="outlined"
-            placeholder="Nhập công thức tính toán"
-            InputProps={{
-              sx: {
-                borderRadius: 1.5,
-                fontFamily: "monospace",
-                fontSize: "1rem",
-              },
-            }}
-            helperText="Sử dụng các thuộc tính để tạo công thức tính toán"
-            FormHelperTextProps={{
-              sx: {
-                fontSize: "0.75rem",
-                color: "text.secondary",
-                mt: 0.5,
-              },
-            }}
+          
+          <input
+            accept="image/*"
+            style={{ display: 'none' }}
+            id="image-upload"
+            type="file"
+            onChange={handleImageChange}
           />
-        </Box>
-
-             <Box 
-          sx={{ 
-            display: 'flex', 
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: 2, 
-            flexWrap: 'wrap',
-            p: 2, 
-            borderRadius: 2,
-            bgcolor: '#f5f9ff'
-          }}
-        >
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
-            <Typography variant="body2" color="text.secondary" fontWeight="500">
-              Công cụ hỗ trợ:
-            </Typography>
-            
-            {/* Nút chọn thuộc tính */}
-            {dialogMode === "edit" && (
+          
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+            <label htmlFor="image-upload">
               <Button
                 variant="outlined"
-                color="primary"
-                onClick={() => setShowAttributes(!showAttributes)}
-                startIcon={showAttributes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />}
+                component="span"
+                startIcon={<UploadIcon />}
                 sx={{
                   borderRadius: 1.5,
                   textTransform: "none",
                   fontWeight: 500,
-                  boxShadow: showAttributes
-                    ? "0 2px 5px rgba(0,0,0,0.08)"
-                    : "none",
-                  bgcolor: showAttributes
-                    ? "rgba(25, 118, 210, 0.04)"
-                    : "transparent",
                 }}
               >
-                {showAttributes ? "Ẩn thuộc tính" : "Chọn thuộc tính"}
+                Chọn hình ảnh
               </Button>
-            )}
+            </label>
             
-            {/* Nút chọn kích thước */}
-            {dialogMode === "edit" && (
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => setShowSizes(!showSizes)}
-                startIcon={showSizes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />}
-                sx={{
-                  borderRadius: 1.5,
-                  textTransform: "none",
-                  fontWeight: 500,
-                  boxShadow: showSizes
-                    ? "0 2px 5px rgba(0,0,0,0.08)"
-                    : "none",
-                  bgcolor: showSizes
-                    ? "rgba(156, 39, 176, 0.04)"
-                    : "transparent",
-                }}
-              >
-                {showSizes ? "Ẩn kích thước" : "Xem kích thước"}
-              </Button>
+            {imagePreview && (
+              <Box sx={{ position: 'relative' }}>
+                <Avatar
+                  src={imagePreview}
+                  sx={{ 
+                    width: 80, 
+                    height: 80, 
+                    borderRadius: 2 
+                  }}
+                  variant="rounded"
+                >
+                  <ImageIcon />
+                </Avatar>
+                <IconButton
+                  size="small"
+                  onClick={handleRemoveImage}
+                  sx={{
+                    position: 'absolute',
+                    top: -8,
+                    right: -8,
+                    bgcolor: 'error.main',
+                    color: 'white',
+                    '&:hover': { bgcolor: 'error.dark' },
+                    width: 24,
+                    height: 24
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Box>
             )}
-
-            {/* Dropdown phép tính */}
-            <Box sx={{ position: "relative" }}>
-              <Button
-                variant="outlined"
-                size="medium"
-                color="info"
-                endIcon={<ArrowDropDownIcon />}
-                onClick={(e) => {
-                  setAnchorEl(e.currentTarget);
-                }}
-                sx={{ 
-                  borderRadius: 1.5, 
-                  textTransform: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                Phép tính
-              </Button>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-                PaperProps={{
-                  sx: { 
-                    boxShadow: '0px 5px 15px rgba(0,0,0,0.08)', 
-                    borderRadius: 2,
-                    width: 180,
-                  }
-                }}
-              >
-                <MenuItem
-                  onClick={() => {
-                    insertOperator("+");
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1 }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                  >
-                    + (Cộng)
-                  </Typography>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    insertOperator("-");
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1 }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                  >
-                    - (Trừ)
-                  </Typography>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    insertOperator("*");
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1 }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                  >
-                    * (Nhân)
-                  </Typography>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    insertOperator("/");
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1 }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                  >
-                    / (Chia)
-                  </Typography>
-                </MenuItem>
-                <Divider />
-                <MenuItem
-                  onClick={() => {
-                    insertOperator("(");
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1 }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                  >
-                    (
-                  </Typography>
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    insertOperator(")");
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1 }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                  >
-                    )
-                  </Typography>
-                </MenuItem>
-              </Menu>
-            </Box>
           </Box>
         </Box>
 
-              {/* Danh sách thuộc tính */}
-              {dialogMode === "edit" && (
-                <Collapse in={showAttributes} sx={{ width: "100%" }}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      maxHeight: 250,
-                      overflow: "auto",
-                      border: "1px solid rgba(0, 0, 0, 0.12)",
-                      borderRadius: 2,
-                    }}
-                  >
-                    {attributeStatus === "loading" && (
-                      <Box
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        py={3}
-                      >
-                        <CircularProgress size={24} sx={{ mr: 1 }} />
-                        <Typography variant="body2">
-                          Đang tải thuộc tính...
-                        </Typography>
-                      </Box>
-                    )}
+        {/* Checkbox chỉ cho isAiGenerated */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Typography
+            variant="subtitle1"
+            fontWeight="500"
+            sx={{ color: "text.primary" }}
+          >
+            Cài đặt
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={form.isAiGenerated}
+                  onChange={(e) =>
+                    setForm({ ...form, isAiGenerated: e.target.checked })
+                  }
+                  color="primary"
+                />
+              }
+              label="Được tạo bởi AI"
+            />
+          </Box>
+        </Box>
 
-                    {attributeStatus === "failed" && (
-                      <Box p={3}>
-                        <Alert severity="error" sx={{ borderRadius: 1.5 }}>
-                          Không thể tải thuộc tính
-                        </Alert>
-                      </Box>
-                    )}
-
-                    {attributeStatus === "succeeded" &&
-                      attributes.length === 0 && (
-                        <Box p={3} textAlign="center">
-                          <Typography variant="body2" color="text.secondary">
-                            Không có thuộc tính cho loại biển hiệu này
-                          </Typography>
-                        </Box>
-                      )}
-
-                    {attributeStatus === "succeeded" &&
-                      attributes.length > 0 && (
-                        <List>
-                          {attributes.map((attribute) => (
-                            <ListItem
-                              key={attribute.id}
-                              component="div" // Changed from button to component="div"
-                              divider
-                              onClick={() =>
-                                insertAttributeToFormula(attribute)
-                              }
-                              sx={{
-                                "&:hover": {
-                                  bgcolor: "rgba(25, 118, 210, 0.04)",
-                                  cursor: "pointer", // Add cursor pointer for better UX
-                                },
-                                py: 1.5,
-                              }}
-                            >
-                              <ListItemText
-                                primary={attribute.name}
-                                // secondary={attribute.isCore ? "Thuộc tính cốt lõi" : "Thuộc tính thường"}
-                                primaryTypographyProps={{
-                                  fontWeight: "500",
-                                  variant: "body1",
-                                }}
-                                secondaryTypographyProps={{
-                                  variant: "caption",
-                                  color: attribute.isCore
-                                    ? "success.main"
-                                    : "text.secondary",
-                                }}
-                              />
-                            </ListItem>
-                          ))}
-                        </List>
-                      )}
-                  </Paper>
-                </Collapse>
-              )}
-             
-              {/* Danh sách kích thước */}
-              {dialogMode === "edit" && (
-                <Collapse in={showSizes} sx={{ width: "100%" }}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      maxHeight: 250,
-                      overflow: "auto",
-                      border: "1px solid rgba(0, 0, 0, 0.12)",
-                      borderRadius: 2,
-                    }}
-                  >
-                    {sizesStatus === "loading" && (
-                      <Box
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        py={3}
-                      >
-                        <CircularProgress
-                          size={24}
-                          sx={{ mr: 1 }}
-                          color="secondary"
-                        />
-                        <Typography variant="body2">
-                          Đang tải kích thước...
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {sizesStatus === "failed" && (
-                      <Box p={3}>
-                        <Alert severity="error" sx={{ borderRadius: 1.5 }}>
-                          Không thể tải kích thước
-                        </Alert>
-                      </Box>
-                    )}
-
-                    {sizesStatus === "succeeded" &&
-                      productTypeSizes.length === 0 && (
-                        <Box p={3} textAlign="center">
-                          <Typography variant="body2" color="text.secondary">
-                            Không có kích thước nào cho loại biển hiệu này
-                          </Typography>
-                        </Box>
-                      )}
-
-                    {sizesStatus === "succeeded" &&
-                      productTypeSizes.length > 0 && (
-                        <List>
-                          {sizesStatus === "succeeded" &&
-                            productTypeSizes.length > 0 && (
-                              <List>
-                                {productTypeSizes.map((sizeItem) => {
-                                  // Access the size data from the 'sizes' property
-                                  const sizeData = sizeItem.sizes || {};
-                                  return (
-                                    <ListItem
-                                      key={sizeItem.id}
-                                      component="div"
-                                      divider
-                                      onClick={() =>
-                                        insertSizeToFormula(sizeItem)
-                                      }
-                                      sx={{
-                                        py: 1.5,
-                                        "&:hover": {
-                                          bgcolor: "rgba(156, 39, 176, 0.04)",
-                                          cursor: "pointer",
-                                        },
-                                      }}
-                                    >
-                                      <ListItemText
-                                        primary={
-                                          sizeData.name || "Không xác định"
-                                        }
-                                        primaryTypographyProps={{
-                                          fontWeight: "500",
-                                          variant: "body1",
-                                        }}
-                                        secondaryTypographyProps={{
-                                          variant: "caption",
-                                          fontFamily: "monospace",
-                                          color: "text.secondary",
-                                        }}
-                                      />
-                                    </ListItem>
-                                  );
-                                })}
-                              </List>
-                            )}
-                        </List>
-                      )}
-                  </Paper>
-                </Collapse>
-              )}
-              {/* Thông tin và ví dụ */}
-              <Box sx={{ mt: 1, bgcolor: "#f9fbe7", p: 2, borderRadius: 2 }}>
-                <Typography
-                  component="div"
-                  variant="subtitle2"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                >
-                  <InfoOutlinedIcon sx={{ fontSize: 18, mr: 1 }} />
-                  Ví dụ công thức
-                </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 1,
-                    "& > span": {
-                      bgcolor: "rgba(0,0,0,0.04)",
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      fontFamily: "monospace",
-                      fontSize: "0.85rem",
-                    },
-                  }}
-                >
-                  <Typography component="span" variant="caption">
-                    #CAO * #RONG * #SOLUONG
-                  </Typography>
-                  <Typography component="span" variant="caption">
-                    (#CAO + #RONG) * 2 * #DONGIA
-                  </Typography>
-                </Box>
-              </Box>
+           
             </Box>
           </DialogContent>
 
@@ -962,7 +596,8 @@ const insertAttributeToFormula = (attribute) => {
               onClick={handleSubmit}
               variant="contained"
               size="large"
-              disabled={!form.name}
+              disabled={!form.name || addStatus === "loading"}
+              startIcon={addStatus === "loading" ? <CircularProgress size={20} /> : null}
               sx={{
                 borderRadius: 1.5,
                 px: 3,
@@ -971,7 +606,10 @@ const insertAttributeToFormula = (attribute) => {
                 fontWeight: 500,
               }}
             >
-              {dialogMode === "edit" ? "Lưu thay đổi" : "Thêm loại biển hiệu"}
+              {addStatus === "loading" 
+                ? (dialogMode === "edit" ? "Đang lưu..." : "Đang thêm...") 
+                : (dialogMode === "edit" ? "Lưu thay đổi" : "Thêm loại biển hiệu")
+              }
             </Button>
           </DialogActions>
         </Box>
