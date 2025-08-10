@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
@@ -66,8 +66,6 @@ import {
   Refresh as RefreshIcon,
   Dashboard as DashboardIcon,
   ShoppingCart as OrderIcon,
-  Search as SearchIcon,
-  Clear as ClearIcon,
 } from "@mui/icons-material";
 import {
   fetchAllDesignRequests,
@@ -339,36 +337,6 @@ const CustomerRequests = () => {
   const status = useSelector(selectStatus);
   const error = useSelector(selectError);
 
-  // Helper function to get customer name with multiple fallbacks
-  const getCustomerName = (customerDetail) => {
-    if (!customerDetail) return "Unknown";
-
-    // Try multiple possible locations for customer name
-    if (customerDetail.users?.fullName) {
-      return customerDetail.users.fullName;
-    }
-    
-    if (customerDetail.users?.firstName && customerDetail.users?.lastName) {
-      return `${customerDetail.users.firstName} ${customerDetail.users.lastName}`;
-    }
-    
-    if (customerDetail.users?.firstName) {
-      return customerDetail.users.firstName;
-    }
-    
-    if (customerDetail.users?.lastName) {
-      return customerDetail.users.lastName;
-    }
-
-    // Fallback to company name if user name is not available
-    if (customerDetail.companyName) {
-      return customerDetail.companyName;
-    }
-
-    // Last resort
-    return "Unnamed Customer";
-  };
-
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -378,7 +346,7 @@ const CustomerRequests = () => {
   const [loadingDesigners, setLoadingDesigners] = useState(false);
   const [assigningDesigner, setAssigningDesigner] = useState(false);
   const [assignmentError, setAssignmentError] = useState(null);
-
+  const [rejectingRequest, setRejectingRequest] = useState(false);
   const [currentTab, setCurrentTab] = useState(0); // 0: Design Requests, 1: Custom Design Orders
   const [orderLoading, setOrderLoading] = useState(false);
   
@@ -470,7 +438,6 @@ const CustomerRequests = () => {
   const [creatingProposal, setCreatingProposal] = useState(false);
 
   const [selectedStatus, setSelectedStatus] = useState(""); // Mặc định là tất cả trạng thái
-  const [searchQuery, setSearchQuery] = useState(""); // Search query cho mã yêu cầu và tên khách hàng
 
   const [priceProposals, setPriceProposals] = useState([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
@@ -501,90 +468,15 @@ const CustomerRequests = () => {
   // Fetch design requests when component mounts or tab changes to 0
   useEffect(() => {
     if (currentTab === 0) {
-      console.log('🚀 Fetching all design requests for client-side pagination and searching');
-      // Fetch all design requests for client-side pagination and searching
       dispatch(
-        fetchAllDesignRequests({ status: selectedStatus, page: 1, size: 1000 })
+        fetchAllDesignRequests({ status: selectedStatus, page: designRequestsPage, size: 10 })
       ).then((action) => {
-        console.log('✅ Design requests API response:', action.payload);
-        if (action.payload && action.payload.result) {
-          const totalRequests = action.payload.result.length;
-          const totalPages = Math.ceil(totalRequests / 10); // 10 items per page
-          setDesignRequestsTotalPages(totalPages);
-          console.log(`📊 Total requests: ${totalRequests}, Total pages: ${totalPages}`);
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
         }
       });
     }
-  }, [currentTab, dispatch, selectedStatus]); // Remove designRequestsPage dependency
-
-  // Filter design requests based on search query
-  const filteredDesignRequests = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return designRequests;
-    }
-    
-    const query = searchQuery.toLowerCase().trim();
-    
-    // Debug: Log search query and some sample data
-    if (designRequests.length > 0) {
-      console.log('🔍 Search query:', query);
-      console.log('🔍 Sample customer data:', {
-        first: designRequests[0]?.customerDetail,
-        firstCustomerName: getCustomerName(designRequests[0]?.customerDetail)
-      });
-    }
-    
-    return designRequests.filter(request => {
-      const code = (request.code || "").toLowerCase();
-      const customerName = getCustomerName(request.customerDetail).toLowerCase();
-      
-      // Search only by code and customer name as requested
-      const nameMatch = customerName.includes(query);
-      const codeMatch = code.includes(query);
-      
-      // Debug: Log what we're checking for this request
-      if (query.length > 2) { // Only log for longer queries to avoid spam
-        console.log('🔍 Checking request:', {
-          code: request.code,
-          customerName: customerName,
-          query: query,
-          matches: { nameMatch, codeMatch }
-        });
-      }
-      
-      return codeMatch || nameMatch;
-    });
-  }, [designRequests, searchQuery]);
-
-  // Client-side pagination for filtered design requests
-  const paginatedDisplayRequests = useMemo(() => {
-    const startIndex = (designRequestsPage - 1) * 10; // 10 items per page
-    const endIndex = startIndex + 10;
-    const paginated = filteredDesignRequests.slice(startIndex, endIndex);
-    
-    // Debug pagination
-    if (filteredDesignRequests.length > 0) {
-      console.log(`📄 Pagination: Page ${designRequestsPage}, Showing ${paginated.length} of ${filteredDesignRequests.length} filtered results (${startIndex + 1}-${Math.min(endIndex, filteredDesignRequests.length)})`);
-    }
-    
-    return paginated;
-  }, [filteredDesignRequests, designRequestsPage]);
-
-  // Update total pages when filtered results change
-  useEffect(() => {
-    if (currentTab === 0) {
-      const totalPages = Math.ceil(filteredDesignRequests.length / 10);
-      setDesignRequestsTotalPages(totalPages || 1);
-      
-      console.log(`📊 Total pages updated: ${totalPages} (from ${filteredDesignRequests.length} filtered results)`);
-      
-      // Reset to page 1 if current page exceeds total pages
-      if (designRequestsPage > totalPages && totalPages > 0) {
-        console.log(`⚠️ Current page ${designRequestsPage} exceeds total pages ${totalPages}, resetting to page 1`);
-        setDesignRequestsPage(1);
-      }
-    }
-  }, [filteredDesignRequests.length, currentTab, designRequestsPage]);
+  }, [currentTab, dispatch, selectedStatus, designRequestsPage]);
 
   useEffect(() => {
     if (currentTab === 1) {
@@ -642,13 +534,6 @@ const CustomerRequests = () => {
   const handleDesignRequestsPageChange = (event, newPage) => {
     setDesignRequestsPage(newPage);
   };
-
-  // Reset page to 1 when search query changes
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      setDesignRequestsPage(1);
-    }
-  }, [searchQuery]);
 
   const handleOrdersPageChange = (event, newPage) => {
     setOrdersPage(newPage);
@@ -1339,9 +1224,70 @@ const CustomerRequests = () => {
       setActionLoading(false);
     }
   };
+  // Handle rejecting the request
+  const handleRejectRequest = async () => {
+    if (!selectedRequest) return;
 
+    setRejectingRequest(true);
 
+    try {
+      const resultAction = await dispatch(
+        updateRequestStatus({
+          customDesignRequestId: selectedRequest.id,
+          status: "REJECTED",
+        })
+      );
 
+      if (updateRequestStatus.fulfilled.match(resultAction)) {
+        // Show success notification
+        setNotification({
+          open: true,
+          message: "Request rejected successfully!",
+          severity: "success",
+        });
+
+        // Refresh data after rejection
+        dispatch(
+          fetchAllDesignRequests({
+            status: selectedStatus,
+            page: 1,
+            size: 100,
+          })
+        );
+
+        // Close the dialog
+        handleCloseDetails();
+      } else {
+        setNotification({
+          open: true,
+          message: resultAction.payload || "Failed to reject request",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: error.message || "An error occurred",
+        severity: "error",
+      });
+      console.error("Error rejecting request:", error);
+    } finally {
+      setRejectingRequest(false);
+    }
+  };
+
+  // Get customer name from customer details
+  const getCustomerName = (customerDetail) => {
+    if (!customerDetail) return "Unknown";
+
+    // Return fullName from the users object if available
+    if (customerDetail.users && customerDetail.users.fullName) {
+      return customerDetail.users.fullName;
+    }
+
+    // Fallback to company name if user fullName is not available
+    return customerDetail.companyName || "Unnamed Customer";
+  };
 
   const getStatusChip = (status) => {
     const config = CUSTOM_DESIGN_STATUS_MAP[status] || {
@@ -1600,7 +1546,7 @@ const CustomerRequests = () => {
                   <span>Yêu cầu thiết kế</span>
                   {!status.includes("loading") && designRequests.length > 0 && (
                     <Badge
-                      badgeContent={searchQuery.trim() ? filteredDesignRequests.length : designRequests.length}
+                      badgeContent={designRequests.length}
                       color="primary"
                       sx={{ ml: 1 }}
                     />
@@ -1635,130 +1581,61 @@ const CustomerRequests = () => {
                   Bộ lọc
                 </Typography>
               </Stack>
-              
-              {/* Search and Status Filter Section - Horizontal Layout */}
-              <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 2 }}>
-                
-                
-                {/* Status Filter */}
-                <FormControl size="small" sx={{ minWidth: 250 }}>
-                  <InputLabel id="status-filter-label">Lọc theo trạng thái</InputLabel>
-                  <Select
-                    labelId="status-filter-label"
-                    value={selectedStatus}
-                    label="Lọc theo trạng thái"
-                    onChange={(e) => {
-                      setSelectedStatus(e.target.value);
-                      setDesignRequestsPage(1); // Reset to first page when changing status
-                      setSearchQuery(""); // Reset search query when changing status
-                      console.log('🔄 Status filter changed to:', e.target.value, '- Search and pagination reset');
-                    }}
-                    startAdornment={
-                      <Box sx={{ mr: 1 }}>
-                        <Tooltip 
-                          title={
-                            searchQuery 
-                              ? `Hiển thị ${filteredDesignRequests.length} trong tổng số ${designRequests.length} yêu cầu`
-                              : `Tổng số yêu cầu: ${designRequests.length}`
-                          }
-                          placement="top"
-                          arrow
-                        >
-                          <Chip 
-                            size="small" 
-                            label={searchQuery ? `${filteredDesignRequests.length}/${designRequests.length}` : designRequests.length} 
-                            color={searchQuery ? "secondary" : "primary"} 
-                            variant="outlined"
-                          />
-                        </Tooltip>
-                      </Box>
-                    }
-                  >
-                    <MenuItem value="">Tất cả trạng thái</MenuItem>
-                    <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
-                    <MenuItem value="PRICING_NOTIFIED">Đã báo giá</MenuItem>
-                    <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
-                    <MenuItem value="APPROVED_PRICING">Đã duyệt giá</MenuItem>
-                    <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
-                    <MenuItem value="ASSIGNED_DESIGNER">Đã giao designer</MenuItem>
-                    <MenuItem value="PROCESSING">Đang thiết kế</MenuItem>
-                    <MenuItem value="DESIGNER_REJECTED">Designer từ chối</MenuItem>
-                    <MenuItem value="DEMO_SUBMITTED">Đã nộp demo</MenuItem>
-                    <MenuItem value="REVISION_REQUESTED">
-                      Yêu cầu chỉnh sửa
-                    </MenuItem>
-                    <MenuItem value="WAITING_FULL_PAYMENT">
-                      Chờ thanh toán đủ
-                    </MenuItem>
-                    <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
-                    <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
-                    <MenuItem value="CANCELLED">Đã hủy</MenuItem>
-                  </Select>
-                </FormControl>
-                {/* Search Bar */}
-                <TextField
-                  size="small"
-                  placeholder="Tìm kiếm theo mã yêu cầu hoặc tên khách hàng..."
-                  value={searchQuery}
+              <FormControl size="small" sx={{ minWidth: 250 }}>
+                <InputLabel id="status-filter-label">Lọc theo trạng thái</InputLabel>
+                <Select
+                  labelId="status-filter-label"
+                  value={selectedStatus}
+                  label="Lọc theo trạng thái"
                   onChange={(e) => {
-                    const value = e.target.value;
-                    setSearchQuery(value);
-                    
-                    // Log search activity for debugging
-                    if (value.trim()) {
-                      console.log('🔍 Search query changed to:', value);
-                    } else {
-                      console.log('🔍 Search cleared');
-                    }
+                    setSelectedStatus(e.target.value);
+                    setDesignRequestsPage(1); // Reset to first page when changing status
                   }}
-                  InputProps={{
-                    startAdornment: (
-                      <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
-                    ),
-                    endAdornment: searchQuery && (
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setSearchQuery("");
-                          console.log('🔍 Search cleared via clear button');
-                        }}
-                        sx={{ color: 'text.secondary' }}
-                      >
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    )
-                  }}
-                  sx={{ minWidth: 1000 }}
-                />
-              </Stack>
-              
-              {/* Search Results Info - Below the horizontal filters */}
-              {searchQuery && (
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Tìm thấy {filteredDesignRequests.length} kết quả cho "{searchQuery}" 
-                    {filteredDesignRequests.length !== designRequests.length && (
-                      <span> (trong tổng số {designRequests.length} yêu cầu)</span>
-                    )}
-                  </Typography>
-                </Stack>
-              )}
+                  startAdornment={
+                    <Box sx={{ mr: 1 }}>
+                      <Chip 
+                        size="small" 
+                        label={designRequests.length} 
+                        color="primary" 
+                        variant="outlined"
+                      />
+                    </Box>
+                  }
+                >
+                  <MenuItem value="">Tất cả trạng thái</MenuItem>
+                  <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
+                  <MenuItem value="PRICING_NOTIFIED">Đã báo giá</MenuItem>
+                  <MenuItem value="REJECTED_PRICING">Từ chối báo giá</MenuItem>
+                  <MenuItem value="APPROVED_PRICING">Đã duyệt giá</MenuItem>
+                  <MenuItem value="DEPOSITED">Đã đặt cọc</MenuItem>
+                  <MenuItem value="ASSIGNED_DESIGNER">Đã giao designer</MenuItem>
+                  <MenuItem value="PROCESSING">Đang thiết kế</MenuItem>
+                  <MenuItem value="DESIGNER_REJECTED">Designer từ chối</MenuItem>
+                  <MenuItem value="DEMO_SUBMITTED">Đã nộp demo</MenuItem>
+                  <MenuItem value="REVISION_REQUESTED">
+                    Yêu cầu chỉnh sửa
+                  </MenuItem>
+                  <MenuItem value="WAITING_FULL_PAYMENT">
+                    Chờ thanh toán đủ
+                  </MenuItem>
+                  <MenuItem value="FULLY_PAID">Đã thanh toán đủ</MenuItem>
+                  <MenuItem value="COMPLETED">Hoàn tất</MenuItem>
+                  <MenuItem value="CANCELLED">Đã hủy</MenuItem>
+                </Select>
+              </FormControl>
             </Card>
 
             {/* Content Section */}
-            {filteredDesignRequests.length === 0 && status === "succeeded" ? (
+            {designRequests.length === 0 && status === "succeeded" ? (
               <Card sx={{ p: 4, textAlign: "center" }}>
                 <Box sx={{ mb: 2 }}>
                   <BrushIcon sx={{ fontSize: 64, color: "grey.400" }} />
                 </Box>
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-                  {searchQuery ? `Không tìm thấy kết quả nào cho "${searchQuery}"` : "Chưa có yêu cầu thiết kế nào"}
+                  Chưa có yêu cầu thiết kế nào
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {searchQuery 
-                    ? "Thử tìm kiếm với từ khóa khác hoặc kiểm tra lại chính tả"
-                    : "Hiện tại không có yêu cầu thiết kế nào phù hợp với bộ lọc đã chọn"
-                  }
+                  Hiện tại không có yêu cầu thiết kế nào phù hợp với bộ lọc đã chọn
                 </Typography>
               </Card>
             ) : (
@@ -1794,7 +1671,7 @@ const CustomerRequests = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {paginatedDisplayRequests.map((request, index) => (
+                      {designRequests.map((request, index) => (
                         <TableRow 
                           key={request.id}
                           sx={{ 
@@ -1859,9 +1736,7 @@ const CustomerRequests = () => {
                               {formatCurrency(request.totalPrice)}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            {getStatusChip(request.status)}
-                          </TableCell>
+                          <TableCell>{getStatusChip(request.status)}</TableCell>
                           <TableCell align="center">
                             <Tooltip title="Xem chi tiết" placement="top">
                               <IconButton
@@ -2197,10 +2072,10 @@ const CustomerRequests = () => {
                 </Stack>
               </DialogTitle>
               <DialogContent sx={{ p: 3 }}>
-                <Grid container spacing={2}>
+                <Grid container spacing={3}>
                   {/* Requirements Section */}
                   <Grid item xs={12}>
-                    <Card sx={{ p: 2, background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)", minHeight: 120 }}>
+                    <Card sx={{ p: 2, background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)" }}>
                       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                         <DescriptionIcon color="primary" />
                         <Typography variant="h6" fontWeight="medium">
@@ -2213,46 +2088,13 @@ const CustomerRequests = () => {
                     </Card>
                   </Grid>
 
-                  {/* Status Information */}
-                  <Grid item xs={12}>
-                    <Card sx={{ p: 2, background: "linear-gradient(135deg, #e8f4fd 0%, #d1ecf1 100%)", minHeight: 120 }}>
-                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                        <CheckCircleIcon color="primary" />
-                        <Typography variant="h6" fontWeight="medium">
-                          Trạng thái hiện tại
-                        </Typography>
-                      </Stack>
-                      <Stack spacing={2}>
-                        <Stack direction="row" alignItems="center" spacing={2}>
-                          <Chip 
-                            label={CUSTOM_DESIGN_STATUS_MAP[selectedRequest.status]?.label || selectedRequest.status} 
-                            color={CUSTOM_DESIGN_STATUS_MAP[selectedRequest.status]?.color || "default"}
-                            sx={{ fontWeight: 600, fontSize: '1rem' }}
-                          />
-                        </Stack>
-                        
-                        {/* Support Information */}
-                        {selectedRequest.isNeedSupport && (
-                          <Box sx={{ p: 2, bgcolor: "rgba(255, 193, 7, 0.1)", borderRadius: 2, border: "1px solid rgba(255, 193, 7, 0.3)" }}>
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              <SmartToyIcon color="warning" />
-                              <Typography variant="body2" color="warning.dark" fontWeight="medium">
-                                Yêu cầu hỗ trợ thiết kế
-                              </Typography>
-                            </Stack>
-                          </Box>
-                        )}
-                      </Stack>
-                    </Card>
-                  </Grid>
-
                   {/* Customer Information */}
-                  <Grid item xs={12}>
-                    <Card sx={{ p: 2, minHeight: 120 }}>
+                  <Grid item xs={12} sm={6}>
+                    <Card sx={{ p: 2, height: "100%" }}>
                       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                         <BusinessIcon color="primary" />
-                        <Typography variant="h6" fontWeight="medium">
-                          Thông tin khách hàng
+                        <Typography variant="subtitle1" fontWeight="medium">
+                          Thông tin công ty
                         </Typography>
                       </Stack>
                       <Stack spacing={1}>
@@ -2280,40 +2122,16 @@ const CustomerRequests = () => {
                             {selectedRequest.customerDetail?.contactInfo || "Chưa có thông tin"}
                           </Typography>
                         </Box>
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            Tên người liên hệ:
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {selectedRequest.customerDetail?.users?.fullName || "Chưa có thông tin"}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            Email:
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {selectedRequest.customerDetail?.users?.email || "Chưa có thông tin"}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            Số điện thoại:
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {selectedRequest.customerDetail?.users?.phone || "Chưa có thông tin"}
-                          </Typography>
-                        </Box>
                       </Stack>
                     </Card>
                   </Grid>
 
                   {/* Financial Information */}
-                  <Grid item xs={12}>
-                    <Card sx={{ p: 2, minHeight: 120 }}>
+                  <Grid item xs={12} sm={6}>
+                    <Card sx={{ p: 2, height: "100%" }}>
                       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                         <AttachMoneyIcon color="primary" />
-                        <Typography variant="h6" fontWeight="medium">
+                        <Typography variant="subtitle1" fontWeight="medium">
                           Thông tin tài chính
                         </Typography>
                       </Stack>
@@ -2342,23 +2160,6 @@ const CustomerRequests = () => {
                             {formatCurrency(selectedRequest.remainingAmount)}
                           </Typography>
                         </Box>
-                        <Divider sx={{ my: 1 }} />
-                        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Ngày tạo:
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleDateString("vi-VN") : "N/A"}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Ngày cập nhật:
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {selectedRequest.updatedAt ? new Date(selectedRequest.updatedAt).toLocaleDateString("vi-VN") : "N/A"}
-                          </Typography>
-                        </Box>
                       </Stack>
                     </Card>
                   </Grid>
@@ -2368,89 +2169,33 @@ const CustomerRequests = () => {
                     selectedRequest.status === "ASSIGNED_DESIGNER" && (
                       <Grid item xs={12}>
                         <Card sx={{ p: 2, background: "linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%)" }}>
-                          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                            <CheckCircleIcon color="success" />
-                            <Typography variant="h6" fontWeight="medium">
-                              Designer phụ trách
-                            </Typography>
-                          </Stack>
-                          <Stack spacing={2}>
-                            <Stack direction="row" alignItems="center" spacing={2}>
-                              <Chip 
-                                label="Đã giao task" 
-                                color="success" 
-                                icon={<CheckCircleIcon />}
-                                sx={{ fontWeight: 600 }}
-                              />
-                              <Typography variant="body1" fontWeight="medium">
-                                Designer:{" "}
-                                <Typography component="span" color="primary.main" fontWeight="bold">
-                                  {selectedRequest.assignDesigner?.fullName || "Chưa rõ"}
-                                </Typography>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <Chip 
+                              label="Đã giao task" 
+                              color="success" 
+                              icon={<CheckCircleIcon />}
+                              sx={{ fontWeight: 600 }}
+                            />
+                            <Typography variant="body1" fontWeight="medium">
+                              Designer phụ trách:{" "}
+                              <Typography component="span" color="primary.main" fontWeight="bold">
+                                {(() => {
+                                  const d = designers.find(
+                                    (d) =>
+                                      d.id ===
+                                      selectedRequest.assignDesigner.fullName
+                                  );
+                                  return d
+                                    ? d.fullName
+                                    : selectedRequest.assignDesigner.fullName ||
+                                        "Chưa rõ";
+                                })()}
                               </Typography>
-                            </Stack>
-                            {selectedRequest.assignDesigner?.email && (
-                              <Box>
-                                <Typography variant="body2" color="text.secondary">
-                                  Email: {selectedRequest.assignDesigner.email}
-                                </Typography>
-                              </Box>
-                            )}
-                            {selectedRequest.assignDesigner?.phone && (
-                              <Box>
-                                <Typography variant="body2" color="text.secondary">
-                                  Số điện thoại: {selectedRequest.assignDesigner.phone}
-                                </Typography>
-                              </Box>
-                            )}
+                            </Typography>
                           </Stack>
                         </Card>
                       </Grid>
                     )}
-
-                  {/* Designer Information Section - Show for all statuses */}
-                  {selectedRequest && selectedRequest.assignDesigner && (
-                    <Grid item xs={12}>
-                      <Card sx={{ p: 2, background: "linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%)" }}>
-                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                          <PeopleIcon color="info" />
-                          <Typography variant="h6" fontWeight="medium">
-                            Thông tin Designer phụ trách
-                          </Typography>
-                        </Stack>
-                        <Stack spacing={1}>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                              Tên Designer:
-                            </Typography>
-                            <Typography variant="body2" fontWeight="medium">
-                              {selectedRequest.assignDesigner.fullName}
-                            </Typography>
-                          </Box>
-                          {selectedRequest.assignDesigner.email && (
-                            <Box>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                Email:
-                              </Typography>
-                              <Typography variant="body2" fontWeight="medium">
-                                {selectedRequest.assignDesigner.email}
-                              </Typography>
-                            </Box>
-                          )}
-                          {selectedRequest.assignDesigner.phone && (
-                            <Box>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                Số điện thoại:
-                              </Typography>
-                              <Typography variant="body2" fontWeight="medium">
-                                {selectedRequest.assignDesigner.phone}
-                              </Typography>
-                            </Box>
-                          )}
-                        </Stack>
-                      </Card>
-                    </Grid>
-                  )}
 
                   {/* Designer Selection Section */}
                   {selectedRequest &&
@@ -2524,61 +2269,69 @@ const CustomerRequests = () => {
                       </Stack>
                       
                       {priceProposals.length > 0 ? (
-                        <Stack spacing={2}>
-                          <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2 }}>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              Tổng giá đã báo
-                            </Typography>
-                            <Typography variant="h6" fontWeight="bold" color="primary.main">
-                              {formatCurrency(priceProposals[0].totalPrice)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2 }}>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              Tiền cọc đã báo
-                            </Typography>
-                            <Typography variant="h6" fontWeight="bold" color="success.main">
-                              {formatCurrency(priceProposals[0].depositAmount)}
-                            </Typography>
-                          </Box>
-                        </Stack>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2 }}>
+                              <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Tổng giá đã báo
+                              </Typography>
+                              <Typography variant="h6" fontWeight="bold" color="primary.main">
+                                {formatCurrency(priceProposals[0].totalPrice)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ p: 2, bgcolor: "white", borderRadius: 2 }}>
+                              <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Tiền cọc đã báo
+                              </Typography>
+                              <Typography variant="h6" fontWeight="bold" color="success.main">
+                                {formatCurrency(priceProposals[0].depositAmount)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        </Grid>
                       ) : (
-                        <Stack spacing={2}>
-                          <TextField
-                            fullWidth
-                            label="Tổng giá (VND)"
-                            type="number"
-                            value={priceForm.totalPrice}
-                            onChange={(e) =>
-                              setPriceForm((f) => ({
-                                ...f,
-                                totalPrice: e.target.value,
-                              }))
-                            }
-                            InputProps={{ 
-                              inputProps: { min: 0 },
-                              startAdornment: <AttachMoneyIcon color="action" sx={{ mr: 1 }} />
-                            }}
-                            sx={{ bgcolor: "white", borderRadius: 1 }}
-                          />
-                          <TextField
-                            fullWidth
-                            label="Tiền cọc (VND)"
-                            type="number"
-                            value={priceForm.depositAmount}
-                            onChange={(e) =>
-                              setPriceForm((f) => ({
-                                ...f,
-                                depositAmount: e.target.value,
-                              }))
-                            }
-                            InputProps={{ 
-                              inputProps: { min: 0 },
-                              startAdornment: <AttachMoneyIcon color="action" sx={{ mr: 1 }} />
-                            }}
-                            sx={{ bgcolor: "white", borderRadius: 1 }}
-                          />
-                        </Stack>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Tổng giá (VND)"
+                              type="number"
+                              value={priceForm.totalPrice}
+                              onChange={(e) =>
+                                setPriceForm((f) => ({
+                                  ...f,
+                                  totalPrice: e.target.value,
+                                }))
+                              }
+                              InputProps={{ 
+                                inputProps: { min: 0 },
+                                startAdornment: <AttachMoneyIcon color="action" sx={{ mr: 1 }} />
+                              }}
+                              sx={{ bgcolor: "white", borderRadius: 1 }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Tiền cọc (VND)"
+                              type="number"
+                              value={priceForm.depositAmount}
+                              onChange={(e) =>
+                                setPriceForm((f) => ({
+                                  ...f,
+                                  depositAmount: e.target.value,
+                                }))
+                              }
+                              InputProps={{ 
+                                inputProps: { min: 0 },
+                                startAdornment: <AttachMoneyIcon color="action" sx={{ mr: 1 }} />
+                              }}
+                              sx={{ bgcolor: "white", borderRadius: 1 }}
+                            />
+                          </Grid>
+                        </Grid>
                       )}
                     </Card>
                   </Grid>
@@ -2591,33 +2344,7 @@ const CustomerRequests = () => {
                         <Typography variant="h6" fontWeight="medium">
                           Lịch sử báo giá
                         </Typography>
-                        <Chip 
-                          label={`${priceProposals.length} báo giá`} 
-                          size="small" 
-                          color="primary" 
-                          variant="outlined"
-                        />
                       </Stack>
-                      
-                      {/* Summary Information */}
-                      {priceProposals.length > 0 && (
-                        <Box sx={{ mb: 2, p: 2, bgcolor: "rgba(25, 118, 210, 0.1)", borderRadius: 2 }}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Tóm tắt:
-                          </Typography>
-                          <Stack spacing={1}>
-                            <Typography variant="body2" color="text.secondary">
-                              Tổng số báo giá: <strong>{priceProposals.length}</strong>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Đã duyệt: <strong>{priceProposals.filter(p => p.status === "APPROVED").length}</strong>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Đã từ chối: <strong>{priceProposals.filter(p => p.status === "REJECTED").length}</strong>
-                            </Typography>
-                          </Stack>
-                        </Box>
-                      )}
                       
                       {loadingProposals ? (
                         <Box display="flex" justifyContent="center" py={3}>
@@ -2627,7 +2354,7 @@ const CustomerRequests = () => {
                         <Box sx={{ textAlign: "center", py: 3 }}>
                           <AttachMoneyIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
                           <Typography variant="body1" color="text.secondary">
-                            Chưa có lịch sử báo giá
+                           
                           </Typography>
                         </Box>
                       ) : (
@@ -2642,98 +2369,62 @@ const CustomerRequests = () => {
                                 background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)"
                               }}
                             >
-                              <Stack spacing={2}>
-                                <Box>
+                              <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
                                   <Typography variant="body2" color="text.secondary">
                                     Tổng giá:
                                   </Typography>
                                   <Typography variant="body1" fontWeight="bold" color="primary.main">
                                     {formatCurrency(proposal.totalPrice)}
                                   </Typography>
-                                </Box>
-                                <Box>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
                                   <Typography variant="body2" color="text.secondary">
                                     Tiền cọc:
                                   </Typography>
                                   <Typography variant="body1" fontWeight="bold" color="success.main">
                                     {formatCurrency(proposal.depositAmount)}
                                   </Typography>
-                                </Box>
+                                </Grid>
                                 {proposal.totalPriceOffer && (
-                                  <Box>
+                                  <Grid item xs={12} sm={6}>
                                     <Typography variant="body2" color="text.secondary">
-                                      Giá đề xuất:
+                                      Giá đề xuất :
                                     </Typography>
                                     <Typography variant="body1" fontWeight="bold" color="warning.main">
                                       {formatCurrency(proposal.totalPriceOffer)}
                                     </Typography>
-                                  </Box>
+                                  </Grid>
                                 )}
                                 {proposal.depositAmountOffer && (
-                                  <Box>
+                                  <Grid item xs={12} sm={6}>
                                     <Typography variant="body2" color="text.secondary">
-                                      Cọc đề xuất:
+                                      Cọc đề xuất :
                                     </Typography>
                                     <Typography variant="body1" fontWeight="bold" color="warning.main">
                                       {formatCurrency(proposal.depositAmountOffer)}
                                     </Typography>
-                                  </Box>
+                                  </Grid>
                                 )}
-                                <Box>
+                                <Grid item xs={12} sm={6}>
                                   <Typography variant="body2" color="text.secondary">
                                     Trạng thái:
                                   </Typography>
                                   <Chip 
-                                    label={(() => {
-                                      switch(proposal.status) {
-                                        case "PENDING": return "Chờ phản hồi";
-                                        case "APPROVED": return "Đã duyệt";
-                                        case "REJECTED": return "Đã từ chối";
-                                        case "NEGOTIATING": return "Đang thương lượng";
-                                        default: return proposal.status;
-                                      }
-                                    })()} 
+                                    label={proposal.status} 
                                     size="small" 
-                                    color={(() => {
-                                      switch(proposal.status) {
-                                        case "PENDING": return "warning";
-                                        case "APPROVED": return "success";
-                                        case "REJECTED": return "error";
-                                        case "NEGOTIATING": return "info";
-                                        default: return "default";
-                                      }
-                                    })()}
+                                    color={proposal.status === "PENDING" ? "warning" : "default"}
                                   />
-                                </Box>
-                                <Box>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
                                   <Typography variant="body2" color="text.secondary">
                                     Ngày báo giá:
                                   </Typography>
                                   <Typography variant="body2" fontWeight="medium">
                                     {new Date(proposal.createdAt).toLocaleDateString("vi-VN")}
                                   </Typography>
-                                </Box>
-                                {proposal.rejectionReason && (
-                                  <Box>
-                                    <Typography variant="body2" color="text.secondary">
-                                      Lý do từ chối:
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium" color="error.main">
-                                      {proposal.rejectionReason}
-                                    </Typography>
-                                  </Box>
-                                )}
-                                {proposal.updatedAt && proposal.updatedAt !== proposal.createdAt && (
-                                  <Box>
-                                    <Typography variant="body2" color="text.secondary">
-                                      Ngày cập nhật:
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium">
-                                      {new Date(proposal.updatedAt).toLocaleDateString("vi-VN")}
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </Stack>
+                                </Grid>
+                              </Grid>
                               
                               {/* Action Buttons */}
                               {(proposal.status === "PENDING" || proposal.status === "NEGOTIATING") && (
@@ -2854,6 +2545,21 @@ const CustomerRequests = () => {
                     )}
                   </Button>
                 )}
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleRejectRequest}
+                  disabled={rejectingRequest}
+                  startIcon={
+                    rejectingRequest ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <CancelIcon />
+                    )
+                  }
+                >
+                  {rejectingRequest ? "Đang từ chối..." : "Từ chối"}
+                </Button>
                 {/* Nút giao task chỉ hiện khi request có status là DEPOSITED hoặc DESIGNER_REJECTED */}
                 {selectedRequest &&
                   (selectedRequest.status === "DEPOSITED" ||
@@ -3329,7 +3035,7 @@ const CustomerRequests = () => {
                     <Typography variant="subtitle2" color="text.secondary">
                       Tổng tiền đơn hàng
                     </Typography>
-                    <Typography variant="body1" fontWeight="bold" color="primary.main">
+                    <Typography variant="body1" fontWeight="bold">
                       {formatCurrency(selectedOrder.totalOrderAmount || selectedOrder.totalAmount)}
                     </Typography>
                   </Grid>
@@ -3337,7 +3043,7 @@ const CustomerRequests = () => {
                     <Typography variant="subtitle2" color="text.secondary">
                       Tiền đặt cọc
                     </Typography>
-                    <Typography variant="body1" color="success.main" fontWeight="bold">
+                    <Typography variant="body1" color="success.main">
                       {formatCurrency(selectedOrder.totalOrderDepositAmount || selectedOrder.depositAmount)}
                     </Typography>
                   </Grid>
@@ -3345,57 +3051,11 @@ const CustomerRequests = () => {
                     <Typography variant="subtitle2" color="text.secondary">
                       Tiền còn lại
                     </Typography>
-                    <Typography variant="body1" color="info.main" fontWeight="bold">
+                    <Typography variant="body1" color="info.main">
                       {formatCurrency(selectedOrder.totalOrderRemainingAmount || selectedOrder.remainingAmount)}
                     </Typography>
                   </Grid>
                 </Grid>
-                
-                {/* Additional Financial Details from Order Details */}
-                {orderDetails && orderDetails.length > 0 && (
-                  <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền thiết kế
-                      </Typography>
-                      <Typography variant="body1" color="warning.main" fontWeight="bold">
-                        {formatCurrency(orderDetails.reduce((sum, detail) => sum + (detail.detailDesignAmount || 0), 0))}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền thi công
-                      </Typography>
-                      <Typography variant="body1" color="secondary.main" fontWeight="bold">
-                        {formatCurrency(orderDetails.reduce((sum, detail) => sum + (detail.detailConstructionAmount || 0), 0))}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền cọc thiết kế
-                      </Typography>
-                      <Typography variant="body1" color="success.main" fontWeight="bold">
-                        {formatCurrency(orderDetails.reduce((sum, detail) => sum + (detail.detailDepositDesignAmount || 0), 0))}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền còn lại thiết kế
-                      </Typography>
-                      <Typography variant="body1" color="error.main" fontWeight="bold">
-                        {formatCurrency(orderDetails.reduce((sum, detail) => sum + (detail.detailRemainingDesignAmount || 0), 0))}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền từ lựa chọn khách hàng
-                      </Typography>
-                      <Typography variant="body1" color="primary.main" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
-                        {formatCurrency(orderDetails.reduce((sum, detail) => sum + (detail.customerChoiceHistories?.totalAmount || 0), 0))}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                )}
 
                 {/* Order Details */}
                 {orderDetails && orderDetails.length > 0 && (
@@ -3506,21 +3166,6 @@ const CustomerRequests = () => {
                           {detail.detailDesignAmount && (
                             <Typography variant="body2">
                               Tiền thiết kế: {formatCurrency(detail.detailDesignAmount)}
-                            </Typography>
-                          )}
-                          {detail.detailDepositDesignAmount && (
-                            <Typography variant="body2">
-                              Tiền cọc thiết kế: {formatCurrency(detail.detailDepositDesignAmount)}
-                            </Typography>
-                          )}
-                          {detail.detailRemainingDesignAmount && (
-                            <Typography variant="body2">
-                              Tiền còn lại thiết kế: {formatCurrency(detail.detailRemainingDesignAmount)}
-                            </Typography>
-                          )}
-                          {detail.customerChoiceHistories?.totalAmount && (
-                            <Typography variant="body2" fontWeight="bold" color="primary.main">
-                              Tổng tiền: {formatCurrency(detail.customerChoiceHistories.totalAmount)}
                             </Typography>
                           )}
                         </Box>
