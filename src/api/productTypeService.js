@@ -135,7 +135,26 @@ export const getProductTypeSizesByProductTypeIdApi = async (productTypeId) => {
 // Thêm mới product type
 export const addProductTypeApi = async (data) => {
   try {
-    const response = await productTypeService.post("/api/product-types", data);
+    // Tạo FormData để gửi multipart/form-data
+    const formData = new FormData();
+    
+    // Thêm các field vào FormData
+    formData.append('name', data.name);
+    formData.append('calculateFormula', data.calculateFormula);
+    formData.append('isAiGenerated', data.isAiGenerated);
+    formData.append('isAvailable', data.isAvailable);
+    
+    // Thêm file image nếu có
+    if (data.productTypeImage) {
+      formData.append('productTypeImage', data.productTypeImage);
+    }
+
+    const response = await productTypeService.post("/api/product-types", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
     const { success, result, message } = response.data;
     if (success) {
       return { success, data: result };
