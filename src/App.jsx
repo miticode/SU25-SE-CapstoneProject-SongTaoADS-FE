@@ -36,6 +36,7 @@ import Checkout from "./pages/Checkout";
 import AIChatbot from "./components/AIChatbot";
 import CustomDesign from "./pages/CustomDesign";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import UserManager from "./pages/admin/UserManager";
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
@@ -311,6 +312,7 @@ const App = () => {
               }
             >
               <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<UserManager />} />
             </Route>
 
             {/* Manager routes - chỉ cho STAFF (MANAGER) */}
