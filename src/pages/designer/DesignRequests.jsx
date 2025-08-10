@@ -759,6 +759,12 @@ const DesignRequests = () => {
                     Tổng tiền
                   </TableCell>
                   <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Trạng thái
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+                    Cần hỗ trợ 
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                     Thao tác
                   </TableCell>
                 </TableRow>
@@ -863,6 +869,44 @@ const DesignRequests = () => {
                       fontWeight: 700
                     }}>
                       {request.totalPrice?.toLocaleString("vi-VN") || 0}₫
+                    </TableCell>
+                    <TableCell sx={{ py: 3 }}>
+                      <Chip
+                        label={
+                          CUSTOM_DESIGN_STATUS_MAP[request.status]?.label ||
+                          request.status
+                        }
+                        color={CUSTOM_DESIGN_STATUS_MAP[request.status]?.color || "default"}
+                        sx={{ 
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                          px: 2,
+                          py: 1,
+                          height: 'auto',
+                          borderRadius: 2,
+                          '&:hover': {
+                            bgcolor: '#1e293b'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ py: 3 }}>
+                      <Chip
+                        label={request.isNeedSupport ? "Có" : "Không"}
+                        sx={{ 
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                          px: 2,
+                          py: 1,
+                          height: 'auto',
+                          borderRadius: 2,
+                          bgcolor: request.isNeedSupport ? '#dc2626' : '#059669',
+                          color: 'white',
+                          '&:hover': {
+                            bgcolor: request.isNeedSupport ? '#b91c1c' : '#047857'
+                          }
+                        }}
+                      />
                     </TableCell>
                     <TableCell sx={{ py: 3 }}>
                       <Button
@@ -1350,6 +1394,41 @@ const DesignRequests = () => {
                 </Card>
               )}
 
+              {/* Requirements Section */}
+              <Card sx={{ borderRadius: 0, borderTop: '1px solid #e2e8f0', bgcolor: 'white' }}>
+                <CardContent sx={{ p: 4 }}>
+                  <Box mb={3}>
+                    <Typography 
+                      variant="h5" 
+                      fontWeight={600} 
+                      color="#0F172A"
+                      mb={1}
+                      letterSpacing="-0.015em"
+                    >
+                      Yêu Cầu Thiết Kế
+                    </Typography>
+                    <Typography variant="body2" color="#64748b" fontSize="0.95rem">
+                      Chi tiết yêu cầu từ khách hàng
+                    </Typography>
+                  </Box>
+                  
+                  <Paper 
+                    elevation={0} 
+                    sx={{ 
+                      p: 4, 
+                      bgcolor: '#f0f9ff',
+                      borderRadius: 3,
+                      border: '1px solid #0ea5e9',
+                      borderLeft: '4px solid #0ea5e9'
+                    }}
+                  >
+                    <Typography variant="body1" lineHeight={1.7} color="#0c4a6e" fontSize="1.1rem">
+                      {selectedRequest.requirements || "Không có yêu cầu cụ thể"}
+                    </Typography>
+                  </Paper>
+                </CardContent>
+              </Card>
+
               <Grid container spacing={0}>
                 {/* Business Information Section */}
                 <Grid item xs={12} md={6}>
@@ -1365,47 +1444,18 @@ const DesignRequests = () => {
                       
 
                       <Stack spacing={3}>
-                        <Box>
-                          <Typography 
-                            variant="subtitle2" 
-                            fontWeight={600} 
-                            color="#0F172A" 
-                            mb={1.5}
-                            letterSpacing="-0.01em"
-                          >
-                            Mã yêu cầu
-                          </Typography>
-                          <Paper 
-                            elevation={0} 
-                            sx={{ 
-                              p: 3, 
-                              bgcolor: '#f0f9ff',
-                              borderRadius: 2,
-                              border: '1px solid #0ea5e9'
-                            }}
-                          >
-                            <Typography 
-                              variant="h6" 
-                              lineHeight={1.6} 
-                              color="#0ea5e9"
-                              fontWeight={700}
-                              fontFamily="monospace"
-                              letterSpacing="0.1em"
-                            >
-                              {selectedRequest.code || ''}
-                            </Typography>
-                          </Paper>
-                        </Box>
+
+
 
                         <Box>
                           <Typography 
-                            variant="subtitle2" 
+                            variant="subtitle1" 
                             fontWeight={600} 
                             color="#0F172A" 
-                            mb={1.5}
-                            letterSpacing="-0.01em"
+                            mb={2}
+                            letterSpacing="-0.015em"
                           >
-                            Yêu cầu thiết kế
+                            Thông Tin Doanh Nghiệp
                           </Typography>
                           <Paper 
                             elevation={0} 
@@ -1416,9 +1466,46 @@ const DesignRequests = () => {
                               border: '1px solid #e2e8f0'
                             }}
                           >
-                            <Typography variant="body2" lineHeight={1.6} color="#374151">
-                              {selectedRequest.requirements}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+                              <Avatar
+                                src={customerAvatars[
+                                  typeof selectedRequest.customerDetail === "object" &&
+                                  selectedRequest.customerDetail !== null
+                                    ? selectedRequest.customerDetail.id
+                                    : selectedRequest.customerDetail
+                                ]}
+                                sx={{ 
+                                  width: 60, 
+                                  height: 60,
+                                  bgcolor: '#0F172A',
+                                  color: 'white',
+                                  fontWeight: 700,
+                                  fontSize: '1.2rem'
+                                }}
+                              >
+                                {customerDetails[
+                                  typeof selectedRequest.customerDetail === "object" &&
+                                  selectedRequest.customerDetail !== null
+                                    ? selectedRequest.customerDetail.id
+                                    : selectedRequest.customerDetail
+                                ]?.companyName?.charAt(0) || "?"}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="h5" color="#0F172A" fontWeight={700}>
+                                  {customerDetails[
+                                    typeof selectedRequest.customerDetail === "object" &&
+                                    selectedRequest.customerDetail !== null
+                                      ? selectedRequest.customerDetail.id
+                                      : selectedRequest.customerDetail
+                                  ]?.companyName || "Đang tải..."}
+                                </Typography>
+                                <Typography variant="body2" color="#64748b" mt={0.5}>
+                                  {selectedRequest.customerDetail?.users?.fullName || "Không rõ"}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            
+
                           </Paper>
                         </Box>
 
@@ -1430,46 +1517,66 @@ const DesignRequests = () => {
                             mb={2}
                             letterSpacing="-0.015em"
                           >
-                            Doanh nghiệp
+                            Thông tin liên hệ chi tiết
                           </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Avatar
-                              src={customerAvatars[
-                                typeof selectedRequest.customerDetail === "object" &&
-                                selectedRequest.customerDetail !== null
-                                  ? selectedRequest.customerDetail.id
-                                  : selectedRequest.customerDetail
-                              ]}
-                              sx={{ 
-                                width: 60, 
-                                height: 60,
-                                bgcolor: '#0F172A',
-                                color: 'white',
-                                fontWeight: 700,
-                                fontSize: '1.2rem'
-                              }}
-                            >
-                              {customerDetails[
-                                typeof selectedRequest.customerDetail === "object" &&
-                                selectedRequest.customerDetail !== null
-                                  ? selectedRequest.customerDetail.id
-                                  : selectedRequest.customerDetail
-                              ]?.companyName?.charAt(0) || "?"}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="h5" color="#0F172A" fontWeight={700}>
-                                {customerDetails[
-                                  typeof selectedRequest.customerDetail === "object" &&
-                                  selectedRequest.customerDetail !== null
-                                    ? selectedRequest.customerDetail.id
-                                    : selectedRequest.customerDetail
-                                ]?.companyName || "Đang tải..."}
-                              </Typography>
-                              <Typography variant="body2" color="#64748b" mt={0.5}>
-                                {selectedRequest.customerDetail?.users?.fullName || "Không rõ"}
-                              </Typography>
-                            </Box>
-                          </Box>
+                          <Paper 
+                            elevation={0} 
+                            sx={{ 
+                              p: 3, 
+                              bgcolor: '#f8fafc',
+                              borderRadius: 2,
+                              border: '1px solid #e2e8f0'
+                            }}
+                          >
+                            <Grid container spacing={3}>
+                              <Grid item xs={12} sm={6}>
+                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
+                                  <strong>Địa chỉ:</strong>
+                                </Typography>
+                                <Typography variant="body1" color="#374151" mb={2} sx={{ minHeight: '24px' }}>
+                                  {selectedRequest.customerDetail?.address || "Không có thông tin"}
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={12} sm={6}>
+                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
+                                  <strong>Số điện thoại:</strong>
+                                </Typography>
+                                <Typography variant="body1" color="#374151" mb={2} sx={{ minHeight: '24px' }}>
+                                  {selectedRequest.customerDetail?.contactInfo || "Không có thông tin"}
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={12} sm={6}>
+                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
+                                  <strong>Email:</strong>
+                                </Typography>
+                                <Typography variant="body1" color="#374151" mb={2} sx={{ minHeight: '24px' }}>
+                                  {selectedRequest.customerDetail?.users?.email || "Không có thông tin"}
+                                </Typography>
+                              </Grid>
+
+                              <Grid item xs={12} sm={6}>
+                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
+                                  <strong>Cần hỗ trợ :</strong>
+                                </Typography>
+                                <Chip
+                                  label={selectedRequest.isNeedSupport ? "Có" : "Không"}
+                                  sx={{ 
+                                    fontWeight: 600,
+                                    fontSize: '0.9rem',
+                                    px: 2,
+                                    py: 1,
+                                    height: 'auto',
+                                    borderRadius: 2,
+                                    bgcolor: selectedRequest.isNeedSupport ? '#dc2626' : '#059669',
+                                    color: 'white',
+                                    '&:hover': {
+                                      bgcolor: selectedRequest.isNeedSupport ? '#b91c1c' : '#047857'
+                                    }
+                                  }}
+                                />
+                              </Grid>
+                            </Grid>
+                          </Paper>
                         </Box>
 
                         <Box>
@@ -1487,36 +1594,7 @@ const DesignRequests = () => {
                 </Typography>
                         </Box>
 
-                        <Box>
-                          <Typography 
-                            variant="subtitle1" 
-                            fontWeight={600} 
-                            color="#0F172A" 
-                            mb={2}
-                            letterSpacing="-0.015em"
-                          >
-                            Trạng thái
-                </Typography>
-                  <Chip
-                    label={
-                      CUSTOM_DESIGN_STATUS_MAP[selectedRequest.status]?.label ||
-                      selectedRequest.status
-                    }
-                            sx={{ 
-                              fontWeight: 600,
-                              fontSize: '0.9rem',
-                              px: 3,
-                              py: 2,
-                              height: 'auto',
-                              borderRadius: 2,
-                              bgcolor: '#059669',
-                              color: 'white',
-                              '&:hover': {
-                                bgcolor: '#1e293b'
-                              }
-                            }}
-                  />
-                </Box>
+
                       </Stack>
                     </CardContent>
                   </Card>
@@ -1547,75 +1625,77 @@ const DesignRequests = () => {
                         </Typography>
                       </Box>
 
-                      <Stack spacing={3}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 4, 
-                            bgcolor: '#0F172A',
-                            color: 'white',
-                            borderRadius: 3
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ opacity: 0.8, mb: 1.5 }}>
-                            Tổng giá trị đơn hàng
-                          </Typography>
-                          <Typography variant="h4" fontWeight={700} letterSpacing="-0.02em">
-                            {selectedRequest.totalPrice?.toLocaleString("vi-VN") || 0}₫
-                          </Typography>
-                        </Paper>
-
-                        <Grid container spacing={2}>
-                          <Grid item xs={6}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 4, 
-                                bgcolor: '#f0fdf4',
-                                borderRadius: 3,
-                                border: '1px solid #bbf7d0'
-                              }}
-                            >
-                              <Typography 
-                                variant="subtitle1" 
-                                color="#166534" 
-                                fontWeight={600} 
-                                mb={2}
-                                letterSpacing="-0.015em"
-                              >
-                                Đã đặt cọc
-                              </Typography>
-                              <Typography variant="h5" color="#15803d" fontWeight={700}>
-                                {selectedRequest.depositAmount?.toLocaleString("vi-VN") || 0}₫
-                              </Typography>
-                            </Paper>
-                          </Grid>
-                          <Grid item xs={6}>
-                            <Paper 
-                              elevation={0}
-                              sx={{ 
-                                p: 4, 
-                                bgcolor: '#fefce8',
-                                borderRadius: 3,
-                                border: '1px solid #fde047'
-                              }}
-                            >
-                              <Typography 
-                                variant="subtitle1" 
-                                color="#a16207" 
-                                fontWeight={600} 
-                                mb={2}
-                                letterSpacing="-0.015em"
-                              >
-                                Còn lại
-                              </Typography>
-                              <Typography variant="h5" color="#ca8a04" fontWeight={700}>
-                                {selectedRequest.remainingAmount?.toLocaleString("vi-VN") || 0}₫
-                              </Typography>
-                            </Paper>
-                          </Grid>
+                      <Grid container spacing={3}>
+                        <Grid item xs={12} md={4}>
+                          <Paper 
+                            elevation={0}
+                            sx={{ 
+                              p: 4, 
+                              bgcolor: '#0F172A',
+                              color: 'white',
+                              borderRadius: 3,
+                              height: '100%'
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ opacity: 0.8, mb: 1.5 }}>
+                              Tổng giá trị đơn hàng
+                            </Typography>
+                            <Typography variant="h4" fontWeight={700} letterSpacing="-0.02em">
+                              {selectedRequest.totalPrice?.toLocaleString("vi-VN") || 0}₫
+                            </Typography>
+                          </Paper>
                         </Grid>
-                      </Stack>
+                        <Grid item xs={12} md={4}>
+                          <Paper 
+                            elevation={0}
+                            sx={{ 
+                              p: 4, 
+                              bgcolor: '#f0fdf4',
+                              borderRadius: 3,
+                              border: '1px solid #bbf7d0',
+                              height: '100%'
+                            }}
+                          >
+                            <Typography 
+                              variant="subtitle1" 
+                              color="#166534" 
+                              fontWeight={600} 
+                              mb={2}
+                              letterSpacing="-0.015em"
+                            >
+                              Đã đặt cọc
+                            </Typography>
+                            <Typography variant="h5" color="#15803d" fontWeight={700}>
+                              {selectedRequest.depositAmount?.toLocaleString("vi-VN") || 0}₫
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                          <Paper 
+                            elevation={0}
+                            sx={{ 
+                              p: 4, 
+                              bgcolor: '#fefce8',
+                              borderRadius: 3,
+                              border: '1px solid #fde047',
+                              height: '100%'
+                            }}
+                          >
+                            <Typography 
+                              variant="subtitle1" 
+                              color="#a16207" 
+                              fontWeight={600} 
+                              mb={2}
+                              letterSpacing="-0.015em"
+                            >
+                              Còn lại
+                            </Typography>
+                            <Typography variant="h5" color="#ca8a04" fontWeight={700}>
+                              {selectedRequest.remainingAmount?.toLocaleString("vi-VN") || 0}₫
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -1982,6 +2062,9 @@ const DesignRequests = () => {
               "COMPLETED", // Thêm COMPLETED vào danh sách ẩn
               "CANCELLED", // Thêm CANCELLED vào danh sách ẩn
               "REJECTED_PRICING", // Thêm REJECTED_PRICING vào danh sách ẩn
+              "DEPOSITED", // Ẩn khi khách đã đặt cọc
+              "DESIGNER_REJECTED", // Ẩn khi designer đã từ chối
+              "WAITING_FULL_PAYMENT", // Ẩn khi đang chờ thanh toán đủ (đã đặt cọc)
             ].includes(selectedRequest.status) && (
               <>
                 <Button
