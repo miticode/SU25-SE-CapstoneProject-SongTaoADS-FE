@@ -450,6 +450,60 @@ const CustomerRequests = () => {
 
   const [selectedStatus, setSelectedStatus] = useState(""); // Mặc định là tất cả trạng thái
 
+  /*
+   * CÁCH SỬ DỤNG CÁC FUNCTION REFRESH:
+   *
+   * 1. refreshDesignRequestsData() - Refresh data cho tab "Yêu cầu thiết kế"
+   *    - Sử dụng sau khi: assign designer, set pending contract, reject request, create proposal, update proposal
+   *
+   * 2. refreshOrdersData() - Refresh data cho tab "Đơn hàng thiết kế tùy chỉnh"
+   *    - Sử dụng sau khi: update order status, report delivery, contract operations
+   *
+   * 3. refreshAllData() - Refresh tất cả data (thông minh theo tab hiện tại)
+   *    - Sử dụng khi không chắc chắn cần refresh gì
+   *
+   * LƯU Ý: Không cần reload trang nữa, chỉ cần gọi các function này!
+   */
+
+  // ===== CÁC FUNCTION REFRESH =====
+  const refreshDesignRequestsData = async () => {
+    if (currentTab === 0) {
+      await dispatch(
+        fetchAllDesignRequests({ 
+          status: selectedStatus, 
+          page: designRequestsPage, 
+          size: 10 
+        })
+      ).then((action) => {
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
+        }
+      });
+    }
+  };
+
+  const refreshOrdersData = async () => {
+    if (currentTab === 1) {
+      await dispatch(
+        fetchOrders({
+          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
+          page: 1,
+          size: 100,
+          orderType: null,
+        })
+      );
+    }
+  };
+
+  const refreshAllData = async () => {
+    if (currentTab === 0) {
+      await refreshDesignRequestsData();
+    } else if (currentTab === 1) {
+      await refreshOrdersData();
+    }
+  };
+  // ===== KẾT THÚC CÁC FUNCTION REFRESH =====
+
   // Apply filters after all states are declared
   designRequests = allDesignRequests.filter(request => {
     if (!searchDesignRequests.trim()) return true;
@@ -613,14 +667,7 @@ const CustomerRequests = () => {
         });
 
         // Refresh orders list
-        dispatch(
-          fetchOrders({
-            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-            page: 1,
-            size: 100,
-            orderType: null, // Get all orders, filter client-side
-          })
-        );
+        await refreshOrdersData();
 
         // Close detail dialog
         handleCloseOrderDetails();
@@ -661,14 +708,7 @@ const CustomerRequests = () => {
             });
 
             // Refresh danh sách orders
-            await dispatch(
-              fetchOrders({
-                orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-                page: 1,
-                size: 100,
-                orderType: null, // Get all orders, filter client-side
-              })
-            );
+            await refreshOrdersData();
 
             handleCloseOrderDetails();
           } else {
@@ -810,14 +850,7 @@ const CustomerRequests = () => {
         });
 
         // Refresh data
-        dispatch(
-          fetchOrders({
-            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-            page: 1,
-            size: 100,
-            orderType: null, // Get all orders, filter client-side
-          })
-        );
+        await refreshOrdersData();
 
         // Đóng dialog chi tiết đơn hàng
         handleCloseOrderDetails();
@@ -893,15 +926,8 @@ const CustomerRequests = () => {
     setContractId(null);
 
             // Refresh data
-        setTimeout(() => {
-          dispatch(
-            fetchOrders({
-              orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-              page: 1,
-              size: 100,
-              orderType: null, // Get all orders, filter client-side
-            })
-          );
+        setTimeout(async () => {
+          await refreshOrdersData();
         }, 300);
 
     // Close main dialog last
@@ -923,15 +949,8 @@ const CustomerRequests = () => {
       setOpenContractUpload(false);
 
       // Sau đó mới dispatch action để fetch dữ liệu mới
-      setTimeout(() => {
-        dispatch(
-          fetchOrders({
-            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-            page: 1,
-            size: 100,
-            orderType: null, // Get all orders, filter client-side
-          })
-        );
+      setTimeout(async () => {
+        await refreshOrdersData();
       }, 300);
     }, 0);
   };
@@ -1018,15 +1037,8 @@ const CustomerRequests = () => {
           severity: "success",
         });
 
-        // Sử dụng Redux dispatch thay vì gọi fetchCustomDesignOrders
-        dispatch(
-          fetchOrders({
-            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-            page: 1,
-            size: 100,
-            orderType: null, // Get all orders, filter client-side
-          })
-        );
+        // Refresh orders data
+        await refreshOrdersData();
 
         // Đóng dialog chi tiết đơn hàng
         handleCloseOrderDetails();
@@ -1125,14 +1137,7 @@ const CustomerRequests = () => {
       });
 
       // Refresh danh sách orders để cập nhật thông tin mới
-      dispatch(
-        fetchOrders({
-          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-          page: 1,
-          size: 100,
-          orderType: null, // Get all orders, filter client-side
-        })
-      );
+      await refreshOrdersData();
 
     } catch (error) {
       console.error('Lỗi khi báo ngày giao dự kiến:', error);
@@ -1214,13 +1219,7 @@ const CustomerRequests = () => {
           severity: "success",
         });
         // Refresh data after assignment
-        dispatch(
-          fetchAllDesignRequests({
-            status: selectedStatus,
-            page: 1,
-            size: 100,
-          })
-        );
+        await refreshDesignRequestsData();
 
         // Close the dialog
         handleCloseDetails();
@@ -1266,13 +1265,7 @@ const CustomerRequests = () => {
         });
 
         // Refresh data
-        dispatch(
-          fetchAllDesignRequests({
-            status: selectedStatus,
-            page: 1,
-            size: 100,
-          })
-        );
+        await refreshDesignRequestsData();
 
         // Close the dialog
         handleCloseDetails();
@@ -1317,13 +1310,7 @@ const CustomerRequests = () => {
         });
 
         // Refresh data after rejection
-        dispatch(
-          fetchAllDesignRequests({
-            status: selectedStatus,
-            page: 1,
-            size: 100,
-          })
-        );
+        await refreshDesignRequestsData();
 
         // Close the dialog
         handleCloseDetails();
@@ -1466,7 +1453,8 @@ const CustomerRequests = () => {
             setPriceProposals(res.result);
           }
         });
-        // Có thể reload lại danh sách đơn thiết kế nếu muốn
+        // Refresh design requests data
+        await refreshDesignRequestsData();
       } else {
         setNotification({
           open: true,
@@ -1532,6 +1520,8 @@ const CustomerRequests = () => {
       getPriceProposals(selectedRequest.id).then(
         (r) => r.success && setPriceProposals(r.result)
       );
+      // Refresh design requests data
+      await refreshDesignRequestsData();
     } else {
       setNotification({
         open: true,

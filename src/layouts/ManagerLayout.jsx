@@ -66,6 +66,7 @@ import DesignTemplateManager from "../pages/manager/DesignTemplateManager";
 import BackgroundManager from "../pages/manager/BackgroundManager";
 import CostTypeManager from "../pages/manager/CostTypeManager";
 import ContractorManagement from "../pages/manager/ContractorManagement";
+import SupportManager from "../pages/manager/SupportManager";
 const drawerWidth = 240;
 
 // Define all sidebar menu items for Manager with enhanced styling
@@ -165,6 +166,13 @@ const menuItems = [
     icon: <SupportAgentIcon />,
     color: "#ff9800",
     description: "Hỗ trợ khách hàng",
+  },
+  {
+    id: "support-system",
+    text: "Hỗ trợ (Hệ thống)",
+    icon: <SupportAgentIcon />,
+    color: "#e91e63",
+    description: "Quản lý yêu cầu thiết kế cần hỗ trợ",
   },
 ];
 
@@ -779,6 +787,7 @@ const ManagerLayout = () => {
           {activeTab === "background-management" && <BackgroundManager />}
           {activeTab === "cost-type-management" && <CostTypeManager />}
           {activeTab === "support-ticket" && <Outlet context={{ activeTab }} />}
+          {activeTab === "support-system" && <SupportManager />}
           {activeTab === "contractor-management" && <ContractorManagement />}
           {activeTab !== "order-management" &&
             activeTab !== "product-type" &&
@@ -791,6 +800,7 @@ const ManagerLayout = () => {
             activeTab !== "background-management" &&
             activeTab !== "cost-type-management" &&
             activeTab !== "support-ticket" &&
+            activeTab !== "support-system" &&
             activeTab !== "contractor-management" && (
               <Outlet context={{ activeTab }} />
             )}

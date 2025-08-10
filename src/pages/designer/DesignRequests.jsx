@@ -61,6 +61,7 @@ import { useSelector as useAuthSelector } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 
+
 const DesignRequests = () => {
   const dispatch = useDispatch();
   const { user } = useAuthSelector((state) => state.auth);
@@ -303,47 +304,87 @@ const DesignRequests = () => {
     }
   }, [designerId, dispatch, pagination.currentPage, pagination.pageSize]);
 
-  // Lấy demo mới nhất khi mở dialog chi tiết
-  useEffect(() => {
-    const fetchLatestDemo = async () => {
-      if (openDialog && selectedRequest) {
-        try {
-          const res = await dispatch(
-            getDemoDesigns(selectedRequest.id)
-          ).unwrap();
-          if (res && res.length > 0) {
-            const latestDemo = res[res.length - 1];
-            setLatestDemo(latestDemo);
-            // Fetch sub-images cho demo mới nhất
-            await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
-            // Clear S3 URLs để fetch lại
-            setS3ImageUrls({});
-            setMainDemoS3Url(null);
-          } else {
-            setLatestDemo(null);
-            setS3ImageUrls({}); // clear S3 URLs
-            setMainDemoS3Url(null);
-          }
+  // ===== CÁC FUNCTION REFRESH =====
+  
+  // Refresh danh sách yêu cầu thiết kế
+  const refreshDesignRequestsData = async () => {
+    if (designerId) {
+      try {
+        const res = await dispatch(
+          fetchDesignRequestsByDesigner({
+            designerId,
+            page: pagination.currentPage,
+            size: pagination.pageSize,
+          })
+        ).unwrap();
+        setRequests(res.result || []);
+        setPagination({
+          currentPage: res.currentPage || 1,
+          totalPages: res.totalPages || 1,
+          pageSize: res.pageSize || 10,
+          totalElements: res.totalElements || 0,
+        });
+      } catch (error) {
+        console.error("Error refreshing design requests:", error);
+      }
+    }
+  };
 
-          // Fetch final design sub images
-          try {
-            await dispatch(getFinalDesignSubImages(selectedRequest.id)).unwrap();
-            setFinalDesignS3Urls({}); // Clear để fetch lại
-          } catch (error) {
-            console.log("No final design sub images or error fetching:", error);
-          }
-
-          // Clear final design main S3 URL để fetch lại
-          setFinalDesignMainS3Url(null);
-        } catch (error) {
-          console.error("Error fetching demo:", error);
+  // Refresh data demo cho một request cụ thể
+  const refreshDemoData = async (requestId) => {
+    if (requestId) {
+      try {
+        const res = await dispatch(getDemoDesigns(requestId)).unwrap();
+        if (res && res.length > 0) {
+          const latestDemo = res[res.length - 1];
+          setLatestDemo(latestDemo);
+          await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
+          setS3ImageUrls({});
+          setMainDemoS3Url(null);
+        } else {
           setLatestDemo(null);
           setS3ImageUrls({});
           setMainDemoS3Url(null);
         }
+      } catch (error) {
+        console.error("Error refreshing demo data:", error);
       }
-    };
-    fetchLatestDemo();
+    }
+  };
+
+  // Refresh data final design
+  const refreshFinalDesignData = async (requestId) => {
+    if (requestId) {
+      try {
+        await dispatch(getFinalDesignSubImages(requestId)).unwrap();
+        setFinalDesignS3Urls({});
+        setFinalDesignMainS3Url(null);
+      } catch (error) {
+        console.error("Error refreshing final design data:", error);
+      }
+    }
+  };
+
+  // Refresh tất cả data (thông minh)
+  const refreshAllData = async () => {
+    if (selectedRequest) {
+      await refreshDesignRequestsData();
+      await refreshDemoData(selectedRequest.id);
+      await refreshFinalDesignData(selectedRequest.id);
+    } else {
+      await refreshDesignRequestsData();
+    }
+  };
+
+  // ===== KẾT THÚC CÁC FUNCTION REFRESH =====
+
+  // Lấy demo mới nhất khi mở dialog chi tiết
+  useEffect(() => {
+    if (openDialog && selectedRequest) {
+      // Sử dụng function refresh thay vì fetch thủ công
+      refreshDemoData(selectedRequest.id);
+      refreshFinalDesignData(selectedRequest.id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openDialog, selectedRequest]);
 
@@ -469,16 +510,8 @@ const DesignRequests = () => {
         severity: "success",
       });
       setOpenDialog(false);
-      // Reload danh sách
-      dispatch(
-        fetchDesignRequestsByDesigner({
-          designerId,
-          page: pagination.currentPage,
-          size: pagination.pageSize,
-        })
-      )
-        .unwrap()
-        .then((res) => setRequests(res.result || []));
+      // Refresh data thay vì reload thủ công
+      await refreshDesignRequestsData();
     } catch (err) {
       setNotification({
         open: true,
@@ -505,16 +538,8 @@ const DesignRequests = () => {
         severity: "success",
       });
       setOpenDialog(false);
-      // Reload danh sách
-      dispatch(
-        fetchDesignRequestsByDesigner({
-          designerId,
-          page: pagination.currentPage,
-          size: pagination.pageSize,
-        })
-      )
-        .unwrap()
-        .then((res) => setRequests(res.result || []));
+      // Refresh data thay vì reload thủ công
+      await refreshDesignRequestsData();
     } catch (err) {
       setNotification({
         open: true,
@@ -602,16 +627,9 @@ const DesignRequests = () => {
       });
       setOpenFinalDesignDialog(false);
       setOpenDialog(false);
-      // Reload danh sách
-      dispatch(
-        fetchDesignRequestsByDesigner({
-          designerId,
-          page: pagination.currentPage,
-          size: pagination.pageSize,
-        })
-      )
-        .unwrap()
-        .then((res) => setRequests(res.result || []));
+      // Refresh data thay vì reload thủ công
+      await refreshDesignRequestsData();
+      await refreshFinalDesignData(selectedRequest.id);
     } catch (err) {
       setFinalDesignError(err || "Gửi bản thiết kế chính thức thất bại");
     }
@@ -2359,31 +2377,9 @@ const DesignRequests = () => {
                 setOpenDemoDialog(false);
                 setOpenDialog(false);
 
-                // Reload danh sách và fetch lại demo mới nhất
-                const reloadResult = await dispatch(
-                  fetchDesignRequestsByDesigner({
-                    designerId,
-                    page: pagination.currentPage,
-                    size: pagination.pageSize,
-                  })
-                ).unwrap();
-                setRequests(reloadResult.result || []);
-
-                // Fetch lại demo mới nhất và sub-images
-                if (selectedRequest) {
-                  const demoResult = await dispatch(
-                    getDemoDesigns(selectedRequest.id)
-                  ).unwrap();
-                  if (demoResult && demoResult.length > 0) {
-                    const latestDemo = demoResult[demoResult.length - 1];
-                    setLatestDemo(latestDemo);
-                    // Fetch sub-images cho demo mới nhất
-                    await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
-                    // Clear S3 URLs để fetch lại
-                    setS3ImageUrls({});
-                    setMainDemoS3Url(null);
-                  }
-                }
+                // Refresh data thay vì reload thủ công
+                await refreshDesignRequestsData();
+                await refreshDemoData(selectedRequest.id);
               } catch (err) {
                 setDemoFormError(
                   err?.message ||
