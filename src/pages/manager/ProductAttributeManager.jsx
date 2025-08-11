@@ -124,8 +124,8 @@ const ProductAttributeManager = () => {
     const originalName = sizeItem.sizes?.name || "SIZE";
     const sizeName = "#" + originalName.toUpperCase().replace(/\s+/g, "");
 
-    // Make sure we don't insert into the #unitPrice part
-    const minPosition = "#unitPrice".length;
+    // Make sure we don't insert into the #ĐƠN_GIÁ part
+    const minPosition = "#ĐƠN_GIÁ".length;
     const safePosition = Math.max(cursorPosition, minPosition);
 
     const newFormula =
@@ -156,8 +156,8 @@ const ProductAttributeManager = () => {
       formulaRef.current?.selectionStart || form.calculateFormula.length;
     const formulaText = form.calculateFormula;
 
-    // Make sure we don't insert into the #unitPrice part
-    const minPosition = "#unitPrice".length;
+    // Make sure we don't insert into the #ĐƠN_GIÁ part
+    const minPosition = "#ĐƠN_GIÁ".length;
     const safePosition = Math.max(cursorPosition, minPosition);
 
     // Insert the operator at the cursor position
@@ -268,15 +268,15 @@ const ProductAttributeManager = () => {
 
   const handleOpenAdd = () => {
     setEditMode(false);
-    setForm({ name: "", calculateFormula: "#unitPrice * " });
+    setForm({ name: "", calculateFormula: "#ĐƠN_GIÁ * " });
     setOpenDialog(true);
   };
   const handleOpenEdit = (attr) => {
     setEditMode(true);
-    // If the formula doesn't already have #unitPrice, prepend it
+    // If the formula doesn't already have #ĐƠN_GIÁ, prepend it
     let formula = attr.calculateFormula || "";
-    if (!formula.includes("#unitPrice")) {
-      formula = "#unitPrice * " + formula;
+    if (!formula.includes("#ĐƠN_GIÁ")) {
+      formula = "#ĐƠN_GIÁ * " + formula;
     }
     setForm({ name: attr.name, calculateFormula: formula });
     setSelectedId(attr.id);
@@ -303,10 +303,10 @@ const ProductAttributeManager = () => {
   const handleFormulaChange = (e) => {
     const newValue = e.target.value;
 
-    // Check if #unitPrice is still in the formula
-    if (!newValue.includes("#unitPrice")) {
+    // Check if #ĐƠN_GIÁ is still in the formula
+    if (!newValue.includes("#ĐƠN_GIÁ")) {
       // If not, add it back
-      setForm({ ...form, calculateFormula: "#unitPrice * " });
+      setForm({ ...form, calculateFormula: "#ĐƠN_GIÁ * " });
       return;
     }
 
@@ -323,8 +323,8 @@ const ProductAttributeManager = () => {
     // Convert name to uppercase to ensure consistency
     const uppercaseName = form.name.toUpperCase();
     let formula = form.calculateFormula;
-    if (!formula.includes("#unitPrice")) {
-      formula = "#unitPrice * " + formula;
+    if (!formula.includes("#ĐƠN_GIÁ")) {
+      formula = "#ĐƠN_GIÁ * " + formula;
     }
     const validation = validateFormula(formula);
     if (!validation.isValid) {
@@ -708,7 +708,7 @@ const ProductAttributeManager = () => {
                         color="text.secondary"
                         sx={{ display: "block", mt: 0.5 }}
                       >
-                        Công thức luôn phải chứa #unitPrice
+                        Công thức luôn phải chứa #ĐƠN_GIÁ
                       </Typography>
                     )
                   }
@@ -1004,13 +1004,13 @@ const ProductAttributeManager = () => {
                   }}
                 >
                   <Typography component="span" variant="caption">
-                    #unitPrice * #CAO * #RONG
+                    #ĐƠN_GIÁ * #CAO * #RONG
                   </Typography>
                   <Typography component="span" variant="caption">
-                    #unitPrice * (#CAO + #RONG) * 2
+                    #ĐƠN_GIÁ * (#CAO + #RONG) * 2
                   </Typography>
                   <Typography component="span" variant="caption">
-                    #unitPrice * #CAO * #RONG * 2.5
+                    #ĐƠN_GIÁ * #CAO * #RONG * 2.5
                   </Typography>
                 </Box>
               </Box>

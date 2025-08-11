@@ -242,7 +242,10 @@ const CostTypeManager = () => {
     }
 
     setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    const isValid = Object.keys(errors).length === 0;
+    
+    // Return both errors and validation result
+    return { isValid, errors };
   };
   // Handle page change
   const handleChangePage = (event, newPage) => {
@@ -324,14 +327,31 @@ const CostTypeManager = () => {
     setIsSubmitting(false);
   };
   const isFormValid = () => {
-    return (
+    // Kiểm tra các điều kiện cơ bản
+    const basicConditions = (
       selectedProductType &&
       newCostType.name.trim() &&
       newCostType.description.trim() &&
       newCostType.formula.trim() &&
-      newCostType.priority > 0 &&
-      Object.keys(validationErrors).length === 0
+      newCostType.priority > 0
     );
+    
+    // Kiểm tra không có lỗi validation (chỉ tính các lỗi thực sự, không tính undefined)
+    const hasValidationErrors = Object.values(validationErrors).some(error => 
+      error !== undefined && error !== null && error.trim() !== ""
+    );
+    
+    const isValid = basicConditions && !hasValidationErrors;
+    
+    // Debug logging
+    console.log("Form validation check:", {
+      basicConditions,
+      hasValidationErrors,
+      validationErrors,
+      isValid
+    });
+    
+    return isValid;
   };
   // Handle form input change
   const handleInputChange = (field, value) => {
@@ -342,10 +362,11 @@ const CostTypeManager = () => {
 
     // Clear validation error for this field
     if (validationErrors[field]) {
-      setValidationErrors((prev) => ({
-        ...prev,
-        [field]: undefined,
-      }));
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field]; // Xóa hoàn toàn thay vì set undefined
+        return newErrors;
+      });
     }
 
     // Reset formula when switching between core/non-core
@@ -387,9 +408,10 @@ const CostTypeManager = () => {
   // Handle submit
   const handleSubmit = async () => {
     // Validate form trước khi submit
-    if (!validateForm()) {
+    const { isValid, errors } = validateForm();
+    if (!isValid) {
       // Scroll to first error field
-      const firstErrorField = Object.keys(validationErrors)[0];
+      const firstErrorField = Object.keys(errors)[0];
       const errorElement = document.querySelector(
         `[name="${firstErrorField}"]`
       );
