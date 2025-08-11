@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CircularProgress } from "@mui/material";
 import {
@@ -44,6 +44,196 @@ const DesignEditor = ({
   pixelValueData,
   hasExportedInCurrentSession,
 }) => {
+  // Theo dõi trạng thái có đối tượng đang được chọn trên canvas để bật/tắt nút Xóa
+  const [hasActiveObject, setHasActiveObject] = useState(false);
+  const lastValidRef = useRef(new WeakMap());
+
+  const isOutOfBounds = useCallback((obj, canvas) => {
+    if (!obj || !canvas) return false;
+    const br = obj.getBoundingRect(true);
+    const cw = canvas.getWidth();
+    const ch = canvas.getHeight();
+    return br.left < 0 || br.top < 0 || br.left + br.width > cw || br.top + br.height > ch;
+  }, []);
+
+  const moveInsideBounds = useCallback((obj, canvas) => {
+    const br = obj.getBoundingRect(true);
+    const cw = canvas.getWidth();
+    const ch = canvas.getHeight();
+    let dx = 0;
+    let dy = 0;
+    if (br.left < 0) dx = -br.left;
+    if (br.top < 0) dy = -br.top;
+    if (br.left + br.width > cw) dx = cw - (br.left + br.width);
+    if (br.top + br.height > ch) dy = ch - (br.top + br.height);
+    obj.left += dx;
+    obj.top += dy;
+    obj.setCoords();
+  }, []);
+
+  const scaleDownToFit = useCallback((obj, canvas) => {
+    // Scale object down uniformly so that it fits within canvas bounds
+    let br = obj.getBoundingRect(true);
+    const cw = canvas.getWidth();
+    const ch = canvas.getHeight();
+    const widthScale = br.width > 0 ? cw / br.width : 1;
+    const heightScale = br.height > 0 ? ch / br.height : 1;
+    const factor = Math.min(widthScale, heightScale, 1);
+    if (factor < 1) {
+      obj.scaleX *= factor;
+      obj.scaleY *= factor;
+      obj.setCoords();
+      // After scaling, also ensure inside bounds
+      moveInsideBounds(obj, canvas);
+    }
+  }, [moveInsideBounds]);
+
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    const updateActive = () => {
+      try {
+        setHasActiveObject(!!fabricCanvas.getActiveObject());
+      } catch {
+        setHasActiveObject(false);
+      }
+    };
+
+    // Cập nhật ngay khi mount/lần đầu nhận canvas
+    updateActive();
+
+    // Lắng nghe các sự kiện chọn/bỏ chọn/ thêm/xóa object để kích hoạt re-render
+    fabricCanvas.on("selection:created", updateActive);
+    fabricCanvas.on("selection:updated", updateActive);
+    fabricCanvas.on("selection:cleared", updateActive);
+    fabricCanvas.on("object:added", updateActive);
+    fabricCanvas.on("object:removed", updateActive);
+
+    // Lưu lại trạng thái hợp lệ cuối cùng khi người dùng bắt đầu tương tác
+    const handleMouseDown = () => {
+      const t = fabricCanvas.getActiveObject();
+      if (t) {
+        lastValidRef.current.set(t, {
+          left: t.left,
+          top: t.top,
+          scaleX: t.scaleX,
+          scaleY: t.scaleY,
+          angle: t.angle,
+        });
+      }
+    };
+
+    // Chặn scale vượt ra ngoài: nếu vượt, khôi phục về trạng thái hợp lệ gần nhất
+    const handleScaling = (e) => {
+      const t = e.target;
+      if (!t) return;
+      if (isOutOfBounds(t, fabricCanvas)) {
+        const prev = lastValidRef.current.get(t);
+        if (prev) {
+          t.set(prev);
+          t.setCoords();
+          fabricCanvas.requestRenderAll();
+          return;
+        }
+      }
+      // Nếu hợp lệ, cập nhật snapshot
+      lastValidRef.current.set(t, {
+        left: t.left,
+        top: t.top,
+        scaleX: t.scaleX,
+        scaleY: t.scaleY,
+        angle: t.angle,
+      });
+    };
+
+    // Sau khi chỉnh sửa (scale/rotate/translate), đảm bảo vẫn nằm trong bounds
+    const handleModified = (e) => {
+      const t = e.target;
+      if (!t) return;
+      if (isOutOfBounds(t, fabricCanvas)) {
+        const prev = lastValidRef.current.get(t);
+        if (prev) {
+          t.set(prev);
+          t.setCoords();
+        } else {
+          // Không có snapshot: cố gắng scale-down và di chuyển vào trong
+          scaleDownToFit(t, fabricCanvas);
+          moveInsideBounds(t, fabricCanvas);
+        }
+        fabricCanvas.requestRenderAll();
+      } else {
+        lastValidRef.current.set(t, {
+          left: t.left,
+          top: t.top,
+          scaleX: t.scaleX,
+          scaleY: t.scaleY,
+          angle: t.angle,
+        });
+      }
+    };
+
+    // Khi thêm object mới (logo/ảnh), đảm bảo nó fit trong canvas
+    const handleObjectAdded = (e) => {
+      const t = e.target;
+      if (!t) return;
+      if (isOutOfBounds(t, fabricCanvas)) {
+        scaleDownToFit(t, fabricCanvas);
+        moveInsideBounds(t, fabricCanvas);
+        fabricCanvas.requestRenderAll();
+      }
+      lastValidRef.current.set(t, {
+        left: t.left,
+        top: t.top,
+        scaleX: t.scaleX,
+        scaleY: t.scaleY,
+        angle: t.angle,
+      });
+    };
+
+    fabricCanvas.on("mouse:down", handleMouseDown);
+    fabricCanvas.on("object:scaling", handleScaling);
+    fabricCanvas.on("object:modified", handleModified);
+    fabricCanvas.on("object:added", handleObjectAdded);
+
+    return () => {
+      try {
+        fabricCanvas.off("selection:created", updateActive);
+        fabricCanvas.off("selection:updated", updateActive);
+        fabricCanvas.off("selection:cleared", updateActive);
+        fabricCanvas.off("object:added", updateActive);
+        fabricCanvas.off("object:removed", updateActive);
+        fabricCanvas.off("mouse:down", handleMouseDown);
+        fabricCanvas.off("object:scaling", handleScaling);
+        fabricCanvas.off("object:modified", handleModified);
+        fabricCanvas.off("object:added", handleObjectAdded);
+      } catch {
+        // no-op
+      }
+    };
+  }, [fabricCanvas, isOutOfBounds, moveInsideBounds, scaleDownToFit]);
+
+  // Khi chỉnh font-size qua UI (updateTextProperty), đôi khi không phát sinh object:modified.
+  // Theo dõi thay đổi fontSize để đảm bảo object vẫn nằm trong bounds; nếu vượt, scale-down hoặc di chuyển vào trong.
+  useEffect(() => {
+    if (!fabricCanvas) return;
+    const obj = fabricCanvas.getActiveObject();
+    if (!obj) return;
+    if (isOutOfBounds(obj, fabricCanvas)) {
+      scaleDownToFit(obj, fabricCanvas);
+      moveInsideBounds(obj, fabricCanvas);
+      obj.setCoords();
+      fabricCanvas.requestRenderAll();
+    }
+    // Cập nhật snapshot hợp lệ hiện tại
+    lastValidRef.current.set(obj, {
+      left: obj.left,
+      top: obj.top,
+      scaleX: obj.scaleX,
+      scaleY: obj.scaleY,
+      angle: obj.angle,
+    });
+  }, [fabricCanvas, textSettings?.fontSize, isOutOfBounds, moveInsideBounds, scaleDownToFit]);
+
   return (
     <motion.div
       className="max-w-7xl mx-auto"
@@ -244,7 +434,7 @@ const DesignEditor = ({
                 </label>
                 <button
                   onClick={deleteSelectedObject}
-                  disabled={!fabricCanvas?.getActiveObject()}
+                  disabled={!hasActiveObject}
                   className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center text-sm"
                 >
                   <FaTrash className="mr-1" />

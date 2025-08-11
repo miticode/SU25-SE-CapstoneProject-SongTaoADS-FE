@@ -20,6 +20,7 @@ import {
   updateOrderToInstalledApi,
   deleteOrderApi,
   cancelOrderApi,
+  getCustomDesignOrdersApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -391,6 +392,43 @@ export const cancelOrder = createAsyncThunk(
   }
 );
 
+// Fetch Custom Design Orders
+export const fetchCustomDesignOrders = createAsyncThunk(
+  "order/fetchCustomDesignOrders",
+  async (params, { rejectWithValue }) => {
+    try {
+      // Kiểm tra nếu params là object hoặc string
+      let orderStatus, page, size;
+
+      if (typeof params === "object" && params !== null) {
+        // Nếu là object, trích xuất tham số
+        orderStatus = params.orderStatus;
+        page = params.page || 1;
+        size = params.size || 10;
+      } else {
+        // Nếu là string, xem như orderStatus
+        orderStatus = params;
+        page = 1;
+        size = 10;
+      }
+
+      const response = await getCustomDesignOrdersApi(orderStatus, page, size);
+
+      if (response.success) {
+        return {
+          orders: response.data || [],
+          pagination: response.pagination,
+          timestamp: response.timestamp,
+          message: response.message,
+        };
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tải danh sách đơn hàng custom design");
+    }
+  }
+);
+
 const initialState = {
   orders: [],
   loading: false,
@@ -409,6 +447,7 @@ const initialState = {
     pageSize: 10,
     totalElements: 0,
   },
+  customDesignOrders: [], // Thêm state riêng cho custom design orders
 };
 
 const orderSlice = createSlice({
@@ -815,6 +854,25 @@ const orderSlice = createSlice({
       .addCase(cancelOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Fetch Custom Design Orders
+      .addCase(fetchCustomDesignOrders.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCustomDesignOrders.fulfilled, (state, action) => {
+        state.loading = false;
+        state.customDesignOrders = action.payload.orders || [];
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
+        // Lưu timestamp và message từ API response
+        state.lastUpdated = action.payload.timestamp || new Date().toISOString();
+        state.lastMessage = action.payload.message;
+      })
+      .addCase(fetchCustomDesignOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
@@ -847,3 +905,6 @@ export const selectOrdersByType = (state, orderTypes) => {
     orderTypes.includes(order.orderType)
   );
 };
+
+// Thêm selector cho custom design orders
+export const selectCustomDesignOrders = (state) => state.order.customDesignOrders;
