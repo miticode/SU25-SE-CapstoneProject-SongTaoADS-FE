@@ -8,6 +8,10 @@ import {
   addProductType, // Add this import for Redux action
   selectAddProductTypeStatus, // Add this import
   resetAddProductTypeStatus, // Add this import
+  updateProductTypeImage,
+  selectUpdateImageStatus,
+  selectUpdateImageError,
+  resetUpdateImageStatus,
 } from "../../store/features/productType/productTypeSlice";
 import {
   Box,
@@ -46,18 +50,21 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Close as CloseIcon,
   InfoOutlined as InfoOutlinedIcon,
   ArrowDropDown as ArrowDropDownIcon,
   ArrowDropUp as ArrowDropUpIcon,
   CloudUpload as UploadIcon,
   Image as ImageIcon,
+  ToggleOn as ToggleOnIcon,
+  ToggleOff as ToggleOffIcon,
+  Help as HelpIcon,
 } from "@mui/icons-material";
 import {
-  deleteProductTypeApi,
   updateProductTypeApi,
 } from "../../api/productTypeService";
+import { getPresignedUrl } from "../../api/s3Service";
+import FormulaGuide from "../../components/FormulaGuide";
 import dayjs from "dayjs";
 
 const Illustration = () => (
@@ -76,7 +83,85 @@ const Illustration = () => (
   </Box>
 );
 
-const ProductTypeManager = () => {
+// Component để hiển thị ảnh từ S3
+const ProductTypeImage = ({ imageKey }) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!imageKey || imageKey.trim() === '') {
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        const result = await getPresignedUrl(imageKey, 60); // 60 phút
+        if (result.success) {
+          setImageUrl(result.url);
+        }
+      } catch (error) {
+        console.error("Lỗi tải ảnh:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+  }, [imageKey]);
+
+  if (!imageKey || imageKey.trim() === '') {
+    return (
+      <Avatar
+        sx={{ 
+          width: 50, 
+          height: 50, 
+          bgcolor: 'grey.200',
+          borderRadius: 2 
+        }}
+        variant="rounded"
+      >
+        <ImageIcon sx={{ color: 'grey.400' }} />
+      </Avatar>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Box 
+        sx={{ 
+          width: 50, 
+          height: 50, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          borderRadius: 2,
+          bgcolor: 'grey.100'
+        }}
+      >
+        <CircularProgress size={20} />
+      </Box>
+    );
+  }
+
+  return (
+    <Avatar
+      src={imageUrl}
+      sx={{ 
+        width: 50, 
+        height: 50, 
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'grey.300'
+      }}
+      variant="rounded"
+    >
+      <ImageIcon />
+    </Avatar>
+  );
+};
+
+const ProductTypeManager = ({ setActiveTab }) => {
   const dispatch = useDispatch();
   const productTypes = useSelector(selectAllProductTypes);
   const status = useSelector(selectProductTypeStatus);
@@ -84,6 +169,10 @@ const ProductTypeManager = () => {
   
   // Add status và error cho việc tạo mới
   const addStatus = useSelector(selectAddProductTypeStatus);
+  
+  // Status và error cho việc cập nhật hình ảnh
+  const updateImageStatus = useSelector(selectUpdateImageStatus);
+  const updateImageError = useSelector(selectUpdateImageError);
   
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -99,17 +188,29 @@ const ProductTypeManager = () => {
   });
   
   const [imagePreview, setImagePreview] = useState(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [originalImage, setOriginalImage] = useState(null); // Lưu ảnh gốc
+  const [imageChanged, setImageChanged] = useState(false); // Theo dõi thay đổi ảnh
   const [editId, setEditId] = useState(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   }); 
+  const [openFormulaGuide, setOpenFormulaGuide] = useState(false); 
   useEffect(() => {
     dispatch(fetchProductTypes());
   }, [dispatch]);
+
+  // Effect để xử lý lỗi cập nhật hình ảnh
+  useEffect(() => {
+    if (updateImageError) {
+      setSnackbar({
+        open: true,
+        message: updateImageError,
+        severity: "error",
+      });
+    }
+  }, [updateImageError]);
   const handleOpenAdd = () => {
     setDialogMode("add");
     setForm({ 
@@ -134,6 +235,8 @@ const ProductTypeManager = () => {
       productTypeImage: null
     });
     setImagePreview(row.image || null);
+    setOriginalImage(row.image || null);
+    setImageChanged(false);
     setEditId(row.id);
     setOpenDialog(true);
   };
@@ -141,8 +244,11 @@ const ProductTypeManager = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setImagePreview(null);
+    setOriginalImage(null);
+    setImageChanged(false);
     // Reset add status khi đóng dialog
     dispatch(resetAddProductTypeStatus());
+    dispatch(resetUpdateImageStatus());
   };
 
   // Hàm xử lý file upload
@@ -170,6 +276,7 @@ const ProductTypeManager = () => {
       }
 
       setForm({ ...form, productTypeImage: file });
+      setImageChanged(true); // Đánh dấu ảnh đã thay đổi
       
       // Tạo preview
       const reader = new FileReader();
@@ -184,6 +291,9 @@ const ProductTypeManager = () => {
   const handleRemoveImage = () => {
     setForm({ ...form, productTypeImage: null });
     setImagePreview(null);
+    if (dialogMode === "edit") {
+      setImageChanged(true); // Đánh dấu ảnh đã thay đổi (xóa)
+    }
   };
 
   const handleSubmit = async () => {
@@ -215,13 +325,42 @@ const ProductTypeManager = () => {
         });
       }
     } else if (dialogMode === "edit" && editId) {
-      const res = await updateProductTypeApi(editId, {
-        name: form.name,
-        calculateFormula: form.calculateFormula,
-        isAiGenerated: form.isAiGenerated,
-        isAvailable: form.isAvailable,
-      });
-      if (res.success) {
+      try {
+        // Cập nhật thông tin cơ bản
+        const res = await updateProductTypeApi(editId, {
+          name: form.name,
+          calculateFormula: form.calculateFormula,
+          isAiGenerated: form.isAiGenerated,
+          isAvailable: form.isAvailable,
+        });
+
+        if (!res.success) {
+          setSnackbar({
+            open: true,
+            message: res.error || "Cập nhật thông tin thất bại",
+            severity: "error",
+          });
+          return;
+        }
+
+        // Nếu hình ảnh có thay đổi, cập nhật hình ảnh
+        if (imageChanged && form.productTypeImage) {
+          const imageResult = await dispatch(updateProductTypeImage({
+            productTypeId: editId,
+            imageFile: form.productTypeImage,
+          }));
+
+          if (!updateProductTypeImage.fulfilled.match(imageResult)) {
+            setSnackbar({
+              open: true,
+              message: imageResult.payload || "Cập nhật hình ảnh thất bại",
+              severity: "error",
+            });
+            return;
+          }
+        }
+
+        // Refresh danh sách sau khi cập nhật thành công
         dispatch(fetchProductTypes());
         setSnackbar({
           open: true,
@@ -229,46 +368,53 @@ const ProductTypeManager = () => {
           severity: "success",
         });
         setOpenDialog(false);
-      } else {
+      } catch (error) {
+        console.error("Update error:", error);
         setSnackbar({
           open: true,
-          message: res.error || "Update failed",
+          message: "Có lỗi xảy ra khi cập nhật!",
           severity: "error",
         });
       }
     }
   };
 
-  const handleDelete = (row) => {
-    setDeleteTarget(row);
-    setConfirmOpen(true);
-  };
+  const handleToggleStatus = async (row) => {
+    try {
+      const newStatus = !row.isAvailable;
+      const res = await updateProductTypeApi(row.id, {
+        name: row.name,
+        calculateFormula: row.calculateFormula,
+        isAiGenerated: row.isAiGenerated,
+        isAvailable: newStatus,
+      });
 
-  const handleConfirmDelete = async () => {
-    if (deleteTarget) {
-      const res = await deleteProductTypeApi(deleteTarget.id);
       if (res.success) {
         dispatch(fetchProductTypes());
         setSnackbar({
           open: true,
-          message: "Xóa thành công!",
+          message: `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} thành công!`,
           severity: "success",
         });
       } else {
         setSnackbar({
           open: true,
-          message: res.error || "Delete failed",
+          message: res.error || "Cập nhật trạng thái thất bại",
           severity: "error",
         });
       }
+    } catch (error) {
+      console.error("Toggle status error:", error);
+      setSnackbar({
+        open: true,
+        message: "Có lỗi xảy ra khi cập nhật trạng thái!",
+        severity: "error",
+      });
     }
-    setConfirmOpen(false);
-    setDeleteTarget(null);
   };
 
-  const handleCancelDelete = () => {
-    setConfirmOpen(false);
-    setDeleteTarget(null);
+  const handleFormulaGuide = () => {
+    setOpenFormulaGuide(true);
   };
 
   return (
@@ -309,6 +455,7 @@ const ProductTypeManager = () => {
         <Table stickyHeader>
           <TableHead>
             <TableRow sx={{ backgroundColor: "#e8f5e9" }}>
+              <TableCell sx={{ fontWeight: 700 }}>Hình ảnh</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Tên</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>
                 Công thức tính toán
@@ -324,7 +471,7 @@ const ProductTypeManager = () => {
           <TableBody>
             {productTypes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   <Illustration />
                 </TableCell>
               </TableRow>
@@ -338,21 +485,46 @@ const ProductTypeManager = () => {
                     ":hover": { bgcolor: "#f1f8e9" },
                   }}
                 >
+                  <TableCell>
+                    <ProductTypeImage imageKey={row.image} />
+                  </TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontFamily: "monospace",
-                        maxWidth: 200,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={row.calculateFormula || "Không có công thức"}
-                    >
-                      {row.calculateFormula || "Không có công thức"}
-                    </Typography>
+                    {row.calculateFormula && row.calculateFormula.trim() !== "" ? (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: "monospace",
+                          maxWidth: 200,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={row.calculateFormula}
+                      >
+                        {row.calculateFormula}
+                      </Typography>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<HelpIcon />}
+                        onClick={handleFormulaGuide}
+                        sx={{
+                          textTransform: "none",
+                          fontSize: "0.75rem",
+                          borderRadius: 1,
+                          color: "primary.main",
+                          borderColor: "primary.main",
+                          "&:hover": {
+                            backgroundColor: "primary.main",
+                            color: "white",
+                          },
+                        }}
+                      >
+                        Hướng dẫn tạo công thức
+                      </Button>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -384,11 +556,12 @@ const ProductTypeManager = () => {
                       <EditIcon />
                     </IconButton>
                     <IconButton
-                      color="error"
-                      onClick={() => handleDelete(row)}
+                      color={row.isAvailable ? "success" : "error"}
+                      onClick={() => handleToggleStatus(row)}
                       sx={{ borderRadius: 2 }}
+                      title={row.isAvailable ? "Vô hiệu hóa" : "Kích hoạt"}
                     >
-                      <DeleteIcon />
+                      {row.isAvailable ? <ToggleOnIcon /> : <ToggleOffIcon />}
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -596,8 +769,11 @@ const ProductTypeManager = () => {
               onClick={handleSubmit}
               variant="contained"
               size="large"
-              disabled={!form.name || addStatus === "loading"}
-              startIcon={addStatus === "loading" ? <CircularProgress size={20} /> : null}
+              disabled={!form.name || addStatus === "loading" || updateImageStatus === "loading"}
+              startIcon={
+                (addStatus === "loading" || updateImageStatus === "loading") ? 
+                <CircularProgress size={20} /> : null
+              }
               sx={{
                 borderRadius: 1.5,
                 px: 3,
@@ -606,7 +782,7 @@ const ProductTypeManager = () => {
                 fontWeight: 500,
               }}
             >
-              {addStatus === "loading" 
+              {(addStatus === "loading" || updateImageStatus === "loading")
                 ? (dialogMode === "edit" ? "Đang lưu..." : "Đang thêm...") 
                 : (dialogMode === "edit" ? "Lưu thay đổi" : "Thêm loại biển hiệu")
               }
@@ -615,48 +791,12 @@ const ProductTypeManager = () => {
         </Box>
       </Dialog>
 
-      {/* Confirm Delete Dialog */}
-      <Dialog
-        open={confirmOpen}
-        onClose={handleCancelDelete}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-          },
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 600 }}>Xác nhận xóa</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Bạn có chắc chắn muốn xóa loại sản phẩm này không?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={handleCancelDelete}
-            sx={{
-              borderRadius: 1.5,
-              textTransform: "none",
-            }}
-          >
-            Hủy
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color="error"
-            variant="contained"
-            sx={{
-              borderRadius: 1.5,
-              textTransform: "none",
-              fontWeight: 500,
-            }}
-          >
-            Xóa
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Formula Guide Dialog */}
+      <FormulaGuide 
+        open={openFormulaGuide} 
+        onClose={() => setOpenFormulaGuide(false)}
+        onNavigate={(pageId) => setActiveTab?.(pageId)}
+      />
 
       <Snackbar
         open={snackbar.open}

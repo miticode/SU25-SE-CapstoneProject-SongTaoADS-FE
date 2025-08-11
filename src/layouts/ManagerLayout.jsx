@@ -119,20 +119,6 @@ const menuItems = [
     ],
   },
   {
-    id: "design-template",
-    text: "Quản lý Thiết Kế Mẫu",
-    icon: <ImageIcon />,
-    color: "#9c27b0",
-    description: "Quản lý template thiết kế",
-  },
-  {
-    id: "background-management",
-    text: "Quản lý Nền Mẫu",
-    icon: <ImageIcon />,
-    color: "#e91e63",
-    description: "Quản lý background mẫu",
-  },
-  {
     id: "size-management",
     text: "Quản lý kích thước",
     icon: <StraightenIcon />,
@@ -145,6 +131,20 @@ const menuItems = [
     icon: <ManageAccountsIcon />,
     color: "#795548",
     description: "Quản lý các loại chi phí",
+  },
+  {
+    id: "design-template",
+    text: "Quản lý Thiết Kế Mẫu",
+    icon: <ImageIcon />,
+    color: "#9c27b0",
+    description: "Quản lý template thiết kế",
+  },
+  {
+    id: "background-management",
+    text: "Quản lý Nền Mẫu",
+    icon: <ImageIcon />,
+    color: "#e91e63",
+    description: "Quản lý background mẫu",
   },
   {
     id: "contractor-management",
@@ -253,7 +253,7 @@ const ManagerLayout = () => {
         <Toolbar sx={{ minHeight: "70px !important" }}>
           <IconButton
             color="inherit"
-            onClick={handleDrawerToggle}
+            onClick={isMobile ? handleDrawerToggle : undefined}
             edge="start"
             sx={{
               mr: 2,
@@ -263,6 +263,8 @@ const ManagerLayout = () => {
                 transform: "scale(1.05)",
               },
               transition: "all 0.3s ease",
+              cursor: isMobile ? "pointer" : "default",
+              opacity: isMobile ? 1 : 0.5,
             }}
           >
             <MenuIcon />
@@ -483,7 +485,7 @@ const ManagerLayout = () => {
           {!isMobile && (
             <Box
               display="flex"
-              justifyContent="space-between"
+              justifyContent="center"
               alignItems="center"
               px={2}
               mb={2}
@@ -499,20 +501,6 @@ const ManagerLayout = () => {
               >
                 Manager Panel
               </Typography>
-              <IconButton
-                onClick={handleDrawerToggle}
-                size="small"
-                sx={{
-                  backgroundColor: "#e2e8f0",
-                  "&:hover": {
-                    backgroundColor: "#cbd5e1",
-                    transform: "rotate(180deg)",
-                  },
-                  transition: "all 0.3s ease",
-                }}
-              >
-                <ChevronLeftIcon fontSize="small" />
-              </IconButton>
             </Box>
           )}
 
@@ -756,6 +744,12 @@ const ManagerLayout = () => {
           height: "calc(100vh - 64px)",
           overflow: "auto",
           position: "relative",
+          marginLeft: !isMobile && open ? 0 : 0,
+          width: !isMobile ? (open ? `calc(100% - ${drawerWidth}px)` : '100%') : '100%',
+          transition: theme.transitions.create(['margin', 'width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
           "&::before": {
             content: '""',
             position: "absolute",
@@ -775,7 +769,7 @@ const ManagerLayout = () => {
         <Toolbar sx={{ minHeight: "70px !important" }} />
         <Box sx={{ position: "relative", zIndex: 1 }}>
           {activeTab === "order-management" && <OrderManager />}
-          {activeTab === "product-type" && <ProductTypeManager />}
+          {activeTab === "product-type" && <ProductTypeManager setActiveTab={setActiveTab} />}
           {activeTab === "product-size" && <ProductSizeManager />}
           {activeTab === "fine-tune-ai" && <ManagerFineTuneAI />}
           {activeTab === "size-management" && <SizeManager />}
@@ -786,7 +780,7 @@ const ManagerLayout = () => {
           {activeTab === "design-template" && <DesignTemplateManager />}
           {activeTab === "background-management" && <BackgroundManager />}
           {activeTab === "cost-type-management" && <CostTypeManager />}
-          {activeTab === "support-ticket" && <Outlet context={{ activeTab }} />}
+          {activeTab === "support-ticket" && <Outlet context={{ activeTab, setActiveTab }} />}
           {activeTab === "support-system" && <SupportManager />}
           {activeTab === "contractor-management" && <ContractorManagement />}
           {activeTab !== "order-management" &&
@@ -802,7 +796,7 @@ const ManagerLayout = () => {
             activeTab !== "support-ticket" &&
             activeTab !== "support-system" &&
             activeTab !== "contractor-management" && (
-              <Outlet context={{ activeTab }} />
+              <Outlet context={{ activeTab, setActiveTab }} />
             )}
         </Box>
       </Box>
