@@ -61,7 +61,6 @@ import { useSelector as useAuthSelector } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 
-
 const DesignRequests = () => {
   const dispatch = useDispatch();
   const { user } = useAuthSelector((state) => state.auth);
@@ -78,11 +77,12 @@ const DesignRequests = () => {
 
   // Component để hiển thị thông tin file trong tooltip
   const FileInfoTooltip = ({ fileInfo }) => {
-    if (!fileInfo) return <Typography variant="body2">Không có thông tin file</Typography>;
-    
+    if (!fileInfo)
+      return <Typography variant="body2">Không có thông tin file</Typography>;
+
     return (
       <Box sx={{ p: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
           Thông tin file:
         </Typography>
         {fileInfo.name && (
@@ -91,10 +91,10 @@ const DesignRequests = () => {
           </Typography>
         )}
         <Typography variant="body2" sx={{ mb: 0.5 }}>
-          <strong>Content Type:</strong> {fileInfo.contentType || "N/A"}
+          <strong>Content Type:</strong> {fileInfo.contentType || ""}
         </Typography>
         <Typography variant="body2" sx={{ mb: 0.5 }}>
-          <strong>File Type:</strong> {fileInfo.fileType || "N/A"}
+          <strong>File Type:</strong> {fileInfo.fileType || ""}
         </Typography>
         <Typography variant="body2">
           <strong>File Size:</strong> {formatFileSize(fileInfo.fileSize)}
@@ -136,10 +136,9 @@ const DesignRequests = () => {
   const [openFinalDesignDialog, setOpenFinalDesignDialog] = useState(false);
   const [finalDesignForm, setFinalDesignForm] = useState({
     finalDesignImage: null,
-    subFinalDesignImages: []
+    subFinalDesignImages: [],
   });
   const [finalDesignError, setFinalDesignError] = useState("");
-
 
   // State để lưu S3 URLs cho sub-images
   const [s3ImageUrls, setS3ImageUrls] = useState({});
@@ -156,8 +155,8 @@ const DesignRequests = () => {
   // State cho image viewer
   const [imageViewer, setImageViewer] = useState({
     open: false,
-    imageUrl: '',
-    title: ''
+    imageUrl: "",
+    title: "",
   });
 
   // Lấy sub-images cho demo hiện tại
@@ -269,10 +268,10 @@ const DesignRequests = () => {
                     ...prev,
                     [id]: {
                       companyName: detail.companyName || "Không rõ",
-                      avatar: detail.users?.avatar || null
+                      avatar: detail.users?.avatar || null,
                     },
                   }));
-                  
+
                   // Fetch avatar từ S3 nếu có
                   if (detail.users?.avatar) {
                     getPresignedUrl(detail.users.avatar)
@@ -280,7 +279,7 @@ const DesignRequests = () => {
                         if (result.success) {
                           setCustomerAvatars((prev) => ({
                             ...prev,
-                            [id]: result.url
+                            [id]: result.url,
                           }));
                         }
                       })
@@ -290,9 +289,9 @@ const DesignRequests = () => {
                   }
                 })
                 .catch(() => {
-                  setCustomerDetails((prev) => ({ 
-                    ...prev, 
-                    [id]: { companyName: "Không rõ", avatar: null } 
+                  setCustomerDetails((prev) => ({
+                    ...prev,
+                    [id]: { companyName: "Không rõ", avatar: null },
                   }));
                 });
             }
@@ -305,7 +304,7 @@ const DesignRequests = () => {
   }, [designerId, dispatch, pagination.currentPage, pagination.pageSize]);
 
   // ===== CÁC FUNCTION REFRESH =====
-  
+
   // Refresh danh sách yêu cầu thiết kế
   const refreshDesignRequestsData = async () => {
     if (designerId) {
@@ -460,7 +459,10 @@ const DesignRequests = () => {
           }
         }
         if (Object.keys(newFinalDesignS3Urls).length > 0) {
-          setFinalDesignS3Urls((prev) => ({ ...prev, ...newFinalDesignS3Urls }));
+          setFinalDesignS3Urls((prev) => ({
+            ...prev,
+            ...newFinalDesignS3Urls,
+          }));
         }
       }
     };
@@ -470,7 +472,11 @@ const DesignRequests = () => {
   // Fetch S3 URL cho final design main image
   useEffect(() => {
     const fetchFinalDesignMainS3Url = async () => {
-      if (selectedRequest && selectedRequest.finalDesignImage && !finalDesignMainS3Url) {
+      if (
+        selectedRequest &&
+        selectedRequest.finalDesignImage &&
+        !finalDesignMainS3Url
+      ) {
         try {
           const result = await dispatch(
             fetchImageFromS3(selectedRequest.finalDesignImage)
@@ -588,7 +594,7 @@ const DesignRequests = () => {
   const handleOpenFinalDesignDialog = () => {
     setFinalDesignForm({
       finalDesignImage: null,
-      subFinalDesignImages: []
+      subFinalDesignImages: [],
     });
     setFinalDesignError("");
     setOpenFinalDesignDialog(true);
@@ -602,7 +608,9 @@ const DesignRequests = () => {
   const handleRemoveFinalDesignSubImage = (index) => {
     setFinalDesignForm((prev) => ({
       ...prev,
-      subFinalDesignImages: prev.subFinalDesignImages.filter((_, i) => i !== index),
+      subFinalDesignImages: prev.subFinalDesignImages.filter(
+        (_, i) => i !== index
+      ),
     }));
   };
   const handleSubmitFinalDesign = async () => {
@@ -636,14 +644,12 @@ const DesignRequests = () => {
     setActionLoading(false);
   };
 
-
-
   // Hàm mở image viewer
   const handleOpenImageViewer = (imageUrl, title) => {
     setImageViewer({
       open: true,
       imageUrl,
-      title
+      title,
     });
   };
 
@@ -651,350 +657,433 @@ const DesignRequests = () => {
   const handleCloseImageViewer = () => {
     setImageViewer({
       open: false,
-      imageUrl: '',
-      title: ''
+      imageUrl: "",
+      title: "",
     });
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
-      {/* Header Section */}
-      <Card sx={{ 
-        mb: 3, 
-        background: "linear-gradient(135deg, #0F172A 0%, #0F172A 50%, #0F172A 100%)",
-        color: "white",
-        borderRadius: 3,
-        overflow: "hidden",
-        position: "relative",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
+    <>
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        {/* Header Section */}
+        <Card
+          sx={{
+            mb: 3,
+            background:
+              "linear-gradient(135deg, #0F172A 0%, #0F172A 50%, #0F172A 100%)",
+            color: "white",
+            borderRadius: 3,
+            overflow: "hidden",
+            position: "relative",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `
             radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
             radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
           `,
-          pointerEvents: "none",
-        },
-      }}>
-        <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
-          <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-            <Avatar sx={{ 
-              bgcolor: "rgba(255, 255, 255, 0.2)", 
-              width: 56, 
-              height: 56,
-              border: "2px solid rgba(255, 255, 255, 0.3)"
-            }}>
-              <AssignmentIcon sx={{ fontSize: 28 }} />
-            </Avatar>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Yêu Cầu Thiết Kế Được Giao
-              </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                Quản lý và xử lý các yêu cầu thiết kế được phân công
-              </Typography>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
-      {status === "loading" ? (
-        <Box display="flex" justifyContent="center" py={8}>
-          <CircularProgress 
-            size={48}
-            sx={{ 
-              color: '#0F172A',
-              '& .MuiCircularProgress-circle': {
-                strokeLinecap: 'round'
-              }
-            }}
-          />
-        </Box>
-      ) : error ? (
-        <Alert 
-          severity="error"
-          sx={{
-            borderRadius: 3,
-            fontSize: '1rem',
-            fontWeight: 500,
-            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)'
+              pointerEvents: "none",
+            },
           }}
         >
-          {error}
-        </Alert>
-      ) : requests.length === 0 ? (
-        <Alert 
-          severity="info"
-          sx={{
-            borderRadius: 3,
-            fontSize: '1rem',
-            fontWeight: 500,
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
-            bgcolor: '#eff6ff',
-            border: '1px solid #bfdbfe'
-          }}
-        >
-          Không có yêu cầu thiết kế nào được giao.
-        </Alert>
-      ) : (
-        <>
-          <Card sx={{ borderRadius: 3, overflow: "hidden", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}>
-            <CardContent sx={{ p: 0 }}>
-              <Box sx={{ p: 3, bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: "#0f172a" }}>
-                  Danh sách yêu cầu thiết kế
+          <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
+            <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+              <Avatar
+                sx={{
+                  bgcolor: "rgba(255, 255, 255, 0.2)",
+                  width: 56,
+                  height: 56,
+                  border: "2px solid rgba(255, 255, 255, 0.3)",
+                }}
+              >
+                <AssignmentIcon sx={{ fontSize: 28 }} />
+              </Avatar>
+              <Box>
+                <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Yêu Cầu Thiết Kế Được Giao
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Tổng cộng {requests.length} yêu cầu được giao
+                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                  Quản lý và xử lý các yêu cầu thiết kế được phân công
                 </Typography>
               </Box>
-              <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ 
-                  bgcolor: '#0F172A',
-                  '& th': {
-                    borderBottom: '2px solid #1e293b',
-                    py: 3
-                  }
-                }}>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Mã yêu cầu
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Yêu cầu
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Ngày tạo
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Khách hàng
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Tổng tiền
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Trạng thái
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Cần hỗ trợ 
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                    Thao tác
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {requests.map((request, idx) => (
-                  <TableRow 
-                    key={request.id} 
-                    sx={{
-                      transition: 'all 0.2s ease-in-out',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: '#f8fafc',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                        '& .action-button': {
-                          transform: 'scale(1.05)',
-                          boxShadow: '0 6px 20px rgba(15, 23, 42, 0.3)'
-                        }
-                      },
-                      '&:nth-of-type(odd)': {
-                        bgcolor: '#fafafa'
-                      },
-                      '&:nth-of-type(odd):hover': {
-                        bgcolor: '#f1f5f9'
-                      },
-                      borderBottom: '1px solid #e2e8f0'
-                    }}
-                  >
-                    <TableCell sx={{ 
-                      py: 3, 
-                      fontSize: '0.95rem',
-                      color: '#1976d2',
-                      fontWeight: 600,
-                      fontFamily: 'monospace'
-                    }}>
-                      {request.code || ''}
-                    </TableCell>
-                    <TableCell sx={{ 
-                      py: 3, 
-                      fontSize: '0.95rem',
-                      color: '#1e293b',
-                      maxWidth: 300,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {request.requirements}
-                    </TableCell>
-                    <TableCell sx={{ 
-                      py: 3, 
-                      fontSize: '0.95rem',
-                      color: '#64748b',
-                      fontWeight: 500
-                    }}>
-                      {request.createdAt ? new Date(request.createdAt).toLocaleDateString("vi-VN") : "N/A"}
-                    </TableCell>
-                    <TableCell sx={{ 
-                      py: 3, 
-                      fontSize: '0.95rem',
-                      color: '#0F172A',
-                      fontWeight: 600
-                    }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar
-                          src={customerAvatars[
-                            typeof request.customerDetail === "object" &&
-                            request.customerDetail !== null
-                              ? request.customerDetail.id
-                              : request.customerDetail
-                          ]}
-                          sx={{ 
-                            width: 40, 
-                            height: 40,
-                            bgcolor: '#0F172A',
-                            color: 'white',
-                            fontWeight: 600,
-                            fontSize: '0.9rem'
-                          }}
-                        >
-                          {customerDetails[
-                            typeof request.customerDetail === "object" &&
-                            request.customerDetail !== null
-                              ? request.customerDetail.id
-                              : request.customerDetail
-                          ]?.companyName?.charAt(0) || "?"}
-                        </Avatar>
-                        <Typography variant="body2" fontWeight={600}>
-                          {customerDetails[
-                            typeof request.customerDetail === "object" &&
-                            request.customerDetail !== null
-                              ? request.customerDetail.id
-                              : request.customerDetail
-                          ]?.companyName || "Đang tải..."}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ 
-                      py: 3, 
-                      fontSize: '1rem',
-                      color: '#059669',
-                      fontWeight: 700
-                    }}>
-                      {request.totalPrice?.toLocaleString("vi-VN") || 0}₫
-                    </TableCell>
-                    <TableCell sx={{ py: 3 }}>
-                      <Chip
-                        label={
-                          CUSTOM_DESIGN_STATUS_MAP[request.status]?.label ||
-                          request.status
-                        }
-                        color={CUSTOM_DESIGN_STATUS_MAP[request.status]?.color || "default"}
-                        sx={{ 
-                          fontWeight: 600,
-                          fontSize: '0.9rem',
-                          px: 2,
-                          py: 1,
-                          height: 'auto',
-                          borderRadius: 2,
-                          '&:hover': {
-                            bgcolor: '#1e293b'
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 3 }}>
-                      <Chip
-                        label={request.isNeedSupport ? "Có" : "Không"}
-                        sx={{ 
-                          fontWeight: 600,
-                          fontSize: '0.9rem',
-                          px: 2,
-                          py: 1,
-                          height: 'auto',
-                          borderRadius: 2,
-                          bgcolor: request.isNeedSupport ? '#dc2626' : '#059669',
-                          color: 'white',
-                          '&:hover': {
-                            bgcolor: request.isNeedSupport ? '#b91c1c' : '#047857'
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 3 }}>
-                      <Button
-                        variant="contained"
-                        size="medium"
-                        className="action-button"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setOpenDialog(true);
-                        }}
-                        sx={{
-                          borderRadius: 3,
-                          px: 4,
-                          py: 1.5,
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          bgcolor: '#0F172A',
-                          color: 'white',
-                          letterSpacing: '-0.01em',
-                          transition: 'all 0.2s ease-in-out',
-                          boxShadow: '0 2px 8px rgba(15, 23, 42, 0.2)',
-                          '&:hover': {
-                            bgcolor: '#1e293b',
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 8px 25px rgba(15, 23, 42, 0.3)'
-                          }
-                        }}
-                      >
-                        Xem chi tiết
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-            </CardContent>
-          </Card>
-          <Box display="flex" justifyContent="center" mt={4}>
-            <Pagination
-              count={pagination.totalPages}
-              page={pagination.currentPage}
-              onChange={handlePageChange}
-              color="primary"
+            </Stack>
+          </CardContent>
+        </Card>
+        {status === "loading" ? (
+          <Box display="flex" justifyContent="center" py={8}>
+            <CircularProgress
+              size={48}
               sx={{
-                '& .MuiPaginationItem-root': {
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-                  }
+                color: "#0F172A",
+                "& .MuiCircularProgress-circle": {
+                  strokeLinecap: "round",
                 },
-                '& .MuiPaginationItem-page': {
-                  '&.Mui-selected': {
-                    bgcolor: '#0F172A',
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: '#1e293b'
-                    }
-                  }
-                }
               }}
             />
           </Box>
-        </>
-      )}
-      
+        ) : error ? (
+          <Alert
+            severity="error"
+            sx={{
+              borderRadius: 3,
+              fontSize: "1rem",
+              fontWeight: 500,
+              boxShadow: "0 4px 12px rgba(220, 38, 38, 0.15)",
+            }}
+          >
+            {error}
+          </Alert>
+        ) : requests.length === 0 ? (
+          <Alert
+            severity="info"
+            sx={{
+              borderRadius: 3,
+              fontSize: "1rem",
+              fontWeight: 500,
+              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.15)",
+              bgcolor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+            }}
+          >
+            Không có yêu cầu thiết kế nào được giao.
+          </Alert>
+        ) : (
+          <>
+            <Card
+              sx={{
+                borderRadius: 3,
+                overflow: "hidden",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+              }}
+            >
+              <CardContent sx={{ p: 0 }}>
+                <Box
+                  sx={{
+                    p: 2.5,
+                    bgcolor: "#f8fafc",
+                    borderBottom: "1px solid #e2e8f0",
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, color: "#1f2937", mb: 0.5 }}
+                  >
+                    Danh sách yêu cầu thiết kế
+                  </Typography>
+                  <Typography variant="body2" color="#64748b">
+                    Tổng cộng {requests.length} yêu cầu được giao
+                  </Typography>
+                </Box>
+                <TableContainer>
+                  <Table sx={{ minWidth: 650 }}>
+                    <TableHead>
+                      <TableRow
+                        sx={{
+                          bgcolor:
+                            "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
+                          background:
+                            "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
+                        }}
+                      >
+                        <TableCell
+                          sx={{
+                            fontWeight: 700,
+                            color: "#ffffff",
+                            fontSize: "0.875rem",
+                            py: 2.5,
+                            borderBottom: "2px solid #1d4ed8",
+                            fontFamily: "'Inter', sans-serif",
+                            letterSpacing: "0.025em",
+                          }}
+                        >
+                          Mã yêu cầu
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontWeight: 700,
+                            color: "#ffffff",
+                            fontSize: "0.875rem",
+                            py: 2.5,
+                            borderBottom: "2px solid #1d4ed8",
+                            fontFamily: "'Inter', sans-serif",
+                            letterSpacing: "0.025em",
+                          }}
+                        >
+                          Khách hàng
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontWeight: 700,
+                            color: "#ffffff",
+                            fontSize: "0.875rem",
+                            py: 2.5,
+                            borderBottom: "2px solid #1d4ed8",
+                            fontFamily: "'Inter', sans-serif",
+                            letterSpacing: "0.025em",
+                          }}
+                        >
+                          Yêu cầu
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontWeight: 700,
+                            color: "#ffffff",
+                            fontSize: "0.875rem",
+                            py: 2.5,
+                            borderBottom: "2px solid #1d4ed8",
+                            fontFamily: "'Inter', sans-serif",
+                            letterSpacing: "0.025em",
+                          }}
+                        >
+                          Trạng thái
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontWeight: 700,
+                            color: "#ffffff",
+                            fontSize: "0.875rem",
+                            py: 2.5,
+                            borderBottom: "2px solid #1d4ed8",
+                            textAlign: "center",
+                            fontFamily: "'Inter', sans-serif",
+                            letterSpacing: "0.025em",
+                          }}
+                        >
+                          Thao tác
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {requests.map((request) => (
+                        <TableRow
+                          key={request.id}
+                          sx={{
+                            "&:hover": {
+                              bgcolor: "#f9fafb",
+                            },
+                            borderBottom: "1px solid #f3f4f6",
+                          }}
+                        >
+                          <TableCell
+                            sx={{
+                              py: 2.5,
+                              fontSize: "0.875rem",
+                              color: "#1d4ed8",
+                              fontWeight: 700,
+                              fontFamily: "'Fira Code', 'Monaco', monospace",
+                            }}
+                          >
+                            {request.code || ""}
+                          </TableCell>
+                          <TableCell sx={{ py: 2.5 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1.5,
+                              }}
+                            >
+                              <Avatar
+                                src={
+                                  customerAvatars[
+                                    typeof request.customerDetail ===
+                                      "object" &&
+                                    request.customerDetail !== null
+                                      ? request.customerDetail.id
+                                      : request.customerDetail
+                                  ]
+                                }
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  bgcolor: "#e5e7eb",
+                                  color: "#374151",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {customerDetails[
+                                  typeof request.customerDetail === "object" &&
+                                  request.customerDetail !== null
+                                    ? request.customerDetail.id
+                                    : request.customerDetail
+                                ]?.companyName?.charAt(0) || "?"}
+                              </Avatar>
+                              <Box>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 500,
+                                    color: "#1f2937",
+                                    fontSize: "0.875rem",
+                                  }}
+                                >
+                                  {customerDetails[
+                                    typeof request.customerDetail ===
+                                      "object" &&
+                                    request.customerDetail !== null
+                                      ? request.customerDetail.id
+                                      : request.customerDetail
+                                  ]?.companyName || "Đang tải..."}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              py: 2.5,
+                              fontSize: "0.875rem",
+                              color: "#4b5563",
+                              maxWidth: 200,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {request.requirements || "Chưa có mô tả"}
+                          </TableCell>
+                          <TableCell sx={{ py: 2.5 }}>
+                            <Chip
+                              label={
+                                CUSTOM_DESIGN_STATUS_MAP[request.status]
+                                  ?.label || request.status
+                              }
+                              size="small"
+                              color={
+                                CUSTOM_DESIGN_STATUS_MAP[request.status]
+                                  ?.color || "default"
+                              }
+                              sx={{
+                                fontWeight: 500,
+                                fontSize: "0.75rem",
+                                height: 24,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ py: 2.5, textAlign: "center" }}>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setOpenDialog(true);
+                              }}
+                              sx={{
+                                fontSize: "0.75rem",
+                                px: 2,
+                                py: 0.5,
+                                minWidth: "auto",
+                                borderColor: "#d1d5db",
+                                color: "#374151",
+                                "&:hover": {
+                                  borderColor: "#9ca3af",
+                                  bgcolor: "#f9fafb",
+                                },
+                              }}
+                            >
+                              Chi tiết
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+
+            {/* Pagination Control */}
+            {pagination.totalPages > 1 && (
+              <Card
+                sx={{
+                  mt: 3,
+                  borderRadius: 2,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                }}
+              >
+                <CardContent sx={{ py: 3 }}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    flexWrap="wrap"
+                    gap={2}
+                  >
+                    <Typography
+                      variant="body2"
+                      color="#6b7280"
+                      sx={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      Hiển thị{" "}
+                      {(pagination.currentPage - 1) * pagination.pageSize + 1} -{" "}
+                      {Math.min(
+                        pagination.currentPage * pagination.pageSize,
+                        pagination.totalElements || 0
+                      )}{" "}
+                      của {pagination.totalElements || 0} kết quả
+                    </Typography>
+
+                    <Pagination
+                      count={pagination.totalPages}
+                      page={pagination.currentPage}
+                      onChange={handlePageChange}
+                      color="primary"
+                      size="medium"
+                      showFirstButton
+                      showLastButton
+                      sx={{
+                        "& .MuiPaginationItem-root": {
+                          borderRadius: 1.5,
+                          fontWeight: 500,
+                          fontSize: "0.875rem",
+                          fontFamily: "'Inter', sans-serif",
+                          border: "1px solid #e5e7eb",
+                          color: "#374151",
+                          transition: "all 0.2s ease",
+                          "&:hover": {
+                            borderColor: "#3b82f6",
+                            bgcolor: "#f0f9ff",
+                            transform: "translateY(-1px)",
+                          },
+                        },
+                        "& .MuiPaginationItem-page": {
+                          "&.Mui-selected": {
+                            bgcolor: "#3b82f6",
+                            color: "white",
+                            borderColor: "#3b82f6",
+                            "&:hover": {
+                              bgcolor: "#2563eb",
+                              borderColor: "#2563eb",
+                            },
+                          },
+                        },
+                        "& .MuiPaginationItem-previousNext": {
+                          "&:hover": {
+                            bgcolor: "#f3f4f6",
+                          },
+                        },
+                        "& .MuiPaginationItem-firstLast": {
+                          "&:hover": {
+                            bgcolor: "#f3f4f6",
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+      </Container>
+
       {/* Dialog hiển thị chi tiết yêu cầu */}
       <Dialog
         open={openDialog}
@@ -1003,1140 +1092,1123 @@ const DesignRequests = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 2,
-            overflow: 'hidden'
-          }
+            borderRadius: 0,
+            maxHeight: "80vh",
+            height: "auto",
+            m: 0,
+          },
         }}
       >
-        <DialogTitle 
-          sx={{ 
-            bgcolor: '#0F172A',
-            color: 'white',
-            textAlign: 'center',
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+            color: "white",
+            textAlign: "center",
             fontWeight: 600,
-            fontSize: '1.25rem',
+            fontSize: "1.25rem",
             py: 2.5,
-            letterSpacing: '0.25px'
+            letterSpacing: "0.25px",
           }}
         >
           Chi tiết yêu cầu thiết kế
         </DialogTitle>
-        <DialogContent sx={{ p: 0, maxHeight: '75vh', overflow: 'auto' }}>
+        <DialogContent sx={{ p: 0, bgcolor: "#ffffff", overflowX: "hidden" }}>
           {selectedRequest && (
-            <Box>
-              {/* Demo Section */}
-                {latestDemo && (
-                <Card 
-                  sx={{ 
-                    m: 0, 
-                    borderRadius: 0,
-                    bgcolor: '#f8fafc',
-                    border: 'none',
-                    boxShadow: 'none',
-                    borderBottom: '1px solid #e2e8f0'
-                  }}
-                >
-                  <CardContent sx={{ p: 4 }}>
-                    <Box mb={3}>
-                      <Typography 
-                        variant="h5" 
-                        fontWeight={600} 
-                        color="#0F172A"
-                        mb={1}
-                        letterSpacing="-0.015em"
-                      >
-                        Demo Thiết Kế
-                    </Typography>
-                      <Typography variant="body2" color="#64748b" fontSize="0.95rem">
-                        Bản thiết kế mẫu đã được gửi cho khách hàng
-                    </Typography>
-                    </Box>
-
-                    <Box mb={3}>
-                      <Typography 
-                        variant="subtitle1" 
-                        fontWeight={600} 
-                        mb={1.5} 
-                        color="#0F172A"
-                        letterSpacing="-0.01em"
-                      >
-                        Mô tả thiết kế
-                      </Typography>
-                      <Paper 
-                        elevation={0} 
-                        sx={{ 
-                          p: 3, 
-                          bgcolor: 'white',
-                          borderRadius: 2,
-                          border: '1px solid #e2e8f0',
-                          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-                        }}
-                      >
-                        <Typography variant="body2" lineHeight={1.6} color="#374151">
-                          {latestDemo.designerDescription || "Chưa có mô tả chi tiết"}
-                        </Typography>
-                      </Paper>
-                    </Box>
-
-                    {/* Main Demo Image */}
-                    {latestDemo.demoImage && (
-                      <Box mb={4}>
-                        <Typography 
-                          variant="subtitle1" 
-                          fontWeight={600} 
-                          mb={2} 
-                          color="#0F172A"
-                          letterSpacing="-0.01em"
-                        >
-                          Hình ảnh demo chính
-                        </Typography>
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2,
-                            display: 'inline-block',
-                            borderRadius: 3,
-                            bgcolor: 'white',
-                            border: '1px solid #e2e8f0',
-                            boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.1)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease-in-out',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 20px -3px rgba(0, 0, 0, 0.15)',
-                            }
-                          }}
-                          onClick={() => mainDemoS3Url && handleOpenImageViewer(mainDemoS3Url, 'Demo thiết kế chính')}
-                        >
-                        {mainDemoS3Url ? (
-                          <img
-                            src={mainDemoS3Url}
-                              alt="Demo thiết kế"
-                            style={{
-                                maxWidth: '100%',
-                                height: 'auto',
-                                maxHeight: 300,
-                                borderRadius: 6,
-                                objectFit: 'contain',
-                                display: 'block'
-                            }}
-                            onError={(e) => {
-                                console.error("Error loading main demo S3 image:", latestDemo.demoImage);
-                              e.target.style.display = "none";
-                            }}
-                          />
-                        ) : (
-                          <Box
-                            sx={{
-                                width: 400,
-                              height: 200,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                                bgcolor: "#f1f5f9",
-                                borderRadius: 2,
-                                border: "2px dashed #cbd5e1",
-                              }}
-                            >
-                              <CircularProgress 
-                                size={32} 
-                                sx={{ color: '#0F172A' }}
-                              />
-                          </Box>
-                        )}
-                        </Paper>
-                      </Box>
-                    )}
-
-                    {/* Sub Images */}
-                    <Box>
-                        <Typography
-                        variant="subtitle1" 
-                        fontWeight={600} 
-                        mb={2} 
-                        color="#0F172A"
-                        letterSpacing="-0.01em"
-                      >
-                        Hình ảnh chi tiết
-                        </Typography>
-                      
-                      <Box display="flex" flexWrap="wrap" gap={2} alignItems="center">
-                        {demoSubImages && Array.isArray(demoSubImages) && demoSubImages.length > 0 ? (
-                        demoSubImages.map((img) => (
-                            <Paper
-                            key={img.id}
-                              elevation={0}
-                              sx={{
-                                p: 1.5,
-                                borderRadius: 2,
-                                bgcolor: 'white',
-                                border: '1px solid #e2e8f0',
-                                transition: 'all 0.2s ease-in-out',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 8px 20px -3px rgba(0, 0, 0, 0.15)',
-                                }
-                              }}
-                              onClick={() => s3ImageUrls[img.id] && handleOpenImageViewer(s3ImageUrls[img.id], img.name || 'Hình ảnh chi tiết')}
-                          >
-                            {s3ImageUrls[img.id] ? (
-                                <Tooltip 
-                                  title={<FileInfoTooltip fileInfo={img} />}
-                                  arrow
-                                  placement="top"
-                                >
-                              <img
-                                src={s3ImageUrls[img.id]}
-                                    alt={img.name || "Chi tiết"}
-                                style={{
-                                      width: 100,
-                                      height: 100,
-                                  objectFit: "cover",
-                                      borderRadius: 6,
-                                }}
-                                onError={(e) => {
-                                      console.error("Error loading S3 image:", img.imageUrl);
-                                  e.target.style.display = "none";
-                                }}
-                              />
-                                </Tooltip>
-                            ) : (
-                              <Box
-                                sx={{
-                                    width: 100,
-                                    height: 100,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                    bgcolor: "#f1f5f9",
-                                    borderRadius: 1.5,
-                                }}
-                              >
-                                  <CircularProgress 
-                                    size={24} 
-                                    sx={{ color: '#0F172A' }}
-                                  />
-                              </Box>
-                            )}
-                            </Paper>
-                        ))
-                      ) : (
-                          <Typography variant="body2" color="#64748b" sx={{ fontStyle: 'italic' }}>
-                          Chưa có hình ảnh chi tiết
-                        </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Final Design Section */}
-              {(selectedRequest?.finalDesignImage || (finalDesignSubImages && finalDesignSubImages.length > 0)) && (
-                <Card 
-                  sx={{ 
-                    m: 0, 
-                    borderRadius: 0,
-                    bgcolor: '#fefce8',
-                    border: 'none',
-                    boxShadow: 'none',
-                    borderBottom: '1px solid #e2e8f0'
-                  }}
-                >
-                  <CardContent sx={{ p: 4 }}>
-                    <Box mb={3}>
-                      <Typography 
-                        variant="h5" 
-                        fontWeight={600} 
-                        color="#0F172A"
-                        mb={1}
-                        letterSpacing="-0.015em"
-                      >
-                        Thiết Kế Chính Thức
-                      </Typography>
-                      <Typography variant="body2" color="#64748b" fontSize="0.95rem">
-                        Bản thiết kế chính thức đã hoàn thành
-                      </Typography>
-                    </Box>
-
-                    {/* Final Design Main Image */}
-                    {selectedRequest?.finalDesignImage && (
-                      <Box mb={4}>
-                        <Typography 
-                          variant="subtitle1" 
-                          fontWeight={600} 
-                          mb={2} 
-                          color="#0F172A"
-                          letterSpacing="-0.01em"
-                        >
-                          Hình ảnh thiết kế chính thức
-                        </Typography>
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2,
-                            display: 'inline-block',
-                            borderRadius: 3,
-                            bgcolor: 'white',
-                            border: '1px solid #fbbf24',
-                            boxShadow: '0 2px 4px -1px rgba(251, 191, 36, 0.2)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease-in-out',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 20px -3px rgba(251, 191, 36, 0.3)',
-                              borderColor: '#f59e0b'
-                            }
-                          }}
-                          onClick={() => finalDesignMainS3Url && handleOpenImageViewer(finalDesignMainS3Url, 'Thiết kế chính thức')}
-                        >
-                          {finalDesignMainS3Url ? (
-                            <img
-                              src={finalDesignMainS3Url}
-                              alt="Thiết kế chính thức"
-                              style={{
-                                maxWidth: '100%',
-                                height: 'auto',
-                                maxHeight: 300,
-                                borderRadius: 6,
-                                objectFit: 'contain',
-                                display: 'block'
-                              }}
-                              onError={(e) => {
-                                console.error("Error loading final design main S3 image:", selectedRequest.finalDesignImage);
-                                e.target.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <Box
-                              sx={{
-                                width: 400,
-                                height: 200,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                bgcolor: "#fef3c7",
-                                borderRadius: 2,
-                                border: "2px dashed #fbbf24",
-                              }}
-                            >
-                              <CircularProgress 
-                                size={32} 
-                                sx={{ color: '#f59e0b' }}
-                              />
-                            </Box>
-                          )}
-                        </Paper>
-                            </Box>
-                    )}
-
-                    {/* Final Design Sub Images */}
-                    {finalDesignSubImages && finalDesignSubImages.length > 0 && (
-                      <Box>
-                        <Typography 
-                          variant="subtitle1" 
-                          fontWeight={600} 
-                          mb={2} 
-                          color="#0F172A"
-                          letterSpacing="-0.01em"
-                        >
-                          Hình ảnh chi tiết thiết kế
-                        </Typography>
-                        
-                        <Box display="flex" flexWrap="wrap" gap={2} alignItems="center">
-                          {finalDesignSubImages.map((img) => (
-                            <Paper
-                              key={img.id}
-                              elevation={0}
-                              sx={{
-                                p: 1.5,
-                                borderRadius: 2,
-                                bgcolor: 'white',
-                                border: '1px solid #fbbf24',
-                                transition: 'all 0.2s ease-in-out',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 8px 20px -3px rgba(251, 191, 36, 0.3)',
-                                  borderColor: '#f59e0b'
-                                }
-                              }}
-                              onClick={() => finalDesignS3Urls[img.id] && handleOpenImageViewer(finalDesignS3Urls[img.id], img.name || 'Thiết kế chi tiết')}
-                            >
-                              {finalDesignS3Urls[img.id] ? (
-                                <Tooltip 
-                                  title={<FileInfoTooltip fileInfo={img} />}
-                                  arrow
-                                  placement="top"
-                                >
-                                  <img
-                                    src={finalDesignS3Urls[img.id]}
-                                    alt={img.name || "Thiết kế chi tiết"}
-                                    style={{
-                                      width: 100,
-                                      height: 100,
-                                      objectFit: "cover",
-                                      borderRadius: 6,
-                                    }}
-                                    onError={(e) => {
-                                      console.error("Error loading final design S3 image:", img.imageUrl);
-                                      e.target.style.display = "none";
-                                    }}
-                                  />
-                                </Tooltip>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    width: 100,
-                                    height: 100,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    bgcolor: "#fef3c7",
-                                    borderRadius: 1.5,
-                                  }}
-                                >
-                                  <CircularProgress 
-                                    size={24} 
-                                    sx={{ color: '#f59e0b' }}
-                                  />
-                        </Box>
-                      )}
-                            </Paper>
-                          ))}
-                    </Box>
-                  </Box>
-                )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Requirements Section */}
-              <Card sx={{ borderRadius: 0, borderTop: '1px solid #e2e8f0', bgcolor: 'white' }}>
-                <CardContent sx={{ p: 4 }}>
-                  <Box mb={3}>
-                    <Typography 
-                      variant="h5" 
-                      fontWeight={600} 
-                      color="#0F172A"
-                      mb={1}
-                      letterSpacing="-0.015em"
-                    >
-                      Yêu Cầu Thiết Kế
-                    </Typography>
-                    <Typography variant="body2" color="#64748b" fontSize="0.95rem">
-                      Chi tiết yêu cầu từ khách hàng
-                    </Typography>
-                  </Box>
-                  
-                  <Paper 
-                    elevation={0} 
-                    sx={{ 
-                      p: 4, 
-                      bgcolor: '#f0f9ff',
-                      borderRadius: 3,
-                      border: '1px solid #0ea5e9',
-                      borderLeft: '4px solid #0ea5e9'
+            <Box sx={{ width: "100%" }}>
+              {/* Thông Tin Cơ Bản */}
+              <Card
+                sx={{
+                  m: 0,
+                  borderRadius: 0,
+                  boxShadow: "none",
+                  bgcolor: "#ffffff",
+                }}
+              >
+                <CardContent sx={{ px: 4, py: 3 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={600}
+                    color="#1a1a1a"
+                    mb={3}
+                    sx={{
+                      fontSize: "1.25rem",
+                      fontFamily: "'Inter', 'Segoe UI', 'Roboto', sans-serif",
+                      letterSpacing: "-0.025em",
                     }}
                   >
-                    <Typography variant="body1" lineHeight={1.7} color="#0c4a6e" fontSize="1.1rem">
-                      {selectedRequest.requirements || "Không có yêu cầu cụ thể"}
-                    </Typography>
-                  </Paper>
+                    📋 Thông Tin Yêu Cầu
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          p: 3,
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 2,
+                          bgcolor: "#fafafa",
+                          transition: "all 0.2s ease",
+                          "&:hover": {
+                            bgcolor: "#f5f5f5",
+                            borderColor: "#d1d5db",
+                          },
+                        }}
+                      >
+                        <Grid container spacing={3}>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Công ty
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {selectedRequest?.customerDetail?.companyName ||
+                                "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Người liên hệ
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {selectedRequest?.customerDetail?.users
+                                ?.fullName || "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Email
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {selectedRequest?.customerDetail?.users?.email ||
+                                "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Số điện thoại
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {selectedRequest?.customerDetail?.contactInfo ||
+                                selectedRequest?.customerDetail?.users?.phone ||
+                                "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Địa chỉ
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {selectedRequest?.customerDetail?.address ||
+                                "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+              {/* Yêu Cầu Thiết Kế */}
+              <Card
+                sx={{
+                  m: 0,
+                  borderRadius: 0,
+                  borderTop: "1px solid #e5e7eb",
+                  boxShadow: "none",
+                  bgcolor: "#ffffff",
+                }}
+              >
+                <CardContent sx={{ px: 4, py: 3 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={600}
+                    color="#1a1a1a"
+                    mb={3}
+                    sx={{
+                      fontSize: "1.25rem",
+                      fontFamily: "'Inter', 'Segoe UI', 'Roboto', sans-serif",
+                      letterSpacing: "-0.025em",
+                    }}
+                  >
+                    🎨 Yêu Cầu Thiết Kế
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          p: 3,
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 2,
+                          bgcolor: "#fafafa",
+                          transition: "all 0.2s ease",
+                          "&:hover": {
+                            bgcolor: "#f5f5f5",
+                            borderColor: "#d1d5db",
+                          },
+                        }}
+                      >
+                        <Grid container spacing={3}>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Mã yêu cầu
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Fira Code', 'Monaco', monospace",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                                bgcolor: "#f3f4f6",
+                                px: 2,
+                                py: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e5e7eb",
+                              }}
+                            >
+                              {selectedRequest?.code || "Chưa có mã"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Trạng thái
+                            </Typography>
+                            <Chip
+                              label={
+                                CUSTOM_DESIGN_STATUS_MAP[
+                                  selectedRequest?.status
+                                ]?.label ||
+                                selectedRequest?.status ||
+                                "Chưa xác định"
+                              }
+                              color={
+                                CUSTOM_DESIGN_STATUS_MAP[
+                                  selectedRequest?.status
+                                ]?.color || "default"
+                              }
+                              sx={{
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                px: 2,
+                                py: 0.5,
+                                height: "auto",
+                                borderRadius: 1.5,
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Ngày tạo
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {selectedRequest?.createdAt
+                                ? new Date(
+                                    selectedRequest.createdAt
+                                  ).toLocaleDateString("vi-VN", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })
+                                : "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Cập nhật lần cuối
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {selectedRequest?.updatedAt
+                                ? new Date(
+                                    selectedRequest.updatedAt
+                                  ).toLocaleDateString("vi-VN", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })
+                                : "Chưa cập nhật"}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Typography
+                              variant="body2"
+                              color="#6b7280"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.875rem",
+                                fontFamily: "'Inter', sans-serif",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Mô tả yêu cầu
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              color="#111827"
+                              sx={{
+                                fontSize: "1rem",
+                                fontFamily: "'Inter', sans-serif",
+                                fontWeight: 400,
+                                lineHeight: 1.6,
+                                bgcolor: "#f9fafb",
+                                p: 2.5,
+                                borderRadius: 2,
+                                border: "1px solid #e5e7eb",
+                                minHeight: "80px",
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {selectedRequest?.requirements ||
+                                "Chưa có mô tả chi tiết"}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Box>
+                    </Grid>
+                  </Grid>
                 </CardContent>
               </Card>
 
-              <Grid container spacing={0}>
-                {/* Business Information Section */}
-                <Grid item xs={12} md={6}>
-                  <Card 
-                    sx={{ 
-                      height: '100%',
-                      borderRadius: 0,
-                      borderRight: { md: '1px solid #e2e8f0' },
-                      bgcolor: 'white'
-                    }}
-                  >
-                    <CardContent sx={{ p: 4 }}>
-                      
+              {/* {CUSTOM_DESIGN_STATUS_MAP[selectedRequest?.status]?.label ||
+                selectedRequest?.status} */}
+              {/* Demo Thiết Kế Section */}
+              {latestDemo && (
+                <Card
+                  sx={{
+                    m: 0,
+                    borderRadius: 0,
+                    borderTop: "1px solid #e2e8f0",
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
+                    >
+                      Demo Thiết Kế
+                    </Typography>
 
-                      <Stack spacing={3}>
-
-
-
-                        <Box>
-                          <Typography 
-                            variant="subtitle1" 
-                            fontWeight={600} 
-                            color="#0F172A" 
-                            mb={2}
-                            letterSpacing="-0.015em"
-                          >
-                            Thông Tin Doanh Nghiệp
-                          </Typography>
-                          <Paper 
-                            elevation={0} 
-                            sx={{ 
-                              p: 3, 
-                              bgcolor: '#f8fafc',
-                              borderRadius: 2,
-                              border: '1px solid #e2e8f0'
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
-                              <Avatar
-                                src={customerAvatars[
-                                  typeof selectedRequest.customerDetail === "object" &&
-                                  selectedRequest.customerDetail !== null
-                                    ? selectedRequest.customerDetail.id
-                                    : selectedRequest.customerDetail
-                                ]}
-                                sx={{ 
-                                  width: 60, 
-                                  height: 60,
-                                  bgcolor: '#0F172A',
-                                  color: 'white',
-                                  fontWeight: 700,
-                                  fontSize: '1.2rem'
-                                }}
-                              >
-                                {customerDetails[
-                                  typeof selectedRequest.customerDetail === "object" &&
-                                  selectedRequest.customerDetail !== null
-                                    ? selectedRequest.customerDetail.id
-                                    : selectedRequest.customerDetail
-                                ]?.companyName?.charAt(0) || "?"}
-                              </Avatar>
-                              <Box>
-                                <Typography variant="h5" color="#0F172A" fontWeight={700}>
-                                  {customerDetails[
-                                    typeof selectedRequest.customerDetail === "object" &&
-                                    selectedRequest.customerDetail !== null
-                                      ? selectedRequest.customerDetail.id
-                                      : selectedRequest.customerDetail
-                                  ]?.companyName || "Đang tải..."}
-                                </Typography>
-                                <Typography variant="body2" color="#64748b" mt={0.5}>
-                                  {selectedRequest.customerDetail?.users?.fullName || "Không rõ"}
-                                </Typography>
-                              </Box>
-                            </Box>
-                            
-
-                          </Paper>
-                        </Box>
-
-                        <Box>
-                          <Typography 
-                            variant="subtitle1" 
-                            fontWeight={600} 
-                            color="#0F172A" 
-                            mb={2}
-                            letterSpacing="-0.015em"
-                          >
-                            Thông tin liên hệ chi tiết
-                          </Typography>
-                          <Paper 
-                            elevation={0} 
-                            sx={{ 
-                              p: 3, 
-                              bgcolor: '#f8fafc',
-                              borderRadius: 2,
-                              border: '1px solid #e2e8f0'
-                            }}
-                          >
-                            <Grid container spacing={3}>
-                              <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
-                                  <strong>Địa chỉ:</strong>
-                                </Typography>
-                                <Typography variant="body1" color="#374151" mb={2} sx={{ minHeight: '24px' }}>
-                                  {selectedRequest.customerDetail?.address || "Không có thông tin"}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
-                                  <strong>Số điện thoại:</strong>
-                                </Typography>
-                                <Typography variant="body1" color="#374151" mb={2} sx={{ minHeight: '24px' }}>
-                                  {selectedRequest.customerDetail?.contactInfo || "Không có thông tin"}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
-                                  <strong>Email:</strong>
-                                </Typography>
-                                <Typography variant="body1" color="#374151" mb={2} sx={{ minHeight: '24px' }}>
-                                  {selectedRequest.customerDetail?.users?.email || "Không có thông tin"}
-                                </Typography>
-                              </Grid>
-
-                              <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="#64748b" mb={0.5} fontWeight={600}>
-                                  <strong>Cần hỗ trợ :</strong>
-                                </Typography>
-                                <Chip
-                                  label={selectedRequest.isNeedSupport ? "Có" : "Không"}
-                                  sx={{ 
-                                    fontWeight: 600,
-                                    fontSize: '0.9rem',
-                                    px: 2,
-                                    py: 1,
-                                    height: 'auto',
-                                    borderRadius: 2,
-                                    bgcolor: selectedRequest.isNeedSupport ? '#dc2626' : '#059669',
-                                    color: 'white',
-                                    '&:hover': {
-                                      bgcolor: selectedRequest.isNeedSupport ? '#b91c1c' : '#047857'
-                                    }
-                                  }}
-                                />
-                              </Grid>
-                            </Grid>
-                          </Paper>
-                        </Box>
-
-                        <Box>
-                          <Typography 
-                            variant="subtitle1" 
-                            fontWeight={600} 
-                            color="#0F172A" 
-                            mb={2}
-                            letterSpacing="-0.015em"
-                          >
-                            Ngày tạo
-                </Typography>
-                          <Typography variant="body1" color="#374151" fontSize="1.1rem">
-                            {selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleDateString("vi-VN") : "N/A"}
-                </Typography>
-                        </Box>
-
-
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Pricing Information Section */}
-                <Grid item xs={12} md={6}>
-                  <Card 
-                    sx={{ 
-                      height: '100%',
-                      borderRadius: 0,
-                      bgcolor: 'white'
-                    }}
-                  >
-                    <CardContent sx={{ p: 4 }}>
-                      <Box mb={3}>
-                        <Typography 
-                          variant="h6" 
-                          fontWeight={600} 
-                          color="#0F172A"
-                          mb={1}
-                          letterSpacing="-0.015em"
-                        >
-                          Thông Tin Báo Giá
-                        </Typography>
-                        <Typography variant="body2" color="#64748b" fontSize="0.9rem">
-                          Chi tiết thanh toán và giá cả
-                        </Typography>
-                      </Box>
-
-                      <Grid container spacing={3}>
-                        <Grid item xs={12} md={4}>
-                          <Paper 
-                            elevation={0}
-                            sx={{ 
-                              p: 4, 
-                              bgcolor: '#0F172A',
-                              color: 'white',
-                              borderRadius: 3,
-                              height: '100%'
-                            }}
-                          >
-                            <Typography variant="body2" sx={{ opacity: 0.8, mb: 1.5 }}>
-                              Tổng giá trị đơn hàng
-                            </Typography>
-                            <Typography variant="h4" fontWeight={700} letterSpacing="-0.02em">
-                              {selectedRequest.totalPrice?.toLocaleString("vi-VN") || 0}₫
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <Paper 
-                            elevation={0}
-                            sx={{ 
-                              p: 4, 
-                              bgcolor: '#f0fdf4',
-                              borderRadius: 3,
-                              border: '1px solid #bbf7d0',
-                              height: '100%'
-                            }}
-                          >
-                            <Typography 
-                              variant="subtitle1" 
-                              color="#166534" 
-                              fontWeight={600} 
-                              mb={2}
-                              letterSpacing="-0.015em"
-                            >
-                              Đã đặt cọc
-                            </Typography>
-                            <Typography variant="h5" color="#15803d" fontWeight={700}>
-                              {selectedRequest.depositAmount?.toLocaleString("vi-VN") || 0}₫
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <Paper 
-                            elevation={0}
-                            sx={{ 
-                              p: 4, 
-                              bgcolor: '#fefce8',
-                              borderRadius: 3,
-                              border: '1px solid #fde047',
-                              height: '100%'
-                            }}
-                          >
-                            <Typography 
-                              variant="subtitle1" 
-                              color="#a16207" 
-                              fontWeight={600} 
-                              mb={2}
-                              letterSpacing="-0.015em"
-                            >
-                              Còn lại
-                            </Typography>
-                            <Typography variant="h5" color="#ca8a04" fontWeight={700}>
-                              {selectedRequest.remainingAmount?.toLocaleString("vi-VN") || 0}₫
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-
-              {/* Product Details Section */}
-                {selectedRequest.customerChoiceHistories && (
-                <Card sx={{ borderRadius: 0, borderTop: '1px solid #e2e8f0', bgcolor: 'white' }}>
-                  <CardContent sx={{ p: 6 }}>
-                    <Box mb={4}>
-                      <Typography 
-                        variant="h4" 
-                        fontWeight={700} 
-                        color="#0F172A"
+                    {/* Demo Description */}
+                    <Box mb={2.5}>
+                      <Typography
+                        variant="body2"
+                        color="#64748b"
+                        fontWeight={600}
                         mb={1}
-                        letterSpacing="-0.025em"
+                        sx={{ fontSize: "0.9rem", textTransform: "uppercase" }}
                       >
-                        Chi Tiết Sản Phẩm
+                        Mô tả thiết kế
                       </Typography>
-                      <Typography variant="body1" color="#64748b" fontSize="1.1rem">
-                        Thông tin kỹ thuật và lựa chọn của khách hàng
+                      <Typography
+                        variant="body2"
+                        color="#374151"
+                        sx={{
+                          bgcolor: "#f8fafc",
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: "1px solid #e2e8f0",
+                          fontSize: "1rem",
+                          lineHeight: 1.4,
+                          minHeight: "50px",
+                        }}
+                      >
+                        {latestDemo.designerDescription ||
+                          "Chưa có mô tả chi tiết"}
                       </Typography>
                     </Box>
 
-                    <Grid container spacing={6}>
-                      <Grid item xs={12} md={4}>
-                        <Paper 
-                          elevation={0}
-                          sx={{ 
-                            p: 6, 
-                            borderRadius: 4,
-                            border: '1px solid #e2e8f0',
-                            bgcolor: '#f8fafc'
-                          }}
-                        >
-                          <Typography 
-                            variant="h6" 
-                            fontWeight={600} 
-                            color="#0F172A" 
-                            mb={3}
-                            letterSpacing="-0.015em"
+                    {/* Images Grid */}
+                    <Grid container spacing={2}>
+                      {/* Main Image */}
+                      <Grid item xs={12} md={6}>
+                        <Box>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            color="#64748b"
+                            mb={1}
+                            sx={{ fontSize: "0.9rem" }}
                           >
-                            Thông Tin Sản Phẩm
+                            Ảnh demo
                           </Typography>
-                          <Stack spacing={3}>
-                            <Box>
-                              <Typography 
-                                variant="body2" 
-                                color="#64748b" 
-                                fontWeight={600} 
-                                mb={1}
-                                textTransform="uppercase" 
-                                letterSpacing="0.05em"
-                              >
-                                Loại sản phẩm
-                              </Typography>
-                              <Typography variant="h6" fontWeight={700} color="#0F172A">
-                      {selectedRequest.customerChoiceHistories.productTypeName}
-                    </Typography>
-                            </Box>
-                            <Box>
-                              <Typography 
-                                variant="body2" 
-                                color="#64748b" 
-                                fontWeight={600} 
-                                mb={1}
-                                textTransform="uppercase" 
-                                letterSpacing="0.05em"
-                              >
-                                Công thức tính
-                              </Typography>
-                              <Typography variant="body1" color="#374151">
-                      {selectedRequest.customerChoiceHistories.calculateFormula}
-                    </Typography>
-                            </Box>
-                          </Stack>
-                        </Paper>
+                          {latestDemo.demoImage && (
+                            <Paper
+                              elevation={0}
+                              sx={{
+                                borderRadius: 2,
+                                overflow: "hidden",
+                                border: "1px solid #10b981",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                "&:hover": {
+                                  transform: "scale(1.02)",
+                                  boxShadow:
+                                    "0 4px 12px rgba(16, 185, 129, 0.15)",
+                                },
+                              }}
+                            >
+                              {mainDemoS3Url ? (
+                                <img
+                                  src={mainDemoS3Url}
+                                  alt="Demo thiết kế"
+                                  style={{
+                                    width: "100%",
+                                    height: "200px",
+                                    objectFit: "cover",
+                                  }}
+                                  onClick={() =>
+                                    handleOpenImageViewer(
+                                      mainDemoS3Url,
+                                      "Demo thiết kế chính"
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <Box
+                                  sx={{
+                                    width: "100%",
+                                    height: "200px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    bgcolor: "#f0f9ff",
+                                    color: "#0369a1",
+                                  }}
+                                >
+                                  <CircularProgress
+                                    size={24}
+                                    sx={{ color: "#10b981" }}
+                                  />
+                                </Box>
+                              )}
+                            </Paper>
+                          )}
+                        </Box>
                       </Grid>
 
-                      <Grid item xs={12} md={8}>
-                        <Stack spacing={4}>
-                          {/* Attributes Table */}
-                          <Box>
-                            <Typography 
-                              variant="h6" 
-                              fontWeight={600} 
-                              mb={3} 
-                              color="#0F172A"
-                              letterSpacing="-0.015em"
-                            >
-                              Thuộc Tính Đã Chọn
-                    </Typography>
-                    <TableContainer
-                      component={Paper}
-                              elevation={0}
-                              sx={{ 
-                                borderRadius: 4,
-                                overflow: 'hidden',
-                                border: '1px solid #e2e8f0'
+                      {/* Sub Images */}
+                      <Grid item xs={12} md={6}>
+                        <Box>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            color="#64748b"
+                            mb={1}
+                            sx={{ fontSize: "0.9rem" }}
+                          >
+                            📎 Ảnh chi tiết ({demoSubImages?.length || 0})
+                          </Typography>
+                          {demoSubImages && demoSubImages.length > 0 ? (
+                            <Box
+                              display="grid"
+                              gridTemplateColumns="repeat(3, 1fr)"
+                              gap={1}
+                              sx={{
+                                maxHeight: "200px",
+                                overflowY: "auto",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 2,
+                                p: 1,
+                                bgcolor: "white",
                               }}
                             >
-                              <Table>
-                                <TableHead sx={{ bgcolor: '#0F172A' }}>
-                          <TableRow>
-                                    <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Thuộc tính
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Giá trị
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Đơn vị
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Đơn giá
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Thành tiền
-                                    </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedRequest.customerChoiceHistories.attributeSelections?.map(
-                            (attr, idx) => (
-                                      <TableRow 
-                                        key={idx}
-                                        sx={{ 
-                                          '&:nth-of-type(odd)': { bgcolor: '#f8fafc' },
-                                          '&:hover': { bgcolor: '#f1f5f9' },
-                                          borderBottom: '1px solid #e2e8f0'
-                                        }}
-                                      >
-                                        <TableCell sx={{ py: 3, fontSize: '0.95rem', color: '#374151' }}>
-                                          {attr.attribute}
-                                </TableCell>
-                                        <TableCell sx={{ fontWeight: 600, py: 3, fontSize: '0.95rem', color: '#0F172A' }}>
-                                          {attr.value}
-                                        </TableCell>
-                                        <TableCell sx={{ py: 3, fontSize: '0.95rem', color: '#64748b' }}>
-                                          {attr.unit}
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ py: 3, fontSize: '0.95rem', color: '#374151' }}>
-                                          {attr.unitPrice?.toLocaleString("vi-VN") || 0}₫
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 600, py: 3, fontSize: '0.95rem', color: '#0F172A' }}>
-                                  {attr.subTotal?.toLocaleString("vi-VN") || 0}₫
-                                </TableCell>
-                              </TableRow>
-                            )
+                              {demoSubImages.map((img) => (
+                                <Box
+                                  key={img.id}
+                                  sx={{
+                                    borderRadius: 1,
+                                    overflow: "hidden",
+                                    cursor: "pointer",
+                                    border: "1px solid #e2e8f0",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      borderColor: "#10b981",
+                                      transform: "scale(1.05)",
+                                    },
+                                  }}
+                                  onClick={() =>
+                                    s3ImageUrls[img.id] &&
+                                    handleOpenImageViewer(
+                                      s3ImageUrls[img.id],
+                                      img.name || "Hình ảnh chi tiết"
+                                    )
+                                  }
+                                >
+                                  {s3ImageUrls[img.id] ? (
+                                    <img
+                                      src={s3ImageUrls[img.id]}
+                                      alt={img.name || "Chi tiết"}
+                                      style={{
+                                        width: "100%",
+                                        height: "60px",
+                                        objectFit: "cover",
+                                      }}
+                                    />
+                                  ) : (
+                                    <Box
+                                      sx={{
+                                        width: "100%",
+                                        height: "60px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        bgcolor: "#f8f9fa",
+                                      }}
+                                    >
+                                      <CircularProgress size={12} />
+                                    </Box>
+                                  )}
+                                </Box>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Box
+                              sx={{
+                                height: "200px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                bgcolor: "white",
+                                borderRadius: 2,
+                                border: "1px dashed #e2e8f0",
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                color="#94a3b8"
+                                sx={{ fontSize: "0.8rem" }}
+                              >
+                                Chưa có ảnh chi tiết
+                              </Typography>
+                            </Box>
                           )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                          </Box>
+                        </Box>
+                      </Grid>
+                    </Grid>
 
-                          {/* Sizes Table */}
-                          <Box>
-                            <Typography 
-                              variant="h6" 
-                              fontWeight={600} 
-                              mb={3} 
-                              color="#0F172A"
-                              letterSpacing="-0.015em"
-                            >
-                              Kích Thước Đã Chọn
+                    {/* Demo Status */}
+                    <Box mt={2.5} pt={2} borderTop="1px solid #e2e8f0">
+                      <Typography
+                        variant="body2"
+                        color="#64748b"
+                        fontWeight={600}
+                        mb={1}
+                        sx={{ fontSize: "0.9rem", textTransform: "uppercase" }}
+                      >
+                        Trạng thái demo
+                      </Typography>
+                      <Chip
+                        label={
+                          latestDemo.status === "APPROVED"
+                            ? " Đã chấp nhận"
+                            : latestDemo.status === "REJECTED"
+                            ? " Đã từ chối"
+                            : " Chờ phản hồi"
+                        }
+                        size="small"
+                        sx={{
+                          bgcolor:
+                            latestDemo.status === "APPROVED"
+                              ? "#dcfce7"
+                              : latestDemo.status === "REJECTED"
+                              ? "#fef2f2"
+                              : "#fef3c7",
+                          color:
+                            latestDemo.status === "APPROVED"
+                              ? "#16a34a"
+                              : latestDemo.status === "REJECTED"
+                              ? "#dc2626"
+                              : "#d97706",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                        }}
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              )}
+              {/* Thiết Kế Chính Thức Section */}
+              {(selectedRequest?.finalDesignImage ||
+                (finalDesignSubImages && finalDesignSubImages.length > 0)) && (
+                <Card
+                  sx={{
+                    m: 0,
+                    borderRadius: 0,
+                    borderTop: "1px solid #e2e8f0",
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
+                    >
+                      Thiết Kế Chính Thức
                     </Typography>
-                    <TableContainer
-                      component={Paper}
+
+                    {/* Images Grid */}
+                    <Grid container spacing={2}>
+                      {/* Main Final Design Image */}
+                      {selectedRequest?.finalDesignImage && (
+                        <Grid item xs={12} md={6}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="#64748b"
+                              mb={1}
+                              sx={{ fontSize: "0.9rem" }}
+                            >
+                              Thiết kế chính thức
+                            </Typography>
+                            <Paper
                               elevation={0}
-                              sx={{ 
-                                borderRadius: 4,
-                                overflow: 'hidden',
-                                border: '1px solid #e2e8f0'
+                              sx={{
+                                borderRadius: 2,
+                                overflow: "hidden",
+                                border: "1px solid #fbbf24",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                "&:hover": {
+                                  transform: "scale(1.02)",
+                                  boxShadow:
+                                    "0 4px 12px rgba(251, 191, 36, 0.15)",
+                                },
                               }}
                             >
-                              <Table>
-                                <TableHead sx={{ bgcolor: '#0F172A' }}>
-                          <TableRow>
-                                    <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Kích thước
-                                    </TableCell>
-                                    <TableCell sx={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>
-                                      Giá trị
-                                    </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedRequest.customerChoiceHistories.sizeSelections?.map(
-                            (size, idx) => (
-                                      <TableRow 
-                                        key={idx}
-                                        sx={{ 
-                                          '&:nth-of-type(odd)': { bgcolor: '#f8fafc' },
-                                          '&:hover': { bgcolor: '#f1f5f9' },
-                                          borderBottom: '1px solid #e2e8f0'
-                                        }}
-                                      >
-                                        <TableCell sx={{ py: 3, fontSize: '0.95rem', color: '#374151' }}>
-                                          {size.size}
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 600, py: 3, fontSize: '0.95rem', color: '#0F172A' }}>
-                                          {size.value}
-                                        </TableCell>
-                              </TableRow>
-                            )
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                              {finalDesignMainS3Url ? (
+                                <img
+                                  src={finalDesignMainS3Url}
+                                  alt="Thiết kế chính thức"
+                                  style={{
+                                    width: "100%",
+                                    height: "200px",
+                                    objectFit: "cover",
+                                  }}
+                                  onClick={() =>
+                                    handleOpenImageViewer(
+                                      finalDesignMainS3Url,
+                                      "Thiết kế chính thức"
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <Box
+                                  sx={{
+                                    width: "100%",
+                                    height: "200px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    bgcolor: "#fefce8",
+                                    color: "#d97706",
+                                  }}
+                                >
+                                  <CircularProgress
+                                    size={24}
+                                    sx={{ color: "#fbbf24" }}
+                                  />
+                                </Box>
+                              )}
+                            </Paper>
                           </Box>
-                        </Stack>
+                        </Grid>
+                      )}
+
+                      {/* Final Design Sub Images */}
+                      <Grid
+                        item
+                        xs={12}
+                        md={selectedRequest?.finalDesignImage ? 6 : 12}
+                      >
+                        <Box>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            color="#64748b"
+                            mb={1}
+                            sx={{ fontSize: "0.9rem" }}
+                          >
+                            Ảnh chi tiết ({finalDesignSubImages?.length || 0})
+                          </Typography>
+                          {finalDesignSubImages &&
+                          finalDesignSubImages.length > 0 ? (
+                            <Box
+                              display="grid"
+                              gridTemplateColumns="repeat(3, 1fr)"
+                              gap={1}
+                              sx={{
+                                maxHeight: "200px",
+                                overflowY: "auto",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 2,
+                                p: 1,
+                                bgcolor: "white",
+                              }}
+                            >
+                              {finalDesignSubImages.map((img) => (
+                                <Box
+                                  key={img.id}
+                                  sx={{
+                                    borderRadius: 1,
+                                    overflow: "hidden",
+                                    cursor: "pointer",
+                                    border: "1px solid #e2e8f0",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      borderColor: "#fbbf24",
+                                      transform: "scale(1.05)",
+                                    },
+                                  }}
+                                  onClick={() =>
+                                    finalDesignS3Urls[img.id] &&
+                                    handleOpenImageViewer(
+                                      finalDesignS3Urls[img.id],
+                                      img.name || "File thiết kế chi tiết"
+                                    )
+                                  }
+                                >
+                                  {finalDesignS3Urls[img.id] ? (
+                                    <img
+                                      src={finalDesignS3Urls[img.id]}
+                                      alt={img.name || "Thiết kế chi tiết"}
+                                      style={{
+                                        width: "100%",
+                                        height: "60px",
+                                        objectFit: "cover",
+                                      }}
+                                    />
+                                  ) : (
+                                    <Box
+                                      sx={{
+                                        width: "100%",
+                                        height: "60px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        bgcolor: "#fefce8",
+                                      }}
+                                    >
+                                      <CircularProgress size={12} />
+                                    </Box>
+                                  )}
+                                </Box>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Box
+                              sx={{
+                                height: "200px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                bgcolor: "white",
+                                borderRadius: 2,
+                                border: "1px dashed #e2e8f0",
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                color="#94a3b8"
+                                sx={{ fontSize: "0.8rem" }}
+                              >
+                                Chưa có file chi tiết
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                       </Grid>
                     </Grid>
                   </CardContent>
                 </Card>
               )}
-
               {/* Action Button for Revision */}
-              {selectedRequest && selectedRequest.status === "REVISION_REQUESTED" && (
-                <Box sx={{ p: 6, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                    <Button
-                      variant="contained"
-                    size="large"
-                      onClick={() => handleOpenDemoDialog(false)}
-                    sx={{ 
-                      px: 6,
-                      py: 2,
-                      borderRadius: 4,
-                      fontWeight: 700,
-                      fontSize: '1.1rem',
-                      bgcolor: '#0F172A',
-                      color: 'white',
-                      letterSpacing: '-0.015em',
-                      '&:hover': {
-                        bgcolor: '#1e293b',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'
-                      },
-                      transition: 'all 0.2s ease-in-out'
+              {selectedRequest &&
+                selectedRequest.status === "REVISION_REQUESTED" && (
+                  <Box
+                    sx={{
+                      p: 6,
+                      bgcolor: "#f8fafc",
+                      borderTop: "1px solid #e2e8f0",
                     }}
                   >
-                    Gửi lại demo
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={() => handleOpenDemoDialog(false)}
+                      sx={{
+                        px: 6,
+                        py: 2,
+                        borderRadius: 4,
+                        fontWeight: 700,
+                        fontSize: "1.1rem",
+                        bgcolor: "#0F172A",
+                        color: "white",
+                        letterSpacing: "-0.015em",
+                        "&:hover": {
+                          bgcolor: "#1e293b",
+                          transform: "translateY(-1px)",
+                          boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
+                        },
+                        transition: "all 0.2s ease-in-out",
+                      }}
+                    >
+                      Gửi lại demo
                     </Button>
-                </Box>
-                  )}
+                  </Box>
+                )}
             </Box>
           )}
         </DialogContent>
-        <DialogActions 
-          sx={{ 
-            p: 4, 
-            bgcolor: '#f8fafc',
-            borderTop: '1px solid #e2e8f0',
+        <DialogActions
+          sx={{
+            p: 4,
+            bgcolor: "#f8fafc",
+            borderTop: "1px solid #e2e8f0",
             gap: 3,
-            justifyContent: 'space-between'
+            justifyContent: "space-between",
           }}
         >
-          <Button 
-            onClick={() => setOpenDialog(false)} 
+          <Button
+            onClick={() => setOpenDialog(false)}
             disabled={actionLoading}
             variant="outlined"
-            sx={{ 
+            sx={{
               borderRadius: 4,
               px: 4,
               py: 1.5,
               fontWeight: 600,
-              borderColor: '#e2e8f0',
-              color: '#64748b',
-              '&:hover': {
-                borderColor: '#0F172A',
-                color: '#0F172A',
-                bgcolor: 'white'
-              }
+              borderColor: "#e2e8f0",
+              color: "#64748b",
+              "&:hover": {
+                borderColor: "#0F172A",
+                color: "#0F172A",
+                bgcolor: "white",
+              },
             }}
           >
             Đóng
           </Button>
 
           <Stack direction="row" spacing={3}>
-          {selectedRequest && selectedRequest.status === "PROCESSING" && (
-            <Button
-              variant="contained"
-              onClick={() => handleOpenDemoDialog(false)}
-              disabled={actionLoading}
-                sx={{ 
+            {selectedRequest && selectedRequest.status === "PROCESSING" && (
+              <Button
+                variant="contained"
+                onClick={() => handleOpenDemoDialog(false)}
+                disabled={actionLoading}
+                sx={{
                   borderRadius: 4,
                   px: 6,
                   py: 2,
                   fontWeight: 700,
-                  fontSize: '1rem',
-                  bgcolor: '#0F172A',
-                  color: 'white',
-                  letterSpacing: '-0.015em',
-                  '&:hover': {
-                    bgcolor: '#1e293b',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'
+                  fontSize: "1rem",
+                  bgcolor: "#0F172A",
+                  color: "white",
+                  letterSpacing: "-0.015em",
+                  "&:hover": {
+                    bgcolor: "#1e293b",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
                   },
-                  transition: 'all 0.2s ease-in-out'
+                  transition: "all 0.2s ease-in-out",
                 }}
               >
                 Gửi Demo
-            </Button>
-          )}
-            
-          {selectedRequest && selectedRequest.status === "DEMO_SUBMITTED" && (
-            <Button
-              variant="contained"
-              onClick={() => handleOpenDemoDialog(true)}
-              disabled={actionLoading}
-                sx={{ 
+              </Button>
+            )}
+
+            {selectedRequest && selectedRequest.status === "DEMO_SUBMITTED" && (
+              <Button
+                variant="contained"
+                onClick={() => handleOpenDemoDialog(true)}
+                disabled={actionLoading}
+                sx={{
                   borderRadius: 4,
                   px: 6,
                   py: 2,
                   fontWeight: 700,
-                  fontSize: '1rem',
-                  bgcolor: '#f59e0b',
-                  color: 'white',
-                  letterSpacing: '-0.015em',
-                  '&:hover': {
-                    bgcolor: '#d97706',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'
+                  fontSize: "1rem",
+                  bgcolor: "#f59e0b",
+                  color: "white",
+                  letterSpacing: "-0.015em",
+                  "&:hover": {
+                    bgcolor: "#d97706",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
                   },
-                  transition: 'all 0.2s ease-in-out'
+                  transition: "all 0.2s ease-in-out",
                 }}
               >
                 Cập nhật Demo
-            </Button>
-          )}
-            
-          {selectedRequest && selectedRequest.status === "FULLY_PAID" && (
-            <Button
-              variant="contained"
-              onClick={handleOpenFinalDesignDialog}
-              disabled={actionLoading}
-                sx={{ 
+              </Button>
+            )}
+
+            {selectedRequest && selectedRequest.status === "FULLY_PAID" && (
+              <Button
+                variant="contained"
+                onClick={handleOpenFinalDesignDialog}
+                disabled={actionLoading}
+                sx={{
                   borderRadius: 4,
                   px: 6,
                   py: 2,
                   fontWeight: 700,
-                  fontSize: '1rem',
-                  bgcolor: '#059669',
-                  color: 'white',
-                  letterSpacing: '-0.015em',
-                  '&:hover': {
-                    bgcolor: '#047857',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'
+                  fontSize: "1rem",
+                  bgcolor: "#059669",
+                  color: "white",
+                  letterSpacing: "-0.015em",
+                  "&:hover": {
+                    bgcolor: "#047857",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
                   },
-                  transition: 'all 0.2s ease-in-out'
+                  transition: "all 0.2s ease-in-out",
                 }}
               >
                 Gửi Bản Thiết Kế Chính Thức
-            </Button>
-          )}
-            
-          {selectedRequest &&
-            ![
-              "PROCESSING",
-              "DEMO_SUBMITTED", 
-              "FULLY_PAID",
-              "REVISION_REQUESTED",
-              "COMPLETED", // Thêm COMPLETED vào danh sách ẩn
-              "CANCELLED", // Thêm CANCELLED vào danh sách ẩn
-              "REJECTED_PRICING", // Thêm REJECTED_PRICING vào danh sách ẩn
-              "DEPOSITED", // Ẩn khi khách đã đặt cọc
-              "DESIGNER_REJECTED", // Ẩn khi designer đã từ chối
-              "WAITING_FULL_PAYMENT", // Ẩn khi đang chờ thanh toán đủ (đã đặt cọc)
-            ].includes(selectedRequest.status) && (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={handleApprove}
-                  disabled={actionLoading}
-                    sx={{ 
-                      borderRadius: 4,
-                      px: 6,
-                      py: 2,
-                      fontWeight: 700,
-                      fontSize: '1rem',
-                      bgcolor: '#059669',
-                      color: 'white',
-                      letterSpacing: '-0.015em',
-                      '&:hover': {
-                        bgcolor: '#047857',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                >
-                  {actionLoading ? "Đang xử lý..." : "Chấp nhận"}
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleReject}
-                  disabled={actionLoading}
-                    sx={{ 
-                      borderRadius: 4,
-                      px: 6,
-                      py: 2,
-                      fontWeight: 700,
-                      fontSize: '1rem',
-                      borderColor: '#dc2626',
-                      color: '#dc2626',
-                      letterSpacing: '-0.015em',
-                      '&:hover': {
-                        bgcolor: '#dc2626',
-                        color: 'white',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                >
-                  {actionLoading ? "Đang xử lý..." : "Từ chối"}
-                </Button>
-              </>
+              </Button>
             )}
+
+            {selectedRequest &&
+              ![
+                "PROCESSING",
+                "DEMO_SUBMITTED",
+                "FULLY_PAID",
+                "REVISION_REQUESTED",
+                "COMPLETED", // Thêm COMPLETED vào danh sách ẩn
+                "CANCELLED", // Thêm CANCELLED vào danh sách ẩn
+                "REJECTED_PRICING", // Thêm REJECTED_PRICING vào danh sách ẩn
+                "DEPOSITED", // Ẩn khi khách đã đặt cọc
+                "DESIGNER_REJECTED", // Ẩn khi designer đã từ chối
+                "WAITING_FULL_PAYMENT", // Ẩn khi đang chờ thanh toán đủ (đã đặt cọc)
+              ].includes(selectedRequest.status) && (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={handleApprove}
+                    disabled={actionLoading}
+                    sx={{
+                      borderRadius: 4,
+                      px: 6,
+                      py: 2,
+                      fontWeight: 700,
+                      fontSize: "1rem",
+                      bgcolor: "#059669",
+                      color: "white",
+                      letterSpacing: "-0.015em",
+                      "&:hover": {
+                        bgcolor: "#047857",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
+                      },
+                      transition: "all 0.2s ease-in-out",
+                    }}
+                  >
+                    {actionLoading ? "Đang xử lý..." : "Chấp nhận"}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleReject}
+                    disabled={actionLoading}
+                    sx={{
+                      borderRadius: 4,
+                      px: 6,
+                      py: 2,
+                      fontWeight: 700,
+                      fontSize: "1rem",
+                      borderColor: "#dc2626",
+                      color: "#dc2626",
+                      letterSpacing: "-0.015em",
+                      "&:hover": {
+                        bgcolor: "#dc2626",
+                        color: "white",
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
+                      },
+                      transition: "all 0.2s ease-in-out",
+                    }}
+                  >
+                    {actionLoading ? "Đang xử lý..." : "Từ chối"}
+                  </Button>
+                </>
+              )}
           </Stack>
         </DialogActions>
       </Dialog>
+
       {/* Dialog gửi/cập nhật/gửi lại demo */}
       <Dialog
         open={openDemoDialog}
@@ -2406,6 +2478,7 @@ const DesignRequests = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
       {/* Dialog gửi bản thiết kế chính thức */}
       <Dialog
         open={openFinalDesignDialog}
@@ -2450,9 +2523,9 @@ const DesignRequests = () => {
                     objectFit: "contain",
                   }}
                 />
-            <Typography variant="body2" sx={{ mt: 1 }}>
+                <Typography variant="body2" sx={{ mt: 1 }}>
                   {finalDesignForm.finalDesignImage.name}
-            </Typography>
+                </Typography>
                 <Button
                   size="small"
                   color="error"
@@ -2519,7 +2592,8 @@ const DesignRequests = () => {
           {finalDesignForm.subFinalDesignImages.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Đã chọn {finalDesignForm.subFinalDesignImages.length} ảnh chi tiết:
+                Đã chọn {finalDesignForm.subFinalDesignImages.length} ảnh chi
+                tiết:
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={1}>
                 {finalDesignForm.subFinalDesignImages.map((file, index) => (
@@ -2588,7 +2662,7 @@ const DesignRequests = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Image Viewer Dialog */}
       <Dialog
         open={imageViewer.open}
@@ -2597,40 +2671,40 @@ const DesignRequests = () => {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: 'transparent',
-            boxShadow: 'none',
-            overflow: 'hidden',
-            maxWidth: '95vw',
-            maxHeight: '95vh'
-          }
+            bgcolor: "transparent",
+            boxShadow: "none",
+            overflow: "hidden",
+            maxWidth: "95vw",
+            maxHeight: "95vh",
+          },
         }}
       >
         <Backdrop
           sx={{
-            bgcolor: 'rgba(0, 0, 0, 0.9)',
-            zIndex: -1
+            bgcolor: "rgba(0, 0, 0, 0.9)",
+            zIndex: -1,
           }}
           open={imageViewer.open}
           onClick={handleCloseImageViewer}
         />
-        <DialogContent 
-          sx={{ 
-            p: 0, 
-            bgcolor: 'transparent',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '80vh'
+        <DialogContent
+          sx={{
+            p: 0,
+            bgcolor: "transparent",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "80vh",
           }}
         >
           {imageViewer.title && (
-            <Typography 
-              variant="h6" 
-              color="white" 
-              mb={2} 
+            <Typography
+              variant="h6"
+              color="white"
+              mb={2}
               textAlign="center"
-              sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
+              sx={{ textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}
             >
               {imageViewer.title}
             </Typography>
@@ -2641,35 +2715,34 @@ const DesignRequests = () => {
               src={imageViewer.imageUrl}
               alt={imageViewer.title}
               sx={{
-                maxWidth: '100%',
-                maxHeight: '80vh',
-                objectFit: 'contain',
+                maxWidth: "100%",
+                maxHeight: "80vh",
+                objectFit: "contain",
                 borderRadius: 2,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                cursor: 'zoom-in',
-                transition: 'transform 0.3s ease',
-                '&:hover': {
-                  transform: 'scale(1.02)'
-                }
+                boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                cursor: "zoom-in",
+                transition: "transform 0.3s ease",
+                "&:hover": {
+                  transform: "scale(1.02)",
+                },
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                // Có thể thêm zoom functionality ở đây
               }}
             />
           )}
-          <Typography 
-            variant="body2" 
-            color="rgba(255,255,255,0.7)" 
+          <Typography
+            variant="body2"
+            color="rgba(255,255,255,0.7)"
             mt={2}
             textAlign="center"
-            sx={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+            sx={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
           >
             Click bên ngoài để đóng
           </Typography>
         </DialogContent>
       </Dialog>
-      
+
       <Snackbar
         open={notification.open}
         autoHideDuration={4000}
@@ -2684,7 +2757,7 @@ const DesignRequests = () => {
           {notification.message}
         </Alert>
       </Snackbar>
-    </Container>
+    </>
   );
 };
 

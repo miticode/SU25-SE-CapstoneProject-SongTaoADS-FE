@@ -2,19 +2,19 @@ import React, { useEffect, useState, useCallback } from "react";
 
 /*
  * CÁCH SỬ DỤNG CÁC FUNCTION REFRESH:
- * 
+ *
  * 1. refreshCustomDesignData() - Refresh data cho tab "Đơn thiết kế thủ công"
  *    - Sử dụng sau khi: approve/reject proposal, gửi offer, approve/reject demo, thay đổi lựa chọn thi công
- * 
- * 2. refreshOrdersData() - Refresh data cho tab "Lịch sử đơn hàng"  
+ *
+ * 2. refreshOrdersData() - Refresh data cho tab "Lịch sử đơn hàng"
  *    - Sử dụng sau khi: upload hợp đồng, thảo luận hợp đồng, gửi đánh giá, hủy đơn hàng, tạo ticket
- * 
+ *
  * 3. refreshImpressionsData(orderId) - Refresh impressions cho một đơn hàng cụ thể
  *    - Sử dụng sau khi: gửi đánh giá
- * 
+ *
  * 4. refreshAllData() - Refresh tất cả data (thông minh theo tab hiện tại)
  *    - Sử dụng khi không chắc chắn cần refresh gì
- * 
+ *
  * LƯU Ý: Không cần reload trang nữa, chỉ cần gọi các function này!
  */
 import {
@@ -164,6 +164,7 @@ const statusMap = {
   CONFIRMED: { label: "Đã xác nhận", color: "success" },
   REJECTED: { label: "Bị từ chối", color: "error" },
   PENDING: { label: "Chờ xác nhận", color: "warning" },
+  NEGOTIATING: { label: "Đang thương lượng", color: "warning" },
   DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   COMPLETED: { label: "Hoàn tất", color: "primary" },
   CANCELLED: { label: "Đã bị hủy", color: "error" },
@@ -186,6 +187,9 @@ const statusMap = {
     label: "Cần thanh toán đủ thiết kế",
     color: "error",
   },
+  DEMO_SUBMITTED: { label: "Đã gửi demo", color: "info" },
+  REVISION_REQUESTED: { label: "Yêu cầu chỉnh sửa", color: "warning" },
+  APPROVED_PRICING: { label: "Đã duyệt báo giá", color: "success" },
 };
 
 // Component để hiển thị ảnh thiết kế đã chỉnh sửa với auto-detect tỷ lệ
@@ -1431,11 +1435,11 @@ const OrderHistory = () => {
 
   // ===== CÁC FUNCTION REFRESH DATA =====
   // Sử dụng các function này thay vì reload trang để cập nhật UI tự động
-  
+
   // Tạo function refresh chung cho tất cả data
   const refreshCustomDesignData = async () => {
     if (!customerDetailId) return;
-    
+
     try {
       // Reload custom design requests
       await dispatch(
@@ -1445,7 +1449,7 @@ const OrderHistory = () => {
           size: 10,
         })
       );
-      
+
       // Reload price proposals nếu đang mở detail
       if (openDetail && currentDesignRequest) {
         const proposalsRes = await getPriceProposals(currentDesignRequest.id);
@@ -1480,7 +1484,7 @@ const OrderHistory = () => {
       if (tab === 1 && customerDetailId) {
         await refreshCustomDesignData();
       }
-      
+
       // Refresh orders data nếu đang ở tab lịch sử đơn hàng
       if (tab === 0 && user?.id) {
         await refreshOrdersData();
@@ -3220,7 +3224,7 @@ const OrderHistory = () => {
       totalPriceOffer: Number(offerForm.totalPriceOffer),
       depositAmountOffer: Number(offerForm.depositAmountOffer),
     };
-    
+
     try {
       const res = await offerPriceProposal(proposalId, data);
       if (res.success) {
@@ -3230,7 +3234,7 @@ const OrderHistory = () => {
           severity: "success",
         });
         handleCloseOfferDialog();
-        
+
         // Refresh toàn bộ data
         await refreshCustomDesignData();
       } else {
@@ -3265,7 +3269,7 @@ const OrderHistory = () => {
         severity: "success",
       });
       setOpenDetail(false);
-      
+
       // Refresh data sau khi chấp nhận demo
       await refreshCustomDesignData();
     } catch (err) {
@@ -3307,7 +3311,7 @@ const OrderHistory = () => {
       setRejectReason("");
       setFeedbackImage(null);
       setOpenDetail(false);
-      
+
       // Refresh data sau khi từ chối demo
       await refreshCustomDesignData();
     } catch (err) {
@@ -5538,61 +5542,66 @@ const OrderHistory = () => {
                           }}
                         >
                           <BrushIcon />
-                          Yêu cầu thiết kế #{req.id}
+                          Yêu cầu thiết kế #{req.code}
                         </Typography>
 
-                        <Box sx={{ mb: 2 }}>
-                          <Typography
-                            variant="body1"
-                            fontWeight={600}
-                            sx={{ mb: 1, color: "text.primary" }}
-                          >
-                            📝 Mô tả: {req.requirements}
-                          </Typography>
-
-                          <Stack direction="row" spacing={2} flexWrap="wrap">
-                            <Typography variant="body2" color="text.secondary">
-                              💰 Tổng tiền:{" "}
-                              <strong>
-                                {req.totalPrice?.toLocaleString("vi-VN")}₫
-                              </strong>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              🏦 Đặt cọc:{" "}
-                              <strong>
-                                {req.depositAmount?.toLocaleString("vi-VN")}₫
-                              </strong>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              📅 Ngày tạo:{" "}
-                              <strong>
-                                {req.createdAt
-                                  ? new Date(req.createdAt).toLocaleDateString(
-                                      "vi-VN"
-                                    )
-                                  : "N/A"}
-                              </strong>
-                            </Typography>
-                          </Stack>
-                        </Box>
-
-                        <Chip
-                          label={statusMap[req.status]?.label || req.status}
-                          size="medium"
+                        {/* Layout flex để đưa chip và nút về 2 bên */}
+                        <Box
                           sx={{
-                            background:
-                              req.status === "COMPLETED"
-                                ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
-                                : req.status === "CANCELLED"
-                                ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                                : req.status === "DEPOSITED"
-                                ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
-                                : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                            color: "white",
-                            fontWeight: 600,
-                            "& .MuiChip-icon": { color: "white" },
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 2,
                           }}
-                        />
+                        >
+                          <Chip
+                            label={statusMap[req.status]?.label || req.status}
+                            size="medium"
+                            sx={{
+                              background:
+                                req.status === "COMPLETED"
+                                  ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
+                                  : req.status === "CANCELLED"
+                                  ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                                  : req.status === "DEPOSITED"
+                                  ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                                  : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                              color: "white",
+                              fontWeight: 600,
+                              "& .MuiChip-icon": { color: "white" },
+                            }}
+                          />
+
+                          {/* Nút Xem chi tiết - bên phải */}
+                          <Button
+                            variant="outlined"
+                            startIcon={<DescriptionIcon />}
+                            size="small"
+                            sx={{
+                              borderColor: "#2196f3",
+                              color: "#2196f3",
+                              fontWeight: 600,
+                              borderRadius: 2,
+                              fontSize: "0.8rem",
+                              px: 2,
+                              py: 0.5,
+                              transition: "all 0.3s ease",
+                              "&:hover": {
+                                background:
+                                  "linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 203, 243, 0.1) 100%)",
+                                borderColor: "#21cbf3",
+                                transform: "translateY(-1px)",
+                              },
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dispatch(setCurrentDesignRequest(req));
+                              setOpenDetail(true);
+                            }}
+                          >
+                            Xem chi tiết
+                          </Button>
+                        </Box>
                       </Box>
 
                       {/* Status-specific actions */}
@@ -5645,33 +5654,6 @@ const OrderHistory = () => {
                       )}
 
                       {/* Xóa nút đặt cọc - chuyển sang tab Lịch sử đơn hàng */}
-
-                      {/* Action buttons */}
-                      <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                        <Button
-                          variant="outlined"
-                          startIcon={<DescriptionIcon />}
-                          sx={{
-                            borderColor: "#2196f3",
-                            color: "#2196f3",
-                            fontWeight: 600,
-                            borderRadius: 2,
-                            transition: "all 0.3s ease",
-                            "&:hover": {
-                              background:
-                                "linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 203, 243, 0.1) 100%)",
-                              borderColor: "#21cbf3",
-                              transform: "translateY(-1px)",
-                            },
-                          }}
-                          onClick={() => {
-                            dispatch(setCurrentDesignRequest(req));
-                            setOpenDetail(true);
-                          }}
-                        >
-                          Xem chi tiết
-                        </Button>
-                      </Stack>
 
                       {/* Hiển thị nút lựa chọn thi công trong card khi trạng thái COMPLETED và chưa có lựa chọn */}
                       {/* {req.status === "COMPLETED" &&
@@ -5728,46 +5710,6 @@ const OrderHistory = () => {
                           </Stack>
                         </Box>
                       )} */}
-
-                      {/* Hiển thị lựa chọn thi công đã chọn trong card */}
-                      {req.status === "COMPLETED" && (
-                        <>
-                          {req.isNeedSupport === true &&
-                          orders.some(
-                            (order) => order.customDesignRequests?.id === req.id
-                          ) ? (
-                            <Box
-                              mt={1}
-                              p={2}
-                              border={1}
-                              borderRadius={1}
-                              borderColor="info.light"
-                              bgcolor="#e1f5fe"
-                            >
-                              <Typography variant="body2">
-                                <b>Đã chọn thi công:</b> Đơn hàng đã được tạo,
-                                vui lòng kiểm tra ở tab "Lịch sử đơn hàng"
-                              </Typography>
-                            </Box>
-                          ) : req.isNeedSupport !== null ? (
-                            <Box
-                              mt={1}
-                              p={2}
-                              border={1}
-                              borderRadius={1}
-                              borderColor="success.light"
-                              bgcolor="#e8f5e9"
-                            >
-                              <Typography variant="body2">
-                                <b>Đã chọn:</b>{" "}
-                                {req.isNeedSupport
-                                  ? "Có thi công"
-                                  : "Không thi công"}
-                              </Typography>
-                            </Box>
-                          ) : null}
-                        </>
-                      )}
                     </Stack>
                   </CardContent>
                 </Card>
@@ -6156,12 +6098,12 @@ const OrderHistory = () => {
         <Dialog
           open={openDetail}
           onClose={() => setOpenDetail(false)}
-          maxWidth="lg"
+          maxWidth="md"
           fullWidth
           PaperProps={{
             sx: {
               borderRadius: 0,
-              maxHeight: "95vh",
+              maxHeight: "80vh",
               height: "auto",
               m: 0,
             },
@@ -6169,35 +6111,514 @@ const OrderHistory = () => {
         >
           <DialogTitle
             sx={{
-              bgcolor: "#0F172A",
+              background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
               color: "white",
-              fontWeight: 700,
-              fontSize: "1.5rem",
-              py: 3,
-              px: 4,
-              position: "relative",
-              letterSpacing: "-0.025em",
+              fontWeight: 600,
+              fontSize: "1rem",
+              py: 2,
+              px: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
             }}
           >
-            Chi tiết yêu cầu thiết kế #{currentDesignRequest?.id}
+            <Box sx={{ flex: 1 }}>
+              <Typography
+                variant="subtitle1"
+                component="div"
+                sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: "1.2rem" }}
+              >
+                Chi tiết yêu cầu thiết kế
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ opacity: 0.9, fontSize: "1rem" }}
+              >
+                Mã: {currentDesignRequest?.code || currentDesignRequest?.id}
+              </Typography>
+            </Box>
             <IconButton
               onClick={() => setOpenDetail(false)}
               sx={{
-                position: "absolute",
-                right: 16,
-                top: "50%",
-                transform: "translateY(-50%)",
                 color: "white",
+                p: 0.5,
                 "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
               }}
             >
-              <CloseIcon />
+              <CloseIcon fontSize="small" />
             </IconButton>
           </DialogTitle>
 
-          <DialogContent sx={{ p: 0, bgcolor: "#f8fafc" }}>
+          <DialogContent sx={{ p: 0, bgcolor: "#ffffff", overflowX: "hidden" }}>
             {currentDesignRequest ? (
-              <Box>
+              <Box sx={{ width: "100%" }}>
+                {/* Thông Tin Cơ Bản - Layout 1 cột */}
+                <Card sx={{ m: 0, borderRadius: 0, boxShadow: "none" }}>
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
+                    >
+                      Thông Tin Cơ Bản
+                    </Typography>
+
+                    <Stack spacing={2}>
+                      <Grid container spacing={3}>
+                        <Grid item xs={12} sm={6}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Công ty
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="#374151"
+                              sx={{
+                                bgcolor: "#f8fafc",
+                                p: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e2e8f0",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {currentDesignRequest?.customerDetail
+                                ?.companyName || "Chưa cập nhật"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Người liên hệ
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="#374151"
+                              sx={{
+                                bgcolor: "#f8fafc",
+                                p: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e2e8f0",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {currentDesignRequest?.customerDetail?.users
+                                ?.fullName || "Chưa cập nhật"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Email
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="#374151"
+                              sx={{
+                                bgcolor: "#f8fafc",
+                                p: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e2e8f0",
+                                fontSize: "1rem",
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {currentDesignRequest?.customerDetail?.users
+                                ?.email || "Chưa cập nhật"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Số điện thoại
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="#374151"
+                              sx={{
+                                bgcolor: "#f8fafc",
+                                p: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e2e8f0",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {currentDesignRequest?.customerDetail
+                                ?.contactInfo ||
+                                currentDesignRequest?.customerDetail?.users
+                                  ?.phone ||
+                                "Chưa cập nhật"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Stack>
+                  </CardContent>
+                </Card>
+
+                {/* Yêu Cầu Thiết Kế */}
+                <Card
+                  sx={{
+                    m: 0,
+                    borderRadius: 0,
+                    borderTop: "1px solid #e2e8f0",
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
+                    >
+                      Yêu Cầu Thiết Kế
+                    </Typography>
+
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          color="#64748b"
+                          fontWeight={600}
+                          mb={0.5}
+                          sx={{
+                            fontSize: "0.9rem",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Mô tả yêu cầu
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="#374151"
+                          sx={{
+                            bgcolor: "#f8fafc",
+                            p: 1.5,
+                            borderRadius: 1,
+                            border: "1px solid #e2e8f0",
+                            fontSize: "1rem",
+                            lineHeight: 1.4,
+                            minHeight: "50px",
+                          }}
+                        >
+                          {currentDesignRequest.requirements}
+                        </Typography>
+                      </Box>
+
+                      <Grid container spacing={3}>
+                        <Grid item xs={12} sm={4}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Trạng thái
+                            </Typography>
+                            <Chip
+                              label={
+                                statusMap[currentDesignRequest.status]?.label ||
+                                currentDesignRequest.status
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  currentDesignRequest.status === "COMPLETED"
+                                    ? "#10b981"
+                                    : currentDesignRequest.status ===
+                                      "CANCELLED"
+                                    ? "#ef4444"
+                                    : currentDesignRequest.status ===
+                                      "APPROVED_PRICING"
+                                    ? "#3b82f6"
+                                    : "#f59e0b",
+                                color: "white",
+                                fontWeight: 600,
+                                fontSize: "0.8rem",
+                              }}
+                            />
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Designer
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="#374151"
+                              sx={{
+                                bgcolor: "#f8fafc",
+                                p: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e2e8f0",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {currentDesignRequest?.assignDesigner?.fullName ||
+                                currentDesignRequest?.assignDesigner?.email ||
+                                "Chưa phân công"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Box>
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={0.5}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Ngày tạo
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="#374151"
+                              sx={{
+                                bgcolor: "#f8fafc",
+                                p: 1,
+                                borderRadius: 1,
+                                border: "1px solid #e2e8f0",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {currentDesignRequest?.createdAt
+                                ? new Date(
+                                    currentDesignRequest.createdAt
+                                  ).toLocaleDateString("vi-VN")
+                                : "Chưa cập nhật"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Stack>
+                  </CardContent>
+                </Card>
+
+                {/* Thông Tin Báo Giá */}
+                <Card
+                  sx={{
+                    m: 0,
+                    borderRadius: 0,
+                    borderTop: "1px solid #e2e8f0",
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
+                    >
+                      Thông Tin Báo Giá
+                    </Typography>
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 1.5,
+                            bgcolor: "rgba(34, 197, 94, 0.1)",
+                            border: "1px solid rgba(34, 197, 94, 0.2)",
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            color="#16a34a"
+                            fontWeight={600}
+                            mb={0.5}
+                            sx={{
+                              fontSize: "0.9rem",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Tổng tiền
+                          </Typography>
+                          <Typography
+                            variant="subtitle1"
+                            color="#15803d"
+                            fontWeight={700}
+                            sx={{ fontSize: "1.1rem" }}
+                          >
+                            {currentDesignRequest.totalPrice
+                              ? `${currentDesignRequest.totalPrice.toLocaleString(
+                                  "vi-VN"
+                                )}₫`
+                              : "Chưa báo giá"}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 1.5,
+                            bgcolor: "rgba(59, 130, 246, 0.1)",
+                            border: "1px solid rgba(59, 130, 246, 0.2)",
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            color="#2563eb"
+                            fontWeight={600}
+                            mb={0.5}
+                            sx={{
+                              fontSize: "0.9rem",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Đặt cọc
+                          </Typography>
+                          <Typography
+                            variant="subtitle1"
+                            color="#1d4ed8"
+                            fontWeight={700}
+                            sx={{ fontSize: "1.1rem" }}
+                          >
+                            {currentDesignRequest.depositAmount
+                              ? `${currentDesignRequest.depositAmount.toLocaleString(
+                                  "vi-VN"
+                                )}₫`
+                              : "0₫"}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 1.5,
+                            bgcolor: "rgba(245, 158, 11, 0.1)",
+                            border: "1px solid rgba(245, 158, 11, 0.2)",
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            color="#d97706"
+                            fontWeight={600}
+                            mb={0.5}
+                            sx={{
+                              fontSize: "0.9rem",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Còn lại
+                          </Typography>
+                          <Typography
+                            variant="subtitle1"
+                            color="#ca8a04"
+                            fontWeight={700}
+                            sx={{ fontSize: "1.1rem" }}
+                          >
+                            {currentDesignRequest.remainingAmount
+                              ? `${currentDesignRequest.remainingAmount.toLocaleString(
+                                  "vi-VN"
+                                )}₫`
+                              : "0₫"}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    </Grid>
+
+                    {currentDesignRequest.isNeedSupport !== null && (
+                      <Box mt={2}>
+                        <Typography
+                          variant="body2"
+                          color="#64748b"
+                          fontWeight={600}
+                          mb={0.5}
+                          sx={{
+                            fontSize: "0.9rem",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Hỗ trợ
+                        </Typography>
+                        <Chip
+                          label={
+                            currentDesignRequest.isNeedSupport ? "Có" : "Không"
+                          }
+                          size="small"
+                          sx={{
+                            bgcolor: currentDesignRequest.isNeedSupport
+                              ? "#10b981"
+                              : "#6b7280",
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: "0.7rem",
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Demo Thiết Kế Section */}
                 {demoList.length > 0 && (
                   <Card
@@ -6460,7 +6881,15 @@ const OrderHistory = () => {
                                     Trạng thái
                                   </Typography>
                                   <Chip
-                                    label={demo.status}
+                                    label={
+                                      demo.status === "APPROVED"
+                                        ? "Đã chấp nhận"
+                                        : demo.status === "REJECTED"
+                                        ? "Đã từ chối"
+                                        : demo.status === "PENDING"
+                                        ? "Chờ xử lý"
+                                        : demo.status
+                                    }
                                     size="small"
                                     sx={{
                                       bgcolor:
@@ -6746,7 +7175,7 @@ const OrderHistory = () => {
                 <Card
                   sx={{ m: 0, borderRadius: 0, borderTop: "1px solid #e0e0e0" }}
                 >
-                  <CardContent sx={{ p: 4 }}>
+                  {/* <CardContent sx={{ p: 4 }}>
                     <Grid container spacing={4}>
                       <Grid item xs={12} md={6}>
                         <Card
@@ -6959,7 +7388,7 @@ const OrderHistory = () => {
                         </Card>
                       </Grid>
                     </Grid>
-                  </CardContent>
+                  </CardContent> */}
                 </Card>
 
                 {/* Product Details Section */}
@@ -7314,141 +7743,237 @@ const OrderHistory = () => {
                 )}
 
                 {/* Price Proposals Section */}
-                <Card sx={{ borderRadius: 0, borderTop: "1px solid #e0e0e0" }}>
-                  <CardContent sx={{ p: 4 }}>
+                <Card
+                  sx={{
+                    m: 0,
+                    borderRadius: 0,
+                    borderTop: "1px solid #e2e8f0",
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
                     <Typography
-                      variant="h5"
+                      variant="subtitle1"
                       fontWeight={600}
-                      color="#0F172A"
-                      mb={3}
-                      letterSpacing="-0.015em"
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
                     >
-                      Lịch sử báo giá
+                      Lịch Sử Báo Giá{" "}
+                      {priceProposals.length > 0 &&
+                        `(${priceProposals.length})`}
                     </Typography>
 
                     {loadingProposals ? (
-                      <Box display="flex" justifyContent="center" py={4}>
-                        <CircularProgress />
+                      <Box display="flex" justifyContent="center" py={2}>
+                        <CircularProgress size={24} />
                       </Box>
                     ) : priceProposals.length === 0 ? (
-                      <Typography color="#64748b">
+                      <Typography
+                        variant="body2"
+                        color="#64748b"
+                        sx={{ fontSize: "1rem", fontStyle: "italic" }}
+                      >
                         Chưa có báo giá nào.
                       </Typography>
                     ) : (
-                      <Stack spacing={3}>
-                        {priceProposals.map((proposal) => (
+                      <Stack spacing={2}>
+                        {priceProposals.map((proposal, index) => (
                           <Paper
                             key={proposal.id}
                             elevation={0}
                             sx={{
-                              p: 3,
-                              borderRadius: 3,
-                              border: "1px solid #e2e8f0",
-                              bgcolor: "#f8fafc",
+                              p: 1.5,
+                              borderRadius: 1.5,
+                              border:
+                                proposal.status === "APPROVED"
+                                  ? "2px solid #10b981"
+                                  : "1px solid #e2e8f0",
+                              bgcolor:
+                                proposal.status === "APPROVED"
+                                  ? "rgba(16, 185, 129, 0.05)"
+                                  : "#f8fafc",
                             }}
                           >
-                            <Grid container spacing={2}>
-                              <Grid item xs={12} md={6}>
-                                <Stack spacing={1}>
-                                  <Typography
-                                    variant="body2"
-                                    color="#64748b"
-                                    fontWeight={600}
-                                  >
-                                    Giá báo:{" "}
-                                    <strong>
-                                      {proposal.totalPrice?.toLocaleString(
-                                        "vi-VN"
-                                      )}
-                                      ₫
-                                    </strong>
-                                  </Typography>
-                                  <Typography
-                                    variant="body2"
-                                    color="#64748b"
-                                    fontWeight={600}
-                                  >
-                                    Tiền cọc:{" "}
-                                    <strong>
-                                      {proposal.depositAmount?.toLocaleString(
-                                        "vi-VN"
-                                      )}
-                                      ₫
-                                    </strong>
-                                  </Typography>
-                                  {proposal.totalPriceOffer && (
-                                    <Typography
-                                      variant="body2"
-                                      color="#64748b"
-                                      fontWeight={600}
-                                    >
-                                      Giá offer:{" "}
-                                      <strong>
-                                        {proposal.totalPriceOffer?.toLocaleString(
-                                          "vi-VN"
-                                        )}
-                                        ₫
-                                      </strong>
-                                    </Typography>
-                                  )}
-                                  {proposal.depositAmountOffer && (
-                                    <Typography
-                                      variant="body2"
-                                      color="#64748b"
-                                      fontWeight={600}
-                                    >
-                                      Cọc offer:{" "}
-                                      <strong>
-                                        {proposal.depositAmountOffer?.toLocaleString(
-                                          "vi-VN"
-                                        )}
-                                        ₫
-                                      </strong>
-                                    </Typography>
-                                  )}
-                                </Stack>
+                            <Grid container spacing={2} alignItems="center">
+                              <Grid item xs={12} sm={2}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  color="#1e293b"
+                                  sx={{ fontSize: "1rem" }}
+                                >
+                                  Báo giá #{index + 1}
+                                </Typography>
                               </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Stack spacing={1}>
-                                  <Box
-                                    display="flex"
-                                    alignItems="center"
-                                    gap={1}
-                                  >
+                              <Grid item xs={6} sm={2}>
+                                <Typography
+                                  variant="caption"
+                                  color="#64748b"
+                                  sx={{
+                                    fontSize: "0.8rem",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Giá báo
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  sx={{ fontSize: "1rem" }}
+                                >
+                                  {proposal.totalPrice?.toLocaleString("vi-VN")}
+                                  ₫
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6} sm={2}>
+                                <Typography
+                                  variant="caption"
+                                  color="#64748b"
+                                  sx={{
+                                    fontSize: "0.8rem",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Cọc
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  sx={{ fontSize: "1rem" }}
+                                >
+                                  {proposal.depositAmount?.toLocaleString(
+                                    "vi-VN"
+                                  )}
+                                  ₫
+                                </Typography>
+                              </Grid>
+                              {(proposal.totalPriceOffer ||
+                                proposal.depositAmountOffer) && (
+                                <>
+                                  <Grid item xs={6} sm={2}>
+                                    <Typography
+                                      variant="caption"
+                                      color="#64748b"
+                                      sx={{
+                                        fontSize: "0.8rem",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
+                                      Offer
+                                    </Typography>
                                     <Typography
                                       variant="body2"
-                                      color="#64748b"
                                       fontWeight={600}
+                                      sx={{
+                                        fontSize: "1rem",
+                                        color: "#f59e0b",
+                                      }}
                                     >
-                                      Trạng thái:
+                                      {proposal.totalPriceOffer?.toLocaleString(
+                                        "vi-VN"
+                                      ) || "0"}
+                                      ₫
                                     </Typography>
-                                    <Chip
-                                      label={proposal.status}
-                                      size="small"
-                                    />
-                                  </Box>
-                                  <Typography
-                                    variant="body2"
-                                    color="#64748b"
-                                    fontWeight={600}
-                                  >
-                                    Ngày báo giá:{" "}
-                                    <strong>
-                                      {proposal.createdAt
-                                        ? new Date(
-                                            proposal.createdAt
-                                          ).toLocaleDateString("vi-VN")
-                                        : "N/A"}
-                                    </strong>
-                                  </Typography>
-                                </Stack>
+                                  </Grid>
+                                  <Grid item xs={6} sm={1}>
+                                    <Typography
+                                      variant="caption"
+                                      color="#64748b"
+                                      sx={{
+                                        fontSize: "0.65rem",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
+                                      Cọc offer
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                      sx={{
+                                        fontSize: "0.8rem",
+                                        color: "#f59e0b",
+                                      }}
+                                    >
+                                      {proposal.depositAmountOffer?.toLocaleString(
+                                        "vi-VN"
+                                      ) || "0"}
+                                      ₫
+                                    </Typography>
+                                  </Grid>
+                                </>
+                              )}
+                              <Grid
+                                item
+                                xs={6}
+                                sm={
+                                  proposal.totalPriceOffer ||
+                                  proposal.depositAmountOffer
+                                    ? 2
+                                    : 3
+                                }
+                              >
+                                <Chip
+                                  label={
+                                    proposal.status === "APPROVED"
+                                      ? "Đã chấp nhận"
+                                      : proposal.status === "REJECTED"
+                                      ? "Đã từ chối"
+                                      : "Chờ xác nhận"
+                                  }
+                                  size="small"
+                                  sx={{
+                                    bgcolor:
+                                      proposal.status === "APPROVED"
+                                        ? "#10b981"
+                                        : proposal.status === "REJECTED"
+                                        ? "#ef4444"
+                                        : "#f59e0b",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    fontSize: "0.65rem",
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={6} sm={1}>
+                                <Typography
+                                  variant="caption"
+                                  color="#64748b"
+                                  sx={{ fontSize: "0.7rem" }}
+                                >
+                                  {proposal.createdAt
+                                    ? new Date(
+                                        proposal.createdAt
+                                      ).toLocaleDateString("vi-VN")
+                                    : "N/A"}
+                                </Typography>
                               </Grid>
                             </Grid>
+
+                            {proposal.rejectionReason && (
+                              <Box
+                                mt={1}
+                                p={1}
+                                bgcolor="rgba(239, 68, 68, 0.1)"
+                                borderRadius={1}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="#ef4444"
+                                  sx={{
+                                    fontSize: "0.7rem",
+                                    fontStyle: "italic",
+                                  }}
+                                >
+                                  Lý do từ chối: {proposal.rejectionReason}
+                                </Typography>
+                              </Box>
+                            )}
 
                             {["PENDING", "NEGOTIATING"].includes(
                               proposal.status
                             ) && (
-                              <Box mt={2} display="flex" gap={2}>
+                              <Box mt={1.5} display="flex" gap={1}>
                                 <Button
                                   variant="contained"
                                   size="small"
@@ -7459,6 +7984,9 @@ const OrderHistory = () => {
                                   sx={{
                                     bgcolor: "#10b981",
                                     "&:hover": { bgcolor: "#059669" },
+                                    fontSize: "0.7rem",
+                                    px: 2,
+                                    py: 0.5,
                                   }}
                                 >
                                   Chấp nhận
@@ -7471,6 +7999,11 @@ const OrderHistory = () => {
                                   onClick={() =>
                                     handleOpenOfferDialog(proposal.id)
                                   }
+                                  sx={{
+                                    fontSize: "0.7rem",
+                                    px: 2,
+                                    py: 0.5,
+                                  }}
                                 >
                                   Offer giá khác
                                 </Button>
@@ -7482,77 +8015,6 @@ const OrderHistory = () => {
                     )}
                   </CardContent>
                 </Card>
-
-                {/* Construction Choice Section */}
-                {currentDesignRequest &&
-                  currentDesignRequest.status === "COMPLETED" && (
-                    <Card
-                      sx={{ borderRadius: 0, borderTop: "1px solid #e0e0e0" }}
-                    >
-                      <CardContent sx={{ p: 4 }}>
-                        <Typography
-                          variant="h5"
-                          fontWeight={600}
-                          color="#0F172A"
-                          mb={3}
-                          letterSpacing="-0.015em"
-                        >
-                          Lựa chọn thi công
-                        </Typography>
-
-                        {currentDesignRequest.isNeedSupport === true &&
-                        orders.some(
-                          (order) =>
-                            order.customDesignRequests?.id ===
-                            currentDesignRequest.id
-                        ) ? (
-                          <Paper
-                            elevation={0}
-                            sx={{
-                              p: 3,
-                              borderRadius: 3,
-                              bgcolor: "#e1f5fe",
-                              border: "1px solid #2196f3",
-                            }}
-                          >
-                            <Typography
-                              variant="body1"
-                              color="#1976d2"
-                              fontWeight={600}
-                            >
-                              ✅ Đã chọn thi công: Đơn hàng đã được tạo, vui
-                              lòng kiểm tra ở tab "Lịch sử đơn hàng"
-                            </Typography>
-                          </Paper>
-                        ) : currentDesignRequest.isNeedSupport !== null ? (
-                          <Paper
-                            elevation={0}
-                            sx={{
-                              p: 3,
-                              borderRadius: 3,
-                              bgcolor: "#e8f5e9",
-                              border: "1px solid #4caf50",
-                            }}
-                          >
-                            <Typography
-                              variant="body1"
-                              color="#388e3c"
-                              fontWeight={600}
-                            >
-                              ✅ Đã chọn:{" "}
-                              {currentDesignRequest.isNeedSupport
-                                ? "Có thi công"
-                                : "Không thi công"}
-                            </Typography>
-                          </Paper>
-                        ) : (
-                          <Typography color="#64748b">
-                            Chưa có lựa chọn thi công
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
 
                 {/* Dialog offer giá khác */}
                 <Dialog
