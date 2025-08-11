@@ -11,47 +11,18 @@ import {
 } from "../store/features/customer/customerSlice";
 import { getProductTypesApi } from "../api/productTypeService";
 import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Grid,
-  Paper,
-  TextField,
-  Button,
-  Snackbar,
-  Alert,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  FormLabel,
-  Divider,
-  Chip,
-  Avatar,
-  IconButton,
-  Tooltip,
-  Container,
-} from "@mui/material";
-import { 
-  FaRulerCombined, 
-  FaListAlt, 
-  FaRegStickyNote,
   FaBuilding,
-  FaMapMarkerAlt,
-  FaPhone,
-  FaImage,
-  FaCheckCircle,
-  FaInfoCircle,
   FaPalette,
+  FaListAlt,
+  FaRegStickyNote,
   FaHammer,
-  FaEdit,
-  FaCog
+  FaInfoCircle,
+  FaCheckCircle,
 } from "react-icons/fa";
 
 import { createCustomDesignRequest } from "../store/features/customeDesign/customerDesignSlice";
-import { createOrderFromDesignRequest } from "../store/features/order/orderSlice";
 import { fetchProfile, selectAuthUser } from "../store/features/auth/authSlice";
+import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
 
 const CustomDesign = () => {
   const location = useLocation();
@@ -82,6 +53,13 @@ const CustomDesign = () => {
   // Lấy user từ Redux auth
   const user = useSelector(selectAuthUser);
   const accessToken = useSelector((state) => state.auth.accessToken);
+
+  // Lấy logo từ S3
+  const logoUrl = useSelector((state) =>
+    customerDetail?.logoUrl
+      ? selectS3Image(state, customerDetail.logoUrl)
+      : null
+  );
 
   // Lấy orderType từ localStorage để điều khiển hiển thị nút thi công
   const orderTypeFromStorage = localStorage.getItem("orderTypeForNewOrder");
@@ -144,95 +122,124 @@ const CustomDesign = () => {
     }
   }, [orderTypeFromStorage]);
 
+  // Auto hide snackbar
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar((prev) => ({ ...prev, open: false }));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
+
+  // Fetch logo từ S3 khi có logoUrl (S3 key)
+  useEffect(() => {
+    if (customerDetail?.logoUrl && !logoUrl) {
+      // logoUrl trong response thực chất là S3 key, không phải URL trực tiếp
+      console.log("Fetching logo from S3 with key:", customerDetail.logoUrl);
+      dispatch(fetchImageFromS3(customerDetail.logoUrl));
+    }
+  }, [customerDetail?.logoUrl, logoUrl, dispatch]);
+
+  // Debug log để kiểm tra dữ liệu
+  useEffect(() => {
+    console.log("CustomDesign - customerDetail:", customerDetail);
+    console.log("CustomDesign - logoUrl from S3:", logoUrl);
+  }, [customerDetail, logoUrl]);
+
   const handleConfirm = async () => {
     // Lấy customerChoiceId từ location.state hoặc currentOrder
     let customerChoiceId = location.state?.customerChoiceId || currentOrder?.id;
-    
+
     // Nếu vẫn không có customerChoiceId, thử lấy từ localStorage
     if (!customerChoiceId) {
-      const savedCustomDesignInfo = localStorage.getItem('orderCustomDesignInfo');
+      const savedCustomDesignInfo = localStorage.getItem(
+        "orderCustomDesignInfo"
+      );
       if (savedCustomDesignInfo) {
         try {
           const parsedInfo = JSON.parse(savedCustomDesignInfo);
           customerChoiceId = parsedInfo.customerChoiceId;
         } catch (error) {
-          console.error('Error parsing saved custom design info:', error);
+          console.error("Error parsing saved custom design info:", error);
         }
       }
     }
-    
+
     // Nếu vẫn không có, thử lấy từ URL params hoặc localStorage khác
     if (!customerChoiceId) {
       const urlParams = new URLSearchParams(window.location.search);
-      customerChoiceId = urlParams.get('customerChoiceId');
+      customerChoiceId = urlParams.get("customerChoiceId");
     }
-    
+
     // Nếu vẫn không có, thử lấy từ localStorage khác
     if (!customerChoiceId) {
-      const savedOrderInfo = localStorage.getItem('orderAIDesignInfo');
+      const savedOrderInfo = localStorage.getItem("orderAIDesignInfo");
       if (savedOrderInfo) {
         try {
           const parsedInfo = JSON.parse(savedOrderInfo);
           customerChoiceId = parsedInfo.customerChoiceId;
         } catch (error) {
-          console.error('Error parsing saved order info:', error);
+          console.error("Error parsing saved order info:", error);
         }
       }
     }
-    
+
     // Nếu vẫn không có, thử lấy từ localStorage khác
     if (!customerChoiceId) {
-      const savedOrderInfo = localStorage.getItem('orderFormData');
+      const savedOrderInfo = localStorage.getItem("orderFormData");
       if (savedOrderInfo) {
         try {
           const parsedInfo = JSON.parse(savedOrderInfo);
           customerChoiceId = parsedInfo.customerChoiceId;
         } catch (error) {
-          console.error('Error parsing saved order form data:', error);
+          console.error("Error parsing saved order form data:", error);
         }
       }
     }
-    
+
     // Nếu vẫn không có, thử lấy từ localStorage khác
     if (!customerChoiceId) {
-      const savedOrderInfo = localStorage.getItem('orderCurrentStep');
+      const savedOrderInfo = localStorage.getItem("orderCurrentStep");
       if (savedOrderInfo) {
         try {
           const parsedInfo = JSON.parse(savedOrderInfo);
           customerChoiceId = parsedInfo.customerChoiceId;
         } catch (error) {
-          console.error('Error parsing saved order current step:', error);
+          console.error("Error parsing saved order current step:", error);
         }
       }
     }
-    
+
     // Nếu vẫn không có, thử lấy từ localStorage khác
     if (!customerChoiceId) {
-      const savedOrderInfo = localStorage.getItem('orderIdForNewOrder');
+      const savedOrderInfo = localStorage.getItem("orderIdForNewOrder");
       if (savedOrderInfo) {
         customerChoiceId = savedOrderInfo;
       }
     }
-    
+
     // Nếu vẫn không có, thử lấy từ localStorage khác
     if (!customerChoiceId) {
-      const savedOrderInfo = localStorage.getItem('orderTypeForNewOrder');
+      const savedOrderInfo = localStorage.getItem("orderTypeForNewOrder");
       if (savedOrderInfo) {
         customerChoiceId = savedOrderInfo;
       }
     }
-    
+
     console.log("CustomDesign - Debug handleConfirm:", {
       locationState: location.state,
       currentOrder: currentOrder,
       customerChoiceId: customerChoiceId,
-      customerDetail: customerDetail
+      customerDetail: customerDetail,
     });
-    
+
     if (!customerDetail?.id || !customerChoiceId) {
       setSnackbar({
         open: true,
-        message: `Thiếu thông tin: ${!customerDetail?.id ? 'Khách hàng' : ''} ${!customerChoiceId ? 'Customer Choice' : ''}`,
+        message: `Thiếu thông tin: ${!customerDetail?.id ? "Khách hàng" : ""} ${
+          !customerChoiceId ? "Customer Choice" : ""
+        }`,
         severity: "error",
       });
       return;
@@ -248,22 +255,34 @@ const CustomDesign = () => {
           },
         })
       ).unwrap();
-      
+
       if (result?.id) {
         // Kiểm tra localStorage để xem có orderId từ trang Order không
         const orderIdFromStorage = localStorage.getItem("orderIdForNewOrder");
-        const orderTypeFromStorage = localStorage.getItem("orderTypeForNewOrder");
+        const orderTypeFromStorage = localStorage.getItem(
+          "orderTypeForNewOrder"
+        );
 
-        console.log("CustomDesign - Debug after create custom design request:", {
-          resultId: result.id,
-          orderIdFromStorage,
-          orderTypeFromStorage,
-          hasOrder
-        });
+        console.log(
+          "CustomDesign - Debug after create custom design request:",
+          {
+            resultId: result.id,
+            orderIdFromStorage,
+            orderTypeFromStorage,
+            hasOrder,
+          }
+        );
 
         // Luôn sử dụng existing order nếu có orderIdFromStorage
-        if (orderIdFromStorage && (orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION")) {
-          console.log("CustomDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:", orderIdFromStorage);
+        if (
+          orderIdFromStorage &&
+          (orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" ||
+            orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION")
+        ) {
+          console.log(
+            "CustomDesign - Có orderIdFromStorage, chuyển đến step 2 của Order:",
+            orderIdFromStorage
+          );
 
           // Lưu thông tin Custom Design để sử dụng trong Order page
           const customDesignInfo = {
@@ -275,7 +294,10 @@ const CustomDesign = () => {
             selectedType: selectedType,
             customerDetail: customerDetail,
           };
-          localStorage.setItem("orderCustomDesignInfo", JSON.stringify(customDesignInfo));
+          localStorage.setItem(
+            "orderCustomDesignInfo",
+            JSON.stringify(customDesignInfo)
+          );
 
           // Cập nhật current step trong localStorage để Order component nhận biết
           localStorage.setItem("orderCurrentStep", "2");
@@ -296,7 +318,9 @@ const CustomDesign = () => {
           });
         } else {
           // Logic cũ: tạo order mới
-          console.log("CustomDesign - Không có orderIdFromStorage, tạo order mới");
+          console.log(
+            "CustomDesign - Không có orderIdFromStorage, tạo order mới"
+          );
 
           // Reset current step về 1 cho order mới
           localStorage.setItem("orderCurrentStep", "1");
@@ -335,762 +359,357 @@ const CustomDesign = () => {
   };
 
   return (
-    <Box 
-      sx={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-        py: 4,
-        px: { xs: 2, md: 0 },
-        position: 'relative',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-          pointerEvents: 'none'
-        }
-      }}
-    >
-      <Container maxWidth="1200px">
-        {/* Header Section */}
-        <Box 
-          sx={{
-            textAlign: 'center',
-            mb: 6,
-            background: 'rgba(255, 255, 255, 0.9)',
-            borderRadius: 4,
-            p: 4,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}
-        >
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 700,
-              color: '#2c3e50',
-              mb: 2,
-              background: 'linear-gradient(45deg, #2c3e50, #3498db)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
-          >
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Thiết Kế Tùy Chỉnh
-          </Typography>
-          <Typography
-            variant="h6"
-            sx={{
-              color: '#7f8c8d',
-              fontWeight: 400,
-              fontStyle: 'italic'
-            }}
-          >
-            Xác nhận thông tin và yêu cầu thiết kế
-          </Typography>
-        </Box>
+          </h1>
+          <p className="text-gray-600">
+            Xác nhận thông tin và tạo yêu cầu thiết kế
+          </p>
+        </div>
 
-        {/* Thông báo khi đang tạo thêm order detail cho existing order */}
+        {/* Notification for existing order */}
         {(() => {
-          const existingOrderId = localStorage.getItem('orderIdForNewOrder');
-          const existingOrderType = localStorage.getItem('orderTypeForNewOrder');
-          const isFromCustomDesignOrder = existingOrderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' || existingOrderType === 'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION';
-          
+          const existingOrderId = localStorage.getItem("orderIdForNewOrder");
+          const existingOrderType = localStorage.getItem(
+            "orderTypeForNewOrder"
+          );
+          const isFromCustomDesignOrder =
+            existingOrderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" ||
+            existingOrderType === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION";
+
           if (existingOrderId && isFromCustomDesignOrder) {
             return (
-              <Box sx={{ mb: 4 }}>
-                <Card 
-                  elevation={3}
-                  sx={{
-                    borderRadius: 3,
-                    border: '2px solid #3498db',
-                    background: 'linear-gradient(135deg, #ebf3fd 0%, #f8fbff 100%)',
-                    boxShadow: '0 8px 32px rgba(52, 152, 219, 0.2)'
-                  }}
-                >
-                  <CardContent sx={{ p: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                      <Avatar sx={{ bgcolor: '#3498db', mr: 3, width: 40, height: 40 }}>
-                        <FaInfoCircle />
-                      </Avatar>
-                      <Typography variant="h6" fontWeight={600} color="#2c3e50">
-                        🎯 Đang tạo thêm thiết kế tùy chỉnh
-                      </Typography>
-                    </Box>
-                    <Typography variant="body1" color="#34495e" sx={{ mb: 3 }}>
-                      Bạn đang tạo thêm một thiết kế tùy chỉnh cho đơn hàng hiện có.
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                      <Chip
-                        label={`Order ID: ${existingOrderId.slice(0, 8)}...`}
-                        variant="outlined"
-                        size="medium"
-                        sx={{ 
-                          borderColor: '#3498db',
-                          color: '#2980b9',
-                          backgroundColor: '#ffffff',
-                          fontWeight: 600
-                        }}
-                      />
-                      <Chip
-                        label={existingOrderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? 'Có thi công' : 'Không thi công'}
-                        variant="outlined"
-                        size="medium"
-                        sx={{ 
-                          borderColor: '#27ae60',
-                          color: '#229954',
-                          backgroundColor: '#ffffff',
-                          fontWeight: 600
-                        }}
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Box>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <FaInfoCircle className="text-blue-500 mr-3" />
+                  <div>
+                    <h3 className="font-semibold text-blue-900">
+                      Đang tạo thêm thiết kế tùy chỉnh
+                    </h3>
+                    <p className="text-blue-700 text-sm mt-1">
+                      Bạn đang tạo thêm một thiết kế tùy chỉnh cho đơn hàng hiện
+                      có.
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                        Order ID: {existingOrderId.slice(0, 8)}...
+                      </span>
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                        {existingOrderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                          ? "Có thi công"
+                          : "Không thi công"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
           }
           return null;
         })()}
 
-        <Grid container spacing={4}>
-          {/* Thông tin doanh nghiệp */}
-          <Grid item xs={12} lg={6}>
-            <Card 
-              elevation={4}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid #e9ecef',
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                }
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                  <Avatar sx={{ bgcolor: '#3498db', mr: 3, width: 48, height: 48 }}>
-                    <FaBuilding />
-                  </Avatar>
-                  <Typography variant="h5" fontWeight={700} color="#2c3e50">
-                    Thông Tin Doanh Nghiệp
-                  </Typography>
-                </Box>
-                
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <Paper 
-                      elevation={2}
-                      sx={{ 
-                        p: 3, 
-                        borderRadius: 2,
-                        border: '1px solid #e9ecef',
-                        background: '#f8f9fa'
-                      }}
-                    >
-                      <Typography variant="subtitle2" color="#7f8c8d" mb={1} fontWeight={600}>
-                        🏢 Tên doanh nghiệp
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600} color="#2c3e50">
-                        {customerDetail?.companyName || (
-                          <Chip 
-                            label="Chưa có thông tin" 
-                            color="error" 
-                            size="small"
-                            variant="outlined"
-                            icon={<FaEdit />}
-                          />
-                        )}
-                      </Typography>
-                    </Paper>
-                  </Grid>
+        {/* Main Form */}
+        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-100">
+          <form className="space-y-8">
+            {/* Company Information Section */}
+            <div className="border-b border-gray-100 pb-6">
+              <div className="flex items-center mb-4 group">
+                <FaBuilding className="text-gray-500 mr-3 group-hover:text-blue-500 transition-colors duration-200" />
+                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
+                  Thông Tin Doanh Nghiệp
+                </h2>
+              </div>
 
-                  <Grid item xs={12}>
-                    <Paper 
-                      elevation={2}
-                      sx={{ 
-                        p: 3, 
-                        borderRadius: 2,
-                        border: '1px solid #e9ecef',
-                        background: '#f8f9fa'
-                      }}
-                    >
-                      <Typography variant="subtitle2" color="#7f8c8d" mb={1} fontWeight={600}>
-                        📍 Địa chỉ
-                      </Typography>
-                      <Typography variant="body1" color="#2c3e50">
-                        {customerDetail?.address || (
-                          <Chip 
-                            label="Chưa có thông tin" 
-                            color="error" 
-                            size="small"
-                            variant="outlined"
-                            icon={<FaEdit />}
-                          />
-                        )}
-                      </Typography>
-                    </Paper>
-                  </Grid>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="group">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 group-hover:text-gray-900 transition-colors duration-200">
+                    Tên doanh nghiệp
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 hover:shadow-sm">
+                    {customerDetail?.companyName || (
+                      <span className="text-red-500 text-sm">
+                        Chưa có thông tin
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                  <Grid item xs={12}>
-                    <Paper 
-                      elevation={2}
-                      sx={{ 
-                        p: 3, 
-                        borderRadius: 2,
-                        border: '1px solid #e9ecef',
-                        background: '#f8f9fa'
-                      }}
-                    >
-                      <Typography variant="subtitle2" color="#7f8c8d" mb={1} fontWeight={600}>
-                        📞 Liên hệ
-                      </Typography>
-                      <Typography variant="body1" color="#2c3e50">
-                        {customerDetail?.contactInfo || (
-                          <Chip 
-                            label="Chưa có thông tin" 
-                            color="error" 
-                            size="small"
-                            variant="outlined"
-                            icon={<FaEdit />}
-                          />
-                        )}
-                      </Typography>
-                    </Paper>
-                  </Grid>
+                <div className="group">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 group-hover:text-gray-900 transition-colors duration-200">
+                    Liên hệ
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all duration-200 hover:shadow-sm">
+                    {customerDetail?.contactInfo || (
+                      <span className="text-red-500 text-sm">
+                        Chưa có thông tin
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                  {customerDetail?.logoUrl && (
-                    <Grid item xs={12}>
-                      <Paper 
-                        elevation={2}
-                        sx={{ 
-                          p: 3, 
-                          borderRadius: 2,
-                          border: '1px solid #e9ecef',
-                          background: '#f8f9fa'
-                        }}
-                      >
-                        <Typography variant="subtitle2" color="#7f8c8d" mb={2} fontWeight={600}>
-                          🖼️ Logo
-                        </Typography>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'center',
-                          p: 2,
-                          background: '#ffffff',
-                          borderRadius: 2,
-                          border: '2px dashed #e9ecef'
-                        }}>
-                          <img
-                            src={customerDetail.logoUrl}
-                            alt="Logo"
-                            style={{ 
-                              maxHeight: 80, 
-                              borderRadius: 8,
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                            }}
-                          />
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  )}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
+                <div className="md:col-span-2 group">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 group-hover:text-gray-900 transition-colors duration-200">
+                    Địa chỉ
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all duration-200 hover:shadow-sm">
+                    {customerDetail?.address || (
+                      <span className="text-red-500 text-sm">
+                        Chưa có thông tin
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-          {/* Loại biển hiệu */}
-          <Grid item xs={12} lg={6}>
-            <Card 
-              elevation={4}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid #e9ecef',
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                }
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                  <Avatar sx={{ bgcolor: '#e74c3c', mr: 3, width: 48, height: 48 }}>
-                    <FaPalette />
-                  </Avatar>
-                  <Typography variant="h5" fontWeight={700} color="#2c3e50">
-                    Loại Biển Hiệu
-                  </Typography>
-                </Box>
-                
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <Paper 
-                      elevation={2}
-                      sx={{ 
-                        p: 3, 
-                        borderRadius: 2,
-                        border: '1px solid #e9ecef',
-                        background: '#f8f9fa'
-                      }}
-                    >
-                      <Typography variant="subtitle2" color="#7f8c8d" mb={1} fontWeight={600}>
-                        🎨 Tên loại biển hiệu
-                      </Typography>
-                      <Typography variant="body1" fontWeight={600} color="#2c3e50">
-                        {selectedType?.name || (
-                          <Chip 
-                            label="Chưa chọn" 
-                            color="warning" 
-                            size="small"
-                            variant="outlined"
-                            icon={<FaEdit />}
-                          />
-                        )}
-                      </Typography>
-                    </Paper>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Paper 
-                      elevation={2}
-                      sx={{ 
-                        p: 3, 
-                        borderRadius: 2,
-                        border: '1px solid #e9ecef',
-                        background: '#f8f9fa'
-                      }}
-                    >
-                      <Typography variant="subtitle2" color="#7f8c8d" mb={2} fontWeight={600}>
-                        📏 Kích thước đã nhập
-                      </Typography>
-                      {customerChoiceSizes?.length > 0 ? (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                          {customerChoiceSizes.map((sz) => (
-                            <Chip
-                              key={sz.id}
-                              label={`${sz.sizes?.name || sz.sizeId}: ${sz.sizeValue}m`}
-                              variant="filled"
-                              size="medium"
-                              sx={{ 
-                                backgroundColor: '#3498db',
-                                color: '#ffffff',
-                                fontWeight: 600,
-                                '&:hover': {
-                                  backgroundColor: '#2980b9'
-                                }
-                              }}
-                            />
-                          ))}
-                        </Box>
+                {customerDetail?.logoUrl && (
+                  <div className="md:col-span-2 group">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 group-hover:text-gray-900 transition-colors duration-200">
+                      Logo
+                    </label>
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 flex justify-center hover:shadow-sm">
+                      {logoUrl ? (
+                        <img
+                          src={logoUrl}
+                          alt="Logo"
+                          className="h-16 object-contain hover:scale-105 transition-transform duration-200"
+                        />
                       ) : (
-                        <Chip 
-                          label="Chưa nhập kích thước" 
-                          color="warning" 
-                          variant="outlined"
-                          size="medium"
-                          icon={<FaEdit />}
-                          sx={{ fontWeight: 600 }}
-                        />
+                        <div className="h-16 flex items-center justify-center text-gray-400">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                          <span className="ml-2">Đang tải logo...</span>
+                        </div>
                       )}
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Thuộc tính đã chọn */}
-          <Grid item xs={12}>
-            <Card 
-              elevation={4}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid #e9ecef',
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                }
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                  <Avatar sx={{ bgcolor: '#27ae60', mr: 3, width: 48, height: 48 }}>
-                    <FaListAlt />
-                  </Avatar>
-                  <Typography variant="h5" fontWeight={700} color="#2c3e50">
-                    Thuộc Tính Đã Chọn
-                  </Typography>
-                </Box>
-                
-                {customerChoiceDetailsList && customerChoiceDetailsList.length > 0 ? (
-                  <Grid container spacing={3}>
-                    {customerChoiceDetailsList.map((attr) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} key={attr.id}>
-                        <Paper
-                          elevation={3}
-                          sx={{
-                            p: 3,
-                            borderRadius: 3,
-                            border: '1px solid #e9ecef',
-                            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)'
-                            }
-                          }}
-                        >
-                          <Typography variant="subtitle1" fontWeight={700} mb={1} color="#2c3e50">
-                            {attr.attributeValues?.description ||
-                              attr.attributeValues?.name ||
-                              attr.attributeValuesId}
-                          </Typography>
-                          <Typography variant="body2" color="#7f8c8d" mb={2}>
-                            {attr.attributeValues?.name || attr.attributeValuesId}
-                          </Typography>
-                          <Chip
-                            label={`${attr.subTotal?.toLocaleString("vi-VN") || 0} VND`}
-                            color="success"
-                            size="medium"
-                            variant="filled"
-                            sx={{ fontWeight: 600 }}
-                          />
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Box sx={{ 
-                    textAlign: 'center', 
-                    py: 6,
-                    background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                    borderRadius: 3,
-                    border: '2px dashed #dee2e6'
-                  }}>
-                    <FaListAlt size={48} color="#7f8c8d" style={{ marginBottom: '16px' }} />
-                    <Typography variant="h6" color="#7f8c8d" fontWeight={600}>
-                      Chưa chọn thuộc tính nào
-                    </Typography>
-                    <Typography variant="body2" color="#95a5a6" mt={1}>
-                      Vui lòng chọn các thuộc tính cần thiết cho biển hiệu
-                    </Typography>
-                  </Box>
+                    </div>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          </Grid>
+              </div>
+            </div>
+            {/* Product Type Section */}
+            <div className="border-b border-gray-100 pb-6">
+              <div className="flex items-center mb-4 group">
+                <FaPalette className="text-gray-500 mr-3 group-hover:text-pink-500 transition-colors duration-200" />
+                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-pink-600 transition-colors duration-200">
+                  Loại Biển Hiệu
+                </h2>
+              </div>
 
-          {/* Yêu cầu thiết kế */}
-          <Grid item xs={12}>
-            <Card 
-              elevation={4}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid #e9ecef',
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                }
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                  <Avatar sx={{ bgcolor: '#f39c12', mr: 3, width: 48, height: 48 }}>
-                    <FaRegStickyNote />
-                  </Avatar>
-                  <Typography variant="h5" fontWeight={700} color="#2c3e50">
-                    Yêu Cầu Thiết Kế
-                  </Typography>
-                </Box>
-                
-                <Paper 
-                  elevation={2}
-                  sx={{ 
-                    p: 3, 
-                    borderRadius: 3,
-                    border: '1px solid #e9ecef',
-                    background: '#f8f9fa'
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    multiline
-                    minRows={6}
-                    placeholder="Nhập yêu cầu thiết kế đặc biệt (nếu có)..."
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    variant="outlined"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        background: '#ffffff',
-                        fontSize: '1.1rem',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#3498db',
-                          },
-                        },
-                        '&.Mui-focused': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#3498db',
-                            borderWidth: 2,
-                          },
-                        },
-                      },
-                      '& .MuiInputBase-input': {
-                        fontSize: '1.1rem',
-                        fontWeight: 500,
-                      },
-                    }}
-                  />
-                </Paper>
-              </CardContent>
-            </Card>
-          </Grid>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="group">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 group-hover:text-gray-900 transition-colors duration-200">
+                    Tên loại biển hiệu
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-pink-300 hover:bg-pink-50 transition-all duration-200 hover:shadow-sm">
+                    {selectedType?.name || (
+                      <span className="text-orange-500 text-sm">Chưa chọn</span>
+                    )}
+                  </div>
+                </div>
 
-          {/* Lựa chọn thi công */}
-          <Grid item xs={12}>
-            <Card 
-              elevation={4}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid #e9ecef',
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                }
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                  <Avatar sx={{ bgcolor: '#9b59b6', mr: 3, width: 48, height: 48 }}>
-                    <FaHammer />
-                  </Avatar>
-                  <Typography variant="h5" fontWeight={700} color="#2c3e50">
-                    Lựa Chọn Thi Công
-                  </Typography>
-                </Box>
-                
-                <Paper 
-                  elevation={2}
-                  sx={{ 
-                    p: 4, 
-                    borderRadius: 3,
-                    border: '1px solid #e9ecef',
-                    background: '#f8f9fa'
-                  }}
-                >
-                  <Typography variant="h6" color="#2c3e50" mb={3} fontWeight={600}>
-                    🔨 Bạn có muốn chúng tôi thi công biển hiệu sau khi thiết kế không?
-                  </Typography>
-                  
-                  {/* Hiển thị thông báo khi chỉ có một lựa chọn */}
-                  {(orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" || orderTypeFromStorage === "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") && (
-                    <Box sx={{ mb: 3 }}>
-                      <Alert 
-                        severity="info" 
-                        variant="filled"
-                        sx={{ 
-                          borderRadius: 2,
-                          '& .MuiAlert-icon': {
-                            fontSize: '1.2rem'
-                          }
-                        }}
-                      >
-                        <Typography variant="body1" fontWeight={600}>
-                          {orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
-                            ? "🏗️ Đơn hàng của bạn đã bao gồm thi công" 
-                            : "🎨 Đơn hàng của bạn chỉ bao gồm thiết kế"}
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                          {orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION"
-                            ? "Lựa chọn thi công đã được xác định trước cho đơn hàng này."
-                            : "Đơn hàng này chỉ yêu cầu dịch vụ thiết kế, không bao gồm thi công."}
-                        </Typography>
-                      </Alert>
-                    </Box>
-                  )}
-                  
-                  <FormControl component="fieldset" fullWidth>
-                    <RadioGroup
-                      row
-                      value={hasOrder ? "yes" : "no"}
-                      onChange={(e) => setHasOrder(e.target.value === "yes")}
-                      name="hasOrderRadio"
-                      sx={{ gap: 4 }}
+                <div className="group">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 group-hover:text-gray-900 transition-colors duration-200">
+                    Kích thước đã nhập
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-cyan-300 hover:bg-cyan-50 transition-all duration-200 hover:shadow-sm">
+                    {customerChoiceSizes?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {customerChoiceSizes.map((sz) => (
+                          <span
+                            key={sz.id}
+                            className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded hover:bg-blue-200 transition-colors duration-200"
+                          >
+                            {sz.sizes?.name || sz.sizeId}: {sz.sizeValue}m
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-orange-500 text-sm">
+                        Chưa nhập kích thước
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Attributes Section */}
+            <div className="border-b border-gray-100 pb-6">
+              <div className="flex items-center mb-4 group">
+                <FaListAlt className="text-gray-500 mr-3 group-hover:text-emerald-500 transition-colors duration-200" />
+                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors duration-200">
+                  Thuộc Tính Đã Chọn
+                </h2>
+              </div>
+
+              {customerChoiceDetailsList &&
+              customerChoiceDetailsList.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {customerChoiceDetailsList.map((attr) => (
+                    <div
+                      key={attr.id}
+                      className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md transition-all duration-300 hover:scale-105 group cursor-pointer"
                     >
-                      {/* Hiển thị nút "Có thi công" nếu orderType không phải CUSTOM_DESIGN_WITHOUT_CONSTRUCTION */}
-                      {orderTypeFromStorage !== "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" && (
-                        <FormControlLabel
-                          value="yes"
-                          control={
-                            <Radio 
-                              sx={{
-                                color: '#27ae60',
-                                '&.Mui-checked': {
-                                  color: '#27ae60',
-                                },
-                              }}
-                            />
-                          }
-                          label={
-                            <Paper
-                              elevation={hasOrder ? 4 : 1}
-                              sx={{
-                                p: 3,
-                                borderRadius: 2,
-                                border: hasOrder ? '2px solid #27ae60' : '1px solid #e9ecef',
-                                background: hasOrder ? 'linear-gradient(135deg, #d5f4e6 0%, #e8f8f5 100%)' : '#ffffff',
-                                transition: 'all 0.3s ease',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Chip 
-                                  label="Có thi công" 
-                                  color="success" 
-                                  variant={hasOrder ? "filled" : "outlined"}
-                                  size="medium"
-                                  sx={{ mr: 2, fontWeight: 600 }}
-                                />
-                                <Typography variant="body1" color="#2c3e50" fontWeight={500}>
-                                  (Bao gồm thiết kế + thi công)
-                                </Typography>
-                              </Box>
-                            </Paper>
-                          }
-                        />
-                      )}
-                      
-                      {/* Hiển thị nút "Không thi công" nếu orderType không phải CUSTOM_DESIGN_WITH_CONSTRUCTION */}
-                      {orderTypeFromStorage !== "CUSTOM_DESIGN_WITH_CONSTRUCTION" && (
-                        <FormControlLabel
-                          value="no"
-                          control={
-                            <Radio 
-                              sx={{
-                                color: '#3498db',
-                                '&.Mui-checked': {
-                                  color: '#3498db',
-                                },
-                              }}
-                            />
-                          }
-                          label={
-                            <Paper
-                              elevation={!hasOrder ? 4 : 1}
-                              sx={{
-                                p: 3,
-                                borderRadius: 2,
-                                border: !hasOrder ? '2px solid #3498db' : '1px solid #e9ecef',
-                                background: !hasOrder ? 'linear-gradient(135deg, #ebf3fd 0%, #f8fbff 100%)' : '#ffffff',
-                                transition: 'all 0.3s ease',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Chip 
-                                  label="Không thi công" 
-                                  color="info" 
-                                  variant={!hasOrder ? "filled" : "outlined"}
-                                  size="medium"
-                                  sx={{ mr: 2, fontWeight: 600 }}
-                                />
-                                <Typography variant="body1" color="#2c3e50" fontWeight={500}>
-                                  (Chỉ thiết kế)
-                                </Typography>
-                              </Box>
-                            </Paper>
-                          }
-                        />
-                      )}
-                    </RadioGroup>
-                  </FormControl>
-                </Paper>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                      <h4 className="font-medium text-gray-900 mb-2 group-hover:text-emerald-700 transition-colors duration-200">
+                        {attr.attributeValues?.description ||
+                          attr.attributeValues?.name ||
+                          attr.attributeValuesId}
+                      </h4>
+                      <span className="bg-green-100 text-green-800 text-sm px-2 py-1 rounded group-hover:bg-green-200 transition-colors duration-200">
+                        {attr.subTotal?.toLocaleString("vi-VN") || 0} VND
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors duration-200">
+                  <FaListAlt className="mx-auto text-gray-400 text-3xl mb-2" />
+                  <p className="text-gray-500">Chưa chọn thuộc tính nào</p>
+                  <p className="text-sm text-gray-400">
+                    Vui lòng chọn các thuộc tính cần thiết
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* Design Requirements Section */}
+            <div className="border-b border-gray-100 pb-6">
+              <div className="flex items-center mb-4 group">
+                <FaRegStickyNote className="text-gray-500 mr-3 group-hover:text-amber-500 transition-colors duration-200" />
+                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-amber-600 transition-colors duration-200">
+                  Yêu Cầu Thiết Kế
+                </h2>
+              </div>
 
-        {/* Nút xác nhận */}
-        <Box 
-          sx={{ 
-            mt: 8, 
-            mb: 4, 
-            display: 'flex', 
-            justifyContent: 'center'
-          }}
-        >
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleConfirm}
-            sx={{
-              background: 'linear-gradient(45deg, #3498db, #2980b9)',
-              color: '#fff',
-              borderRadius: 3,
-              fontWeight: 700,
-              fontSize: '1.2rem',
-              minWidth: 250,
-              height: 60,
-              textTransform: 'none',
-              boxShadow: '0 8px 25px rgba(52, 152, 219, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(45deg, #2980b9, #1f5f8b)',
-                boxShadow: '0 12px 35px rgba(52, 152, 219, 0.4)',
-                transform: 'translateY(-2px)'
-              },
-              transition: 'all 0.3s ease',
-            }}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 hover:text-gray-900 transition-colors duration-200">
+                  Ghi chú đặc biệt (tùy chọn)
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Nhập yêu cầu thiết kế đặc biệt nếu có..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none hover:border-amber-300 transition-all duration-200 bg-gray-50 focus:bg-white"
+                />
+              </div>
+            </div>{" "}
+            {/* Construction Option Section */}
+            <div className="pb-6">
+              <div className="flex items-center mb-4 group">
+                <FaHammer className="text-gray-500 mr-3 group-hover:text-purple-500 transition-colors duration-200" />
+                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-purple-600 transition-colors duration-200">
+                  Lựa Chọn Thi Công
+                </h2>
+              </div>
+
+              {/* Notification for predetermined choice - chỉ hiển thị khi KHÔNG có existing order */}
+              {(orderTypeFromStorage === "CUSTOM_DESIGN_WITH_CONSTRUCTION" ||
+                orderTypeFromStorage ===
+                  "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") &&
+                !localStorage.getItem("orderIdForNewOrder") && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p className="text-blue-900 font-medium">
+                      {orderTypeFromStorage ===
+                      "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                        ? "🏗️ Đơn hàng của bạn đã bao gồm thi công"
+                        : "🎨 Đơn hàng của bạn chỉ bao gồm thiết kế"}
+                    </p>
+                    <p className="text-blue-700 text-sm mt-1">
+                      {orderTypeFromStorage ===
+                      "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                        ? "Lựa chọn thi công đã được xác định trước cho đơn hàng này."
+                        : "Đơn hàng này chỉ yêu cầu dịch vụ thiết kế, không bao gồm thi công."}
+                    </p>
+                  </div>
+                )}
+
+              <div className="space-y-3">
+                {/* Construction option */}
+                {orderTypeFromStorage !==
+                  "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" && (
+                  <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all duration-200 group">
+                    <input
+                      type="radio"
+                      name="hasOrder"
+                      value="yes"
+                      checked={hasOrder}
+                      onChange={() => setHasOrder(true)}
+                      className="text-green-600 focus:ring-green-500 transition-colors duration-200"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900 group-hover:text-green-700 transition-colors duration-200">
+                        Có thi công
+                      </span>
+                      <p className="text-sm text-gray-600 group-hover:text-green-600 transition-colors duration-200">
+                        (Bao gồm thiết kế + thi công)
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {/* Design only option */}
+                {orderTypeFromStorage !== "CUSTOM_DESIGN_WITH_CONSTRUCTION" && (
+                  <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 group">
+                    <input
+                      type="radio"
+                      name="hasOrder"
+                      value="no"
+                      checked={!hasOrder}
+                      onChange={() => setHasOrder(false)}
+                      className="text-blue-600 focus:ring-blue-500 transition-colors duration-200"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors duration-200">
+                        Không thi công
+                      </span>
+                      <p className="text-sm text-gray-600 group-hover:text-blue-600 transition-colors duration-200">
+                        (Chỉ thiết kế)
+                      </p>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
+            {/* Submit Button */}
+            <div className="flex justify-center pt-6">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+              >
+                <FaCheckCircle className="mr-2" />
+                Xác Nhận Thiết Kế
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Snackbar */}
+      {snackbar.open && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in-down">
+          <div
+            className={`p-4 rounded-lg shadow-xl border-l-4 ${
+              snackbar.severity === "success"
+                ? "bg-green-50 text-green-800 border-green-500"
+                : snackbar.severity === "error"
+                ? "bg-red-50 text-red-800 border-red-500"
+                : "bg-blue-50 text-blue-800 border-blue-500"
+            } transition-all duration-300 hover:shadow-2xl`}
           >
-            <FaCog style={{ marginRight: '12px' }} />
-            Xác Nhận Thiết Kế
-          </Button>
-        </Box>
-      </Container>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{snackbar.message}</span>
+              <button
+                onClick={() => setSnackbar({ ...snackbar, open: false })}
+                className="ml-4 text-current hover:text-gray-600 transition-colors duration-200 transform hover:scale-110"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
