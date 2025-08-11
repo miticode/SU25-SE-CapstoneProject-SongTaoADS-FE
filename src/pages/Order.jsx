@@ -20,6 +20,12 @@ import {
   Stepper,
   Step,
   StepLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  IconButton,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -30,11 +36,13 @@ import {
   Inventory,
   ArrowBack,
   ArrowForward,
+  Delete,
 } from "@mui/icons-material";
 import {
   createNewOrder,
   addOrderDetail,
   deleteOrder,
+  deleteOrderDetail,
   setCurrentOrder,
   ORDER_TYPE_MAP,
   selectOrderStatus,
@@ -457,6 +465,14 @@ const Order = () => {
   const [shouldRefreshOrderDetails, setShouldRefreshOrderDetails] = useState(false);
   // Loading khi xác nhận ở bước 2
   const [confirmingOrder, setConfirmingOrder] = useState(false);
+  
+  // State cho việc xóa order detail
+  const [deletingOrderDetail, setDeletingOrderDetail] = useState(false);
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState({
+    open: false,
+    orderDetailId: null,
+    orderDetailIndex: null
+  });
 
   // Scroll lên đầu trang khi vào trang và mỗi khi đổi bước
   useEffect(() => {
@@ -1125,6 +1141,82 @@ const Order = () => {
       setSuccessMessage("");
     } finally {
       setDeletingOrder(false);
+    }
+  };
+
+  // Hàm mở dialog confirm xóa order detail
+  const handleDeleteOrderDetailClick = (orderDetailId, orderDetailIndex) => {
+    setDeleteConfirmDialog({
+      open: true,
+      orderDetailId,
+      orderDetailIndex
+    });
+  };
+
+  // Hàm đóng dialog confirm
+  const handleDeleteConfirmDialogClose = () => {
+    setDeleteConfirmDialog({
+      open: false,
+      orderDetailId: null,
+      orderDetailIndex: null
+    });
+  };
+
+  // Hàm xử lý xóa order detail
+  const handleDeleteOrderDetail = async () => {
+    if (!deleteConfirmDialog.orderDetailId) {
+      setErrorMessage("Không tìm thấy ID chi tiết đơn hàng");
+      return;
+    }
+
+    try {
+      setDeletingOrderDetail(true);
+      setErrorMessage("");
+
+      console.log("Đang xóa order detail với ID:", deleteConfirmDialog.orderDetailId);
+      
+      // Kiểm tra xem có phải order detail duy nhất không
+      const isLastOrderDetail = orderDetails && orderDetails.length === 1;
+      
+      // Luôn luôn xóa order detail trước
+      await dispatch(deleteOrderDetail(deleteConfirmDialog.orderDetailId)).unwrap();
+      console.log("Đã xóa order detail thành công");
+      
+      if (isLastOrderDetail) {
+        console.log("Đây là order detail duy nhất, tiếp tục xóa order");
+        
+        // Xóa order sau khi đã xóa order detail
+        if (currentOrder?.id) {
+          await dispatch(deleteOrder(currentOrder.id)).unwrap();
+          console.log("Đã xóa order thành công");
+          setSuccessMessage("Đã xóa đơn hàng vì không còn chi tiết nào!");
+          
+          // Clear localStorage và navigate về trang chủ
+          clearAllOrderLocalStorage();
+          
+          // Delay một chút để user đọc được message
+          setTimeout(() => {
+            navigate("/");
+          }, 2000);
+        } else {
+          throw new Error("Không tìm thấy ID đơn hàng");
+        }
+      } else {
+        // Chỉ xóa order detail, còn nhiều detail khác
+        setSuccessMessage("Xóa chi tiết đơn hàng thành công!");
+        
+        // Refresh lại order details để hiển thị dữ liệu mới
+        setShouldRefreshOrderDetails(prev => !prev);
+      }
+      
+      // Đóng dialog
+      handleDeleteConfirmDialogClose();
+
+    } catch (error) {
+      console.error("Lỗi khi xóa order detail:", error);
+      setErrorMessage(typeof error === 'string' ? error : "Không thể xóa chi tiết đơn hàng. Vui lòng thử lại.");
+    } finally {
+      setDeletingOrderDetail(false);
     }
   };
 
@@ -2060,6 +2152,24 @@ const Order = () => {
                                           </Typography>
                                         </div>
                                       )}
+
+                                      {/* Nút xóa order detail */}
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleDeleteOrderDetailClick(detail.id, index)}
+                                        sx={{
+                                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                          color: 'white',
+                                          '&:hover': {
+                                            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                            transform: 'scale(1.1)',
+                                          },
+                                          transition: 'all 0.2s ease',
+                                        }}
+                                        title="Xóa chi tiết đơn hàng"
+                                      >
+                                        <Delete fontSize="small" />
+                                      </IconButton>
                                     </div>
                                   </div>
                                 </div>
@@ -2623,6 +2733,58 @@ const Order = () => {
           </div>
         )}
       </div>
+
+      {/* Dialog confirm xóa order detail */}
+      <Dialog
+        open={deleteConfirmDialog.open}
+        onClose={handleDeleteConfirmDialogClose}
+        aria-labelledby="delete-confirm-dialog-title"
+        aria-describedby="delete-confirm-dialog-description"
+      >
+        <DialogTitle id="delete-confirm-dialog-title">
+          {orderDetails && orderDetails.length === 1 ? "Xác nhận xóa đơn hàng" : "Xác nhận xóa chi tiết đơn hàng"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-confirm-dialog-description">
+            {orderDetails && orderDetails.length === 1 ? (
+              <>
+                Đây là chi tiết cuối cùng trong đơn hàng. Nếu bạn xóa chi tiết này, cả đơn hàng sẽ bị xóa.
+                <br />
+                <strong>Bạn có chắc chắn muốn xóa toàn bộ đơn hàng không?</strong>
+                <br />
+                Hành động này không thể hoàn tác.
+              </>
+            ) : (
+              <>
+                Bạn có chắc chắn muốn xóa chi tiết đơn hàng #{deleteConfirmDialog.orderDetailIndex + 1}? 
+                <br />
+                Hành động này không thể hoàn tác.
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleDeleteConfirmDialogClose}
+            color="primary"
+            disabled={deletingOrderDetail}
+          >
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleDeleteOrderDetail}
+            color="error"
+            variant="contained"
+            disabled={deletingOrderDetail}
+            startIcon={deletingOrderDetail ? <CircularProgress size={16} /> : <Delete />}
+          >
+            {deletingOrderDetail 
+              ? "Đang xóa..." 
+              : (orderDetails && orderDetails.length === 1 ? "Xóa đơn hàng" : "Xóa chi tiết")
+            }
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
