@@ -4,6 +4,7 @@ import {
   createOrderApi,
   createNewOrderApi,
   addOrderDetailApi,
+  deleteOrderDetailApi,
   getOrdersApi,
   updateOrderStatusApi,
   getOrderByIdApi,
@@ -72,6 +73,17 @@ export const addOrderDetail = createAsyncThunk(
     const response = await addOrderDetailApi(orderId, orderDetailData);
     if (response.success) {
       return response.data;
+    }
+    return rejectWithValue(response.error);
+  }
+);
+
+export const deleteOrderDetail = createAsyncThunk(
+  "order/deleteOrderDetail",
+  async (orderDetailId, { rejectWithValue }) => {
+    const response = await deleteOrderDetailApi(orderDetailId);
+    if (response.success) {
+      return { orderDetailId, ...response.data, message: response.message, timestamp: response.timestamp };
     }
     return rejectWithValue(response.error);
   }
@@ -498,6 +510,30 @@ const orderSlice = createSlice({
         }
       })
       .addCase(addOrderDetail.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Delete Order Detail
+      .addCase(deleteOrderDetail.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteOrderDetail.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        
+        // Cập nhật order details nếu có
+        if (state.orderDetails) {
+          state.orderDetails = state.orderDetails.filter(
+            detail => detail.id !== action.payload.orderDetailId
+          );
+        }
+        
+        // Cập nhật timestamp và message
+        state.lastUpdated = action.payload.timestamp || new Date().toISOString();
+        state.lastMessage = action.payload.message;
+      })
+      .addCase(deleteOrderDetail.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
