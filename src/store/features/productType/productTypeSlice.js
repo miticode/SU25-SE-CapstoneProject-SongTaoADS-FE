@@ -35,8 +35,8 @@ const initialState = {
 // Async thunks
 export const fetchProductTypes = createAsyncThunk(
   "productType/fetchProductTypes",
-  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
-    const response = await getProductTypesApi(page, size);
+  async ({ page = 1, size = 10, isAvailable = null } = {}, { rejectWithValue }) => {
+    const response = await getProductTypesApi(page, size, isAvailable);
 
     if (!response.success) {
       return rejectWithValue(response.error || "Failed to fetch product types");
