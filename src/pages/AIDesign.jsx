@@ -166,6 +166,7 @@ const ModernBillboardForm = ({
   coreAttributesReady,
   setCoreAttributesReady,
   currentStep,
+  setFontSizePixelValue, // ✅ Thêm prop để set fontSizePixelValue
 }) => {
   const dispatch = useDispatch();
   const [formData, setFormData] = useState({});
@@ -486,6 +487,74 @@ const ModernBillboardForm = ({
           // Fetch lại toàn bộ thông tin chi tiết và tổng tiền
           await dispatch(fetchCustomerChoiceDetails(currentOrder.id)).unwrap();
           await dispatch(fetchCustomerChoice(currentOrder.id)).unwrap();
+
+          // ✅ Tính toán fontSizePixelValue cho size có dimensionType = "FONT_SIZE"
+          try {
+            console.log("=== TÍNH TOÁN FONT SIZE PIXEL VALUE TRONG UPDATE SIZE ===");
+            console.log("🔍 Tìm kiếm size có dimensionType = 'FONT_SIZE'...");
+            
+            // Tìm size có dimensionType = "FONT_SIZE"
+            const fontSizeData = productTypeSizes.find(ptSize => ptSize.dimensionType === "FONT_SIZE");
+            
+            if (fontSizeData) {
+              console.log("✅ Tìm thấy fontSizeData:", fontSizeData);
+              
+              const sizeId = fontSizeData.sizes?.id;
+              const fieldName = `size_${sizeId}`;
+              const sizeValue = parseFloat(editedSizes[sizeId]);
+              const minValue = fontSizeData.minValue;
+              const maxValue = fontSizeData.maxValue;
+              
+              console.log("📊 Thông tin tính toán:");
+              console.log(`- sizeId: ${sizeId}`);
+              console.log(`- sizeValue: ${sizeValue}`);
+              console.log(`- minValue: ${minValue}`);
+              console.log(`- maxValue: ${maxValue}`);
+              
+              if (sizeValue && minValue !== undefined && maxValue !== undefined) {
+                // Áp dụng công thức: fontSizePixelValue = 256 + (1024-256) * (sizeValue-minValue) / (maxValue-minValue)
+                const rawFontSizePixelValue = 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue);
+                const fontSizePixelValue = Math.round(rawFontSizePixelValue); // Làm tròn số thập phân
+                
+                console.log(`🎯 Kết quả công thức (trước khi làm tròn): ${rawFontSizePixelValue}`);
+                console.log(`🎯 Kết quả cuối cùng (sau khi làm tròn): ${fontSizePixelValue}`);
+                
+                // Log chi tiết công thức
+                console.log(`📐 Chi tiết công thức:`);
+                console.log(`   fontSizePixelValue = 256 + (1024-256) * (${sizeValue}-${minValue}) / (${maxValue}-${minValue})`);
+                console.log(`   fontSizePixelValue = 256 + 768 * ${sizeValue - minValue} / ${maxValue - minValue}`);
+                console.log(`   fontSizePixelValue = 256 + 768 * ${(sizeValue - minValue) / (maxValue - minValue)}`);
+                console.log(`   fontSizePixelValue = 256 + ${768 * (sizeValue - minValue) / (maxValue - minValue)}`);
+                console.log(`   fontSizePixelValue (raw) = ${rawFontSizePixelValue}`);
+                console.log(`   fontSizePixelValue (rounded) = ${fontSizePixelValue}`);
+                
+                // Có thể lưu vào state hoặc gửi đến API nếu cần
+                // ✅ Lưu fontSizePixelValue vào state để sử dụng trong canvas
+                if (setFontSizePixelValue && typeof setFontSizePixelValue === 'function') {
+                  setFontSizePixelValue(fontSizePixelValue);
+                  console.log(`💾 Đã lưu fontSizePixelValue vào state: ${fontSizePixelValue}`);
+                } else {
+                  console.warn("⚠️ setFontSizePixelValue prop không có sẵn hoặc không phải function");
+                }
+                
+              } else {
+                console.log("⚠️ Thiếu thông tin để tính toán fontSizePixelValue");
+                console.log(`- sizeValue: ${sizeValue} (valid: ${!!sizeValue})`);
+                console.log(`- minValue: ${minValue} (valid: ${minValue !== undefined})`);
+                console.log(`- maxValue: ${maxValue} (valid: ${maxValue !== undefined})`);
+              }
+            } else {
+              console.log("❌ Không tìm thấy size có dimensionType = 'FONT_SIZE'");
+              console.log("📋 Danh sách productTypeSizes hiện có:");
+              productTypeSizes.forEach((ptSize, index) => {
+                console.log(`   ${index + 1}. ID: ${ptSize.id}, dimensionType: ${ptSize.dimensionType}, sizeName: ${ptSize.sizes?.name}`);
+              });
+            }
+          } catch (fontCalcError) {
+            console.error("❌ Lỗi khi tính toán fontSizePixelValue:", fontCalcError);
+          }
+          console.log("=== KẾT THÚC TÍNH TOÁN FONT SIZE PIXEL VALUE ===");
+          console.log("");
 
           // Quan trọng: Cập nhật lại giá cho từng thuộc tính đã chọn
           const attributeValues = { ...formData };
@@ -1024,6 +1093,70 @@ const ModernBillboardForm = ({
         // Đợi 500ms để đảm bảo backend đã xử lý xong tất cả sizes
         setTimeout(() => fetchPriceWithRetry(), 500);
       }
+
+      // Calculate fontSizePixelValue for FONT_SIZE dimension type
+      console.log("🔍 DEBUG: Starting fontSizePixelValue calculation");
+      console.log("🔍 DEBUG: productTypeSizes:", productTypeSizes);
+      
+      // Debug: Log each productTypeSize to see the structure
+      productTypeSizes.forEach((ptSize, index) => {
+        console.log(`🔍 DEBUG: productTypeSizes[${index}]:`, ptSize);
+        console.log(`🔍 DEBUG: dimensionType[${index}]:`, ptSize.dimensionType);
+        console.log(`🔍 DEBUG: Full keys[${index}]:`, Object.keys(ptSize));
+        console.log(`🔍 DEBUG: Detailed structure[${index}]:`, {
+          id: ptSize.id,
+          dimensionType: ptSize.dimensionType,
+          minValue: ptSize.minValue,
+          maxValue: ptSize.maxValue,
+          sizes: ptSize.sizes,
+          productTypes: ptSize.productTypes
+        });
+      });
+      
+      console.log("🔍 DEBUG: formData:", formData);
+      
+      const fontSizeData = productTypeSizes.find(ptSize => ptSize.dimensionType === "FONT_SIZE");
+      console.log("🔍 DEBUG: fontSizeData found:", fontSizeData);
+      
+      if (fontSizeData) {
+        const sizeId = fontSizeData.sizes?.id;
+        const fieldName = `size_${sizeId}`;
+        const sizeValue = parseFloat(formData[fieldName]);
+        const minValue = fontSizeData.minValue;
+        const maxValue = fontSizeData.maxValue;
+        
+        console.log("🔍 DEBUG: sizeId:", sizeId);
+        console.log("🔍 DEBUG: fieldName:", fieldName);
+        console.log("🔍 DEBUG: sizeValue (raw):", formData[fieldName]);
+        console.log("🔍 DEBUG: sizeValue (parsed):", sizeValue);
+        console.log("🔍 DEBUG: isNaN(sizeValue):", isNaN(sizeValue));
+        
+        if (!isNaN(sizeValue)) {
+          const rawFontSizePixelValue = 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue);
+          const fontSizePixelValue = Math.round(rawFontSizePixelValue); // Làm tròn số thập phân
+          console.log("🔤 Font Size Calculation:");
+          console.log("- Size Value (user input):", sizeValue);
+          console.log("- Min Value:", minValue);
+          console.log("- Max Value:", maxValue);
+          console.log("- Formula: 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue)");
+          console.log("- Calculated fontSizePixelValue (raw):", rawFontSizePixelValue);
+          console.log("- Calculated fontSizePixelValue (rounded):", fontSizePixelValue);
+          
+          // ✅ Lưu fontSizePixelValue vào state để sử dụng trong canvas
+          if (setFontSizePixelValue && typeof setFontSizePixelValue === 'function') {
+            setFontSizePixelValue(fontSizePixelValue);
+            console.log(`💾 Đã lưu fontSizePixelValue vào state: ${fontSizePixelValue}`);
+          } else {
+            console.warn("⚠️ setFontSizePixelValue prop không có sẵn hoặc không phải function");
+          }
+        } else {
+          console.log("🔍 DEBUG: sizeValue is NaN, skipping calculation");
+        }
+      } else {
+        console.log("🔍 DEBUG: No FONT_SIZE dimension type found in productTypeSizes");
+        console.log("🔍 DEBUG: Available dimension types:", productTypeSizes.map(pts => pts.dimensionType));
+      }
+
     } catch (error) {
       console.error("Failed to submit sizes:", error);
       setSizeValidationError(
@@ -1874,6 +2007,9 @@ const AIDesign = () => {
     severity: "success",
   });
   const [coreAttributesReady, setCoreAttributesReady] = useState(false);
+  
+  // ✅ State để lưu fontSizePixelValue để sử dụng trong canvas
+  const [fontSizePixelValue, setFontSizePixelValue] = useState(256); // Giá trị mặc định
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
   const totalAmount = useSelector(selectTotalAmount);
@@ -1891,6 +2027,21 @@ const AIDesign = () => {
     underline: false,
     text: "Sample Text",
   });
+  
+  // ✅ Chỉ cập nhật textSettings khi có fontSizePixelValue và khác giá trị mặc định
+  useEffect(() => {
+    if (fontSizePixelValue && fontSizePixelValue !== 256) {
+      const baseFontSize = Math.max(fontSizePixelValue * 0.1, 20); // Tối thiểu 20px
+      setTextSettings(prev => ({
+        ...prev,
+        fontSize: baseFontSize
+      }));
+      console.log(`📝 Updated text font size: ${baseFontSize}px (based on fontSizePixelValue: ${fontSizePixelValue})`);
+    } else {
+      // Giữ nguyên fontSize mặc định khi không có fontSizePixelValue
+      console.log(`📝 Keeping default text font size (no scaling applied)`);
+    }
+  }, [fontSizePixelValue]);
   const [businessPresets, setBusinessPresets] = useState({
     logoUrl: "",
     companyName: "",
@@ -2198,6 +2349,24 @@ const AIDesign = () => {
         console.log("Icon loaded successfully via S3 API");
         console.log("Icon dimensions:", img.width, "x", img.height);
 
+        // ✅ Hybrid canvas-size-based scaling like text and business info
+        const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
+        const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
+        const hasScaling = fontSizePixelValue && fontSizePixelValue !== 256;
+        
+        // Combine canvas scaling with fontSizePixelValue scaling
+        const iconSize = hasScaling 
+          ? baseScaleFactor * (fontSizePixelValue / 256) * 100  // Base icon size 100px scaled by both factors
+          : baseScaleFactor * 100; // Just canvas scaling, base size 100px
+        
+        console.log(`🔥 Icon hybrid scaling:`, {
+          canvasSize,
+          baseScaleFactor: baseScaleFactor.toFixed(3),
+          fontSizePixelValue,
+          hasScaling,
+          iconSize: iconSize.toFixed(1)
+        });
+
         try {
           const fabricImg = new fabric.Image(img, {
             left: 100,
@@ -2205,10 +2374,8 @@ const AIDesign = () => {
             name: `icon-${icon.id}`,
           });
 
-          // Giới hạn kích thước icon
-          const maxWidth = 100;
-          const maxHeight = 100;
-          const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+          // Apply hybrid scaling - maintain aspect ratio
+          const scale = Math.min(iconSize / img.width, iconSize / img.height);
 
           fabricImg.set({
             scaleX: scale,
@@ -2258,24 +2425,33 @@ const AIDesign = () => {
         img.onerror = null;
         img.src = "";
 
+        // ✅ Hybrid scaling for placeholder too
+        const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
+        const baseScaleFactor = canvasSize / 1000;
+        const hasScaling = fontSizePixelValue && fontSizePixelValue !== 256;
+        const placeholderSize = hasScaling 
+          ? baseScaleFactor * (fontSizePixelValue / 256) * 100
+          : baseScaleFactor * 100;
+
         // Tạo placeholder cho icon
         const placeholder = new fabric.Rect({
           left: 100,
           top: 100,
-          width: 80,
-          height: 80,
+          width: placeholderSize,
+          height: placeholderSize,
           fill: "#f0f0f0",
           stroke: "#ddd",
-          strokeWidth: 2,
-          rx: 10,
-          ry: 10,
+          strokeWidth: Math.max(2 * baseScaleFactor, 1),
+          rx: 10 * baseScaleFactor,
+          ry: 10 * baseScaleFactor,
           name: `icon-placeholder-${icon.id}`,
         });
 
+        const placeholderTextSize = Math.max(12 * baseScaleFactor, 8);
         const placeholderText = new fabric.Text("ICON", {
-          left: 140,
-          top: 140,
-          fontSize: 12,
+          left: 100 + placeholderSize / 2,
+          top: 100 + placeholderSize / 2,
+          fontSize: placeholderTextSize,
           fill: "#666",
           fontWeight: "bold",
           textAlign: "center",
@@ -2975,22 +3151,41 @@ const AIDesign = () => {
   const addImageToCanvas = (imageUrl) => {
     if (!fabricCanvas) return;
 
+    console.log(`🖼️ Adding image`, {
+      fontSizePixelValue,
+      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256
+    });
+
     const img = new Image();
     img.crossOrigin = "anonymous";
 
     img.onload = function () {
+      // ✅ Hybrid canvas-size-based scaling like text and business info
+      const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
+      const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
+      const hasScaling = fontSizePixelValue && fontSizePixelValue !== 256;
+      
+      // Combine canvas scaling with fontSizePixelValue scaling
+      const imageSize = hasScaling 
+        ? baseScaleFactor * (fontSizePixelValue / 256) * 250  // Base image size 250px scaled by both factors
+        : baseScaleFactor * 250; // Just canvas scaling, base size 250px
+        
+      console.log(`🖼️ Image hybrid scaling:`, {
+        canvasSize,
+        baseScaleFactor: baseScaleFactor.toFixed(3),
+        fontSizePixelValue,
+        hasScaling,
+        imageSize: imageSize.toFixed(1)
+      });
+
       const fabricImg = new fabric.Image(img, {
         left: 100,
         top: 100,
         name: "userUploadedImage",
       });
 
-      // Giới hạn kích thước ảnh để vừa với canvas
-      const canvasWidth = fabricCanvas.width;
-      const canvasHeight = fabricCanvas.height;
-      const maxWidth = canvasWidth / 2;
-      const maxHeight = canvasHeight / 2;
-      const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+      // Apply hybrid scaling - maintain aspect ratio
+      const scale = Math.min(imageSize / img.width, imageSize / img.height);
 
       fabricImg.set({
         scaleX: scale,
@@ -3023,50 +3218,94 @@ const AIDesign = () => {
     }
 
     console.log("Adding to canvas:", type, content);
+    
+    // ✅ Scale dựa trên canvas size
+    const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
+    const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
+    
+    console.log(`🎯 Canvas scaling info:`, {
+      canvasWidth: fabricCanvas.width,
+      canvasHeight: fabricCanvas.height,
+      canvasSize,
+      baseScaleFactor: baseScaleFactor.toFixed(3),
+      fontSizePixelValue,
+      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256
+    });
 
     let text;
-    let position = { left: 50, top: 50 };
+    const leftMargin = fabricCanvas.width * 0.05; // 5% margin from left
+    const topBase = fabricCanvas.height * 0.05; // 5% margin from top
+
+    // ✅ Scale sizes based on both fontSizePixelValue and canvas dimensions
+    let companyNameSize, addressSize, contactSize, logoSize;
+    
+    if (fontSizePixelValue && fontSizePixelValue !== 256) {
+      // Có fontSizePixelValue: kết hợp cả fontSizePixelValue và canvas scaling
+      const fontScaleFactor = fontSizePixelValue / 256; // Normalize to base 256
+      companyNameSize = Math.max(24 * baseScaleFactor * fontScaleFactor, 16);
+      addressSize = Math.max(16 * baseScaleFactor * fontScaleFactor, 12);
+      contactSize = Math.max(14 * baseScaleFactor * fontScaleFactor, 10);
+      logoSize = Math.max(100 * baseScaleFactor * fontScaleFactor, 60);
+    } else {
+      // Không có fontSizePixelValue: chỉ dùng canvas scaling
+      companyNameSize = Math.max(24 * baseScaleFactor, 16);
+      addressSize = Math.max(16 * baseScaleFactor, 12);
+      contactSize = Math.max(14 * baseScaleFactor, 10);
+      logoSize = Math.max(100 * baseScaleFactor, 60);
+    }
+
+    // Apply maximum constraints based on canvas size
+    companyNameSize = Math.min(companyNameSize, canvasSize * 0.08); // Max 8% of canvas
+    addressSize = Math.min(addressSize, canvasSize * 0.05); // Max 5% of canvas
+    contactSize = Math.min(contactSize, canvasSize * 0.04); // Max 4% of canvas
+    logoSize = Math.min(logoSize, canvasSize * 0.3); // Max 30% of canvas
 
     switch (type) {
       case "companyName":
         text = new fabric.Text(content, {
-          left: position.left,
-          top: position.top,
+          left: leftMargin,
+          top: topBase,
           fontFamily: "Arial",
-          fontSize: 32,
+          fontSize: Math.round(companyNameSize),
           fill: "#000000",
           fontWeight: "bold",
           name: "companyName",
         });
+        console.log(`📊 Company name: ${Math.round(companyNameSize)}px (canvas-scaled)`);
         break;
 
       case "address":
         text = new fabric.Text(content, {
-          left: position.left,
-          top: position.top + 50,
+          left: leftMargin,
+          top: topBase + companyNameSize * 1.8,
           fontFamily: "Arial",
-          fontSize: 18,
+          fontSize: Math.round(addressSize),
           fill: "#666666",
           fontStyle: "italic",
           name: "address",
         });
+        console.log(`📊 Address: ${Math.round(addressSize)}px (canvas-scaled)`);
         break;
 
       case "contactInfo":
         text = new fabric.Text(content, {
-          left: position.left,
-          top: position.top + 100,
+          left: leftMargin,
+          top: topBase + companyNameSize * 1.8 + addressSize * 1.8,
           fontFamily: "Arial",
-          fontSize: 16,
+          fontSize: Math.round(contactSize),
           fill: "#333333",
           name: "contactInfo",
         });
+        console.log(`📊 Contact info: ${Math.round(contactSize)}px (canvas-scaled)`);
         break;
 
       case "logoUrl": {
         console.log("Processing logo URL:", content);
         const logoSource = s3Logo || content;
         console.log("Using logo source:", logoSource);
+        
+        console.log(`📊 Logo size: ${Math.round(logoSize)}px (canvas-scaled)`);
+        
         // CÁCH 1: Sử dụng HTML Image element (BỎ crossOrigin)
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -3077,13 +3316,13 @@ const AIDesign = () => {
 
           try {
             const fabricImg = new fabric.Image(img, {
-              left: position.left,
-              top: position.top + 150,
+              left: leftMargin,
+              top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8,
               name: "logo",
             });
 
-            const maxWidth = 150;
-            const maxHeight = 150;
+            const maxWidth = logoSize;
+            const maxHeight = logoSize;
             const scale = Math.min(
               maxWidth / img.width,
               maxHeight / img.height
@@ -3111,10 +3350,10 @@ const AIDesign = () => {
           console.log("Creating logo placeholder due to CORS error");
 
           const placeholder = new fabric.Rect({
-            left: position.left,
-            top: position.top + 150,
-            width: 150,
-            height: 100,
+            left: leftMargin,
+            top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8,
+            width: logoSize,
+            height: logoSize * 0.67, // Tỉ lệ 3:2 cho placeholder 
             fill: "#f0f0f0",
             stroke: "#ddd",
             strokeWidth: 2,
@@ -3123,10 +3362,11 @@ const AIDesign = () => {
             name: "logoPlaceholder",
           });
 
+          const placeholderTextSize = Math.max(fontSizePixelValue * 0.07, 16);
           const placeholderText = new fabric.Text("LOGO", {
-            left: position.left + 75,
-            top: position.top + 200,
-            fontSize: 18,
+            left: leftMargin + logoSize / 2,
+            top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8 + logoSize * 0.335, // Center vertically in placeholder
+            fontSize: placeholderTextSize, // Sử dụng kích thước tính từ fontSizePixelValue
             fill: "#666",
             fontWeight: "bold",
             textAlign: "center",
@@ -3135,10 +3375,11 @@ const AIDesign = () => {
             name: "logoPlaceholderText",
           });
 
+          const urlTextSize = Math.max(fontSizePixelValue * 0.04, 10);
           const urlText = new fabric.Text("Không thể tải logo", {
-            left: position.left + 75,
-            top: position.top + 220,
-            fontSize: 10,
+            left: leftMargin + logoSize / 2,
+            top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8 + logoSize * 0.5, // Below center of placeholder
+            fontSize: urlTextSize, // Sử dụng kích thước tính từ fontSizePixelValue
             fill: "#999",
             textAlign: "center",
             originX: "center",
@@ -3827,11 +4068,40 @@ const AIDesign = () => {
   const addText = () => {
     if (!fabricCanvas) return;
 
+    // ✅ Scale dựa trên canvas size thay vì chỉ fontSizePixelValue
+    const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
+    const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
+    
+    // Combine fontSizePixelValue scaling with canvas scaling
+    let finalFontSize;
+    if (fontSizePixelValue && fontSizePixelValue !== 256) {
+      // Có fontSizePixelValue: kết hợp cả 2 scaling factors
+      const fontBasedSize = fontSizePixelValue * 0.1;
+      const canvasBasedSize = 20 * baseScaleFactor;
+      finalFontSize = Math.max(fontBasedSize * baseScaleFactor, canvasBasedSize);
+    } else {
+      // Không có fontSizePixelValue: chỉ dùng canvas scaling
+      finalFontSize = 20 * baseScaleFactor;
+    }
+    
+    // Minimum và maximum constraints
+    finalFontSize = Math.max(finalFontSize, 12); // Minimum 12px
+    finalFontSize = Math.min(finalFontSize, canvasSize * 0.1); // Maximum 10% of canvas
+      
+    console.log(`📝 Adding text:`, {
+      canvasSize,
+      baseScaleFactor: baseScaleFactor.toFixed(3),
+      fontSizePixelValue,
+      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256,
+      finalFontSize: Math.round(finalFontSize),
+      originalFontSize: textSettings.fontSize
+    });
+
     const text = new fabric.Text("Your Text Here", {
-      left: 100,
-      top: 100,
+      left: fabricCanvas.width * 0.1, // 10% from left
+      top: fabricCanvas.height * 0.1, // 10% from top
       fontFamily: textSettings.fontFamily,
-      fontSize: textSettings.fontSize,
+      fontSize: Math.round(finalFontSize),
       fill: textSettings.fill,
       fontWeight: textSettings.fontWeight,
       fontStyle: textSettings.fontStyle,
@@ -6015,6 +6285,7 @@ const AIDesign = () => {
             coreAttributesReady={coreAttributesReady}
             setCoreAttributesReady={setCoreAttributesReady}
             currentStep={currentStep}
+            setFontSizePixelValue={setFontSizePixelValue}
           />
         );
       case 5:

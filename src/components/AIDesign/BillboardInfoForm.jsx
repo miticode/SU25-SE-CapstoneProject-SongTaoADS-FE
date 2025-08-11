@@ -26,6 +26,7 @@ const BillboardInfoForm = ({
   coreAttributesReady,
   setCoreAttributesReady,
   currentStep,
+  setFontSizePixelValue, // ✅ Thêm prop setFontSizePixelValue
 }) => {
   const navigate = useNavigate();
   const productTypes = useSelector(selectAllProductTypes);
@@ -224,6 +225,7 @@ const BillboardInfoForm = ({
           coreAttributesReady={coreAttributesReady}
           setCoreAttributesReady={setCoreAttributesReady}
           currentStep={currentStep}
+          setFontSizePixelValue={setFontSizePixelValue} // ✅ Truyền prop xuống ModernBillboardForm
         />
 
         <motion.div
