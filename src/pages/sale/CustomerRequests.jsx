@@ -92,11 +92,13 @@ import {
   contractResignOrder,
   contractSignedOrder,
   fetchOrders,
+  fetchCustomDesignOrders,
   ORDER_STATUS_MAP,
   selectOrderError,
   selectOrders,
   selectOrdersByType,
   selectOrderStatus,
+  selectCustomDesignOrders,
   updateOrderEstimatedDeliveryDate,
 } from "../../store/features/order/orderSlice";
 
@@ -461,31 +463,24 @@ const CustomerRequests = () => {
   const [ordersTotalPages, setOrdersTotalPages] = useState(1);
   const [contractId, setContractId] = useState(null);
   const [fetchingContract, setFetchingContract] = useState(false);
-  // Removed fetchingOrders state as it's not needed for server-side pagination
+  // Sử dụng customDesignOrders từ Redux store cho tab custom design
   const allOrders = useSelector(selectOrders);
-  // Filter out AI_DESIGN orders for custom design tab and apply search filter (will be defined after state declarations)
-  let filteredOrders = allOrders;
+  const customDesignOrders = useSelector(selectCustomDesignOrders);
+  const ordersPagination = useSelector((state) => state.order.pagination);
 
-  // Client-side pagination for custom design tab
-  const itemsPerPage = 10;
-  const startIndex = (ordersPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedFilteredOrders = filteredOrders.slice(startIndex, endIndex);
-
-  const orders = currentTab === 1 ? paginatedFilteredOrders : allOrders; // Use paginated filtered orders for custom design tab
-  const ordersPagination = useSelector((state) => state.order.pagination); // Get pagination from Redux
+  // Khai báo biến orders sớm để tránh lỗi "Cannot access before initialization"
+  const orders = currentTab === 1 ? customDesignOrders : allOrders;
 
   // Calculate pagination for filtered orders whenever data changes
   useEffect(() => {
     if (currentTab === 1) {
-      const filteredTotalPages = Math.ceil(
-        filteredOrders.length / itemsPerPage
-      );
-      setOrdersTotalPages(filteredTotalPages || 1);
+      // Sử dụng pagination từ server thay vì tính toán client-side
+      const totalPages = ordersPagination.totalPages || 1;
+      setOrdersTotalPages(totalPages);
     }
-  }, [currentTab, filteredOrders.length, itemsPerPage]);
+  }, [currentTab, ordersPagination.totalPages]);
 
-  // Debug: Log order type breakdown and pagination (Client-side)
+  // Debug: Log order breakdown and pagination (Server-side)
   useEffect(() => {
     if (currentTab === 1) {
       const orderTypeCount = orders.reduce((acc, order) => {
@@ -493,15 +488,16 @@ const CustomerRequests = () => {
         return acc;
       }, {});
 
-      console.log("📊 Order breakdown (Client-side pagination):");
-      console.log("  - Total filtered orders:", filteredOrders.length);
+      console.log("📊 Order breakdown (Server-side pagination):");
+      console.log("  - Total custom design orders:", customDesignOrders.length);
       console.log("  - Current page orders:", orders.length);
       console.log("  - Order type breakdown:", orderTypeCount);
       console.log("📄 Pagination info:");
       console.log("  - Current page:", ordersPage);
       console.log("  - Total pages:", ordersTotalPages);
+      console.log("  - Server pagination:", ordersPagination);
     }
-  }, [currentTab, orders, ordersPage, ordersTotalPages, filteredOrders.length]);
+  }, [currentTab, orders, ordersPage, ordersTotalPages, customDesignOrders.length, ordersPagination]);
 
   // Reset page if current page exceeds total pages
   useEffect(() => {
@@ -510,6 +506,36 @@ const CustomerRequests = () => {
       setOrdersPage(1);
     }
   }, [ordersPage, ordersTotalPages]);
+
+  // Khởi tạo dữ liệu ban đầu khi component mount
+  useEffect(() => {
+    try {
+      // Fetch initial data based on current tab
+      if (currentTab === 0) {
+        dispatch(
+          fetchAllDesignRequests({
+            status: selectedStatus,
+            page: designRequestsPage,
+            size: 10,
+          })
+        ).catch((error) => {
+          console.error('Error in initial fetch:', error);
+        });
+      } else if (currentTab === 1) {
+        dispatch(
+          fetchCustomDesignOrders({
+            orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
+            page: ordersPage,
+            size: 10,
+          })
+        ).catch((error) => {
+          console.error('Error in initial fetch:', error);
+        });
+      }
+    } catch (error) {
+      console.error('Error in initial useEffect:', error);
+    }
+  }, []); // Chỉ chạy một lần khi component mount
 
   const orderStatus = useSelector(selectOrderStatus);
   const orderError = useSelector(selectOrderError);
@@ -556,6 +582,7 @@ const CustomerRequests = () => {
    *
    * 2. refreshOrdersData() - Refresh data cho tab "Đơn hàng thiết kế tùy chỉnh"
    *    - Sử dụng sau khi: update order status, report delivery, contract operations
+   *    - Sử dụng API mới: /api/orders/custom-design
    *
    * 3. refreshAllData() - Refresh tất cả data (thông minh theo tab hiện tại)
    *    - Sử dụng khi không chắc chắn cần refresh gì
@@ -583,11 +610,10 @@ const CustomerRequests = () => {
   const refreshOrdersData = async () => {
     if (currentTab === 1) {
       await dispatch(
-        fetchOrders({
+        fetchCustomDesignOrders({
           orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-          page: 1,
-          size: 100,
-          orderType: null,
+          page: ordersPage,
+          size: 10,
         })
       );
     }
@@ -620,8 +646,8 @@ const CustomerRequests = () => {
     );
   });
 
-  // Apply filters for orders
-  filteredOrders = allOrders.filter((order) => {
+  // Apply filters for orders (chỉ áp dụng cho tab không phải custom design)
+  let filteredOrders = allOrders.filter((order) => {
     if (order.orderType === "AI_DESIGN") return false;
 
     // Apply search filter if searchQuery exists
@@ -642,6 +668,26 @@ const CustomerRequests = () => {
 
     return true;
   });
+
+  // Apply filters for custom design orders
+  let filteredCustomDesignOrders = customDesignOrders;
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase().trim();
+    filteredCustomDesignOrders = customDesignOrders.filter((order) => {
+      const orderCode = (order.orderCode || order.id || "").toLowerCase();
+      const customerName = (order.users?.fullName || "").toLowerCase();
+      const address = (order.address || "").toLowerCase();
+      
+      return (
+        orderCode.includes(query) ||
+        customerName.includes(query) ||
+        address.includes(query)
+      );
+    });
+  }
+
+  // Sử dụng customDesignOrders cho tab custom design, allOrders cho tab khác
+  // Biến orders đã được khai báo ở trên để tránh lỗi "Cannot access before initialization"
 
   const [priceProposals, setPriceProposals] = useState([]);
   const [loadingProposals, setLoadingProposals] = useState(false);
@@ -682,6 +728,13 @@ const CustomerRequests = () => {
         if (action.payload && action.payload.totalPages) {
           setDesignRequestsTotalPages(action.payload.totalPages);
         }
+      }).catch((error) => {
+        console.error('Error fetching design requests:', error);
+        setNotification({
+          open: true,
+          message: "Lỗi khi tải yêu cầu thiết kế: " + (error.message || "Không thể tải dữ liệu"),
+          severity: "error",
+        });
       });
     }
   }, [currentTab, dispatch, selectedStatus, designRequestsPage]);
@@ -698,70 +751,43 @@ const CustomerRequests = () => {
         }
       );
 
-      // Thêm memoization để tránh fetch quá nhiều lần
-      const controller = new AbortController();
-      const signal = controller.signal;
-
-      // For custom design tab, we need both orderTypes
-      const orderTypes = [
-        "CUSTOM_DESIGN_WITH_CONSTRUCTION",
-        "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION",
-      ];
-
-      // Since API only accepts single orderType, we'll call for each type and combine
-      // Or if backend supports multiple types, we can pass as comma-separated
+      // Sử dụng API mới /api/orders/custom-design
       dispatch(
-        fetchOrders({
+        fetchCustomDesignOrders({
           orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-          page: 1, // Always get page 1 since we'll do client-side pagination
-          size: 100, // Get more data to ensure enough custom design orders for pagination
-          orderType: null, // Don't filter by orderType, we'll filter client-side to exclude AI_DESIGN
-          signal,
-          _timestamp: fetchTimestamp, // Debug identifier
+          page: ordersPage,
+          size: 10,
         })
       ).then((action) => {
         console.log(
-          `✅ [${fetchTimestamp}] Orders API Response:`,
+          `✅ [${fetchTimestamp}] Custom Design Orders API Response:`,
           action.payload
         );
         if (action.payload && action.payload.orders) {
-          // Calculate client-side pagination for filtered orders
+          // Sử dụng pagination từ server
           const totalOrders = action.payload.orders || [];
-          const customDesignOrders = totalOrders.filter(
-            (order) => order.orderType !== "AI_DESIGN"
-          );
-          const filteredTotalPages = Math.ceil(
-            customDesignOrders.length / itemsPerPage
-          );
-
-          setOrdersTotalPages(filteredTotalPages || 1);
+          const totalPages = action.payload.pagination?.totalPages || 1;
+          
+          setOrdersTotalPages(totalPages);
           console.log(
-            `📊 [${fetchTimestamp}] Server Total Orders:`,
+            `📊 [${fetchTimestamp}] Custom Design Orders:`,
             totalOrders.length
           );
           console.log(
-            `📊 [${fetchTimestamp}] Custom Design Orders:`,
-            customDesignOrders.length
-          );
-          console.log(
-            `📊 [${fetchTimestamp}] Client-side Pages:`,
-            filteredTotalPages
+            `📊 [${fetchTimestamp}] Server Pages:`,
+            totalPages
           );
         }
-        if (action.payload && action.payload.orders) {
-          console.log(
-            `🔍 [${fetchTimestamp}] Order types:`,
-            action.payload.orders.map((o) => o.orderType)
-          );
-        }
+      }).catch((error) => {
+        console.error('Error fetching custom design orders:', error);
+        setNotification({
+          open: true,
+          message: "Lỗi khi tải đơn hàng thiết kế tùy chỉnh: " + (error.message || "Không thể tải dữ liệu"),
+          severity: "error",
+        });
       });
-
-      // Cleanup function để hủy fetch nếu component re-render
-      return () => {
-        controller.abort();
-      };
     }
-  }, [currentTab, selectedOrderStatus]); // Remove ordersPage since we do client-side pagination
+  }, [currentTab, selectedOrderStatus, ordersPage]); // Thêm ordersPage để fetch khi thay đổi trang
 
   // Pagination handlers
   const handleDesignRequestsPageChange = (event, newPage) => {
@@ -1304,12 +1330,22 @@ const CustomerRequests = () => {
     try {
       const response = await getUsersByRoleApi("DESIGNER", 1, 10);
       if (response.success) {
-        setDesigners(response.data);
+        setDesigners(response.data || []);
       } else {
         console.error("Failed to fetch designers:", response.error);
+        setNotification({
+          open: true,
+          message: "Không thể tải danh sách designer: " + (response.error || "Lỗi không xác định"),
+          severity: "warning",
+        });
       }
     } catch (error) {
       console.error("Error fetching designers:", error);
+      setNotification({
+        open: true,
+        message: "Lỗi khi tải danh sách designer: " + (error.message || "Lỗi không xác định"),
+        severity: "error",
+      });
     } finally {
       setLoadingDesigners(false);
     }
@@ -1701,7 +1737,18 @@ const CustomerRequests = () => {
   if (status === "failed") {
     return (
       <Box sx={{ mt: 2 }}>
-        <Alert severity="error">Lỗi tải dữ liệu: {error}</Alert>
+        <Alert severity="error">
+          Lỗi tải dữ liệu: {error || "Không thể tải dữ liệu"}
+        </Alert>
+      </Box>
+    );
+  }
+
+  // Thêm kiểm tra loading state
+  if (status === "loading") {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
       </Box>
     );
   }
@@ -1790,7 +1837,7 @@ const CustomerRequests = () => {
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <BrushIcon />
                   <span>Yêu cầu thiết kế</span>
-                  {!status.includes("loading") &&
+                  {status !== "loading" &&
                     allDesignRequests.length > 0 && (
                       <Badge
                         badgeContent={allDesignRequests.length}
@@ -2207,7 +2254,7 @@ const CustomerRequests = () => {
                       <Box sx={{ mr: 1 }}>
                         <Chip
                           size="small"
-                          label={filteredOrders.length}
+                          label={orders.length}
                           color="warning"
                           variant="outlined"
                         />
@@ -2261,7 +2308,7 @@ const CustomerRequests = () => {
             </Card>
 
             {/* Content Section */}
-            {filteredOrders.length === 0 ? (
+            {orders.length === 0 ? (
               <Card sx={{ p: 4, textAlign: "center" }}>
                 <Box sx={{ mb: 2 }}>
                   <OrderIcon sx={{ fontSize: 64, color: "grey.400" }} />
@@ -2366,7 +2413,7 @@ const CustomerRequests = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {paginatedFilteredOrders.map((order) => (
+                        {orders.map((order) => (
                           <TableRow
                             key={order.id}
                             sx={{
@@ -2530,7 +2577,7 @@ const CustomerRequests = () => {
                     </Table>
                   </TableContainer>
 
-                  {/* Pagination for Orders */}
+                  {/* Pagination for Custom Design Orders (Server-side) */}
                   {ordersTotalPages > 1 && (
                     <Box
                       sx={{ display: "flex", justifyContent: "center", mt: 3 }}
@@ -5364,3 +5411,4 @@ const CustomerRequests = () => {
 };
 
 export default CustomerRequests;
+

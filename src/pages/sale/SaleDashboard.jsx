@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import ErrorBoundary from "../../components/ErrorBoundary";
 import { useNavigate } from "react-router-dom";
 import {
   fetchOrders,
@@ -282,31 +283,49 @@ const SaleDashboard = () => {
   const renderContent = () => {
     switch (selectedMenu) {
       case "customers":
-        return <CustomerRequests />;
+        return (
+          <ErrorBoundary>
+            <CustomerRequests />
+          </ErrorBoundary>
+        );
       case "designer":
-        return <DesignerChat />;
+        return (
+          <ErrorBoundary>
+            <DesignerChat />
+          </ErrorBoundary>
+        );
       case "feedback":
-        return <FeedBack />;
+        return (
+          <ErrorBoundary>
+            <FeedBack />
+          </ErrorBoundary>
+        );
       case "ticket":
-        return <TicketManager />;
+        return (
+          <ErrorBoundary>
+            <TicketManager />
+          </ErrorBoundary>
+        );
       default:
         return (
-          <DashboardContent
-            stats={{
-              totalOrders,
-              pendingOrders,
-              confirmedOrders,
-              totalRevenue,
-            }}
-            orders={orders}
-            onViewDetail={handleViewDetail}
-            statusFilter={statusFilter}
-            onStatusFilterChange={handleStatusFilterChange}
-            onRefreshOrders={handleRefreshOrders}
-            pagination={pagination}
-            onPageChange={handlePageChange}
-            onRowsPerPageChange={handleRowsPerPageChange}
-          />
+          <ErrorBoundary>
+            <DashboardContent
+              stats={{
+                totalOrders,
+                pendingOrders,
+                confirmedOrders,
+                totalRevenue,
+              }}
+              orders={orders}
+              onViewDetail={handleViewDetail}
+              statusFilter={statusFilter}
+              onStatusFilterChange={handleStatusFilterChange}
+              onRefreshOrders={handleRefreshOrders}
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onRowsPerPageChange={handleRowsPerPageChange}
+            />
+          </ErrorBoundary>
         );
     }
   };
