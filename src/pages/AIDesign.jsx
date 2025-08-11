@@ -46,6 +46,7 @@ import {
   selectProductTypeSizesError,
   selectProductTypeSizesStatus,
   selectProductTypeStatus,
+  resetProductTypeStatus,
 } from "../store/features/productType/productTypeSlice";
 import {
   createCustomer,
@@ -4411,8 +4412,11 @@ const AIDesign = () => {
 
   useEffect(() => {
     if (currentStep === 3 && productTypeStatus === "idle") {
-      // Cập nhật cách gọi với pagination parameters
-      dispatch(fetchProductTypes({ page: 1, size: 20 })); // Lấy 20 items để hiển thị đủ product types
+      // Clear state cũ trước khi fetch mới để tránh hiển thị data cũ
+      dispatch(resetProductTypeStatus());
+      console.log("🔄 Fetching product types with isAvailable: true for step 3");
+      // Cập nhật cách gọi với pagination parameters và chỉ lấy product types có sẵn
+      dispatch(fetchProductTypes({ page: 1, size: 20, isAvailable: true })); // Lấy 20 items product types có isAvailable: true
     }
   }, [currentStep, dispatch, productTypeStatus]);
   useEffect(() => {

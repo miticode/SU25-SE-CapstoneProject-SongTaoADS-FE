@@ -12,6 +12,8 @@ const ProductTypeSelection = ({
   onProductTypeSelect,
   onBack,
 }) => {
+  
+
   // State để quản lý việc load ảnh từ S3
   const [loadedImages, setLoadedImages] = useState({});
   const [loadingImages, setLoadingImages] = useState({});
