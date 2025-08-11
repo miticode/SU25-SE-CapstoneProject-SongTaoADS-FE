@@ -160,6 +160,7 @@ import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 
 const statusMap = {
+  // Status cho orders (đơn hàng)
   APPROVED: { label: "Đã xác nhận", color: "success" },
   CONFIRMED: { label: "Đã xác nhận", color: "success" },
   REJECTED: { label: "Bị từ chối", color: "error" },
@@ -187,9 +188,16 @@ const statusMap = {
     label: "Cần thanh toán đủ thiết kế",
     color: "error",
   },
+
+  // Status cho custom design requests (đơn thiết kế thủ công)
+  PRICING_NOTIFIED: { label: "Đã gửi báo giá", color: "info" },
+  REJECTED_PRICING: { label: "Từ chối báo giá", color: "error" },
+  APPROVED_PRICING: { label: "Đã duyệt báo giá", color: "success" },
+  ASSIGNED_DESIGNER: { label: "Đã phân công thiết kế", color: "info" },
+  PROCESSING: { label: "Đang xử lý", color: "info" },
+  DESIGNER_REJECTED: { label: "Designer từ chối", color: "error" },
   DEMO_SUBMITTED: { label: "Đã gửi demo", color: "info" },
   REVISION_REQUESTED: { label: "Yêu cầu chỉnh sửa", color: "warning" },
-  APPROVED_PRICING: { label: "Đã duyệt báo giá", color: "success" },
 };
 
 // Component để hiển thị ảnh thiết kế đã chỉnh sửa với auto-detect tỷ lệ
@@ -1041,6 +1049,11 @@ const OrderHistory = () => {
     proposalId: null,
   });
   const [offerForm, setOfferForm] = useState({
+    totalPriceOffer: "",
+    depositAmountOffer: "",
+    rejectionReason: "",
+  });
+  const [offerFormErrors, setOfferFormErrors] = useState({
     totalPriceOffer: "",
     depositAmountOffer: "",
     rejectionReason: "",
@@ -2512,6 +2525,17 @@ const OrderHistory = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  // Helper function to format VND currency
+  const formatCurrency = (amount) => {
+    if (!amount) return "0 VND";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   // Component for file info tooltip
   const FileInfoTooltip = ({ fileInfo }) => (
     <Box>
@@ -3214,13 +3238,124 @@ const OrderHistory = () => {
   };
   const handleCloseOfferDialog = () => {
     setOfferDialog({ open: false, proposalId: null });
+    // Reset form và errors khi đóng dialog
+    setOfferForm({
+      totalPriceOffer: "",
+      depositAmountOffer: "",
+      rejectionReason: "",
+    });
+    setOfferFormErrors({
+      totalPriceOffer: "",
+      depositAmountOffer: "",
+      rejectionReason: "",
+    });
   };
+
+  // Function để validate form thương lượng giá
+  const validateOfferForm = () => {
+    const errors = {
+      totalPriceOffer: "",
+      depositAmountOffer: "",
+      rejectionReason: "",
+    };
+
+    const totalPrice = Number(offerForm.totalPriceOffer);
+    const depositAmount = Number(offerForm.depositAmountOffer);
+
+    // Validate lý do từ chối
+    if (!offerForm.rejectionReason.trim()) {
+      errors.rejectionReason = "Vui lòng nhập lý do từ chối";
+    }
+
+    // Validate giá thương lượng
+    if (!offerForm.totalPriceOffer) {
+      errors.totalPriceOffer = "Vui lòng nhập giá thương lượng";
+    } else if (isNaN(totalPrice) || totalPrice <= 0) {
+      errors.totalPriceOffer = "Giá thương lượng phải là số dương";
+    } else if (totalPrice > 10000000000) {
+      errors.totalPriceOffer = "Giá thương lượng không được vượt quá 10 tỷ VND";
+    }
+
+    // Validate tiền cọc thương lượng
+    if (!offerForm.depositAmountOffer) {
+      errors.depositAmountOffer = "Vui lòng nhập tiền cọc thương lượng";
+    } else if (isNaN(depositAmount) || depositAmount <= 0) {
+      errors.depositAmountOffer = "Tiền cọc thương lượng phải là số dương";
+    } else if (depositAmount > 10000000000) {
+      errors.depositAmountOffer =
+        "Tiền cọc thương lượng không được vượt quá 10 tỷ VND";
+    } else if (!isNaN(totalPrice) && depositAmount > totalPrice) {
+      errors.depositAmountOffer =
+        "Tiền cọc không được lớn hơn giá thương lượng";
+    }
+
+    setOfferFormErrors(errors);
+    return !Object.values(errors).some((error) => error !== "");
+  };
+
+  // Function để validate từng trường riêng lẻ (real-time validation)
+  const validateOfferField = (fieldName, value) => {
+    let error = "";
+
+    switch (fieldName) {
+      case "rejectionReason": {
+        if (!value.trim()) {
+          error = "Vui lòng nhập lý do từ chối";
+        }
+        break;
+      }
+
+      case "totalPriceOffer": {
+        const totalPrice = Number(value);
+        if (!value) {
+          error = "Vui lòng nhập giá thương lượng";
+        } else if (isNaN(totalPrice) || totalPrice <= 0) {
+          error = "Giá thương lượng phải là số dương";
+        } else if (totalPrice > 10000000000) {
+          error = "Giá thương lượng không được vượt quá 10 tỷ VND";
+        }
+        break;
+      }
+
+      case "depositAmountOffer": {
+        const depositAmount = Number(value);
+        const currentTotalPrice = Number(offerForm.totalPriceOffer);
+
+        if (!value) {
+          error = "Vui lòng nhập tiền cọc thương lượng";
+        } else if (isNaN(depositAmount) || depositAmount <= 0) {
+          error = "Tiền cọc thương lượng phải là số dương";
+        } else if (depositAmount > 10000000000) {
+          error = "Tiền cọc thương lượng không được vượt quá 10 tỷ VND";
+        } else if (
+          !isNaN(currentTotalPrice) &&
+          currentTotalPrice > 0 &&
+          depositAmount > currentTotalPrice
+        ) {
+          error = "Tiền cọc không được lớn hơn giá thương lượng";
+        }
+        break;
+      }
+    }
+
+    setOfferFormErrors((prev) => ({
+      ...prev,
+      [fieldName]: error,
+    }));
+
+    return error === "";
+  };
+
   const handleOfferSubmit = async () => {
+    // Validate form trước khi submit
+    if (!validateOfferForm()) {
+      return;
+    }
+
     setActionLoading(true);
     const { proposalId } = offerDialog;
     const data = {
-      rejectionReason:
-        offerForm.rejectionReason || "Khách muốn thương lượng giá",
+      rejectionReason: offerForm.rejectionReason,
       totalPriceOffer: Number(offerForm.totalPriceOffer),
       depositAmountOffer: Number(offerForm.depositAmountOffer),
     };
@@ -8005,7 +8140,7 @@ const OrderHistory = () => {
                                     py: 0.5,
                                   }}
                                 >
-                                  Offer giá khác
+                                  Thương lượng
                                 </Button>
                               </Box>
                             )}
@@ -8023,46 +8158,105 @@ const OrderHistory = () => {
                   maxWidth="sm"
                   fullWidth
                 >
-                  <DialogTitle>Offer giá khác</DialogTitle>
+                  <DialogTitle>Thương lượng giá</DialogTitle>
                   <DialogContent>
                     <TextField
                       label="Lý do từ chối"
                       fullWidth
                       margin="normal"
                       value={offerForm.rejectionReason}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setOfferForm((f) => ({
                           ...f,
                           rejectionReason: e.target.value,
-                        }))
+                        }));
+                        // Clear error khi user nhập
+                        if (offerFormErrors.rejectionReason) {
+                          setOfferFormErrors((prev) => ({
+                            ...prev,
+                            rejectionReason: "",
+                          }));
+                        }
+                      }}
+                      onBlur={(e) =>
+                        validateOfferField("rejectionReason", e.target.value)
                       }
+                      error={!!offerFormErrors.rejectionReason}
+                      helperText={offerFormErrors.rejectionReason}
                       required
                     />
                     <TextField
-                      label="Giá offer (VND)"
+                      label="Giá thương lượng (VND)"
                       type="number"
                       fullWidth
                       margin="normal"
+                      placeholder="Ví dụ: 5000000 (5 triệu VND)"
                       value={offerForm.totalPriceOffer}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setOfferForm((f) => ({
                           ...f,
                           totalPriceOffer: e.target.value,
-                        }))
+                        }));
+                        // Clear error khi user nhập
+                        if (offerFormErrors.totalPriceOffer) {
+                          setOfferFormErrors((prev) => ({
+                            ...prev,
+                            totalPriceOffer: "",
+                          }));
+                        }
+                        // Validate tiền cọc khi thay đổi giá thương lượng
+                        if (offerForm.depositAmountOffer) {
+                          setTimeout(
+                            () =>
+                              validateOfferField(
+                                "depositAmountOffer",
+                                offerForm.depositAmountOffer
+                              ),
+                            0
+                          );
+                        }
+                      }}
+                      onBlur={(e) =>
+                        validateOfferField("totalPriceOffer", e.target.value)
                       }
+                      error={!!offerFormErrors.totalPriceOffer}
+                      helperText={
+                        offerFormErrors.totalPriceOffer ||
+                        "Nhập giá thương lượng bằng số (tối đa 10 tỷ VND)"
+                      }
+                      inputProps={{ min: 1, max: 10000000000 }}
+                      required
                     />
                     <TextField
-                      label="Tiền cọc offer (VND)"
+                      label="Tiền cọc thương lượng (VND)"
                       type="number"
                       fullWidth
                       margin="normal"
+                      placeholder="Ví dụ: 1000000 (1 triệu VND)"
                       value={offerForm.depositAmountOffer}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setOfferForm((f) => ({
                           ...f,
                           depositAmountOffer: e.target.value,
-                        }))
+                        }));
+                        // Clear error khi user nhập
+                        if (offerFormErrors.depositAmountOffer) {
+                          setOfferFormErrors((prev) => ({
+                            ...prev,
+                            depositAmountOffer: "",
+                          }));
+                        }
+                      }}
+                      onBlur={(e) =>
+                        validateOfferField("depositAmountOffer", e.target.value)
                       }
+                      error={!!offerFormErrors.depositAmountOffer}
+                      helperText={
+                        offerFormErrors.depositAmountOffer ||
+                        "Tiền cọc phải nhỏ hơn hoặc bằng giá thương lượng"
+                      }
+                      inputProps={{ min: 1, max: 10000000000 }}
+                      required
                     />
                   </DialogContent>
                   <DialogActions>
@@ -8076,7 +8270,7 @@ const OrderHistory = () => {
                       {actionLoading ? (
                         <CircularProgress size={20} color="inherit" />
                       ) : (
-                        "Gửi offer"
+                        "Gửi thương lượng"
                       )}
                     </Button>
                   </DialogActions>
