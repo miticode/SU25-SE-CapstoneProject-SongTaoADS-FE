@@ -56,6 +56,7 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   sendChatMessage,
   addUserMessage,
@@ -67,11 +68,7 @@ import {
   selectAllTopics,
   selectTopicLoading,
 } from "../store/features/topic/topicSlice";
-import {
-  fetchQuestionsByTopic,
-  selectQuestionsByTopic,
-  selectQuestionLoading,
-} from "../store/features/question/questionSlice";
+import {} from "../store/features/question/questionSlice";
 
 const FAQS = [
   "Song Tạo có bảo hành biển quảng cáo không?",
@@ -79,8 +76,6 @@ const FAQS = [
   "Bên bạn có những dịch vụ gì nổi bật ?",
   "Cửa hàng địa chỉ ở đâu ?",
 ];
-
-
 
 const QUICK_ACTIONS = [
   {
@@ -198,27 +193,21 @@ const TypingIndicator = () => (
 
 const AIChatbot = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const messages = useSelector(selectChatMessages);
   const status = useSelector(selectChatStatus);
   const topics = useSelector(selectAllTopics);
   const topicLoading = useSelector(selectTopicLoading);
-  
-  // Debug topics state
-  console.log('🎯 Current topics state:', topics);
-  console.log('🎯 Topic loading state:', topicLoading);
-  
 
-  const questionsByTopic = useSelector(selectQuestionsByTopic);
-  const questionLoading = useSelector(selectQuestionLoading);
-  const [topicQuestions, setTopicQuestions] = useState({});
+  // Debug topics state
+  console.log("🎯 Current topics state:", topics);
+  console.log("🎯 Topic loading state:", topicLoading);
+
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isHover, setIsHover] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
-  const [showFAQ, setShowFAQ] = useState(true);
-  const [expandedTopics, setExpandedTopics] = useState({});
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
@@ -226,7 +215,7 @@ const AIChatbot = () => {
   // Load topics when component mounts
   useEffect(() => {
     dispatch(fetchAllTopics()).then((result) => {
-      console.log('🎯 Topics data structure:', result.payload);
+      console.log("🎯 Topics data structure:", result.payload);
     });
   }, [dispatch]);
 
@@ -280,14 +269,13 @@ const AIChatbot = () => {
       if (last.from === "bot") setUnreadCount((c) => c + 1);
     }
     if (open) setUnreadCount(0);
-    // eslint-disable-next-line
   }, [messages, open]);
 
   const handleSend = async (msg) => {
     if ((!input.trim() && !msg) || status === "loading") return;
     const userMessage = msg || input.trim();
     setInput("");
-    
+
     // Chat thông thường
     dispatch(addUserMessage(userMessage));
     try {
@@ -298,42 +286,14 @@ const AIChatbot = () => {
   };
 
   const handleAdvancedToggle = () => {
-    setIsAdvancedMode(!isAdvancedMode);
+    // Chuyển đến trang Advanced Chat thay vì mở modal
+    navigate("/advanced-chat");
   };
 
-  const handleQuickAction = (action) => {
-    const message = `Tôi muốn ${action.label.toLowerCase()}`;
-    handleSend(message);
-  };
-
-  const handleDetailedQuestion = (question) => {
-    handleSend(question);
-  };
-
-  const handleTopicExpand = async (topicId) => {
-    setExpandedTopics(prev => ({
-      ...prev,
-      [topicId]: !prev[topicId]
-    }));
-    
-    // Load questions for this topic if not already loaded
-    if (!topicQuestions[topicId]) {
-      try {
-        const result = await dispatch(fetchQuestionsByTopic(topicId)).unwrap();
-        console.log('🎯 Questions data structure for topic', topicId, ':', result);
-        setTopicQuestions(prev => ({
-          ...prev,
-          [topicId]: result.questions || result || []
-        }));
-      } catch (error) {
-        console.error('Error loading questions for topic:', topicId, error);
-        setTopicQuestions(prev => ({
-          ...prev,
-          [topicId]: []
-        }));
-      }
-    }
-  };
+  // Ẩn chatbot khi đang ở trang advanced-chat
+  if (location.pathname === "/advanced-chat") {
+    return null;
+  }
 
   return (
     <>
@@ -429,7 +389,7 @@ const AIChatbot = () => {
               bottom: 32,
               right: 32,
               zIndex: 9999,
-              width: isAdvancedMode ? 500 : 390,
+              width: 390,
               height: 600,
               display: "flex",
               flexDirection: "column",
@@ -487,11 +447,11 @@ const AIChatbot = () => {
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                  <Tooltip title={isAdvancedMode ? "Tắt chế độ nâng cao" : "Bật chế độ nâng cao"}>
+                  <Tooltip title="Mở chế độ nâng cao">
                     <IconButton
                       size="small"
                       onClick={handleAdvancedToggle}
-                      sx={{ 
+                      sx={{
                         color: "#fff",
                         transition: "all 0.2s ease",
                         "&:hover": {
@@ -518,57 +478,33 @@ const AIChatbot = () => {
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Button
                     size="small"
-                    variant={isAdvancedMode ? "contained" : "outlined"}
+                    variant="outlined"
                     onClick={handleAdvancedToggle}
                     sx={{
                       borderColor: "#3949ab",
-                      color: isAdvancedMode ? "#fff" : "#3949ab",
-                      bgcolor: isAdvancedMode ? "#3949ab" : "transparent",
+                      color: "#3949ab",
+                      bgcolor: "transparent",
                       textTransform: "none",
                       fontSize: 12,
                       borderRadius: 999,
                       px: 2,
                       py: 0.5,
                       "&:hover": {
-                        bgcolor: isAdvancedMode ? "#1a237e" : "#e8eaf6",
+                        bgcolor: "#e8eaf6",
                       },
                     }}
                   >
                     <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
                     Advanced
                   </Button>
-                  {isAdvancedMode && (
-                    <Chip
-                      label="Nâng cao"
-                      size="small"
-                      color="primary"
-                      sx={{ fontSize: 10 }}
-                    />
-                  )}
+                  <Chip
+                    label="Nhấn để mở chế độ nâng cao"
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: 10 }}
+                  />
                 </Stack>
               </Box>
-
-              {/* Advanced Features */}
-              {isAdvancedMode && (
-                <Box sx={{ px: 2, pt: 1, pb: 0, bgcolor: "#f4f6fb" }}>
-                  <Tabs
-                    value={activeTab}
-                    onChange={(e, newValue) => setActiveTab(newValue)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    sx={{
-                      "& .MuiTab-root": {
-                        minWidth: "auto",
-                        fontSize: 12,
-                        textTransform: "none",
-                      },
-                    }}
-                  >
-                    <Tab label="Chat" />
-                    <Tab label="Chủ đề" />
-                  </Tabs>
-                </Box>
-              )}
 
               {/* Content Area - Scrollable */}
               <Box
@@ -589,145 +525,54 @@ const AIChatbot = () => {
                   },
                 }}
               >
-                {/* Topics Tab */}
-                {isAdvancedMode && activeTab === 1 && (
-                  <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#f4f6fb" }}>
+                {/* FAQ Quick Replies - Show in normal mode */}
+                <Fade in={true} timeout={400}>
+                  <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
                     <Typography
                       variant="subtitle2"
-                      sx={{ mb: 1, color: "#1a237e" }}
+                      sx={{ mb: 1.5, color: "#1a237e", fontWeight: 600 }}
                     >
-                      Câu hỏi chi tiết theo chủ đề:
+                      Câu hỏi thường gặp:
                     </Typography>
-                    <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
-                      {topicLoading ? (
-                        <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-                          <Typography variant="body2" color="#3949ab">
-                            Đang tải chủ đề...
-                          </Typography>
-                        </Box>
-                      ) : topics && topics.length > 0 ? (
-                        console.log('🔍 Rendering topics:', topics) ||
-                        topics.map((topic) => (
-                          <Accordion 
-                            key={topic.id} 
-                            sx={{ mb: 1 }}
-                            expanded={expandedTopics[topic.id] || false}
-                            onChange={() => handleTopicExpand(topic.id)}
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {FAQS.map((faq, idx) => (
+                        <Zoom
+                          in={true}
+                          style={{ transitionDelay: `${idx * 80}ms` }}
+                          key={idx}
+                        >
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              borderColor: "#3949ab",
+                              color: "#3949ab",
+                              textTransform: "none",
+                              fontSize: 13,
+                              borderRadius: 2, // Thay đổi từ 999 thành 2 để tạo hình vuông
+                              mb: 1,
+                              px: 2,
+                              py: 0.5,
+                              boxShadow: "0 1px 4px 0 rgba(26,35,126,0.04)",
+                              transition: "all 0.2s ease",
+                              "&:hover": {
+                                borderColor: "#1a237e",
+                                color: "#1a237e",
+                                bgcolor: "#e8eaf6",
+                                transform: "translateY(-1px)",
+                                boxShadow: "0 2px 8px 0 rgba(26,35,126,0.12)",
+                              },
+                            }}
+                            onClick={() => handleSend(faq)}
+                            disabled={status === "loading"}
                           >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                              <Typography variant="body2" fontWeight={500}>
-                                {topic.title}
-                              </Typography>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                              <Stack spacing={1}>
-                                {expandedTopics[topic.id] && (
-                                  <>
-                                    {!topicQuestions[topic.id] && questionLoading ? (
-                                      <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
-                                        <Typography variant="body2" color="#3949ab" fontSize={11}>
-                                          Đang tải câu hỏi...
-                                        </Typography>
-                                      </Box>
-                                    ) : topicQuestions[topic.id] && topicQuestions[topic.id].length > 0 ? (
-                                      topicQuestions[topic.id].map((question) => (
-                                        <Button
-                                          key={question.id}
-                                          size="small"
-                                          variant="outlined"
-                                          onClick={() =>
-                                            handleDetailedQuestion(question.question)
-                                          }
-                                          disabled={status === "loading"}
-                                          sx={{
-                                            borderColor: "#3949ab",
-                                            color: "#3949ab",
-                                            textTransform: "none",
-                                            fontSize: 11,
-                                            textAlign: "left",
-                                            justifyContent: "flex-start",
-                                            "&:hover": {
-                                              borderColor: "#1a237e",
-                                              color: "#1a237e",
-                                              bgcolor: "#e8eaf6",
-                                            },
-                                          }}
-                                        >
-                                          {question.question}
-                                        </Button>
-                                      ))
-                                    ) : (
-                                      <Typography variant="body2" color="#666" fontSize={11}>
-                                        Chưa có câu hỏi cho chủ đề này
-                                      </Typography>
-                                    )}
-                                  </>
-                                )}
-                              </Stack>
-                            </AccordionDetails>
-                          </Accordion>
-                        ))
-                      ) : (
-                        <Box sx={{ textAlign: "center", p: 2 }}>
-                          <Typography variant="body2" color="#666">
-                            {topicLoading ? "Đang tải chủ đề..." : "Chưa có chủ đề nào"}
-                          </Typography>
-                          {!topicLoading && (
-                            <Typography variant="caption" color="#999" sx={{ mt: 1, display: "block" }}>
-                              Vui lòng thử lại sau hoặc liên hệ hỗ trợ
-                            </Typography>
-                          )}
-                        </Box>
-                      )}
-                    </Box>
+                            {faq}
+                          </Button>
+                        </Zoom>
+                      ))}
+                    </Stack>
                   </Box>
-                )}
-
-                {/* FAQ Quick Replies - Also show in normal mode when not in pricing flow */}
-                {!isAdvancedMode && (
-                  <Fade in={true} timeout={400}>
-                    <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1.5, color: "#1a237e", fontWeight: 600 }}>
-                        Câu hỏi thường gặp:
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        {FAQS.map((faq, idx) => (
-                          <Zoom in={true} style={{ transitionDelay: `${idx * 80}ms` }} key={idx}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                borderColor: "#3949ab",
-                                color: "#3949ab",
-                                textTransform: "none",
-                                fontSize: 13,
-                                borderRadius: 2, // Thay đổi từ 999 thành 2 để tạo hình vuông
-                                mb: 1,
-                                px: 2,
-                                py: 0.5,
-                                boxShadow: "0 1px 4px 0 rgba(26,35,126,0.04)",
-                                transition: "all 0.2s ease",
-                                "&:hover": {
-                                  borderColor: "#1a237e",
-                                  color: "#1a237e",
-                                  bgcolor: "#e8eaf6",
-                                  transform: "translateY(-1px)",
-                                  boxShadow: "0 2px 8px 0 rgba(26,35,126,0.12)",
-                                },
-                              }}
-                              onClick={() => handleSend(faq)}
-                              disabled={status === "loading"}
-                            >
-                              {faq}
-                            </Button>
-                          </Zoom>
-                        ))}
-                      </Stack>
-                    </Box>
-                  </Fade>
-                )}
-
-
+                </Fade>
 
                 {/* Body - Always show in Advanced mode, adjust height based on content */}
                 <Box
@@ -806,7 +651,7 @@ const AIChatbot = () => {
                         </Box>
                       </Box>
                     ))}
-                    
+
                     {status === "loading" && (
                       <Box
                         sx={{
@@ -870,69 +715,64 @@ const AIChatbot = () => {
                   boxShadow: "0 -2px 8px 0 rgba(26,35,126,0.04)",
                   position: "relative",
                   mt: 0, // Remove margin top when in pricing flow to avoid overlap
-                  minHeight: isAdvancedMode ? "80px" : "70px", // Ensure minimum height in Advanced mode
+                  minHeight: "70px", // Ensure minimum height
                 }}
               >
-                  
-                  <TextField
-                    size="small"
-                    fullWidth
-                    placeholder={
-                      isAdvancedMode
-                        ? "Nhập tin nhắn hoặc chọn câu hỏi gợi ý..."
-                        : "Bạn cần hỗ trợ gì?..."
-                    }
-                    value={input}
-                    inputRef={inputRef}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                    sx={{
-                      bgcolor: "#f8f9fa",
-                      borderRadius: 999,
-                      border: "none",
-                      "& .MuiOutlinedInput-root": {
-                        "& fieldset": { borderColor: "#e0e3ef" },
-                        "&:hover fieldset": { borderColor: "#3949ab" },
-                        "&.Mui-focused fieldset": { borderColor: "#1a237e" },
-                      },
-                      "& .MuiInputBase-input": {
-                        color: "#1a237e",
-                        fontSize: 15,
-                        py: 1.2,
-                        fontWeight: 400,
-                      },
-                      "& .MuiInputBase-input::placeholder": {
-                        color: "#3949ab",
-                        opacity: 0.7,
-                        fontWeight: 400,
-                      },
-                      boxShadow: "none",
-                    }}
-                    disabled={status === "loading"}
-                  />
-                  <IconButton
-                    onClick={() => handleSend()}
-                    disabled={status === "loading" || !input.trim()}
-                    sx={{
-                      bgcolor: "#3949ab",
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Bạn cần hỗ trợ gì?..."
+                  value={input}
+                  inputRef={inputRef}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  sx={{
+                    bgcolor: "#f8f9fa",
+                    borderRadius: 999,
+                    border: "none",
+                    "& .MuiOutlinedInput-root": {
+                      "& fieldset": { borderColor: "#e0e3ef" },
+                      "&:hover fieldset": { borderColor: "#3949ab" },
+                      "&.Mui-focused fieldset": { borderColor: "#1a237e" },
+                    },
+                    "& .MuiInputBase-input": {
+                      color: "#1a237e",
+                      fontSize: 15,
+                      py: 1.2,
+                      fontWeight: 400,
+                    },
+                    "& .MuiInputBase-input::placeholder": {
+                      color: "#3949ab",
+                      opacity: 0.7,
+                      fontWeight: 400,
+                    },
+                    boxShadow: "none",
+                  }}
+                  disabled={status === "loading"}
+                />
+                <IconButton
+                  onClick={() => handleSend()}
+                  disabled={status === "loading" || !input.trim()}
+                  sx={{
+                    bgcolor: "#3949ab",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: 44,
+                    height: 44,
+                    ml: 1,
+                    border: `2px solid #3949ab`,
+                    p: 0,
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      bgcolor: "#1a237e",
                       color: "#fff",
-                      borderRadius: "50%",
-                      width: 44,
-                      height: 44,
-                      ml: 1,
-                      border: `2px solid #3949ab`,
-                      p: 0,
-                      transition: "all 0.2s",
-                      "&:hover": {
-                        bgcolor: "#1a237e",
-                        color: "#fff",
-                        border: `2px solid #1a237e`,
-                      },
-                    }}
-                  >
-                    <SendIcon sx={{ fontSize: 26 }} />
-                  </IconButton>
-                </Box>
+                      border: `2px solid #1a237e`,
+                    },
+                  }}
+                >
+                  <SendIcon sx={{ fontSize: 26 }} />
+                </IconButton>
+              </Box>
             </Paper>
           </motion.div>
         )}
