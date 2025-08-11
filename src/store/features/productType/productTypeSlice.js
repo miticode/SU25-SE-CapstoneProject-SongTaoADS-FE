@@ -6,6 +6,7 @@ import {
   addProductTypeApi,
   addSizeToProductTypeApi,
   deleteProductTypeSizeApi,
+  updateProductTypeImageApi,
 } from "../../../api/productTypeService";
 
 // Initial state
@@ -17,6 +18,9 @@ const initialState = {
   // State cho việc tạo mới product type
   addStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   addError: null,
+  // State cho việc cập nhật hình ảnh product type
+  updateImageStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  updateImageError: null,
   productTypeSizes: [],
   sizesError: null,
   sizesStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -113,6 +117,19 @@ export const deleteProductTypeSize = createAsyncThunk(
   }
 );
 
+export const updateProductTypeImage = createAsyncThunk(
+  "productType/updateProductTypeImage",
+  async ({ productTypeId, imageFile }, { rejectWithValue }) => {
+    const response = await updateProductTypeImageApi(productTypeId, imageFile);
+    if (!response.success) {
+      return rejectWithValue(
+        response.error || "Failed to update product type image"
+      );
+    }
+    return response.data;
+  }
+);
+
 const productTypeSlice = createSlice({
   name: "productType",
   initialState,
@@ -124,6 +141,10 @@ const productTypeSlice = createSlice({
     resetAddProductTypeStatus: (state) => {
       state.addStatus = "idle";
       state.addError = null;
+    },
+    resetUpdateImageStatus: (state) => {
+      state.updateImageStatus = "idle";
+      state.updateImageError = null;
     },
     clearCurrentProductType: (state) => {
       state.currentProductType = null;
@@ -204,13 +225,40 @@ const productTypeSlice = createSlice({
           state.sizesStatus = "failed";
           state.sizesError = action.payload;
         }
-      );
+      )
+
+      // Update product type image cases
+      .addCase(updateProductTypeImage.pending, (state) => {
+        state.updateImageStatus = "loading";
+        state.updateImageError = null;
+      })
+      .addCase(updateProductTypeImage.fulfilled, (state, action) => {
+        state.updateImageStatus = "succeeded";
+        // Cập nhật hình ảnh trong danh sách productTypes
+        const updatedProductType = action.payload;
+        const index = state.productTypes.findIndex(
+          (pt) => pt.id === updatedProductType.id
+        );
+        if (index !== -1) {
+          state.productTypes[index] = updatedProductType;
+        }
+        // Cập nhật currentProductType nếu có
+        if (state.currentProductType && state.currentProductType.id === updatedProductType.id) {
+          state.currentProductType = updatedProductType;
+        }
+        state.updateImageError = null;
+      })
+      .addCase(updateProductTypeImage.rejected, (state, action) => {
+        state.updateImageStatus = "failed";
+        state.updateImageError = action.payload;
+      });
   },
 });
 
 export const {
   resetProductTypeStatus,
   resetAddProductTypeStatus,
+  resetUpdateImageStatus,
   clearCurrentProductType,
   resetProductTypeSizesStatus,
   clearProductTypeSizes,
@@ -226,6 +274,9 @@ export const selectProductTypeError = (state) => state.productType.error;
 // Selectors cho việc tạo mới product type
 export const selectAddProductTypeStatus = (state) => state.productType.addStatus;
 export const selectAddProductTypeError = (state) => state.productType.addError;
+// Selectors cho việc cập nhật hình ảnh product type
+export const selectUpdateImageStatus = (state) => state.productType.updateImageStatus;
+export const selectUpdateImageError = (state) => state.productType.updateImageError;
 export const selectProductTypeSizes = (state) =>
   state.productType.productTypeSizes;
 export const selectProductTypeSizesStatus = (state) =>

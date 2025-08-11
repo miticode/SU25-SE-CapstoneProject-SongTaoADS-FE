@@ -189,6 +189,36 @@ export const updateProductTypeApi = async (id, data) => {
   }
 };
 
+// Cập nhật hình ảnh của product type
+export const updateProductTypeImageApi = async (productTypeId, imageFile) => {
+  try {
+    // Tạo FormData để gửi multipart/form-data
+    const formData = new FormData();
+    formData.append('file', imageFile);
+
+    const response = await productTypeService.patch(
+      `/api/product-types/${productTypeId}/image`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, data: result };
+    }
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to update product type image",
+    };
+  }
+};
+
 // Xóa product type
 export const deleteProductTypeApi = async (id) => {
   try {
