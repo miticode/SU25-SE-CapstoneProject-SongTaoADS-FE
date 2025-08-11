@@ -41,10 +41,13 @@ import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
 
+import AdvancedChatLayout from "./layouts/AdvancedChatLayout";
+
 import MyTicket from "./pages/MyTicket";
 
 
 import ForgotPassword from "./pages/ForgotPassword";
+import AdvancedChat from "./pages/AdvancedChat";
 
 
 import AccessDeny from "./pages/AccessDeny";
@@ -300,10 +303,15 @@ const App = () => {
                 path="payment-history"
                 element={
                   <ProtectedRoute>
-                    <PaymentHistory/>
+                    <PaymentHistory />
                   </ProtectedRoute>
                 }
               />
+            </Route>
+
+            {/* Advanced Chat - No header/footer layout */}
+            <Route path="/advanced-chat" element={<AdvancedChatLayout />}>
+              <Route index element={<AdvancedChat />} />
             </Route>
 
             {/* Admin routes - chỉ cho ADMIN */}
@@ -360,7 +368,7 @@ const App = () => {
               <Route path="signup" element={<Signup />} />
               <Route path="forgot-password" element={<ForgotPassword />} />
             </Route>
-             <Route path="authentication" element={<Authenticate />} />
+            <Route path="authentication" element={<Authenticate />} />
           </Routes>
         </AnimatePresence>
 

@@ -46,6 +46,8 @@ import {
   selectProductTypeSizesError,
   selectProductTypeSizesStatus,
   selectProductTypeStatus,
+  selectProductTypePagination,
+  resetProductTypeStatus,
 } from "../store/features/productType/productTypeSlice";
 import {
   createCustomer,
@@ -1749,6 +1751,7 @@ const AIDesign = () => {
   const dispatch = useDispatch();
   const productTypes = useSelector(selectAllProductTypes);
   const productTypeStatus = useSelector(selectProductTypeStatus);
+  const productTypePagination = useSelector(selectProductTypePagination);
   const customerStatus = useSelector(selectCustomerStatus);
   const customerError = useSelector(selectCustomerError);
   const [currentStep, setCurrentStep] = useState(1);
@@ -4411,8 +4414,11 @@ const AIDesign = () => {
 
   useEffect(() => {
     if (currentStep === 3 && productTypeStatus === "idle") {
-      // Cập nhật cách gọi với pagination parameters
-      dispatch(fetchProductTypes({ page: 1, size: 20 })); // Lấy 20 items để hiển thị đủ product types
+      // Clear state cũ trước khi fetch mới để tránh hiển thị data cũ
+      dispatch(resetProductTypeStatus());
+      console.log("🔄 Fetching product types with isAvailable: true for step 3");
+      // Cập nhật cách gọi với pagination parameters và chỉ lấy product types có sẵn
+      dispatch(fetchProductTypes({ page: 1, size: 10, isAvailable: true })); // Lấy 6 items mỗi trang cho phân trang
     }
   }, [currentStep, dispatch, productTypeStatus]);
   useEffect(() => {
@@ -5297,6 +5303,16 @@ const AIDesign = () => {
     }
   }, [currentProductType, billboardType, productTypes]);
 
+  // Handler for product type pagination
+  const handleProductTypePageChange = (page) => {
+    console.log(`🔄 Changing to page ${page} for product types`);
+    dispatch(fetchProductTypes({ 
+      page, 
+      size: 6, // Consistent với initial fetch
+      isAvailable: true 
+    }));
+  };
+
   const handleBillboardTypeSelect = async (productTypeId) => {
     // First check if we have the customer details
     if (!user?.id) {
@@ -5971,6 +5987,8 @@ const AIDesign = () => {
             customerStatus={customerStatus}
             error={error}
             onProductTypeSelect={handleBillboardTypeSelect}
+            pagination={productTypePagination}
+            onPageChange={handleProductTypePageChange}
             onBack={() => {
               setCurrentStep(2);
               navigate("/ai-design?step=business");

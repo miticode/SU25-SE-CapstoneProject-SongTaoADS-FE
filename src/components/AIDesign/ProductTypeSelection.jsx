@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-import { CircularProgress } from "@mui/material";
+import { CircularProgress, Pagination } from "@mui/material";
 import { getImageFromS3 } from "../../api/s3Service";
 
 const ProductTypeSelection = ({
@@ -11,7 +11,11 @@ const ProductTypeSelection = ({
   error,
   onProductTypeSelect,
   onBack,
+  pagination,
+  onPageChange,
 }) => {
+  
+
   // State để quản lý việc load ảnh từ S3
   const [loadedImages, setLoadedImages] = useState({});
   const [loadingImages, setLoadingImages] = useState({});
@@ -256,6 +260,59 @@ const ProductTypeSelection = ({
       )}
 
       {renderContent()}
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <motion.div
+          className="mt-8 flex justify-center"
+          variants={itemVariants}
+        >
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <div className="flex flex-col items-center space-y-4">
+              {/* Pagination info */}
+              <div className="text-sm text-gray-600">
+                Trang {pagination.currentPage} / {pagination.totalPages} 
+                {pagination.totalElements && (
+                  <span className="ml-2">
+                    (Tổng cộng: {pagination.totalElements} loại biển hiệu)
+                  </span>
+                )}
+              </div>
+              
+              {/* Pagination controls */}
+              <Pagination
+                count={pagination.totalPages}
+                page={pagination.currentPage}
+                onChange={(event, page) => {
+                  if (onPageChange && page !== pagination.currentPage) {
+                    onPageChange(page);
+                  }
+                }}
+                color="primary"
+                size="large"
+                disabled={productTypeStatus === "loading"}
+                showFirstButton
+                showLastButton
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    color: '#5659E8',
+                    '&.Mui-selected': {
+                      backgroundColor: '#5659E8',
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: '#4A4FD7',
+                      }
+                    },
+                    '&:hover': {
+                      backgroundColor: 'rgba(86, 89, 232, 0.1)',
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <div className="mt-8 flex justify-center">
         <motion.button

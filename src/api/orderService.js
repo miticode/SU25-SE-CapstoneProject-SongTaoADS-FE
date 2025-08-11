@@ -536,6 +536,35 @@ export const updateOrderCustomerInfoApi = async (orderId, data) => {
   }
 };
 
+// Xóa chi tiết đơn hàng
+export const deleteOrderDetailApi = async (orderDetailId) => {
+  try {
+    console.log("Gọi API xóa chi tiết đơn hàng với orderDetailId:", orderDetailId);
+
+    const response = await orderService.delete(`/api/order-details/${orderDetailId}`);
+
+    const { success, result, message, timestamp } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API xóa chi tiết đơn hàng:", {
+        success,
+        result,
+        message,
+        timestamp,
+      });
+      return { success: true, data: result, message, timestamp };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    console.error("Error deleting order detail:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to delete order detail",
+    };
+  }
+};
+
 // Xóa đơn hàng
 export const deleteOrderApi = async (orderId) => {
   try {

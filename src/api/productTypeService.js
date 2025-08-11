@@ -31,14 +31,28 @@ productTypeService.interceptors.response.use(
 );
 
 // Hàm lấy tất cả product types
-export const getProductTypesApi = async (page = 1, size = 10) => {
+export const getProductTypesApi = async (page = 1, size = 10, isAvailable = null) => {
   try {
+    const params = {
+      page,
+      size,
+    };
+
+    // Chỉ thêm isAvailable vào params nếu có giá trị
+    if (isAvailable !== null && isAvailable !== undefined) {
+      params.isAvailable = isAvailable;
+    }
+
+    // Debug: Log request parameters
+    console.log("🌐 API Request params:", params);
+    console.log("🔗 Request URL will be: /api/product-types with params:", params);
+
     const response = await productTypeService.get("/api/product-types", {
-      params: {
-        page,
-        size,
-      },
+      params,
     });
+
+    // Debug: Log response
+    console.log("📥 API Response data:", response.data);
 
     const {
       success,
@@ -51,6 +65,13 @@ export const getProductTypesApi = async (page = 1, size = 10) => {
     } = response.data;
 
     if (success) {
+      // Debug: Log processed result
+      console.log("✅ Processed product types:", result?.map(pt => ({ 
+        id: pt.id, 
+        name: pt.name, 
+        isAvailable: pt.isAvailable 
+      })));
+      
       return {
         success,
         data: result || [],
@@ -65,6 +86,7 @@ export const getProductTypesApi = async (page = 1, size = 10) => {
 
     return { success: false, error: message || "Invalid response format" };
   } catch (error) {
+    console.error("❌ API Error:", error);
     return {
       success: false,
       error: error.response?.data?.message || "Failed to fetch product types",
