@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from "framer-motion";
 import { useSelector } from "react-redux";
-import { getProfileApi } from "../api/authService";
 import {
   Button,
   Dialog,
@@ -18,37 +17,21 @@ import {
 
 const Home = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const { user: authUser, isAuthenticated } = useSelector(
+  const { isAuthenticated } = useSelector(
     (state) => state.auth
   );
+
+  // Scroll to top when entering this page
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await getProfileApi();
-
-        if (res.success && res.data) {
-          setUser(res.data);
-        } else {
-          console.error("Profile API response missing data:", res);
-        }
-      } catch (error) {
-        console.error("Failed to fetch profile:", error);
-      }
-    };
-
-    if (isAuthenticated) {
-      if (authUser) {
-        setUser(authUser);
-      } else if (!user) {
-        fetchProfile();
-      }
-    } else {
-      setUser(null);
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // Fallback for environments not supporting smooth behavior
+      window.scrollTo(0, 0);
     }
-  }, [authUser, isAuthenticated]);
+  }, []);
+  // Note: Profile data is available via Redux (state.auth). No local fetch needed here.
 
   const carouselItems = [
     {

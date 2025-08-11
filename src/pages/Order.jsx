@@ -254,32 +254,7 @@ const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, s
 
   return (
     <Box sx={getContainerStyles(imageType)}>
-      {/* Badge hiển thị loại ảnh */}
-      {showBadge && imageType && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            zIndex: 2,
-            backgroundColor: 
-              imageType === 'SQUARE' ? 'rgba(0,0,0,0.7)' :
-              imageType === 'HORIZONTAL' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.7)',
-            color: "white",
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            fontSize: size === "small" ? "0.6rem" : "0.7rem",
-            fontWeight: 600,
-            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-            lineHeight: 1,
-          }}
-        >
-          {imageType === 'SQUARE' && '⬜ SQUARE'}
-          {imageType === 'HORIZONTAL' && '▭ HORIZONTAL'}
-          {imageType === 'VERTICAL' && '▬ VERTICAL'}
-        </Box>
-      )}
+      
 
       {/* Hiển thị kích thước ảnh */}
       {showDimensions && imageDimensions.width > 0 && (
@@ -316,28 +291,7 @@ const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, s
         onError={() => setError(true)}
       />
 
-      {/* Hiển thị thông tin tỷ lệ dưới ảnh */}
-      {showDimensions && imageType && imageDimensions.width > 0 && (
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: 8,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 2,
-            backgroundColor: "rgba(0,0,0,0.8)",
-            color: "white",
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            fontSize: "0.6rem",
-            fontWeight: 500,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Tỷ lệ: {(imageDimensions.width / imageDimensions.height).toFixed(2)}:1
-        </Box>
-      )}
+    
     </Box>
   );
 };
@@ -501,6 +455,18 @@ const Order = () => {
   const [loadingEditedImage, setLoadingEditedImage] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [shouldRefreshOrderDetails, setShouldRefreshOrderDetails] = useState(false);
+  // Loading khi xác nhận ở bước 2
+  const [confirmingOrder, setConfirmingOrder] = useState(false);
+
+  // Scroll lên đầu trang khi vào trang và mỗi khi đổi bước
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // Fallback cho trình duyệt cũ
+      window.scrollTo(0, 0);
+    }
+  }, [currentStep]);
   const [lastAddedDetailId, setLastAddedDetailId] = useState(null);
   
   // State để track xem user có click vào buttons chính ở step 3 không
@@ -984,6 +950,7 @@ const Order = () => {
             },
           });
 
+          setConfirmingOrder(true);
           const result = await dispatch(
             addOrderDetail({
               orderId: orderIdToUse,
@@ -1054,6 +1021,7 @@ const Order = () => {
             },
           });
 
+          setConfirmingOrder(true);
           const result = await dispatch(
             addOrderDetail({
               orderId: orderIdToUse,
@@ -1083,7 +1051,7 @@ const Order = () => {
         }
 
         // Đánh dấu cần refresh order details và fetch lại ngay lập tức
-        setShouldRefreshOrderDetails(true);
+  setShouldRefreshOrderDetails(true);
         
         // Fetch lại order details sau khi thêm thành công
         const orderIdToFetch = currentOrder?.id || existingOrderId;
@@ -1095,10 +1063,6 @@ const Order = () => {
             console.log("Order - Re-fetching order details after 1 second");
             dispatch(fetchOrderDetails(orderIdToFetch));
           }, 1000);
-          setTimeout(() => {
-            console.log("Order - Re-fetching order details after 3 seconds");
-            dispatch(fetchOrderDetails(orderIdToFetch));
-          }, 3000);
         }
 
         setSuccessMessage("Đơn hàng đã được xác nhận thành công!");
@@ -1112,6 +1076,7 @@ const Order = () => {
 
         // Chuyển sang step 3 để hiển thị thông tin đơn hàng hoàn tất
         setTimeout(() => {
+          setConfirmingOrder(false);
           setCurrentStep(3);
           setSuccessMessage("");
           // Fetch lại order details khi chuyển sang step 3
@@ -1120,10 +1085,11 @@ const Order = () => {
             console.log("Order - Final fetch order details when moving to step 3:", orderIdToFetch);
             dispatch(fetchOrderDetails(orderIdToFetch));
           }
-        }, 4000); // Tăng delay để đảm bảo API đã xử lý xong
+        }, 1000); // Giảm delay để tăng tốc UX; Step 3 sẽ tự hiển thị loading nếu cần
       } catch (error) {
         console.error("Lỗi xác nhận đơn hàng:", error);
         setErrorMessage(error || "Xác nhận đơn hàng thất bại");
+        setConfirmingOrder(false);
       }
       return;
     }
@@ -1363,47 +1329,7 @@ const Order = () => {
                   </div>
                 )}
 
-                {/* AI Design Order Type Display */}
-                {finalIsFromAIDesign && (
-                  <div className="info-card-ai p-4 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-6 h-6 text-green-600" />
-                      <div>
-                        <Typography
-                          variant="h6"
-                          className="text-green-800 font-semibold"
-                        >
-                          Loại đơn hàng:{" "}
-                          {ORDER_TYPE_MAP.AI_DESIGN?.label || "Thiết kế AI"}
-                        </Typography>
-                        <Typography variant="body2" className="text-green-700">
-                          Đã được thiết lập tự động cho đơn hàng thiết kế AI
-                        </Typography>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Custom Design Order Type Display */}
-                {finalIsFromCustomDesign && (
-                  <div className="info-card-template p-4 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-6 h-6 text-purple-600" />
-                      <div>
-                        <Typography
-                          variant="h6"
-                          className="text-purple-800 font-semibold"
-                        >
-                          Loại đơn hàng:{" "}
-                          {ORDER_TYPE_MAP[formData.orderType]?.label || "Thiết kế tùy chỉnh"}
-                        </Typography>
-                        <Typography variant="body2" className="text-purple-700">
-                          Đã được thiết lập tự động cho đơn hàng thiết kế tùy chỉnh
-                        </Typography>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              
 
                 {/* Error and Success Messages */}
                 {errorMessage && (
@@ -1920,7 +1846,7 @@ const Order = () => {
                     size="large"
                     fullWidth
                     onClick={handleSubmit}
-                    disabled={orderStatus === "loading"}
+                    disabled={confirmingOrder || orderStatus === "loading"}
                     className="py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-[1.02] hover:shadow-xl"
                     sx={{
                       background:
@@ -1935,14 +1861,14 @@ const Order = () => {
                       },
                     }}
                     startIcon={
-                      orderStatus === "loading" ? (
+                      confirmingOrder || orderStatus === "loading" ? (
                         <CircularProgress size={20} color="inherit" />
                       ) : (
                         <CheckCircle />
                       )
                     }
                   >
-                    {orderStatus === "loading"
+                    {confirmingOrder || orderStatus === "loading"
                       ? "Đang xác nhận..."
                       : "Xác nhận đơn hàng"}
                   </Button>
@@ -2122,18 +2048,14 @@ const Order = () => {
                                     </div>
                                     <div className="flex items-center space-x-2">
                                       <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full">
-                                        <Typography variant="caption" className="text-white font-medium">
+                                        <Typography variant="caption" className="text-black font-medium">
                                           {detail.editedDesigns ? "AI Design" : "Custom Design"}
                                         </Typography>
                                       </div>
-                                      <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full">
-                                        <Typography variant="caption" className="text-white font-medium">
-                                          ID: {detail.id}
-                                        </Typography>
-                                      </div>
+                                     
                                       {detail.createdAt && (
                                         <div className="px-2 py-1 bg-white bg-opacity-20 rounded-full">
-                                          <Typography variant="caption" className="text-white font-medium">
+                                          <Typography variant="caption" className="text-black font-medium">
                                             {new Date(detail.createdAt).toLocaleDateString('vi-VN')}
                                           </Typography>
                                         </div>
