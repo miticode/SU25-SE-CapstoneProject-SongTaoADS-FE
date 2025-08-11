@@ -3728,6 +3728,74 @@ const AIDesign = () => {
         }
       });
 
+      // Ràng buộc kéo đối tượng không vượt ra ngoài phạm vi ảnh nền
+      const clampObjectWithinBackground = (obj) => {
+        if (!obj) return;
+        // Bỏ qua background
+        if (obj.name && String(obj.name).startsWith("backgroundImage-")) {
+          return;
+        }
+
+        obj.setCoords();
+
+        // Tìm ảnh nền (ưu tiên object có name bắt đầu bằng backgroundImage-)
+        const bg = canvas
+          .getObjects()
+          .find((o) => o.name && String(o.name).startsWith("backgroundImage-"));
+
+        // Tính bounding cho vùng ràng buộc
+        let bounds;
+        if (bg) {
+          bg.setCoords();
+          const bgRect = bg.getBoundingRect(true, true);
+          bounds = {
+            left: bgRect.left,
+            top: bgRect.top,
+            width: bgRect.width,
+            height: bgRect.height,
+          };
+        } else {
+          // Fallback: ràng trong toàn bộ canvas nếu không có ảnh nền
+          bounds = {
+            left: 0,
+            top: 0,
+            width: canvas.getWidth(),
+            height: canvas.getHeight(),
+          };
+        }
+
+        const objRect = obj.getBoundingRect(true, true);
+
+        let dx = 0;
+        let dy = 0;
+
+        // Giữ mép trái/phải trong bounds
+        if (objRect.left < bounds.left) {
+          dx = bounds.left - objRect.left;
+        } else if (objRect.left + objRect.width > bounds.left + bounds.width) {
+          dx = bounds.left + bounds.width - (objRect.left + objRect.width);
+        }
+
+        // Giữ mép trên/dưới trong bounds
+        if (objRect.top < bounds.top) {
+          dy = bounds.top - objRect.top;
+        } else if (objRect.top + objRect.height > bounds.top + bounds.height) {
+          dy = bounds.top + bounds.height - (objRect.top + objRect.height);
+        }
+
+        if (dx !== 0 || dy !== 0) {
+          obj.left += dx;
+          obj.top += dy;
+          obj.setCoords();
+          canvas.requestRenderAll();
+        }
+      };
+
+      // Áp dụng khi kéo đối tượng
+      canvas.on("object:moving", (e) => {
+        clampObjectWithinBackground(e.target);
+      });
+
       setFabricCanvas(canvas);
       console.log("CANVAS SET TO STATE");
     }
