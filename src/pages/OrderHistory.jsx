@@ -1,22 +1,4 @@
 import React, { useEffect, useState, useCallback } from "react";
-
-/*
- * CÁCH SỬ DỤNG CÁC FUNCTION REFRESH:
- *
- * 1. refreshCustomDesignData() - Refresh data cho tab "Đơn thiết kế thủ công"
- *    - Sử dụng sau khi: approve/reject proposal, gửi offer, approve/reject demo, thay đổi lựa chọn thi công
- *
- * 2. refreshOrdersData() - Refresh data cho tab "Lịch sử đơn hàng"
- *    - Sử dụng sau khi: upload hợp đồng, thảo luận hợp đồng, gửi đánh giá, hủy đơn hàng, tạo ticket
- *
- * 3. refreshImpressionsData(orderId) - Refresh impressions cho một đơn hàng cụ thể
- *    - Sử dụng sau khi: gửi đánh giá
- *
- * 4. refreshAllData() - Refresh tất cả data (thông minh theo tab hiện tại)
- *    - Sử dụng khi không chắc chắn cần refresh gì
- *
- * LƯU Ý: Không cần reload trang nữa, chỉ cần gọi các function này!
- */
 import {
   Box,
   Typography,
@@ -66,6 +48,7 @@ import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import OrderProgressBar from "../components/OrderProgressBar";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import PaymentIcon from "@mui/icons-material/Payment";
@@ -158,6 +141,7 @@ import {
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
+import DesignProgressBar from "../components/DesignProgressBar";
 
 const statusMap = {
   // Status cho orders (đơn hàng)
@@ -1515,7 +1499,11 @@ const OrderHistory = () => {
       { key: "INSTALLED", label: "Đã lắp đặt", progress: 100 },
     ];
 
-    const currentStepIndex = steps.findIndex((step) => step.key === status);
+    // Nếu status là ORDER_COMPLETED, coi như INSTALLED (100%)
+    const currentStatus = status === "ORDER_COMPLETED" ? "INSTALLED" : status;
+    const currentStepIndex = steps.findIndex(
+      (step) => step.key === currentStatus
+    );
 
     return {
       steps,
@@ -1536,10 +1524,6 @@ const OrderHistory = () => {
 
     // Cập nhật hàm handleStepClick để hỗ trợ ảnh từ progress log
     const handleStepClick = async (step) => {
-      console.log("handleStepClick called with step:", step.key);
-      console.log("Current order:", order);
-      console.log("Current producingLog:", producingLog);
-
       let imageUrl = null;
       let title = "";
       let description = "";
@@ -1552,7 +1536,6 @@ const OrderHistory = () => {
         const producingLogs = allProgressLogs.filter(
           (log) => log.status === "PRODUCING"
         );
-        console.log("All PRODUCING logs:", producingLogs);
 
         // Lấy tất cả ảnh từ các progress logs PRODUCING
         let allProductionImages = [];
@@ -1562,8 +1545,6 @@ const OrderHistory = () => {
             allProductionImages.push(...images);
           }
         }
-
-        console.log("All production images found:", allProductionImages);
 
         if (allProductionImages.length > 0) {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
@@ -1593,7 +1574,6 @@ const OrderHistory = () => {
         const completedLogs = allProgressLogs.filter(
           (log) => log.status === "PRODUCTION_COMPLETED"
         );
-        console.log("All PRODUCTION_COMPLETED logs:", completedLogs);
 
         // Lấy tất cả ảnh từ các progress logs PRODUCTION_COMPLETED
         let allCompletedImages = [];
@@ -1603,11 +1583,6 @@ const OrderHistory = () => {
             allCompletedImages.push(...images);
           }
         }
-
-        console.log(
-          "All production completed images found:",
-          allCompletedImages
-        );
 
         if (allCompletedImages.length > 0) {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
@@ -1637,7 +1612,6 @@ const OrderHistory = () => {
         const deliveringLogs = allProgressLogs.filter(
           (log) => log.status === "DELIVERING"
         );
-        console.log("All DELIVERING logs:", deliveringLogs);
 
         // Lấy tất cả ảnh từ các progress logs DELIVERING
         let allDeliveringImages = [];
@@ -1647,8 +1621,6 @@ const OrderHistory = () => {
             allDeliveringImages.push(...images);
           }
         }
-
-        console.log("All delivering images found:", allDeliveringImages);
 
         if (allDeliveringImages.length > 0) {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
@@ -1678,7 +1650,6 @@ const OrderHistory = () => {
         const installedLogs = allProgressLogs.filter(
           (log) => log.status === "INSTALLED"
         );
-        console.log("All INSTALLED logs:", installedLogs);
 
         // Lấy tất cả ảnh từ các progress logs INSTALLED
         let allInstalledImages = [];
@@ -1688,8 +1659,6 @@ const OrderHistory = () => {
             allInstalledImages.push(...images);
           }
         }
-
-        console.log("All installed images found:", allInstalledImages);
 
         if (allInstalledImages.length > 0) {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
@@ -4042,6 +4011,18 @@ const OrderHistory = () => {
                               />
                             </Box>
 
+                            {/* Order Progress Bar - hiển thị cho các trạng thái từ PENDING_CONTRACT đến IN_PROGRESS */}
+                            {['PENDING_CONTRACT', 'CONTRACT_SENT', 'CONTRACT_SIGNED', 'CONTRACT_DISCUSS', 
+                              'CONTRACT_RESIGNED', 'CONTRACT_CONFIRMED', 'DEPOSITED', 'IN_PROGRESS'].includes(order.status) && (
+                              <OrderProgressBar status={order.status} order={order} compact={true} />
+                            )}
+
+                            {/* Design Progress Bar - hiển thị cho các trạng thái thiết kế */}
+                            {['PENDING_DESIGN', 'NEED_DEPOSIT_DESIGN', 'DEPOSITED_DESIGN', 'NEED_FULLY_PAID_DESIGN', 
+                              'WAITING_FINAL_DESIGN', 'DESIGN_COMPLETED'].includes(order.status) && (
+                              <DesignProgressBar status={order.status} order={order} compact={true} />
+                            )}
+
                             {/* Order Details Section */}
                             <Box
                               sx={{
@@ -4134,9 +4115,9 @@ const OrderHistory = () => {
 
                               <Typography color="text.secondary" fontSize={14}>
                                 Ngày đặt:{" "}
-                                {order.orderDate
+                                {order.createdAt
                                   ? new Date(
-                                      order.orderDate
+                                      order.createdAt
                                     ).toLocaleDateString("vi-VN")
                                   : "N/A"}
                               </Typography>
@@ -4844,6 +4825,7 @@ const OrderHistory = () => {
                                 "PRODUCTION_COMPLETED",
                                 "DELIVERING",
                                 "INSTALLED",
+                                "ORDER_COMPLETED",
                               ].includes(order.status) && (
                                 <ProductionProgressBar
                                   status={order.status}
@@ -5062,7 +5044,7 @@ const OrderHistory = () => {
                                     },
                                   }}
                                 >
-                                  📄 Xem hợp đồng
+                                   Xem hợp đồng
                                 </Button>
                               )}
 
