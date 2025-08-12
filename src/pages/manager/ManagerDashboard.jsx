@@ -2,28 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  Box,
-  Grid,
-  Paper,
   Typography,
-  Card,
-  CardContent,
   Avatar,
-  IconButton,
-  Button,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  Divider,
-  Tabs,
-  Tab,
   MenuItem,
   Select,
   FormControl,
   InputLabel,
-  useMediaQuery,
-  useTheme,
   TextField,
   Table,
   TableBody,
@@ -31,10 +15,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   Chip,
   CircularProgress,
   Alert,
+  Tabs,
+  Tab,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import {
   MoreVert as MoreVertIcon,
@@ -177,9 +166,6 @@ const ManagerDashboard = () => {
   
   const [timeFilter, setTimeFilter] = useState("weekly");
   const [tasksTabValue, setTasksTabValue] = useState(0);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
   // Fetch dashboard data on component mount
   useEffect(() => {
@@ -201,456 +187,221 @@ const ManagerDashboard = () => {
 
   // Dashboard Content
   const renderDashboardContent = () => (
-    <Box>
-      {/* Header với refresh button và time filter */}
-      <Box
-        mb={3}
-        display="flex"
-        flexDirection={isMobile ? "column" : "row"}
-        justifyContent="space-between"
-        alignItems={isMobile ? "flex-start" : "center"}
-        gap={isMobile ? 2 : 0}
-      >
-        <Typography
-          variant={isMobile ? "h5" : "h4"}
-          fontWeight="bold"
-          color="text.primary"
-        >
-          Manager Dashboard
-        </Typography>
-        
-        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-          {lastUpdated && (
-            <Typography variant="body2" color="text.secondary">
-              Cập nhật lần cuối: {new Date(lastUpdated).toLocaleString('vi-VN')}
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+          <div>
+            <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+              📊 Manager Dashboard
             </Typography>
-          )}
-          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-            <InputLabel id="time-filter-label">Time Period</InputLabel>
-            <Select
-              labelId="time-filter-label"
-              value={timeFilter}
-              onChange={handleTimeFilterChange}
-              label="Time Period"
-            >
-              <MenuItem value="daily">Daily</MenuItem>
-              <MenuItem value="weekly">Weekly</MenuItem>
-              <MenuItem value="monthly">Monthly</MenuItem>
-              <MenuItem value="yearly">Yearly</MenuItem>
-            </Select>
-          </FormControl>
-          <IconButton
-            onClick={handleRefreshDashboard}
-            disabled={dashboardStatus === 'loading'}
-            color="primary"
-            sx={{
-              bgcolor: 'primary.50',
-              '&:hover': { bgcolor: 'primary.100' }
-            }}
-          >
-            <RefreshIcon />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* Error Alert */}
-      {dashboardError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {dashboardError}
-        </Alert>
-      )}
-
-      {/* Staff Dashboard Stats Cards */}
-      <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 2 : 4}>
-        {/* Đơn hàng đang sản xuất */}
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: isMobile ? 1.5 : 2,
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              position: "relative",
-              overflow: "hidden",
-              background: "linear-gradient(135deg, #fff3e0 0%, #fff3e080 100%)",
-              border: "1px solid #ff980020",
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              "&:hover": {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px #ff980030'
-              },
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "4px",
-                backgroundColor: "#ff9800",
-              },
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="flex-start"
-              mb={1}
-            >
-              <Avatar
-                sx={{
-                  bgcolor: "rgba(255, 152, 0, 0.15)",
-                  width: isMobile ? 40 : 48,
-                  height: isMobile ? 40 : 48,
-                }}
+            <Typography variant="body1" className="!text-gray-600">
+              Tổng quan quản lý và theo dõi hiệu suất
+            </Typography>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {lastUpdated && (
+              <Typography variant="body2" className="!text-gray-500 !text-sm">
+                Cập nhật: {new Date(lastUpdated).toLocaleString('vi-VN')}
+              </Typography>
+            )}
+            <div className="flex items-center gap-2">
+              <FormControl variant="outlined" size="small" className="!min-w-[120px]">
+                <InputLabel id="time-filter-label">Thời gian</InputLabel>
+                <Select
+                  labelId="time-filter-label"
+                  value={timeFilter}
+                  onChange={handleTimeFilterChange}
+                  label="Thời gian"
+                  className="!rounded-xl"
+                >
+                  <MenuItem value="daily">Hàng ngày</MenuItem>
+                  <MenuItem value="weekly">Hàng tuần</MenuItem>
+                  <MenuItem value="monthly">Hàng tháng</MenuItem>
+                  <MenuItem value="yearly">Hàng năm</MenuItem>
+                </Select>
+              </FormControl>
+              <button
+                onClick={handleRefreshDashboard}
+                disabled={dashboardStatus === 'loading'}
+                className="w-10 h-10 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-600 flex items-center justify-center transition-colors duration-200 disabled:opacity-50"
               >
-                <TasksIcon
-                  sx={{
-                    color: "#ff9800",
-                    fontSize: isMobile ? "1.25rem" : "1.5rem",
-                  }}
-                />
-              </Avatar>
-              {dashboardStatus === 'loading' && (
-                <CircularProgress size={16} sx={{ color: "#ff9800" }} />
-              )}
-            </Box>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              my={isMobile ? 0.5 : 1}
-              color="#ff9800"
-            >
+                <RefreshIcon className={dashboardStatus === 'loading' ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {dashboardError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
+            <Typography className="!text-red-700">{dashboardError}</Typography>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        {/* Đơn hàng đang sản xuất */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+              <TasksIcon className="!text-orange-600" />
+            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-orange-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-orange-600">
               {dashboardStatus === 'loading' ? '...' : dashboardData.productingOrders.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
               Đơn hàng đang sản xuất
             </Typography>
-          </Paper>
-        </Grid>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-orange-50 rounded-full opacity-20"></div>
+        </div>
 
         {/* Đơn hàng hoàn thành sản xuất */}
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: isMobile ? 1.5 : 2,
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              position: "relative",
-              overflow: "hidden",
-              background: "linear-gradient(135deg, #e3f2fd 0%, #e3f2fd80 100%)",
-              border: "1px solid #2196f320",
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              "&:hover": {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px #2196f330'
-              },
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "4px",
-                backgroundColor: "#2196f3",
-              },
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="flex-start"
-              mb={1}
-            >
-              <Avatar
-                sx={{
-                  bgcolor: "rgba(33, 150, 243, 0.15)",
-                  width: isMobile ? 40 : 48,
-                  height: isMobile ? 40 : 48,
-                }}
-              >
-                <ShippingIcon
-                  sx={{
-                    color: "#2196f3",
-                    fontSize: isMobile ? "1.25rem" : "1.5rem",
-                  }}
-                />
-              </Avatar>
-              {dashboardStatus === 'loading' && (
-                <CircularProgress size={16} sx={{ color: "#2196f3" }} />
-              )}
-            </Box>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              my={isMobile ? 0.5 : 1}
-              color="#2196f3"
-            >
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <ShippingIcon className="!text-blue-600" />
+            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-blue-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-blue-600">
               {dashboardStatus === 'loading' ? '...' : dashboardData.productionCompletedOrders.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
               Đơn hàng hoàn thành sản xuất
             </Typography>
-          </Paper>
-        </Grid>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-blue-50 rounded-full opacity-20"></div>
+        </div>
 
         {/* Tickets đang xử lý */}
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: isMobile ? 1.5 : 2,
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              position: "relative",
-              overflow: "hidden",
-              background: "linear-gradient(135deg, #f3e5f5 0%, #f3e5f580 100%)",
-              border: "1px solid #9c27b020",
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              "&:hover": {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px #9c27b030'
-              },
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "4px",
-                backgroundColor: "#9c27b0",
-              },
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="flex-start"
-              mb={1}
-            >
-              <Avatar
-                sx={{
-                  bgcolor: "rgba(156, 39, 176, 0.15)",
-                  width: isMobile ? 40 : 48,
-                  height: isMobile ? 40 : 48,
-                }}
-              >
-                <TicketIcon
-                  sx={{
-                    color: "#9c27b0",
-                    fontSize: isMobile ? "1.25rem" : "1.5rem",
-                  }}
-                />
-              </Avatar>
-              {dashboardStatus === 'loading' && (
-                <CircularProgress size={16} sx={{ color: "#9c27b0" }} />
-              )}
-            </Box>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              my={isMobile ? 0.5 : 1}
-              color="#9c27b0"
-            >
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+              <TicketIcon className="!text-purple-600" />
+            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-purple-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-purple-600">
               {dashboardStatus === 'loading' ? '...' : dashboardData.inprogressTickets.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
               Tickets đang xử lý
             </Typography>
-          </Paper>
-        </Grid>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-purple-50 rounded-full opacity-20"></div>
+        </div>
 
         {/* Đơn hàng hoàn thành */}
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: isMobile ? 1.5 : 2,
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              position: "relative",
-              overflow: "hidden",
-              background: "linear-gradient(135deg, #e8f5e8 0%, #e8f5e880 100%)",
-              border: "1px solid #4caf5020",
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              "&:hover": {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px #4caf5030'
-              },
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "4px",
-                backgroundColor: "#4caf50",
-              },
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="flex-start"
-              mb={1}
-            >
-              <Avatar
-                sx={{
-                  bgcolor: "rgba(76, 175, 80, 0.15)",
-                  width: isMobile ? 40 : 48,
-                  height: isMobile ? 40 : 48,
-                }}
-              >
-                <CompletedIcon
-                  sx={{
-                    color: "#4caf50",
-                    fontSize: isMobile ? "1.25rem" : "1.5rem",
-                  }}
-                />
-              </Avatar>
-              {dashboardStatus === 'loading' && (
-                <CircularProgress size={16} sx={{ color: "#4caf50" }} />
-              )}
-            </Box>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              my={isMobile ? 0.5 : 1}
-              color="#4caf50"
-            >
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <CompletedIcon className="!text-emerald-600" />
+            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-emerald-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-emerald-600">
               {dashboardStatus === 'loading' ? '...' : dashboardData.completedOrders.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
               Đơn hàng hoàn thành
             </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-emerald-50 rounded-full opacity-20"></div>
+        </div>
+      </div>
 
       {/* Charts Section */}
-      <Grid container spacing={isMobile ? 2 : 3} mb={isMobile ? 2 : 4}>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         {/* Team Performance Chart */}
-        <Grid item xs={12} lg={8}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: isMobile ? 1.5 : 2,
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={isMobile ? 1 : 2}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                Team Performance Overview
+        <div className="lg:col-span-8">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-full">
+            <div className="flex items-center justify-between mb-6">
+              <Typography variant="h6" className="!font-semibold !text-gray-800">
+                📈 Team Performance Overview
               </Typography>
-              <IconButton size="small">
+              <button className="w-8 h-8 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors duration-200">
                 <MoreVertIcon />
-              </IconButton>
-            </Box>
-            <Box height={isMobile ? 250 : isTablet ? 300 : 350}>
+              </button>
+            </div>
+            <div className="h-80 lg:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={teamPerformanceData}
                   margin={{
                     top: 10,
-                    right: isMobile ? 10 : 30,
-                    left: isMobile ? -20 : 0,
+                    right: 30,
+                    left: 0,
                     bottom: 0,
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: isMobile ? 12 : 14 }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: isMobile ? 12 : 14 }}
-                    width={isMobile ? 30 : 40}
-                  />
-                  <Tooltip contentStyle={{ fontSize: isMobile ? 12 : 14 }} />
-                  <Legend wrapperStyle={{ fontSize: isMobile ? 12 : 14 }} />
+                  <XAxis dataKey="month" tick={{ fontSize: 14 }} />
+                  <YAxis tick={{ fontSize: 14 }} width={40} />
+                  <Tooltip contentStyle={{ fontSize: 14, borderRadius: '12px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }} />
+                  <Legend wrapperStyle={{ fontSize: 14 }} />
                   <Bar
                     dataKey="completed"
-                    fill="#2e7d32"
+                    fill="#10b981"
                     radius={[4, 4, 0, 0]}
                     name="Completed Tasks"
                   />
                   <Bar
                     dataKey="inProgress"
-                    fill="#1976d2"
+                    fill="#3b82f6"
                     radius={[4, 4, 0, 0]}
                     name="In Progress"
                   />
                 </BarChart>
               </ResponsiveContainer>
-            </Box>
-          </Paper>
-        </Grid>
+            </div>
+          </div>
+        </div>
 
         {/* Task Status Chart */}
-        <Grid item xs={12} lg={4}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: isMobile ? 1.5 : 2,
-              height: "100%",
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={isMobile ? 1 : 2}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                Task Status
+        <div className="lg:col-span-4">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-full">
+            <div className="flex items-center justify-between mb-6">
+              <Typography variant="h6" className="!font-semibold !text-gray-800">
+                📊 Task Status
               </Typography>
-              <IconButton size="small">
+              <button className="w-8 h-8 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors duration-200">
                 <MoreVertIcon />
-              </IconButton>
-            </Box>
-            <Box
-              height={isMobile ? 220 : 300}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-            >
+              </button>
+            </div>
+            <div className="h-64 flex justify-center items-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={taskStatusData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={isMobile ? 40 : 60}
-                    outerRadius={isMobile ? 60 : 80}
+                    innerRadius={50}
+                    outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percent }) =>
-                      isMobile
-                        ? `${(percent * 100).toFixed(0)}%`
-                        : `${name} ${(percent * 100).toFixed(0)}%`
-                    }
-                    labelLine={!isMobile}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                   >
                     {taskStatusData.map((entry, index) => (
                       <Cell
@@ -662,774 +413,519 @@ const ManagerDashboard = () => {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </Box>
-            <Box mt={isMobile ? 1 : 2}>
-              <Grid container spacing={2}>
+            </div>
+            <div className="mt-4">
+              <div className="grid grid-cols-3 gap-2">
                 {taskStatusData.map((item, index) => (
-                  <Grid item xs={4} key={index}>
-                    <Box
-                      display="flex"
-                      flexDirection="column"
-                      alignItems="center"
-                    >
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          backgroundColor: COLORS[index],
-                          borderRadius: "50%",
-                          mb: 0.5,
-                        }}
-                      />
-                      <Typography
-                        variant="body2"
-                        align="center"
-                        fontSize={isMobile ? "0.75rem" : "inherit"}
-                      >
-                        {item.name}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        fontWeight="bold"
-                        align="center"
-                        fontSize={isMobile ? "0.75rem" : "inherit"}
-                      >
-                        {item.value}%
-                      </Typography>
-                    </Box>
-                  </Grid>
+                  <div key={index} className="flex flex-col items-center">
+                    <div
+                      className="w-3 h-3 rounded-full mb-1"
+                      style={{ backgroundColor: COLORS[index] }}
+                    />
+                    <Typography variant="body2" className="!text-center !text-xs !text-gray-600">
+                      {item.name}
+                    </Typography>
+                    <Typography variant="body2" className="!text-center !text-xs !font-bold !text-gray-800">
+                      {item.value}%
+                    </Typography>
+                  </div>
                 ))}
-              </Grid>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Bottom Section */}
-      <Grid container spacing={isMobile ? 2 : 3}>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Recent Tasks */}
-        <Grid item xs={12} lg={8}>
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              px={isMobile ? 2 : 3}
-              py={isMobile ? 1.5 : 2}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                Recent Tasks
+        <div className="lg:col-span-8">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <Typography variant="h6" className="!font-semibold !text-gray-800">
+                📋 Recent Tasks
               </Typography>
-              <Button size="small" variant="text">
+              <button className="text-emerald-600 hover:text-emerald-700 font-medium text-sm px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors duration-200">
                 View All
-              </Button>
-            </Box>
-            <Divider />
-            <Box>
-              <Box sx={{ overflowX: "auto" }}>
-                <Tabs
-                  value={tasksTabValue}
-                  onChange={handleTasksTabChange}
-                  indicatorColor="primary"
-                  textColor="primary"
-                  sx={{
-                    px: isMobile ? 2 : 3,
-                    minHeight: isMobile ? 42 : 48,
-                  }}
-                  variant={isMobile ? "scrollable" : "standard"}
-                  scrollButtons={isMobile ? "auto" : false}
-                >
-                  <Tab
-                    label="All"
-                    sx={{
-                      fontSize: isMobile ? "0.8rem" : "inherit",
-                      minHeight: isMobile ? 42 : 48,
-                    }}
-                  />
-                  <Tab
-                    label="In Progress"
-                    sx={{
-                      fontSize: isMobile ? "0.8rem" : "inherit",
-                      minHeight: isMobile ? 42 : 48,
-                    }}
-                  />
-                  <Tab
-                    label="Completed"
-                    sx={{
-                      fontSize: isMobile ? "0.8rem" : "inherit",
-                      minHeight: isMobile ? 42 : 48,
-                    }}
-                  />
-                  <Tab
-                    label="Pending"
-                    sx={{
-                      fontSize: isMobile ? "0.8rem" : "inherit",
-                      minHeight: isMobile ? 42 : 48,
-                    }}
-                  />
-                </Tabs>
-              </Box>
-              <Box sx={{ p: 0 }}>
-                {recentTasks.map((task, index) => (
-                  <React.Fragment key={task.id}>
-                    <ListItem
-                      sx={{
-                        px: isMobile ? 2 : 3,
-                        py: isMobile ? 1.5 : 2,
-                        flexDirection: isMobile ? "column" : "row",
-                        alignItems: isMobile ? "flex-start" : "center",
-                        "&:hover": {
-                          backgroundColor: "rgba(0, 0, 0, 0.02)",
-                        },
-                      }}
-                      secondaryAction={
-                        !isMobile && (
-                          <Chip
-                            label={task.priority}
-                            size="small"
-                            sx={{
-                              backgroundColor:
-                                task.priority === "High"
-                                  ? "rgba(244, 67, 54, 0.1)"
-                                  : task.priority === "Medium"
-                                  ? "rgba(255, 152, 0, 0.1)"
-                                  : "rgba(76, 175, 80, 0.1)",
-                              color:
-                                task.priority === "High"
-                                  ? "#f44336"
-                                  : task.priority === "Medium"
-                                  ? "#ff9800"
-                                  : "#4caf50",
-                            }}
-                          />
-                        )
-                      }
-                    >
-                      <ListItemText
-                        primary={
-                          <Box
-                            display="flex"
-                            alignItems="center"
-                            flexWrap="wrap"
-                            gap={1}
-                            mb={isMobile ? 1 : 0}
-                          >
-                            <Typography
-                              variant="body1"
-                              fontWeight="medium"
-                              sx={{ mr: 1 }}
-                            >
-                              {task.id}
-                            </Typography>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 1,
-                                fontSize: "0.75rem",
-                                backgroundColor:
-                                  task.status === "Completed"
-                                    ? "rgba(76, 175, 80, 0.1)"
-                                    : task.status === "In Progress"
-                                    ? "rgba(33, 150, 243, 0.1)"
-                                    : "rgba(255, 152, 0, 0.1)",
-                                color:
-                                  task.status === "Completed"
-                                    ? "#4caf50"
-                                    : task.status === "In Progress"
-                                    ? "#2196f3"
-                                    : "#ff9800",
-                              }}
-                            >
-                              {task.status}
-                            </Typography>
-                          </Box>
-                        }
-                        secondaryTypographyProps={{ component: "div" }}
-                        secondary={
-                          <React.Fragment>
-                            <Typography
-                              component="div"
-                              variant="body2"
-                              color="text.secondary"
-                            >
-                              {task.title}
-                            </Typography>
-                            <Box
-                              component="div"
-                              display="flex"
-                              justifyContent="space-between"
-                              width={isMobile ? "100%" : "auto"}
-                              sx={{ mt: isMobile ? 0.5 : 0 }}
-                            >
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                component="span"
-                              >
-                                {task.assignee}
-                              </Typography>
-                              {isMobile && (
-                                <Chip
-                                  label={task.priority}
-                                  size="small"
-                                  sx={{
-                                    backgroundColor:
-                                      task.priority === "High"
-                                        ? "rgba(244, 67, 54, 0.1)"
-                                        : task.priority === "Medium"
-                                        ? "rgba(255, 152, 0, 0.1)"
-                                        : "rgba(76, 175, 80, 0.1)",
-                                    color:
-                                      task.priority === "High"
-                                        ? "#f44336"
-                                        : task.priority === "Medium"
-                                        ? "#ff9800"
-                                        : "#4caf50",
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </React.Fragment>
-                        }
-                      />
-                    </ListItem>
-                    {index < recentTasks.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
+              </button>
+            </div>
+            
+            <div className="border-b border-gray-100">
+              <Tabs
+                value={tasksTabValue}
+                onChange={handleTasksTabChange}
+                indicatorColor="primary"
+                textColor="primary"
+                className="px-6"
+                variant="scrollable"
+                scrollButtons="auto"
+              >
+                <Tab label="All" className="!text-sm !min-h-12" />
+                <Tab label="In Progress" className="!text-sm !min-h-12" />
+                <Tab label="Completed" className="!text-sm !min-h-12" />
+                <Tab label="Pending" className="!text-sm !min-h-12" />
+              </Tabs>
+            </div>
 
-        {/* Team Members */}
-        <Grid item xs={12} lg={4}>
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              overflow: "hidden",
-              height: "100%",
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              px={isMobile ? 2 : 3}
-              py={isMobile ? 1.5 : 2}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                Team Members
-              </Typography>
-              <IconButton size="small">
-                <MoreVertIcon />
-              </IconButton>
-            </Box>
-            <Divider />
-            <List disablePadding>
-              {teamMembers.map((member, index) => (
-                <React.Fragment key={member.id}>
-                  <div
-                    className={`flex items-center px-6 py-4 hover:bg-gray-50 ${
-                      index !== teamMembers.length - 1
-                        ? "border-b border-gray-100"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex-shrink-0">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium`}
-                        style={{
-                          backgroundColor: `hsl(${member.id * 60}, 70%, 90%)`,
-                        }}
-                      >
-                        {member.name.charAt(0)}
+            <div className="divide-y divide-gray-100">
+              {recentTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="px-6 py-4 hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Typography variant="body1" className="!font-semibold !text-gray-800">
+                          {task.id}
+                        </Typography>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          task.status === "Completed"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : task.status === "In Progress"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-orange-100 text-orange-700"
+                        }`}>
+                          {task.status}
+                        </span>
                       </div>
-                    </div>
-                    <div className="ml-4 flex-1">
+                      <Typography variant="body2" className="!text-gray-600 !mb-2">
+                        {task.title}
+                      </Typography>
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-900">
-                          {member.name}
-                        </h3>
-                        <div className="flex space-x-2">
-                          <button className="text-gray-400 hover:text-gray-500">
-                            <EditIcon fontSize="small" />
-                          </button>
-                          <button className="text-gray-400 hover:text-gray-500">
-                            <DeleteIcon fontSize="small" />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {member.role}
-                      </p>
-                      <div className="flex justify-between mt-2 text-xs text-gray-500">
-                        <span>{member.tasks} active tasks</span>
-                        <span>{member.completed} completed</span>
+                        <Typography variant="body2" className="!text-gray-500">
+                          {task.assignee}
+                        </Typography>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          task.priority === "High"
+                            ? "bg-red-100 text-red-700"
+                            : task.priority === "Medium"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-green-100 text-green-700"
+                        }`}>
+                          {task.priority}
+                        </span>
                       </div>
                     </div>
                   </div>
-                </React.Fragment>
+                </div>
               ))}
-            </List>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
+            </div>
+          </div>
+        </div>
+
+        {/* Team Members */}
+        <div className="lg:col-span-4">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden h-full">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <Typography variant="h6" className="!font-semibold !text-gray-800">
+                👥 Team Members
+              </Typography>
+              <button className="w-8 h-8 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors duration-200">
+                <MoreVertIcon />
+              </button>
+            </div>
+            
+            <div className="divide-y divide-gray-100">
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center px-6 py-4 hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <div className="flex-shrink-0">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium text-white"
+                      style={{
+                        backgroundColor: `hsl(${member.id * 60}, 70%, 50%)`,
+                      }}
+                    >
+                      {member.name.charAt(0)}
+                    </div>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <div className="flex items-center justify-between">
+                      <Typography variant="body2" className="!font-semibold !text-gray-800">
+                        {member.name}
+                      </Typography>
+                      <div className="flex space-x-2">
+                        <button className="text-gray-400 hover:text-blue-600 transition-colors duration-200">
+                          <EditIcon className="!text-sm" />
+                        </button>
+                        <button className="text-gray-400 hover:text-red-600 transition-colors duration-200">
+                          <DeleteIcon className="!text-sm" />
+                        </button>
+                      </div>
+                    </div>
+                    <Typography variant="body2" className="!text-gray-500 !mt-1">
+                      {member.role}
+                    </Typography>
+                    <div className="flex justify-between mt-2 text-xs text-gray-500">
+                      <span>{member.tasks} active tasks</span>
+                      <span>{member.completed} completed</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   // Team Management Content
   const renderTeamContent = () => (
-    <Box>
-      <Box
-        mb={3}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">
-          Team Management
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          sx={{ borderRadius: 2 }}
-        >
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+            👥 Team Management
+          </Typography>
+          <Typography variant="body1" className="!text-gray-600">
+            Quản lý thành viên trong nhóm
+          </Typography>
+        </div>
+        <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center gap-2">
+          <AddIcon />
           Add Team Member
-        </Button>
-      </Box>
+        </button>
+      </div>
 
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 2,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          p={2}
-          display="flex"
-          flexDirection={isMobile ? "column" : "row"}
-          gap={2}
-          alignItems="center"
-        >
-          <TextField
-            variant="outlined"
-            placeholder="Search team members..."
-            size="small"
-            InputProps={{
-              startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
-            }}
-            sx={{ flexGrow: 1 }}
-            fullWidth={isMobile}
-          />
-          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Role</InputLabel>
-            <Select label="Role">
-              <MenuItem value="all">All Roles</MenuItem>
-              <MenuItem value="designer">Designer</MenuItem>
-              <MenuItem value="developer">Developer</MenuItem>
-              <MenuItem value="marketing">Marketing</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <TextField
+              variant="outlined"
+              placeholder="Search team members..."
+              size="small"
+              className="flex-1 !w-full sm:!w-auto"
+              InputProps={{
+                startAdornment: <SearchIcon className="!text-gray-400 !mr-2" />,
+              }}
+            />
+            <FormControl variant="outlined" size="small" className="!min-w-[120px]">
+              <InputLabel>Role</InputLabel>
+              <Select label="Role" defaultValue="all">
+                <MenuItem value="all">All Roles</MenuItem>
+                <MenuItem value="designer">Designer</MenuItem>
+                <MenuItem value="developer">Developer</MenuItem>
+                <MenuItem value="marketing">Marketing</MenuItem>
+              </Select>
+            </FormControl>
+          </div>
+        </div>
 
-        <TableContainer>
-          <Table sx={{ minWidth: 650 }} aria-label="team members table">
+        <div className="overflow-x-auto">
+          <Table>
             <TableHead>
-              <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                <TableCell>Name</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Active Tasks</TableCell>
-                <TableCell>Completed</TableCell>
-                <TableCell>Performance</TableCell>
-                <TableCell align="center">Actions</TableCell>
+              <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
+                <TableCell className="!font-bold !text-gray-700">Name</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Role</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Active Tasks</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Completed</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Performance</TableCell>
+                <TableCell align="center" className="!font-bold !text-gray-700">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {teamMembers.map((member) => (
-                <TableRow key={member.id} hover>
+                <TableRow key={member.id} className="hover:bg-gray-50">
                   <TableCell>
-                    <Box display="flex" alignItems="center">
-                      <Avatar
-                        sx={{
-                          mr: 2,
-                          bgcolor: `hsl(${member.id * 60}, 70%, 90%)`,
-                        }}
+                    <div className="flex items-center">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium mr-3"
+                        style={{ backgroundColor: `hsl(${member.id * 60}, 70%, 50%)` }}
                       >
                         {member.name.charAt(0)}
-                      </Avatar>
-                      <Typography variant="body2" fontWeight="medium">
+                      </div>
+                      <Typography variant="body2" className="!font-semibold !text-gray-800">
                         {member.name}
                       </Typography>
-                    </Box>
+                    </div>
                   </TableCell>
-                  <TableCell>{member.role}</TableCell>
-                  <TableCell>{member.tasks}</TableCell>
-                  <TableCell>{member.completed}</TableCell>
+                  <TableCell className="!text-gray-600">{member.role}</TableCell>
+                  <TableCell className="!text-gray-600">{member.tasks}</TableCell>
+                  <TableCell className="!text-gray-600">{member.completed}</TableCell>
                   <TableCell>
-                    <Box display="flex" alignItems="center">
-                      <Box
-                        sx={{
-                          width: 60,
-                          height: 6,
-                          bgcolor: "#e0e0e0",
-                          borderRadius: 3,
-                          mr: 1,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: `${
-                              (member.completed /
-                                (member.completed + member.tasks)) *
-                              100
-                            }%`,
-                            height: "100%",
-                            bgcolor: "#2e7d32",
-                            borderRadius: 3,
+                    <div className="flex items-center">
+                      <div className="w-16 h-2 bg-gray-200 rounded-full mr-2">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full"
+                          style={{
+                            width: `${(member.completed / (member.completed + member.tasks)) * 100}%`,
                           }}
                         />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {Math.round(
-                          (member.completed /
-                            (member.completed + member.tasks)) *
-                            100
-                        )}
-                        %
+                      </div>
+                      <Typography variant="body2" className="!text-gray-600">
+                        {Math.round((member.completed / (member.completed + member.tasks)) * 100)}%
                       </Typography>
-                    </Box>
+                    </div>
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton size="small" color="primary" sx={{ mr: 1 }}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    <div className="flex items-center justify-center gap-1">
+                      <button className="w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors duration-200">
+                        <EditIcon className="!text-sm" />
+                      </button>
+                      <button className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-colors duration-200">
+                        <DeleteIcon className="!text-sm" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
-      </Paper>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 
   // Task Management Content
   const renderTasksContent = () => (
-    <Box>
-      <Box
-        mb={3}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">
-          Task Management
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          sx={{ borderRadius: 2 }}
-        >
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+            📋 Task Management
+          </Typography>
+          <Typography variant="body1" className="!text-gray-600">
+            Quản lý và theo dõi các nhiệm vụ
+          </Typography>
+        </div>
+        <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center gap-2">
+          <AddIcon />
           Create Task
-        </Button>
-      </Box>
+        </button>
+      </div>
 
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 2,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          p={2}
-          display="flex"
-          flexDirection={isMobile ? "column" : "row"}
-          gap={2}
-          alignItems="center"
-        >
-          <TextField
-            variant="outlined"
-            placeholder="Search tasks..."
-            size="small"
-            InputProps={{
-              startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
-            }}
-            sx={{ flexGrow: 1 }}
-            fullWidth={isMobile}
-          />
-          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Status</InputLabel>
-            <Select label="Status">
-              <MenuItem value="all">All Status</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="in-progress">In Progress</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Priority</InputLabel>
-            <Select label="Priority">
-              <MenuItem value="all">All Priority</MenuItem>
-              <MenuItem value="high">High</MenuItem>
-              <MenuItem value="medium">Medium</MenuItem>
-              <MenuItem value="low">Low</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex flex-col lg:flex-row gap-4 items-center">
+            <TextField
+              variant="outlined"
+              placeholder="Search tasks..."
+              size="small"
+              className="flex-1 !w-full lg:!w-auto"
+              InputProps={{
+                startAdornment: <SearchIcon className="!text-gray-400 !mr-2" />,
+              }}
+            />
+            <div className="flex gap-2 w-full lg:w-auto">
+              <FormControl variant="outlined" size="small" className="!min-w-[120px] flex-1 lg:flex-none">
+                <InputLabel>Status</InputLabel>
+                <Select label="Status" defaultValue="all">
+                  <MenuItem value="all">All Status</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="in-progress">In Progress</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl variant="outlined" size="small" className="!min-w-[120px] flex-1 lg:flex-none">
+                <InputLabel>Priority</InputLabel>
+                <Select label="Priority" defaultValue="all">
+                  <MenuItem value="all">All Priority</MenuItem>
+                  <MenuItem value="high">High</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="low">Low</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </div>
+        </div>
 
-        <TableContainer>
-          <Table sx={{ minWidth: 650 }} aria-label="tasks table">
+        <div className="overflow-x-auto">
+          <Table>
             <TableHead>
-              <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                <TableCell>Task ID</TableCell>
-                <TableCell>Title</TableCell>
-                <TableCell>Assignee</TableCell>
-                <TableCell>Due Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell align="center">Actions</TableCell>
+              <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
+                <TableCell className="!font-bold !text-gray-700">Task ID</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Title</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Assignee</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Due Date</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Status</TableCell>
+                <TableCell className="!font-bold !text-gray-700">Priority</TableCell>
+                <TableCell align="center" className="!font-bold !text-gray-700">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {recentTasks.map((task) => (
-                <TableRow key={task.id} hover>
+                <TableRow key={task.id} className="hover:bg-gray-50">
                   <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
+                    <Typography variant="body2" className="!font-semibold !text-gray-800">
                       {task.id}
                     </Typography>
                   </TableCell>
-                  <TableCell>{task.title}</TableCell>
-                  <TableCell>{task.assignee}</TableCell>
-                  <TableCell>{task.dueDate}</TableCell>
+                  <TableCell className="!text-gray-600">{task.title}</TableCell>
+                  <TableCell className="!text-gray-600">{task.assignee}</TableCell>
+                  <TableCell className="!text-gray-600">{task.dueDate}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={task.status}
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          task.status === "Completed"
-                            ? "rgba(76, 175, 80, 0.1)"
-                            : task.status === "In Progress"
-                            ? "rgba(33, 150, 243, 0.1)"
-                            : "rgba(255, 152, 0, 0.1)",
-                        color:
-                          task.status === "Completed"
-                            ? "#4caf50"
-                            : task.status === "In Progress"
-                            ? "#2196f3"
-                            : "#ff9800",
-                      }}
-                    />
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      task.status === "Completed"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : task.status === "In Progress"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-orange-100 text-orange-700"
+                    }`}>
+                      {task.status}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={task.priority}
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          task.priority === "High"
-                            ? "rgba(244, 67, 54, 0.1)"
-                            : task.priority === "Medium"
-                            ? "rgba(255, 152, 0, 0.1)"
-                            : "rgba(76, 175, 80, 0.1)",
-                        color:
-                          task.priority === "High"
-                            ? "#f44336"
-                            : task.priority === "Medium"
-                            ? "#ff9800"
-                            : "#4caf50",
-                      }}
-                    />
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      task.priority === "High"
+                        ? "bg-red-100 text-red-700"
+                        : task.priority === "Medium"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-green-100 text-green-700"
+                    }`}>
+                      {task.priority}
+                    </span>
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton size="small" color="primary" sx={{ mr: 1 }}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    <div className="flex items-center justify-center gap-1">
+                      <button className="w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors duration-200">
+                        <EditIcon className="!text-sm" />
+                      </button>
+                      <button className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-colors duration-200">
+                        <DeleteIcon className="!text-sm" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
-      </Paper>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 
   // Statistics Content
   const renderStatisticsContent = () => (
-    <Box>
-      <Box mb={3}>
-        <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">
-          Team Analytics & Statistics
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      <div className="mb-8">
+        <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+          📊 Team Analytics & Statistics
         </Typography>
-      </Box>
+        <Typography variant="body1" className="!text-gray-600">
+          Phân tích và thống kê hiệu suất nhóm
+        </Typography>
+      </div>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-            }}
-          >
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={2}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                Team Performance Trend
-              </Typography>
-              <FormControl
-                variant="outlined"
-                size="small"
-                sx={{ minWidth: 120 }}
-              >
-                <InputLabel>Period</InputLabel>
-                <Select label="Period" defaultValue="year">
-                  <MenuItem value="month">This Month</MenuItem>
-                  <MenuItem value="quarter">This Quarter</MenuItem>
-                  <MenuItem value="year">This Year</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-            <Box height={400}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={teamPerformanceData}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="completed"
-                    stroke="#2e7d32"
-                    strokeWidth={2}
-                    activeDot={{ r: 8 }}
-                    name="Completed Tasks"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="inProgress"
-                    stroke="#1976d2"
-                    strokeWidth={2}
-                    activeDot={{ r: 8 }}
-                    name="In Progress Tasks"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <Typography variant="h6" className="!font-semibold !text-gray-800">
+              📈 Team Performance Trend
+            </Typography>
+            <FormControl variant="outlined" size="small" className="!min-w-[120px]">
+              <InputLabel>Period</InputLabel>
+              <Select label="Period" defaultValue="year">
+                <MenuItem value="month">This Month</MenuItem>
+                <MenuItem value="quarter">This Quarter</MenuItem>
+                <MenuItem value="year">This Year</MenuItem>
+              </Select>
+            </FormControl>
+          </div>
+          <div className="h-96">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={teamPerformanceData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="completed"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  activeDot={{ r: 8 }}
+                  name="Completed Tasks"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="inProgress"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  activeDot={{ r: 8 }}
+                  name="In Progress Tasks"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   // Settings Content
   const renderSettingsContent = () => (
-    <Box>
-      <Box mb={3}>
-        <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">
-          Team Settings
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      <div className="mb-8">
+        <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+          ⚙️ Team Settings
         </Typography>
-      </Box>
+        <Typography variant="body1" className="!text-gray-600">
+          Cấu hình cài đặt cho nhóm
+        </Typography>
+      </div>
 
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 2,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-        }}
-      >
-        <Typography variant="h6" gutterBottom>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <Typography variant="h6" className="!font-semibold !text-gray-800 !mb-2">
           General Settings
         </Typography>
-        <Typography variant="body2" color="text.secondary" mb={3}>
+        <Typography variant="body2" className="!text-gray-600 !mb-6">
           Configure team-wide settings and preferences
         </Typography>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
             <TextField
               fullWidth
               label="Team Name"
               defaultValue="Design Team"
               variant="outlined"
-              margin="normal"
+              className="!mb-4"
             />
             <TextField
               fullWidth
               label="Team Lead"
               defaultValue="John Doe"
               variant="outlined"
-              margin="normal"
+              className="!mb-4"
             />
             <TextField
               fullWidth
               label="Team Email"
               defaultValue="team@songtaoads.com"
               variant="outlined"
-              margin="normal"
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
+          </div>
+          <div className="space-y-4">
             <TextField
               fullWidth
               label="Department"
               defaultValue="Design Department"
               variant="outlined"
-              margin="normal"
+              className="!mb-4"
             />
             <TextField
               fullWidth
               label="Team Description"
               defaultValue="Responsible for all design-related tasks and projects"
               variant="outlined"
-              margin="normal"
               multiline
               rows={3}
             />
-          </Grid>
-        </Grid>
+          </div>
+        </div>
 
-        <Box mt={4} display="flex" justifyContent="flex-end">
-          <Button variant="contained" color="primary" sx={{ borderRadius: 2 }}>
+        <div className="flex justify-end mt-8">
+          <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
             Save Changes
-          </Button>
-        </Box>
-      </Paper>
-    </Box>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   // Render different content based on active tab
