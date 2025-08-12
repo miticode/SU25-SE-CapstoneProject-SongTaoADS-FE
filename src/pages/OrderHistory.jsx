@@ -927,6 +927,184 @@ const OrderHistory = () => {
       </Box>
     );
   };
+
+  // Feedback History Section Component
+  const FeedbackHistorySection = ({ order }) => {
+    const impressions = getOrderImpressions(order.id);
+    const expanded = isFeedbackHistoryExpanded(order.id);
+
+    const handleToggleExpanded = () => {
+      toggleFeedbackHistoryExpanded(order.id);
+    };
+
+    const getStatusLabel = (status) => {
+      return (
+        IMPRESSION_STATUS_MAP[status]?.label || status || "Khác"
+      );
+    };
+
+    const getStatusColor = (status) => {
+      return IMPRESSION_STATUS_MAP[status]?.color || "default";
+    };
+
+    const formatDate = (dateString) => {
+      return dateString
+        ? new Date(dateString).toLocaleString("vi-VN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "N/A";
+    };
+
+    const getCountDisplay = () => impressions.length;
+
+    if (!impressions || impressions.length === 0) return null;
+
+    return (
+      <Box
+        sx={{
+          mt: 2,
+          border: "1px solid",
+          borderColor: "grey.200",
+          borderRadius: 2,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            p: 2,
+            backgroundColor: "grey.50",
+            cursor: "pointer",
+          }}
+          onClick={handleToggleExpanded}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <FeedbackIcon color="secondary" />
+            <Typography variant="subtitle2" fontWeight={600}>
+              Đánh giá của bạn ({getCountDisplay()})
+            </Typography>
+          </Box>
+          <IconButton size="small">
+            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
+
+        {expanded && (
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              {impressions.map((impression, index) => {
+                const initials = (user?.fullName || user?.name || "B").trim().charAt(0).toUpperCase();
+                return (
+                  <React.Fragment key={impression.id}>
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                      {/* Avatar */}
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          bgcolor: "grey.400",
+                          color: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                        aria-label="avatar"
+                      >
+                        <Typography variant="caption">{initials}</Typography>
+                      </Box>
+
+                      {/* Comment body */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                          <Typography variant="subtitle2" fontWeight={600}>Bạn</Typography>
+                          <Rating
+                            value={impression.rating}
+                            readOnly
+                            size="small"
+                            icon={<StarIcon fontSize="inherit" />}
+                            emptyIcon={<StarIcon fontSize="inherit" />}
+                          />
+                          <Typography variant="caption" color="text.secondary">• {formatDate(impression.sendAt)}</Typography>
+                          <Chip
+                            label={getStatusLabel(impression.status)}
+                            color={getStatusColor(impression.status)}
+                            size="small"
+                            variant="outlined"
+                            sx={{ height: 20 }}
+                          />
+                        </Box>
+
+                        {impression.comment && (
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            {impression.comment}
+                          </Typography>
+                        )}
+
+                        {impression.feedbackImageUrl && (
+                          <Box sx={{ mt: 1 }}>
+                            <FeedbackImage
+                              feedbackImageKey={impression.feedbackImageUrl}
+                              altText="Ảnh feedback"
+                            />
+                          </Box>
+                        )}
+
+                        {/* Admin Response as threaded reply */}
+                        {impression.response && (
+                          <Box
+                            sx={{
+                              mt: 1.5,
+                              ml: { xs: 4.5, sm: 5 },
+                              p: 1.5,
+                              bgcolor: "grey.50",
+                              borderRadius: 1,
+                              border: "1px solid",
+                              borderColor: "grey.200",
+                            }}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                              <SupportAgentIcon fontSize="small" color="primary" />
+                              <Typography variant="subtitle2" fontWeight={600}>SongTaoADS</Typography>
+                              {impression.responseAt && (
+                                <Typography variant="caption" color="text.secondary">• {formatDate(impression.responseAt)}</Typography>
+                              )}
+                            </Box>
+                            <Typography variant="body2">{impression.response}</Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                    {index < impressions.length - 1 && <Divider sx={{ my: 0.5 }} />}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* Action: write another feedback */}
+              <Box sx={{ pt: 0.5 }}>
+                <Button
+                  variant="text"
+                  startIcon={<FeedbackIcon />}
+                  onClick={() => handleOpenImpressionDialog(order.id)}
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  Gửi đánh giá khác
+                </Button>
+              </Box>
+            </Stack>
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
   // Order type mapping cho hiển thị
   const ORDER_TYPE_MAP = {
     TEMPLATE: "Đơn hàng mẫu",
@@ -1072,6 +1250,9 @@ const OrderHistory = () => {
   const [loadingOrderPayments, setLoadingOrderPayments] = useState({}); // { orderId: boolean }
   const [paymentPaginationMap, setPaymentPaginationMap] = useState({}); // { orderId: pagination }
 
+  // Feedback history expand state
+  const [feedbackHistoryExpanded, setFeedbackHistoryExpanded] = useState({}); // { orderId: boolean }
+
   const getOrderImpressions = (orderId) => {
     return allImpressionsByOrder[orderId] || [];
   };
@@ -1105,6 +1286,18 @@ const OrderHistory = () => {
         totalElements: 0,
       }
     );
+  };
+
+  // Feedback history helper functions
+  const toggleFeedbackHistoryExpanded = (orderId) => {
+    setFeedbackHistoryExpanded((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
+  };
+
+  const isFeedbackHistoryExpanded = (orderId) => {
+    return feedbackHistoryExpanded[orderId] || false;
   };
 
   // Fetch payment history for an order
@@ -2537,11 +2730,6 @@ const OrderHistory = () => {
     });
   };
 
-  const handlePayDeposit = (order) => {
-    // Implementation for deposit payment
-    // console.log('Paying deposit for order:', order.id);
-  };
-
   const handleOpenCancelDialog = (order) => {
     setCancelDialog({
       open: true,
@@ -3904,16 +4092,19 @@ const OrderHistory = () => {
                               gap: 2,
                             }}
                           >
-                            {/* Header with Chips */}
+                            {/* Header with Chips + Top-right actions */}
                             <Box
                               sx={{
                                 display: "flex",
-                                flexWrap: "wrap",
-                                gap: 1.5,
                                 alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                rowGap: 1.5,
+                                columnGap: 1.5,
                                 mb: 2,
                               }}
                             >
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
                               {order.orderType === "AI_DESIGN" ? (
                                 <Chip
                                   label="🤖 AI Design"
@@ -4009,7 +4200,131 @@ const OrderHistory = () => {
                                   boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
                                 }}
                               />
+                              </Box>
+
+                              {/* Top-right action buttons */}
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto", flexWrap: "wrap" }}>
+                                {/* Contract Actions */}
+                                {[
+                                  "CONTRACT_SENT",
+                                  "CONTRACT_SIGNED",
+                                  "CONTRACT_RESIGNED",
+                                  "CONTRACT_CONFIRMED",
+                                ].includes((order.status || "").toUpperCase()) && (
+                                  <Button
+                                    variant="contained"
+                                    size="medium"
+                                    onClick={() => handleGetContract(order.id)}
+                                    disabled={contractLoading}
+                                    startIcon={
+                                      contractLoading ? (
+                                        <CircularProgress size={16} />
+                                      ) : (
+                                        <DescriptionIcon />
+                                      )
+                                    }
+                                    sx={{
+                                      background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                                      color: "white",
+                                      fontWeight: 600,
+                                      boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+                                      "&:hover": {
+                                        transform: "translateY(-1px)",
+                                        boxShadow: "0 6px 16px rgba(59, 130, 246, 0.4)",
+                                      },
+                                    }}
+                                  >
+                                    Xem hợp đồng
+                                  </Button>
+                                )}
+
+                                {/* Payment Actions moved to quick-actions below header to avoid duplication */}
+
+                                {/* Cancel Order */}
+                                {[
+                                  "PENDING_CONTRACT",
+                                  "CONTRACT_SENT",
+                                  "CONTRACT_SIGNED",
+                                  "CONTRACT_DISCUSS",
+                                  "CONTRACT_RESIGNED",
+                                ].includes(order.status) && (
+                                  <Button
+                                    variant="outlined"
+                                    size="medium"
+                                    color="error"
+                                    onClick={() => handleOpenCancelDialog(order)}
+                                    disabled={cancelingOrderId === order.id}
+                                    startIcon={
+                                      cancelingOrderId === order.id ? (
+                                        <CircularProgress size={16} />
+                                      ) : null
+                                    }
+                                    sx={{
+                                      borderColor: "#ef4444",
+                                      color: "#ef4444",
+                                      fontWeight: 600,
+                                      "&:hover": {
+                                        backgroundColor: "rgba(239, 68, 68, 0.08)",
+                                        transform: "translateY(-1px)",
+                                      },
+                                    }}
+                                  >
+                                    {cancelingOrderId === order.id ? "Đang hủy..." : "❌ Hủy đơn"}
+                                  </Button>
+                                )}
+                                {(order.status === "ORDER_COMPLETED" || order.status === "INSTALLED") && (
+                                  <Button
+                                    variant="contained"
+                                    size="medium"
+                                    onClick={() => handleOpenImpressionDialog(order.id)}
+                                    startIcon={<StarIcon />}
+                                    sx={{
+                                      background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+                                      color: "white",
+                                      fontWeight: 600,
+                                      boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)",
+                                      "&:hover": {
+                                        transform: "translateY(-1px)",
+                                        boxShadow: "0 6px 16px rgba(139, 92, 246, 0.4)",
+                                      },
+                                    }}
+                                  >
+                                     Đánh giá
+                                  </Button>
+                                )}
+                                {!["CANCELLED"].includes(order.status) && (
+                                  <Button
+                                    variant="outlined"
+                                    size="medium"
+                                    color="info"
+                                    onClick={() => handleOpenTicketDialog(order.id)}
+                                    startIcon={<SupportAgentIcon />}
+                                    sx={{
+                                      borderColor: "#3b82f6",
+                                      color: "#3b82f6",
+                                      fontWeight: 600,
+                                      "&:hover": {
+                                        backgroundColor: "rgba(59, 130, 246, 0.08)",
+                                        transform: "translateY(-1px)",
+                                      },
+                                    }}
+                                  >
+                                    Gửi yêu cầu hỗ trợ
+                                  </Button>
+                                )}
+                              </Box>
                             </Box>
+
+                            {/* Production Progress Bar - hiển thị cho các trạng thái thi công */}
+                            {[
+                              "PRODUCING",
+                              "PRODUCTION_COMPLETED",
+                              "DELIVERING",
+                              "INSTALLED",
+                              "ORDER_COMPLETED",
+                            ].includes(order.status) && (
+                              <ProductionProgressBar status={order.status} order={order} />
+                            )}
 
                             {/* Order Progress Bar - hiển thị cho các trạng thái từ PENDING_CONTRACT đến IN_PROGRESS */}
                             {['PENDING_CONTRACT', 'CONTRACT_SENT', 'CONTRACT_SIGNED', 'CONTRACT_DISCUSS', 
@@ -4819,19 +5134,7 @@ const OrderHistory = () => {
                                 </Box>
                               )}
 
-                              {/* Thêm thanh tiến trình cho các trạng thái sản xuất */}
-                              {[
-                                "PRODUCING",
-                                "PRODUCTION_COMPLETED",
-                                "DELIVERING",
-                                "INSTALLED",
-                                "ORDER_COMPLETED",
-                              ].includes(order.status) && (
-                                <ProductionProgressBar
-                                  status={order.status}
-                                  order={order}
-                                />
-                              )}
+                              {/* Thanh tiến trình thi công đã được chuyển lên phía trên cạnh các thanh thiết kế/đơn hàng */}
                             </Box>
                             <Stack
                               direction={{ xs: "column", sm: "row" }}
@@ -4986,435 +5289,49 @@ const OrderHistory = () => {
                             </Stack>
                           </Box>
 
-                          {/* Right Section - Actions */}
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 2,
-                              minWidth: { xs: "100%", md: 220 },
-                              alignItems: { xs: "stretch", md: "flex-end" },
-                              p: 2,
-                              backgroundColor: "rgba(248, 250, 252, 0.6)",
-                              borderRadius: 3,
-                              border: "1px solid rgba(226, 232, 240, 0.8)",
-                            }}
-                          >
-                            {/* Action Buttons */}
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 2,
-                                width: "100%",
-                              }}
-                            >
-                              {/* Contract Actions */}
-                              {[
-                                "CONTRACT_SENT",
-                                "CONTRACT_SIGNED",
-                                "CONTRACT_RESIGNED",
-                                "CONTRACT_CONFIRMED",
-                              ].includes(
-                                (order.status || "").toUpperCase()
-                              ) && (
-                                <Button
-                                  variant="contained"
-                                  size="medium"
-                                  onClick={() => handleGetContract(order.id)}
-                                  disabled={contractLoading}
-                                  startIcon={
-                                    contractLoading ? (
-                                      <CircularProgress size={16} />
-                                    ) : (
-                                      <DescriptionIcon />
-                                    )
-                                  }
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    boxShadow:
-                                      "0 4px 12px rgba(59, 130, 246, 0.3)",
-                                    "&:hover": {
-                                      transform: "translateY(-1px)",
-                                      boxShadow:
-                                        "0 6px 16px rgba(59, 130, 246, 0.4)",
-                                    },
-                                  }}
-                                >
-                                   Xem hợp đồng
-                                </Button>
-                              )}
-
-                              {/* Payment Actions */}
-                              {order.status === "PENDING" && (
-                                <Button
-                                  variant="contained"
-                                  size="medium"
-                                  onClick={() => handlePayDeposit(order)}
-                                  disabled={depositLoadingId === order.id}
-                                  startIcon={
-                                    depositLoadingId === order.id ? (
-                                      <CircularProgress size={16} />
-                                    ) : null
-                                  }
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    boxShadow:
-                                      "0 4px 12px rgba(16, 185, 129, 0.3)",
-                                    "&:hover": {
-                                      transform: "translateY(-1px)",
-                                      boxShadow:
-                                        "0 6px 16px rgba(16, 185, 129, 0.4)",
-                                    },
-                                  }}
-                                >
-                                  {depositLoadingId === order.id
-                                    ? "Đang xử lý..."
-                                    : "💳 Đặt cọc ngay"}
-                                </Button>
-                              )}
-
-                              {/* Cancel Order */}
-                              {[
-                                "PENDING_CONTRACT",
-                                "CONTRACT_SENT",
-                                "CONTRACT_SIGNED",
-                                "CONTRACT_DISCUSS",
-                                "CONTRACT_RESIGNED",
-                              ].includes(order.status) && (
-                                <Button
-                                  variant="outlined"
-                                  size="medium"
-                                  color="error"
-                                  onClick={() => handleOpenCancelDialog(order)}
-                                  disabled={cancelingOrderId === order.id}
-                                  startIcon={
-                                    cancelingOrderId === order.id ? (
-                                      <CircularProgress size={16} />
-                                    ) : null
-                                  }
-                                  sx={{
-                                    borderColor: "#ef4444",
-                                    color: "#ef4444",
-                                    fontWeight: 600,
-                                    "&:hover": {
-                                      backgroundColor:
-                                        "rgba(239, 68, 68, 0.08)",
-                                      transform: "translateY(-1px)",
-                                    },
-                                  }}
-                                >
-                                  {cancelingOrderId === order.id
-                                    ? "Đang hủy..."
-                                    : "❌ Hủy đơn"}
-                                </Button>
-                              )}
-
-                              {/* Review Action */}
-                              {(order.status === "ORDER_COMPLETED" ||
-                                order.status === "INSTALLED") && (
-                                <Button
-                                  variant="contained"
-                                  size="medium"
-                                  onClick={() =>
-                                    handleOpenImpressionDialog(order.id)
-                                  }
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    boxShadow:
-                                      "0 4px 12px rgba(139, 92, 246, 0.3)",
-                                    "&:hover": {
-                                      transform: "translateY(-1px)",
-                                      boxShadow:
-                                        "0 6px 16px rgba(139, 92, 246, 0.4)",
-                                    },
-                                  }}
-                                  startIcon={<StarIcon />}
-                                >
-                                  ⭐ Đánh giá
-                                </Button>
-                              )}
-
-                              {/* Support Request Button */}
-                              {!["CANCELLED"].includes(order.status) && (
-                                <Button
-                                  variant="outlined"
-                                  size="medium"
-                                  color="info"
-                                  onClick={() =>
-                                    handleOpenTicketDialog(order.id)
-                                  }
-                                  sx={{
-                                    borderColor: "#3b82f6",
-                                    color: "#3b82f6",
-                                    fontWeight: 600,
-                                    "&:hover": {
-                                      backgroundColor:
-                                        "rgba(59, 130, 246, 0.08)",
-                                      transform: "translateY(-1px)",
-                                    },
-                                  }}
-                                  startIcon={<SupportAgentIcon />}
-                                >
-                                  Gửi yêu cầu hỗ trợ
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
+                          {/* Right Section removed to allow full-width content */}
                         </Box>
 
                         {/* Payment History Section */}
                         <PaymentHistorySection order={order} />
 
-                        {order.status === "ORDER_COMPLETED" && (
-                          <>
-                            <Divider sx={{ my: 2 }} />
-
-                            {/* Hiển thị feedback đã gửi */}
-                            {orderImpressions && orderImpressions.length > 0 ? (
-                              <Box
-                                sx={{
-                                  p: 2,
-                                  backgroundColor: "info.50",
-                                  borderRadius: 1,
-                                  border: "1px solid",
-                                  borderColor: "info.200",
-                                }}
+                        {/* Feedback History Section (dropdown like payment) */}
+                        {orderImpressions && orderImpressions.length > 0 ? (
+                          <FeedbackHistorySection order={order} />
+                        ) : (
+                          order.status === "ORDER_COMPLETED" && (
+                            <Box
+                              sx={{
+                                mt: 2,
+                                p: 2,
+                                backgroundColor: "success.50",
+                                borderRadius: 1,
+                                border: "1px solid",
+                                borderColor: "success.200",
+                              }}
+                            >
+                              <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                color="success.dark"
                               >
-                                <Typography
-                                  variant="subtitle1"
-                                  fontWeight={600}
-                                  color="info.dark"
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                    mb: 2,
-                                  }}
-                                >
-                                  <FeedbackIcon /> Đánh giá của bạn
-                                </Typography>
-
-                                {orderImpressions.map((impression, index) => (
-                                  <Box
-                                    key={impression.id}
-                                    sx={{
-                                      mb:
-                                        index < orderImpressions.length - 1
-                                          ? 2
-                                          : 0,
-                                      p: 2,
-                                      backgroundColor: "white",
-                                      borderRadius: 1,
-                                      border: "1px solid",
-                                      borderColor: "grey.200",
-                                    }}
-                                  >
-                                    {/* Rating */}
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                        mb: 1,
-                                      }}
-                                    >
-                                      <Rating
-                                        value={impression.rating}
-                                        readOnly
-                                        size="small"
-                                        icon={<StarIcon fontSize="inherit" />}
-                                        emptyIcon={
-                                          <StarIcon fontSize="inherit" />
-                                        }
-                                      />
-                                      <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                      >
-                                        ({impression.rating}/5)
-                                      </Typography>
-                                    </Box>
-
-                                    {/* Comment */}
-                                    <Typography variant="body2" sx={{ mb: 1 }}>
-                                      {impression.comment}
-                                    </Typography>
-
-                                    {/* Feedback Image */}
-                                    {impression.feedbackImageUrl && (
-                                      <Box sx={{ mb: 1 }}>
-                                        <FeedbackImage
-                                          feedbackImageKey={
-                                            impression.feedbackImageUrl
-                                          }
-                                          altText="Ảnh feedback"
-                                        />
-                                      </Box>
-                                    )}
-
-                                    {/* Feedback Info */}
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                      }}
-                                    >
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                      >
-                                        Gửi lúc:{" "}
-                                        {impression.sendAt
-                                          ? new Date(
-                                              impression.sendAt
-                                            ).toLocaleString("vi-VN")
-                                          : "N/A"}
-                                      </Typography>
-                                      <Chip
-                                        label={
-                                          IMPRESSION_STATUS_MAP[
-                                            impression.status
-                                          ]?.label || impression.status
-                                        }
-                                        color={
-                                          IMPRESSION_STATUS_MAP[
-                                            impression.status
-                                          ]?.color || "default"
-                                        }
-                                        size="small"
-                                      />
-                                    </Box>
-
-                                    {/* Admin Response */}
-                                    {impression.response && (
-                                      <Box
-                                        sx={{
-                                          mt: 2,
-                                          p: 2,
-                                          backgroundColor: "success.50",
-                                          borderRadius: 1,
-                                          border: "1px solid",
-                                          borderColor: "success.200",
-                                        }}
-                                      >
-                                        <Typography
-                                          variant="subtitle2"
-                                          color="success.dark"
-                                          fontWeight={600}
-                                          sx={{ mb: 1 }}
-                                        >
-                                          💬 Phản hồi từ chúng tôi:
-                                        </Typography>
-                                        <Typography
-                                          variant="body2"
-                                          color="success.dark"
-                                        >
-                                          {impression.response}
-                                        </Typography>
-                                        {impression.responseAt && (
-                                          <Typography
-                                            variant="caption"
-                                            color="success.dark"
-                                            sx={{ display: "block", mt: 1 }}
-                                          >
-                                            Phản hồi lúc:{" "}
-                                            {impression.responseAt
-                                              ? new Date(
-                                                  impression.responseAt
-                                                ).toLocaleString("vi-VN")
-                                              : "N/A"}
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    )}
-                                  </Box>
-                                ))}
-
-                                {/* Nút gửi feedback mới */}
-                                <Button
-                                  variant="outlined"
-                                  color="primary"
-                                  startIcon={<FeedbackIcon />}
-                                  onClick={() =>
-                                    handleOpenImpressionDialog(order.id)
-                                  }
-                                  sx={{
-                                    mt: 2,
-                                    borderRadius: 2,
-                                    textTransform: "none",
-                                  }}
-                                >
-                                  Gửi đánh giá khác
-                                </Button>
-                              </Box>
-                            ) : (
-                              // Chưa có feedback nào
-                              <Box
-                                sx={{
-                                  p: 2,
-                                  backgroundColor: "success.50",
-                                  borderRadius: 1,
-                                  border: "1px solid",
-                                  borderColor: "success.200",
-                                }}
+                                <StarIcon /> Chia sẻ trải nghiệm của bạn
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                🎉 Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi! Hãy chia sẻ trải nghiệm
+                                của bạn để giúp chúng tôi cải thiện chất lượng dịch vụ.
+                              </Typography>
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<FeedbackIcon />}
+                                onClick={() => handleOpenImpressionDialog(order.id)}
+                                sx={{ borderRadius: 2, fontWeight: 600, textTransform: "none", boxShadow: 2, "&:hover": { boxShadow: 4 } }}
                               >
-                                <Typography
-                                  variant="subtitle1"
-                                  fontWeight={600}
-                                  color="success.dark"
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                    mb: 1,
-                                  }}
-                                >
-                                  <StarIcon /> Chia sẻ trải nghiệm của bạn
-                                </Typography>
-
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{ mb: 2 }}
-                                >
-                                  🎉 Cảm ơn bạn đã sử dụng dịch vụ của chúng
-                                  tôi! Hãy chia sẻ trải nghiệm của bạn để giúp
-                                  chúng tôi cải thiện chất lượng dịch vụ.
-                                </Typography>
-
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  startIcon={<FeedbackIcon />}
-                                  onClick={() =>
-                                    handleOpenImpressionDialog(order.id)
-                                  }
-                                  sx={{
-                                    borderRadius: 2,
-                                    fontWeight: 600,
-                                    textTransform: "none",
-                                    boxShadow: 2,
-                                    "&:hover": {
-                                      boxShadow: 4,
-                                    },
-                                  }}
-                                >
-                                  Đánh giá đơn hàng
-                                </Button>
-                              </Box>
-                            )}
-                          </>
+                                Đánh giá đơn hàng
+                              </Button>
+                            </Box>
+                          )
                         )}
 
                         {order.status === "INSTALLED" &&
