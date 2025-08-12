@@ -1,27 +1,54 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   FaBell,
   FaBars,
   FaChevronDown,
   FaSearch,
   FaUserCircle,
+  FaCircle,
+  FaEye,
+  FaTimes,
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/features/auth/authSlice";
+import {
+  fetchNotifications,
+  fetchRoleNotifications,
+  selectNotifications,
+  selectRoleNotifications,
+  selectNotificationLoading,
+  selectRoleNotificationLoading,
+  selectTotalUnreadCount,
+  addNotificationRealtime,
+  addRoleNotificationRealtime,
+  markNotificationRead,
+  NOTIFICATION_TYPE_MAP,
+} from "../store/features/notification/notificationSlice";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import logoSongTao from "../assets/logo-songtao.svg";
 import { getImageFromS3 } from "../api/s3Service";
+import { io } from "socket.io-client";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [hideAnnouncement, setHideAnnouncement] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
 
+  
+  // Socket.IO ref
+  const socketRef = useRef(null);
+
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const notifications = useSelector(selectNotifications);
+  const roleNotifications = useSelector(selectRoleNotifications);
+  const notificationLoading = useSelector(selectNotificationLoading);
+  const roleNotificationLoading = useSelector(selectRoleNotificationLoading);
+  const unreadCount = useSelector(selectTotalUnreadCount);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -35,10 +62,158 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Fetch notifications when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchNotifications({ page: 1, size: 10 }));
+      dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
+    }
+  }, [dispatch, isAuthenticated]);
+
+  // Auto refresh notifications every 30 seconds when authenticated
+  useEffect(() => {
+    let interval;
+    if (isAuthenticated) {
+      interval = setInterval(() => {
+        dispatch(fetchNotifications({ page: 1, size: 10 }));
+        dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
+      }, 30000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [dispatch, isAuthenticated]);
+
+  // Socket.IO connection for real-time notifications
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Cleanup socket if user is not authenticated
+      if (socketRef.current) {
+        console.log('Disconnecting socket - user not authenticated');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    if (!socketRef.current) {
+      console.log('Initializing socket connection...');
+      const token = localStorage.getItem("accessToken");
+      if (!token) return;
+
+      const connectionUrl = `${import.meta.env.VITE_SOCKET_URL || 'https://songtaoads.online'}?token=${token}`;
+      
+      socketRef.current = io(connectionUrl, {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      console.log('Connecting to socket:', connectionUrl);
+
+      socketRef.current.on('connect', () => {
+        console.log('Socket connected successfully');
+      });
+
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+      });
+
+      socketRef.current.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+      });
+
+      // Listen for role-based notifications
+      socketRef.current.on('role_notification', (data) => {
+        console.log('Role notification received:', data);
+        
+        const newNotification = {
+          notificationId: data.notificationId || Date.now(),
+          type: data.type || 'GENERAL',
+          message: data.message,
+          isRead: false,
+          createdAt: data.timestamp || new Date().toISOString(),
+          roleTarget: data.roleTarget || null,
+          userTarget: null,
+        };
+
+        // Add to Redux store for ROLE notifications
+        dispatch(addRoleNotificationRealtime(newNotification));
+        
+        // Show browser notification if supported
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Thông báo vai trò', {
+            body: data.message,
+            icon: '/favicon.ico'
+          });
+        }
+      });
+
+      // Listen for user-specific notifications
+      socketRef.current.on('user_notification', (data) => {
+        console.log('User notification received:', data);
+        
+        const newNotification = {
+          notificationId: data.notificationId || Date.now(),
+          type: data.type || 'GENERAL',
+          message: data.message,
+          isRead: false,
+          createdAt: data.timestamp || new Date().toISOString(),
+          roleTarget: null,
+          userTarget: data.userTarget || null,
+        };
+
+        // Add to Redux store
+        dispatch(addNotificationRealtime(newNotification));
+        
+        // Show browser notification if supported
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Thông báo cá nhân', {
+            body: data.message,
+            icon: '/favicon.ico'
+          });
+        }
+      });
+
+      socketRef.current.on('reconnect', (attemptNumber) => {
+        console.log('Socket reconnected after', attemptNumber, 'attempts');
+        // Refresh notifications after reconnection
+        dispatch(fetchNotifications({ page: 1, size: 10 }));
+        dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
+      });
+    }
+
+    // Cleanup function
+    return () => {
+      if (socketRef.current) {
+        console.log('Cleaning up socket connection...');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [isAuthenticated, dispatch]);
+
+  // Request notification permission when component mounts
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        console.log('Notification permission:', permission);
+      });
+    }
+  }, []);
+
   const handleLogout = async () => {
     try {
       // Clear chatbot history from localStorage
       localStorage.removeItem("ai_chatbot_messages");
+      
+      // Disconnect socket before logout
+      if (socketRef.current) {
+        console.log('Disconnecting socket before logout');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      
       await dispatch(logout()).unwrap();
       navigate("/auth/login");
     } catch (error) {
@@ -48,21 +223,86 @@ export default function Header() {
 
   const toggleUserMenu = () => {
     setUserMenuOpen(!userMenuOpen);
+    setNotificationMenuOpen(false); // Close notification menu when opening user menu
+  };
+
+  const toggleNotificationMenu = () => {
+    console.log('Toggling notification menu. Current state:', notificationMenuOpen);
+    console.log('All notifications count:', allNotifications.length);
+    
+    setNotificationMenuOpen(!notificationMenuOpen);
+    setUserMenuOpen(false); // Close user menu when opening notification menu
+    
+    // Fetch fresh notifications when opening
+    if (!notificationMenuOpen && isAuthenticated) {
+      dispatch(fetchNotifications({ page: 1, size: 15 }));
+      dispatch(fetchRoleNotifications({ page: 1, size: 15 }));
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Đánh dấu thông báo đã đọc nếu chưa đọc
+      if (!notification.isRead && notification.notificationId) {
+        console.log('Marking notification as read:', notification.notificationId);
+        await dispatch(markNotificationRead(notification.notificationId));
+      }
+      
+      // Đóng dropdown
+      setNotificationMenuOpen(false);
+      
+      // Navigate based on notification type or content
+      if (notification.roleTarget?.orderCode || notification.userTarget?.orderCode) {
+        navigate("/order-history");
+      }
+    } catch (error) {
+      console.error('Error handling notification click:', error);
+      // Vẫn đóng dropdown và navigate ngay cả khi có lỗi
+      setNotificationMenuOpen(false);
+      if (notification.roleTarget?.orderCode || notification.userTarget?.orderCode) {
+        navigate("/order-history");
+      }
+    }
+  };
+
+  // Combine and sort notifications by date
+  const allNotifications = [
+    ...notifications.map(n => ({ ...n, source: 'user' })),
+    ...roleNotifications.map(n => ({ ...n, source: 'role' }))
+  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const isAnyNotificationLoading = notificationLoading || roleNotificationLoading;
+
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+      return `${diffInMinutes} phút trước`;
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)} giờ trước`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return `${diffInDays} ngày trước`;
+    }
   };
 
   useEffect(() => {
-    const closeUserMenu = () => {
+    const closeMenus = () => {
       setUserMenuOpen(false);
+      setNotificationMenuOpen(false);
     };
 
-    if (userMenuOpen) {
-      document.addEventListener("click", closeUserMenu);
+    if (userMenuOpen || notificationMenuOpen) {
+      document.addEventListener("click", closeMenus);
     }
 
     return () => {
-      document.removeEventListener("click", closeUserMenu);
+      document.removeEventListener("click", closeMenus);
     };
-  }, [userMenuOpen]);
+  }, [userMenuOpen, notificationMenuOpen]);
 
   // Effect để fetch avatar từ S3 khi user thay đổi
   useEffect(() => {
@@ -255,13 +495,194 @@ export default function Header() {
             />
           </div>
           {isAuthenticated && (
-            <button
-              onClick={() => navigate("/order-history")}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-              title="Lịch sử đơn hàng"
-            >
-              <ShoppingCartIcon />
-            </button>
+            <>
+              <button
+                onClick={() => navigate("/order-history")}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                title="Lịch sử đơn hàng"
+              >
+                <ShoppingCartIcon />
+              </button>
+              
+              {/* Notification Bell */}
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleNotificationMenu();
+                  }}
+                  className="relative p-3 rounded-full hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group transform hover:scale-110"
+                  title="Thông báo"
+                >
+                  <FaBell 
+                    size={18} 
+                    className={`text-gray-600 group-hover:text-blue-600 transition-all duration-300 ${
+                      unreadCount > 0 ? 'animate-pulse text-blue-600' : ''
+                    }`} 
+                  />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg animate-bounce">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  {/* Subtle glow effect when there are unread notifications */}
+                  {unreadCount > 0 && (
+                    <div className="absolute inset-0 rounded-full bg-blue-500 opacity-20 animate-pulse"></div>
+                  )}
+                </button>
+
+                {/* Notification Dropdown */}
+                {notificationMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-80 rounded-xl shadow-2xl ring-1 ring-gray-200 z-50 flex flex-col max-h-96 border border-gray-100 animate-fadeIn backdrop-blur-sm bg-white/95">
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 flex-shrink-0 rounded-t-xl">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FaBell className="text-blue-600" size={16} />
+                          <h3 className="text-sm font-bold text-gray-900">Thông báo</h3>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          {unreadCount > 0 && (
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                              <span className="text-xs font-medium text-red-600">{unreadCount} chưa đọc</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto notification-scroll" style={{ minHeight: '0', maxHeight: '300px' }}>
+                      {isAnyNotificationLoading ? (
+                        <div className="p-4 space-y-3">
+                          {/* Skeleton Loading Animation */}
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="animate-pulse">
+                              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                                <div className="w-3 h-3 bg-gray-300 rounded-full mt-1"></div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="h-3 bg-gray-300 rounded w-24"></div>
+                                    <div className="h-2 bg-gray-300 rounded w-12"></div>
+                                  </div>
+                                  <div className="h-4 bg-gray-300 rounded w-full"></div>
+                                  <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : allNotifications.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 px-4">
+                          <div className="relative">
+                            <FaBell size={32} className="text-gray-300 mb-3" />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                              <FaTimes size={6} className="text-white" />
+                            </div>
+                          </div>
+                          <h4 className="text-sm font-semibold text-gray-600 mb-1">Không có thông báo mới</h4>
+                          <p className="text-xs text-gray-500 text-center leading-relaxed">
+                            Thông báo mới sẽ xuất hiện ở đây khi có cập nhật
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {allNotifications.map((notification, index) => {
+                            return (
+                              <div
+                                key={notification.notificationId}
+                                className={`group px-4 py-4 cursor-pointer transition-colors duration-200 ${
+                                  !notification.isRead 
+                                    ? 'bg-gradient-to-r from-blue-50/50 to-blue-50/30 border-l-4 border-l-blue-500 hover:from-blue-50/70 hover:to-blue-50/50' 
+                                    : 'hover:bg-gray-50'
+                                }`}
+                                onClick={() => handleNotificationClick(notification)}
+                                style={{
+                                  animationDelay: `${index * 0.05}s`
+                                }}
+                              >
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex-shrink-0 mt-1">
+                                    {!notification.isRead ? (
+                                      <div className="relative">
+                                        <FaCircle size={8} className="text-blue-500 animate-pulse" />
+                                        <div className="absolute inset-0 w-6 h-6 bg-blue-500/10 rounded-full animate-ping opacity-25"></div>
+                                      </div>
+                                    ) : (
+                                      <FaEye size={8} className="text-gray-400 mt-1" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-300">
+                                          <FaBell size={10} className="mr-1" />
+                                          Hệ thống
+                                        </span>
+                                        {!notification.isRead && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+                                            Mới
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
+                                        {formatTimeAgo(notification.createdAt)}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-900 font-medium leading-relaxed group-hover:text-gray-800 transition-colors" style={{
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                    }}>
+                                      {notification.message}
+                                    </p>
+                                    {(notification.roleTarget?.orderCode || notification.userTarget?.orderCode) && (
+                                      <div className="flex items-center mt-2 text-xs">
+                                        <ShoppingCartIcon sx={{ fontSize: 12 }} className="text-green-600 mr-1" />
+                                        <span className="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded-full border border-green-200">
+                                          Đơn hàng: {notification.roleTarget?.orderCode || notification.userTarget?.orderCode}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* View All Button - ALWAYS SHOW */}
+                    <div className="px-4 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 flex-shrink-0 rounded-b-xl">
+                      <button
+                        onClick={() => {
+                          console.log('Navigating to notifications page...');
+                          navigate('/notifications');
+                          setNotificationMenuOpen(false);
+                        }}
+                        className="w-full text-center font-semibold py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 group"
+                      >
+                        <FaBell size={14} className="group-hover:animate-bounce" />
+                        <span>
+                          {allNotifications.length > 0 
+                            ? `Xem tất cả (${allNotifications.length})`
+                            : 'Xem trang thông báo'
+                          }
+                        </span>
+                        {allNotifications.length > 0 && (
+                          <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                            <span className="text-xs font-bold">{allNotifications.length}</span>
+                          </div>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {isAuthenticated ? (
@@ -400,12 +821,43 @@ export default function Header() {
                     {user?.fullName || user?.email || "Tài khoản"}
                   </span>
                 </div>
+                
+                {/* Mobile Notifications */}
+                <div className="mb-3">
+                  <button
+                    onClick={() => {
+                      dispatch(fetchNotifications({ page: 1, size: 15 }));
+                      dispatch(fetchRoleNotifications({ page: 1, size: 15 }));
+                      navigate('/notifications');
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center justify-between w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <FaBell size={16} />
+                      <span>Thông báo</span>
+                    </div>
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                
                 <Link
                   to="/profile"
                   className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
                   onClick={() => setMenuOpen(false)}
                 >
                   Thông tin cá nhân
+                </Link>
+                <Link
+                  to="/order-history"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Lịch sử đơn hàng
                 </Link>
                 <Link
                   to="/payment-history"
