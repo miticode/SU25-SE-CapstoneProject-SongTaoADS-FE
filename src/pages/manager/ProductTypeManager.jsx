@@ -67,22 +67,6 @@ import { getPresignedUrl } from "../../api/s3Service";
 import FormulaGuide from "../../components/FormulaGuide";
 import dayjs from "dayjs";
 
-const Illustration = () => (
-  <Box display="flex" flexDirection="column" alignItems="center" mt={8}>
-    <img
-      src="https://cdn.dribbble.com/users/1162077/screenshots/3848914/sleeping_kitty.png"
-      alt="No product type"
-      style={{ width: 180, opacity: 0.7 }}
-    />
-    <Typography variant="h5" fontWeight="bold" mt={2}>
-      Chưa có loại biển hiệu nào
-    </Typography>
-    <Typography color="text.secondary" mt={1}>
-      Hãy thêm loại biển hiệu mới để bắt đầu quản lý.
-    </Typography>
-  </Box>
-);
-
 // Component để hiển thị ảnh từ S3
 const ProductTypeImage = ({ imageKey }) => {
   const [imageUrl, setImageUrl] = useState(null);
@@ -188,7 +172,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
   });
   
   const [imagePreview, setImagePreview] = useState(null);
-  const [originalImage, setOriginalImage] = useState(null); // Lưu ảnh gốc
+  const [_originalImage, setOriginalImage] = useState(null); // Lưu ảnh gốc
   const [imageChanged, setImageChanged] = useState(false); // Theo dõi thay đổi ảnh
   const [editId, setEditId] = useState(null);
   const [snackbar, setSnackbar] = useState({
@@ -300,9 +284,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
     if (dialogMode === "add") {
       const formData = {
         name: form.name,
-        calculateFormula: form.calculateFormula,
         isAiGenerated: form.isAiGenerated,
-        isAvailable: form.isAvailable,
         productTypeImage: form.productTypeImage,
       };
       
@@ -418,158 +400,167 @@ const ProductTypeManager = ({ setActiveTab }) => {
   };
 
   return (
-    <Box>
-      <Box
-        mb={2}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Typography variant="h4" fontWeight="bold">
-          Quản lý loại biển hiệu
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenAdd}
-          sx={{
-            borderRadius: 2,
-            fontWeight: 600,
-            fontSize: 16,
-            boxShadow: "0 2px 8px 0 rgba(56,142,60,0.08)",
-          }}
-        >
-          Thêm loại biển hiệu
-        </Button>
-      </Box>
-      {status === "loading" && <CircularProgress />}
-      {error && (
-        <Alert severity="error" sx={{ borderRadius: 2 }}>
-          {error}
-        </Alert>
-      )}
-      <TableContainer
-        component={Paper}
-        sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(56,142,60,0.08)" }}
-      >
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow sx={{ backgroundColor: "#e8f5e9" }}>
-              <TableCell sx={{ fontWeight: 700 }}>Hình ảnh</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Tên</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>
-                Công thức tính toán
-              </TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Ngày tạo</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Ngày cập nhật</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>
-                Thao Tác
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {productTypes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center">
-                  <Illustration />
-                </TableCell>
+    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
+            <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+              🏷️ Quản lý loại biển hiệu
+            </Typography>
+            <Typography variant="body1" className="!text-gray-600">
+              Quản lý các loại biển hiệu trong hệ thống
+            </Typography>
+          </div>
+          <button
+            onClick={handleOpenAdd}
+            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center gap-2"
+          >
+            <AddIcon />
+            Thêm loại biển hiệu
+          </button>
+        </div>
+
+        {/* Status Messages */}
+        {status === "loading" && (
+          <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <CircularProgress size={20} className="text-blue-600" />
+            <Typography className="!text-blue-700">Đang tải dữ liệu...</Typography>
+          </div>
+        )}
+        
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+            <Typography className="!text-red-700">{error}</Typography>
+          </div>
+        )}
+      </div>
+
+      {/* Table Container */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
+                <TableCell className="!font-bold !text-gray-700 !py-4">Hình ảnh</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">Tên</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">Công thức tính toán</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">Trạng thái</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">Ngày tạo</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">Ngày cập nhật</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4 !text-right">Thao Tác</TableCell>
               </TableRow>
-            ) : (
-              productTypes.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    transition: "background 0.2s",
-                    ":hover": { bgcolor: "#f1f8e9" },
-                  }}
-                >
-                  <TableCell>
-                    <ProductTypeImage imageKey={row.image} />
-                  </TableCell>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>
-                    {row.calculateFormula && row.calculateFormula.trim() !== "" ? (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily: "monospace",
-                          maxWidth: 200,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                        title={row.calculateFormula}
-                      >
-                        {row.calculateFormula}
+            </TableHead>
+            <TableBody>
+              {productTypes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" className="!py-16">
+                    <div className="flex flex-col items-center">
+                      <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                      </div>
+                      <Typography variant="h6" className="!font-bold !text-gray-500 !mb-2">
+                        Chưa có loại biển hiệu nào
                       </Typography>
-                    ) : (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<HelpIcon />}
-                        onClick={handleFormulaGuide}
-                        sx={{
-                          textTransform: "none",
-                          fontSize: "0.75rem",
-                          borderRadius: 1,
-                          color: "primary.main",
-                          borderColor: "primary.main",
-                          "&:hover": {
-                            backgroundColor: "primary.main",
-                            color: "white",
-                          },
-                        }}
+                      <Typography className="!text-gray-400 !mb-4">
+                        Hãy thêm loại biển hiệu mới để bắt đầu quản lý
+                      </Typography>
+                      <button
+                        onClick={handleOpenAdd}
+                        className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg font-medium transition-colors duration-200"
                       >
-                        Hướng dẫn tạo công thức
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={row.isAvailable ? "Có sẵn" : "Không có sẵn"}
-                      color={row.isAvailable ? "success" : "default"}
-                      size="small"
-                      sx={{
-                        fontWeight: 500,
-                        minWidth: 90,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {row.createdAt
-                      ? dayjs(row.createdAt).format("DD/MM/YYYY")
-                      : ""}
-                  </TableCell>
-                  <TableCell>
-                    {row.updatedAt
-                      ? dayjs(row.updatedAt).format("DD/MM/YYYY")
-                      : ""}
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleOpenEdit(row)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color={row.isAvailable ? "success" : "error"}
-                      onClick={() => handleToggleStatus(row)}
-                      sx={{ borderRadius: 2 }}
-                      title={row.isAvailable ? "Vô hiệu hóa" : "Kích hoạt"}
-                    >
-                      {row.isAvailable ? <ToggleOnIcon /> : <ToggleOffIcon />}
-                    </IconButton>
+                        Thêm loại biển hiệu đầu tiên
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              ) : (
+                productTypes.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className="hover:bg-gray-50 transition-colors duration-200 border-b border-gray-100"
+                  >
+                    <TableCell className="!py-4">
+                      <ProductTypeImage imageKey={row.image} />
+                    </TableCell>
+                    <TableCell className="!py-4">
+                      <Typography className="!font-semibold !text-gray-800">
+                        {row.name}
+                      </Typography>
+                    </TableCell>
+                    <TableCell className="!py-4">
+                      {row.calculateFormula && row.calculateFormula.trim() !== "" ? (
+                        <div className="bg-gray-50 rounded-lg p-3 max-w-[200px]">
+                          <Typography
+                            variant="body2"
+                            className="!font-mono !text-gray-700 !text-sm !leading-relaxed"
+                            title={row.calculateFormula}
+                          >
+                            {row.calculateFormula.length > 50 
+                              ? `${row.calculateFormula.substring(0, 50)}...` 
+                              : row.calculateFormula}
+                          </Typography>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleFormulaGuide}
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-1"
+                        >
+                          <HelpIcon className="!text-sm" />
+                          Hướng dẫn tạo công thức
+                        </button>
+                      )}
+                    </TableCell>
+                    <TableCell className="!py-4">
+                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                        row.isAvailable 
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-gray-100 text-gray-600 border border-gray-200'
+                      }`}>
+                        {row.isAvailable ? "✅ Có sẵn" : "⏸️ Không có sẵn"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="!py-4">
+                      <Typography className="!text-gray-600">
+                        {row.createdAt ? dayjs(row.createdAt).format("DD/MM/YYYY") : "—"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell className="!py-4">
+                      <Typography className="!text-gray-600">
+                        {row.updatedAt ? dayjs(row.updatedAt).format("DD/MM/YYYY") : "—"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" className="!py-4">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => handleOpenEdit(row)}
+                          className="w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors duration-200"
+                          title="Chỉnh sửa"
+                        >
+                          <EditIcon className="!text-sm" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleStatus(row)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
+                            row.isAvailable
+                              ? 'bg-green-100 hover:bg-green-200 text-green-600'
+                              : 'bg-red-100 hover:bg-red-200 text-red-600'
+                          }`}
+                          title={row.isAvailable ? "Vô hiệu hóa" : "Kích hoạt"}
+                        >
+                          {row.isAvailable ? <ToggleOnIcon className="!text-sm" /> : <ToggleOffIcon className="!text-sm" />}
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
       {/* Enhanced Dialog with improved styling */}
       <Dialog
@@ -578,217 +569,274 @@ const ProductTypeManager = ({ setActiveTab }) => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          elevation: 3,
-          sx: {
-            borderRadius: 2,
-            overflow: "hidden",
-          },
+          className: "!rounded-2xl !shadow-2xl !max-h-[90vh]"
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-          }}
-        >
-          <DialogTitle
-            sx={{
-              fontWeight: 700,
-              fontSize: 22,
-              p: 3,
-              bgcolor: "#f8f9fa",
-              borderBottom: "1px solid #eee",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1.5}>
-              {dialogMode === "edit" ? (
-                <EditIcon color="primary" />
-              ) : (
-                <AddIcon color="primary" />
-              )}
-              {dialogMode === "edit"
-                ? "Sửa Loại Biển Hiệu"
-                : "Thêm Loại Biển Hiệu"}
-            </Box>
-            <IconButton
-              onClick={handleCloseDialog}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </DialogTitle>
-
-          <DialogContent sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Tên loại biển hiệu */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Tên loại biển hiệu
-                </Typography>
-                <TextField
-                  autoFocus
-                  name="name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
-                  fullWidth
-                  required
-                  variant="outlined"
-                  placeholder="Nhập tên loại biển hiệu"
-                  InputProps={{
-                    sx: {
-                      borderRadius: 1.5,
-                      fontSize: "1rem",
-                    },
-                  }}
-                />
-              </Box>
-
-        {/* Upload hình ảnh */}
-        <Box>
-          <Typography
-            variant="subtitle1"
-            fontWeight="500"
-            sx={{ mb: 1, color: "text.primary" }}
-          >
-            Hình ảnh loại biển hiệu
-          </Typography>
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5 border-b border-gray-200 relative">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              dialogMode === "edit" 
+                ? 'bg-blue-100 text-blue-600' 
+                : 'bg-emerald-100 text-emerald-600'
+            }`}>
+              {dialogMode === "edit" ? <EditIcon /> : <AddIcon />}
+            </div>
+            <div>
+              <Typography variant="h5" className="!font-bold !text-gray-800">
+                {dialogMode === "edit"
+                  ? "✏️ Sửa Loại Biển Hiệu"
+                  : "🎯 Thêm Loại Biển Hiệu"}
+              </Typography>
+              <Typography variant="body2" className="!text-gray-600 !mt-1">
+                {dialogMode === "edit"
+                  ? "Cập nhật thông tin loại biển hiệu đã chọn"
+                  : "Tạo mới loại biển hiệu cho hệ thống"}
+              </Typography>
+            </div>
+          </div>
           
-          <input
-            accept="image/*"
-            style={{ display: 'none' }}
-            id="image-upload"
-            type="file"
-            onChange={handleImageChange}
-          />
-          
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-            <label htmlFor="image-upload">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<UploadIcon />}
-                sx={{
-                  borderRadius: 1.5,
-                  textTransform: "none",
-                  fontWeight: 500,
-                }}
-              >
-                Chọn hình ảnh
-              </Button>
-            </label>
-            
-            {imagePreview && (
-              <Box sx={{ position: 'relative' }}>
-                <Avatar
-                  src={imagePreview}
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: 2 
-                  }}
-                  variant="rounded"
-                >
-                  <ImageIcon />
-                </Avatar>
-                <IconButton
-                  size="small"
-                  onClick={handleRemoveImage}
-                  sx={{
-                    position: 'absolute',
-                    top: -8,
-                    right: -8,
-                    bgcolor: 'error.main',
-                    color: 'white',
-                    '&:hover': { bgcolor: 'error.dark' },
-                    width: 24,
-                    height: 24
-                  }}
-                >
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Box>
+          <button
+            onClick={handleCloseDialog}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors duration-200"
+          >
+            <CloseIcon className="!text-gray-700" />
+          </button>
+        </div>
+
+        <div className="p-6 bg-white max-h-[calc(90vh-180px)] overflow-y-auto">
+          <div className="space-y-6">
+            {/* Tên loại biển hiệu */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Tên loại biển hiệu <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-700 placeholder-gray-400 font-medium"
+                placeholder="Nhập tên loại biển hiệu"
+                autoFocus
+              />
+              <Typography variant="caption" className="!text-gray-500">
+                Tên sẽ được tự động chuyển thành chữ in hoa
+              </Typography>
+            </div>
+
+            {/* Upload hình ảnh */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700">
+                Hình ảnh loại biển hiệu
+              </label>
+              
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="image-upload"
+                type="file"
+                onChange={handleImageChange}
+              />
+              
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-start">
+                <label htmlFor="image-upload">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto px-6 py-3 border-2 border-emerald-200 text-emerald-600 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-200 font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                    onClick={() => document.getElementById('image-upload').click()}
+                  >
+                    <UploadIcon />
+                    Chọn hình ảnh
+                  </button>
+                </label>
+                
+                {imagePreview && (
+                  <div className="relative group">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                    >
+                      <CloseIcon className="!text-sm" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <div className="flex items-start gap-2">
+                  <InfoOutlinedIcon className="!text-blue-500 !text-lg mt-0.5" />
+                  <div className="text-sm text-blue-700">
+                    <div className="font-semibold mb-1">Lưu ý về hình ảnh:</div>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Định dạng: JPG, PNG, GIF</li>
+                      <li>• Kích thước tối đa: 5MB</li>
+                      <li>• Tỷ lệ khuyến nghị: 1:1 (vuông)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cài đặt */}
+            <div className="space-y-4">
+              <label className="block text-sm font-semibold text-gray-700">
+                Cài đặt loại biển hiệu
+              </label>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {/* AI Generated */}
+                <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+                  form.isAiGenerated 
+                    ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        form.isAiGenerated ? 'bg-purple-100' : 'bg-gray-200'
+                      }`}>
+                        {form.isAiGenerated ? '🤖' : '👨‍💻'}
+                      </div>
+                      <div>
+                        <Typography variant="body1" className="!font-semibold !text-gray-800">
+                          Được tạo bởi AI
+                        </Typography>
+                        <Typography variant="caption" className="!text-gray-600">
+                          {form.isAiGenerated ? "Tạo bởi trí tuệ nhân tạo" : "Tạo thủ công"}
+                        </Typography>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, isAiGenerated: !form.isAiGenerated })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                        form.isAiGenerated ? 'bg-purple-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.isAiGenerated ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chỉ hiển thị các trường bổ sung khi đang edit */}
+            {dialogMode === "edit" && (
+              <>
+                {/* Công thức tính toán */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Công thức tính toán
+                  </label>
+                  <textarea
+                    name="calculateFormula"
+                    value={form.calculateFormula}
+                    onChange={(e) => setForm({ ...form, calculateFormula: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 font-mono text-sm resize-none text-gray-700 placeholder-gray-400"
+                    placeholder="Nhập công thức tính toán (tùy chọn)"
+                  />
+                  <div className="flex items-center justify-between">
+                    <Typography variant="caption" className="!text-gray-500">
+                      Công thức dùng để tính toán chi phí tự động
+                    </Typography>
+                    <button
+                      type="button"
+                      onClick={handleFormulaGuide}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    >
+                      <HelpIcon className="!text-sm" />
+                      Hướng dẫn tạo công thức
+                    </button>
+                  </div>
+                </div>
+
+                {/* Trạng thái hoạt động */}
+                <div className="space-y-4">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Trạng thái hoạt động
+                  </label>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+                      form.isAvailable 
+                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-emerald-200' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            form.isAvailable ? 'bg-emerald-100' : 'bg-gray-200'
+                          }`}>
+                            {form.isAvailable ? '✅' : '⏸️'}
+                          </div>
+                          <div>
+                            <Typography variant="body1" className="!font-semibold !text-gray-800">
+                              Trạng thái hoạt động
+                            </Typography>
+                            <Typography variant="caption" className="!text-gray-600">
+                              {form.isAvailable ? "Sẵn sàng sử dụng" : "Tạm dừng hoạt động"}
+                            </Typography>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                            form.isAvailable ? 'bg-emerald-500' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                            form.isAvailable ? 'translate-x-6' : 'translate-x-1'
+                          }`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
-          </Box>
-        </Box>
+          </div>
+        </div>
 
-        {/* Checkbox chỉ cho isAiGenerated */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Typography
-            variant="subtitle1"
-            fontWeight="500"
-            sx={{ color: "text.primary" }}
-          >
-            Cài đặt
-          </Typography>
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={form.isAiGenerated}
-                  onChange={(e) =>
-                    setForm({ ...form, isAiGenerated: e.target.checked })
-                  }
-                  color="primary"
-                />
-              }
-              label="Được tạo bởi AI"
-            />
-          </Box>
-        </Box>
-
-           
-            </Box>
-          </DialogContent>
-
-          <DialogActions
-            sx={{ p: 2.5, borderTop: "1px solid #eee", bgcolor: "#f8f9fa" }}
-          >
-            <Button
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-2xl">
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+            <button
               onClick={handleCloseDialog}
-              size="large"
-              sx={{
-                borderRadius: 1.5,
-                px: 3,
-                textTransform: "none",
-                fontWeight: 500,
-              }}
+              disabled={addStatus === "loading" || updateImageStatus === "loading"}
+              className="order-2 sm:order-1 w-full sm:w-auto px-6 py-2.5 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-100 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Hủy
-            </Button>
-            <Button
+              Hủy bỏ
+            </button>
+            <button
               onClick={handleSubmit}
-              variant="contained"
-              size="large"
-              disabled={!form.name || addStatus === "loading" || updateImageStatus === "loading"}
-              startIcon={
-                (addStatus === "loading" || updateImageStatus === "loading") ? 
-                <CircularProgress size={20} /> : null
-              }
-              sx={{
-                borderRadius: 1.5,
-                px: 3,
-                boxShadow: "0 3px 5px 0 rgba(76,175,80,0.3)",
-                textTransform: "none",
-                fontWeight: 500,
-              }}
+              disabled={!form.name.trim() || addStatus === "loading" || updateImageStatus === "loading"}
+              className="order-1 sm:order-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {(addStatus === "loading" || updateImageStatus === "loading")
-                ? (dialogMode === "edit" ? "Đang lưu..." : "Đang thêm...") 
-                : (dialogMode === "edit" ? "Lưu thay đổi" : "Thêm loại biển hiệu")
-              }
-            </Button>
-          </DialogActions>
-        </Box>
+              {(addStatus === "loading" || updateImageStatus === "loading") ? (
+                <>
+                  <CircularProgress size={18} className="text-white" />
+                  {dialogMode === "edit" ? "Đang lưu..." : "Đang thêm..."}
+                </>
+              ) : (
+                <>
+                  {dialogMode === "edit" ? <EditIcon className="!text-sm" /> : <AddIcon className="!text-sm" />}
+                  {dialogMode === "edit" ? "Lưu thay đổi" : "Thêm loại biển hiệu"}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </Dialog>
 
       {/* Formula Guide Dialog */}
@@ -811,7 +859,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </div>
   );
 };
 

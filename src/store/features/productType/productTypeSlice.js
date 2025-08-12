@@ -91,15 +91,15 @@ export const addProductType = createAsyncThunk(
 
 export const addSizeToProductType = createAsyncThunk(
   "productType/addSizeToProductType",
-  async ({ productTypeId, sizeId }, { rejectWithValue }) => {
-    const response = await addSizeToProductTypeApi(productTypeId, sizeId);
+  async ({ productTypeId, sizeId, sizeData }, { rejectWithValue }) => {
+    const response = await addSizeToProductTypeApi(productTypeId, sizeId, sizeData);
     if (!response.success) {
       return rejectWithValue(
         response.error || "Failed to add size to product type"
       );
     }
     // Trả về productTypeId để có thể reload danh sách size
-    return { productTypeId };
+    return { productTypeId, data: response.data };
   }
 );
 

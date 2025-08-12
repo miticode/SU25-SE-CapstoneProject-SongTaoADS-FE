@@ -262,10 +262,11 @@ export const deleteProductTypeApi = async (id) => {
 };
 
 // Thêm size vào product type
-export const addSizeToProductTypeApi = async (productTypeId, sizeId) => {
+export const addSizeToProductTypeApi = async (productTypeId, sizeId, sizeData) => {
   try {
     const response = await productTypeService.post(
-      `/api/product-types/${productTypeId}/sizes/${sizeId}`
+      `/api/product-types/${productTypeId}/sizes/${sizeId}`,
+      sizeData
     );
     const { success, result, message } = response.data;
     if (success) {

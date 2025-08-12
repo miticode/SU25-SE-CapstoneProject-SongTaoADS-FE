@@ -49,8 +49,25 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Phone as PhoneIcon,
-  Check as CheckIcon,
+  FilterList as FilterListIcon,
+  Cancel as CancelIcon,
+  Block as BlockIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  PersonAdd as PersonAddIcon,
+  HighlightOff as HighlightOffIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
+import {
+  MagnifyingGlassIcon,
+  PlusIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  EnvelopeIcon,
+  CheckCircleIcon as HeroCheckCircleIcon,
+  ExclamationCircleIcon,
+  PhoneIcon as HeroPhoneIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 
 const UserManager = () => {
   const theme = useTheme();
@@ -1277,531 +1294,253 @@ const UserManager = () => {
         />
       </Paper>
 
-      {/* Create User Dialog */}
-      <Dialog
-        open={openCreateDialog}
-        onClose={handleCloseCreateDialog}
-        maxWidth="md"
-        fullWidth
-        fullScreen={isMobile} // Full screen on mobile
-        PaperProps={{
-          sx: {
-            borderRadius: { xs: 0, sm: 3 }, // No border radius on mobile
-            boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-            minHeight: { xs: '100vh', sm: '600px' }, // Full height on mobile
-            margin: { xs: 0, sm: 2 }, // Remove margin on mobile
-            maxHeight: { xs: '100vh', sm: '90vh' }
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            pb: { xs: 1.5, sm: 2 },
-            pt: { xs: 2, sm: 3 },
-            px: { xs: 2, sm: 3 },
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            fontSize: { xs: "1.2rem", sm: "1.4rem" },
-            fontWeight: "600",
-            textAlign: "center",
-          }}
-        >
-          Tạo Người Dùng Mới
-        </DialogTitle>
-        <DialogContent 
-          sx={{ 
-            px: { xs: 2, sm: 4 }, 
-            py: { xs: 2, sm: 3 },
-            flex: 1,
-            overflow: 'auto'
-          }}
-        >
-          <Grid container spacing={{ xs: 2, sm: 3 }}>
-            <Grid item xs={12}>
-              <TextField
-                autoFocus
-                label="Họ tên *"
-                fullWidth
-                variant="outlined"
-                value={createUserForm.fullName}
-                onChange={(e) => handleCreateUserFormChange('fullName', e.target.value)}
-                error={Boolean(createUserErrors.fullName)}
-                helperText={createUserErrors.fullName}
-                sx={{ 
-                  mb: { xs: 1.5, sm: 2 },
-                  mt: { xs: 1, sm: 2 },
-                  '& .MuiInputBase-root': {
-                    fontSize: { xs: '14px', sm: '16px' }
-                  }
-                }}
-              />
-            </Grid>
+      {/* Create User Dialog - Tailwind CSS Version */}
+      {openCreateDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white px-6 py-4 rounded-t-xl">
+              <h2 className="text-xl font-bold text-center">Tạo Người Dùng Mới</h2>
+            </div>
             
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Email *"
-                type="email"
-                fullWidth
-                variant="outlined"
-                value={createUserForm.email}
-                onChange={(e) => handleCreateUserFormChange('email', e.target.value)}
-                error={Boolean(createUserErrors.email) || (createUserForm.email && !emailValidation.isValid)}
-                helperText={
-                  createUserErrors.email || 
-                  (createUserForm.email && emailValidation.error) || 
-                  ""
-                }
-                InputProps={{
-                  startAdornment: (
-                    <Box sx={{ 
-                      mr: { xs: 0.5, sm: 1 }, 
-                      display: 'flex', 
-                      alignItems: 'center' 
-                    }}>
-                      <EmailIcon 
-                        color={
-                          createUserForm.email === '' ? 'action' :
-                          emailValidation.isValid ? 'success' : 'error'
-                        }
-                        sx={{ fontSize: { xs: 18, sm: 20 } }}
-                      />
-                    </Box>
-                  ),
-                  endAdornment: createUserForm.email && (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      {emailValidation.isValid ? (
-                        <CheckCircleIcon 
-                          sx={{ 
-                            color: '#4caf50', 
-                            fontSize: { xs: 18, sm: 20 },
-                            animation: 'fadeIn 0.3s ease-in'
-                          }} 
-                        />
-                      ) : (
-                        emailValidation.error && (
-                          <ErrorIcon 
-                            sx={{ 
-                              color: '#f44336', 
-                              fontSize: { xs: 18, sm: 20 },
-                              animation: 'shake 0.3s ease-in-out'
-                            }} 
-                          />
-                        )
-                      )}
-                    </Box>
-                  )
-                }}
-                sx={{ 
-                  mb: { xs: 1.5, sm: 2 },
-                     mt: { xs: 1, sm: 2 },
-                  '& .MuiInputBase-root': {
-                    fontSize: { xs: '14px', sm: '16px' }
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: createUserForm.email === '' ? undefined :
-                        emailValidation.isValid ? '#4caf50' : '#f44336'
-                    }
-                  },
-                  '& @keyframes fadeIn': {
-                    '0%': { opacity: 0, transform: 'scale(0.8)' },
-                    '100%': { opacity: 1, transform: 'scale(1)' }
-                  },
-                  '& @keyframes shake': {
-                    '0%, 100%': { transform: 'translateX(0)' },
-                    '25%': { transform: 'translateX(-2px)' },
-                    '75%': { transform: 'translateX(2px)' }
-                  }
-                }}
-              />
-              
-              {/* Email validation indicators */}
-              {createUserForm.email && (
-                <Box sx={{ 
-                  mt: 0.5, 
-                  pl: { xs: 0.5, sm: 1 }, 
-                  mb: { xs: 1, sm: 1.5 } 
-                }}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: { xs: 0.5, sm: 1 },
-                      animation: 'fadeIn 0.3s ease-in',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: { xs: 5, sm: 6 },
-                        height: { xs: 5, sm: 6 },
-                        borderRadius: '50%',
-                        backgroundColor: emailValidation.isValid ? '#4caf50' : '#f44336',
-                        transition: 'background-color 0.3s ease'
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: emailValidation.isValid ? '#4caf50' : '#f44336',
-                        fontWeight: 'medium',
-                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                        transition: 'color 0.3s ease'
-                      }}
-                    >
-                      {emailValidation.isValid ? 'Email hợp lệ' : emailValidation.error}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Số điện thoại *"
-                fullWidth
-                variant="outlined"
-                value={createUserForm.phone}
-                onChange={(e) => handleCreateUserFormChange('phone', e.target.value)}
-                error={Boolean(createUserErrors.phone) || (createUserForm.phone && !phoneValidation.isValid)}
-                helperText={
-                  createUserErrors.phone || 
-                  (createUserForm.phone && phoneValidation.error) || 
-                  ""
-                }
-                InputProps={{
-                  startAdornment: (
-                    <Box sx={{ 
-                      mr: { xs: 0.5, sm: 1 }, 
-                      display: 'flex', 
-                      alignItems: 'center' 
-                    }}>
-                      <PhoneIcon 
-                        color={
-                          createUserForm.phone === '' ? 'action' :
-                          phoneValidation.isValid ? 'success' : 'error'
-                        }
-                        sx={{ fontSize: { xs: 18, sm: 20 } }}
-                      />
-                    </Box>
-                  ),
-                  endAdornment: createUserForm.phone && (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      {phoneValidation.isValid ? (
-                        <CheckCircleIcon 
-                          sx={{ 
-                            color: '#4caf50', 
-                            fontSize: { xs: 18, sm: 20 },
-                            animation: 'fadeIn 0.3s ease-in'
-                          }} 
-                        />
-                      ) : (
-                        phoneValidation.error && (
-                          <ErrorIcon 
-                            sx={{ 
-                              color: '#f44336', 
-                              fontSize: { xs: 18, sm: 20 },
-                              animation: 'shake 0.3s ease-in-out'
-                            }} 
-                          />
-                        )
-                      )}
-                    </Box>
-                  )
-                }}
-                sx={{ 
-                  mb: { xs: 1.5, sm: 2 },
-                     mt: { xs: 1, sm: 2 },
-                  '& .MuiInputBase-root': {
-                    fontSize: { xs: '14px', sm: '16px' }
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: createUserForm.phone === '' ? undefined :
-                        phoneValidation.isValid ? '#4caf50' : '#f44336'
-                    }
-                  },
-                  '& @keyframes fadeIn': {
-                    '0%': { opacity: 0, transform: 'scale(0.8)' },
-                    '100%': { opacity: 1, transform: 'scale(1)' }
-                  },
-                  '& @keyframes shake': {
-                    '0%, 100%': { transform: 'translateX(0)' },
-                    '25%': { transform: 'translateX(-2px)' },
-                    '75%': { transform: 'translateX(2px)' }
-                  }
-                }}
-              />
-              
-              {/* Phone validation indicators */}
-              {createUserForm.phone && (
-                <Box sx={{ 
-                  mt: 0.5, 
-                  pl: { xs: 0.5, sm: 1 }, 
-                  mb: { xs: 1, sm: 1.5 } 
-                }}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: { xs: 0.5, sm: 1 },
-                      animation: 'fadeIn 0.3s ease-in',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: { xs: 5, sm: 6 },
-                        height: { xs: 5, sm: 6 },
-                        borderRadius: '50%',
-                        backgroundColor: phoneValidation.isValid ? '#4caf50' : '#f44336',
-                        transition: 'background-color 0.3s ease'
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: phoneValidation.isValid ? '#4caf50' : '#f44336',
-                        fontWeight: 'medium',
-                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                        transition: 'color 0.3s ease'
-                      }}
-                    >
-                      {phoneValidation.isValid ? 'Số điện thoại hợp lệ' : phoneValidation.error}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
-            </Grid>
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Full Name */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Họ tên *
+                  </label>
+                  <input
+                    type="text"
+                    value={createUserForm.fullName}
+                    onChange={(e) => handleCreateUserFormChange('fullName', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                      createUserErrors.fullName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Nhập họ tên"
+                  />
+                  {createUserErrors.fullName && (
+                    <p className="text-red-500 text-sm mt-1">{createUserErrors.fullName}</p>
+                  )}
+                </div>
 
-            <Grid item xs={12}>
-              <TextField
-                label="Mật khẩu *"
-                type={showPassword ? "text" : "password"}
-                fullWidth
-                variant="outlined"
-                value={createUserForm.password}
-                onChange={(e) => handleCreateUserFormChange('password', e.target.value)}
-                error={Boolean(createUserErrors.password)}
-                helperText={createUserErrors.password}
-                InputProps={{
-                  endAdornment: (
-                    <IconButton
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <div className="relative">
+                    <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={createUserForm.email}
+                      onChange={(e) => handleCreateUserFormChange('email', e.target.value)}
+                      className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                        createUserErrors.email || (createUserForm.email && !emailValidation.isValid) ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Nhập email"
+                    />
+                    {createUserForm.email && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {emailValidation.isValid ? (
+                          <HeroCheckCircleIcon className="w-5 h-5 text-green-500" />
+                        ) : (
+                          <ExclamationCircleIcon className="w-5 h-5 text-red-500" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {(createUserErrors.email || (createUserForm.email && emailValidation.error)) && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {createUserErrors.email || emailValidation.error}
+                    </p>
+                  )}
+                  
+                  {/* Email validation indicator */}
+                  {createUserForm.email && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${emailValidation.isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className={`text-xs ${emailValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {emailValidation.isValid ? 'Email hợp lệ' : emailValidation.error}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số điện thoại *
+                  </label>
+                  <div className="relative">
+                    <HeroPhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={createUserForm.phone}
+                      onChange={(e) => handleCreateUserFormChange('phone', e.target.value)}
+                      className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                        createUserErrors.phone || (createUserForm.phone && !phoneValidation.isValid) ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Nhập số điện thoại"
+                    />
+                    {createUserForm.phone && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {phoneValidation.isValid ? (
+                          <HeroCheckCircleIcon className="w-5 h-5 text-green-500" />
+                        ) : (
+                          <ExclamationCircleIcon className="w-5 h-5 text-red-500" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {(createUserErrors.phone || (createUserForm.phone && phoneValidation.error)) && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {createUserErrors.phone || phoneValidation.error}
+                    </p>
+                  )}
+                  
+                  {/* Phone validation indicator */}
+                  {createUserForm.phone && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${phoneValidation.isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className={`text-xs ${phoneValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {phoneValidation.isValid ? 'Số điện thoại hợp lệ' : phoneValidation.error}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mật khẩu *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={createUserForm.password}
+                      onChange={(e) => handleCreateUserFormChange('password', e.target.value)}
+                      className={`w-full pr-10 py-2 px-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                        createUserErrors.password ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Nhập mật khẩu"
+                    />
+                    <button
+                      type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                      size="small"
-                      sx={{ mr: { xs: 0, sm: 1 } }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showPassword ? 
-                        <VisibilityOffIcon sx={{ fontSize: { xs: 18, sm: 20 } }} /> : 
-                        <VisibilityIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
-                      }
-                    </IconButton>
-                  ),
-                }}
-                sx={{ 
-                  mb: { xs: 1.5, sm: 2 },
-                  '& .MuiInputBase-root': {
-                    fontSize: { xs: '14px', sm: '16px' }
-                  }
-                }}
-              />
+                      {showPassword ? (
+                        <EyeSlashIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                  {createUserErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{createUserErrors.password}</p>
+                  )}
+                  
+                  {/* Password validation indicators */}
+                  {createUserForm.password && (
+                    <div className="mt-3 p-4 bg-gray-50 rounded-lg border">
+                      <p className="text-sm font-medium text-gray-700 mb-3">🔒 Yêu cầu mật khẩu:</p>
+                      <div className="space-y-2">
+                        {[
+                          { key: 'length', label: 'Ít nhất 7 ký tự', valid: passwordValidation.length },
+                          { key: 'hasLetter', label: 'Có chữ cái (A-Z, a-z)', valid: passwordValidation.hasLetter },
+                          { key: 'hasNumber', label: 'Có số (0-9)', valid: passwordValidation.hasNumber },
+                          { key: 'hasSpecial', label: 'Có ký tự đặc biệt (@$!%*#?&)', valid: passwordValidation.hasSpecial }
+                        ].map((requirement) => (
+                          <div key={requirement.key} className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                              requirement.valid ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
+                            }`}>
+                              {requirement.valid ? '✓' : '○'}
+                            </div>
+                            <span className={`text-sm transition-all ${
+                              requirement.valid ? 'text-green-600 font-medium' : 'text-gray-500'
+                            }`}>
+                              {requirement.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-              {/* Password validation indicators */}
-              {createUserForm.password && (
-                <Box sx={{ 
-                  mt: { xs: 0.5, sm: 1 }, 
-                  p: { xs: 1.5, sm: 2 }, 
-                  bgcolor: 'grey.50', 
-                  borderRadius: { xs: 1.5, sm: 2 }, 
-                  border: '1px solid', 
-                  borderColor: 'grey.200', 
-                  mb: { xs: 1.5, sm: 2 } 
-                }}>
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      fontWeight: 600, 
-                      color: 'grey.700', 
-                      mb: { xs: 1, sm: 1.5 }, 
-                      display: 'block',
-                      fontSize: { xs: '0.7rem', sm: '0.75rem' }
-                    }}
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vai trò *
+                  </label>
+                  <select
+                    value={createUserForm.roleName}
+                    onChange={(e) => handleCreateUserFormChange('roleName', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                      createUserErrors.roleName ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    🔒 Yêu cầu mật khẩu:
-                  </Typography>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: { xs: 0.75, sm: 1 } 
-                  }}>
-                    {[
-                      { key: 'length', label: 'Ít nhất 7 ký tự', valid: passwordValidation.length },
-                      { key: 'hasLetter', label: 'Có chữ cái (A-Z, a-z)', valid: passwordValidation.hasLetter },
-                      { key: 'hasNumber', label: 'Có số (0-9)', valid: passwordValidation.hasNumber },
-                      { key: 'hasSpecial', label: 'Có ký tự đặc biệt (@$!%*#?&)', valid: passwordValidation.hasSpecial }
-                    ].map((requirement) => (
-                      <Box
-                        key={requirement.key}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: { xs: 0.75, sm: 1 }
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: { xs: 16, sm: 18 },
-                            height: { xs: 16, sm: 18 },
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: { xs: '10px', sm: '12px' },
-                            fontWeight: 'bold',
-                            bgcolor: requirement.valid ? 'success.main' : 'grey.300',
-                            color: 'white',
-                            transition: 'all 0.3s ease'
-                          }}
-                        >
-                          {requirement.valid ? '✓' : '○'}
-                        </Box>
-                        <Typography
-                          variant="caption"
-                          sx={{ 
-                            color: requirement.valid ? 'success.main' : 'grey.500',
-                            fontWeight: requirement.valid ? 600 : 400,
-                            fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                            transition: 'all 0.3s ease'
-                          }}
-                        >
-                          {requirement.label}
-                        </Typography>
-                      </Box>
+                    {availableRoles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
                     ))}
-                  </Box>
-                </Box>
-              )}
-            </Grid>
+                  </select>
+                  {createUserErrors.roleName && (
+                    <p className="text-red-500 text-sm mt-1">{createUserErrors.roleName}</p>
+                  )}
+                </div>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel sx={{ fontSize: { xs: '14px', sm: '16px' } }}>
-                  Vai trò *
-                </InputLabel>
-                <Select
-                  value={createUserForm.roleName}
-                  onChange={(e) => handleCreateUserFormChange('roleName', e.target.value)}
-                  label="Vai trò *"
-                  error={Boolean(createUserErrors.roleName)}
-                  sx={{
-                    '& .MuiSelect-select': {
-                      fontSize: { xs: '14px', sm: '16px' },
-                      py: { xs: 1.25, sm: 1.5 }
-                    }
-                  }}
-                >
-                  {availableRoles.map((role) => (
-                    <MenuItem 
-                      key={role.value} 
-                      value={role.value}
-                      sx={{ fontSize: { xs: '14px', sm: '16px' } }}
-                    >
-                      {role.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {createUserErrors.roleName && (
-                  <FormHelperText 
-                    error
-                    sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                  >
-                    {createUserErrors.roleName}
-                  </FormHelperText>
-                )}
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Box sx={{ 
-                pt: { xs: 1, sm: 2 },
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <FormControlLabel
-                  control={
-                    <Switch
+                {/* Active Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trạng thái
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
                       checked={createUserForm.isActive}
                       onChange={(e) => handleCreateUserFormChange('isActive', e.target.checked)}
-                      color="primary"
-                      size={isMobile ? "small" : "medium"}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                  }
-                  label={
-                    <Typography sx={{ fontSize: { xs: '14px', sm: '16px' } }}>
-                      Tài khoản hoạt động
-                    </Typography>
-                  }
-                />
-              </Box>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ 
-          px: { xs: 2, sm: 4 }, 
-          py: { xs: 2, sm: 3 }, 
-          gap: { xs: 1.5, sm: 2 },
-          flexDirection: { xs: 'column', sm: 'row' }
-        }}>
-          <Button
-            onClick={handleCloseCreateDialog}
-            variant="outlined"
-            fullWidth={isMobile}
-            sx={{
-              borderRadius: { xs: 1.5, sm: 2 },
-              px: { xs: 3, sm: 4 },
-              py: { xs: 1.25, sm: 1.5 },
-              fontSize: { xs: '14px', sm: '16px' },
-              borderColor: '#ddd',
-              color: '#666',
-              '&:hover': {
-                borderColor: '#bbb',
-                backgroundColor: '#f5f5f5'
-              }
-            }}
-          >
-            Hủy
-          </Button>
-          <Button
-            onClick={handleCreateUser}
-            variant="contained"
-            disabled={usersStatus === 'loading'}
-            startIcon={usersStatus === 'loading' ? 
-              <CircularProgress size={16} sx={{ color: 'white' }} /> : 
-              <AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
-            }
-            fullWidth={isMobile}
-            sx={{
-              borderRadius: { xs: 1.5, sm: 2 },
-              px: { xs: 3, sm: 4 },
-              py: { xs: 1.25, sm: 1.5 },
-              fontSize: { xs: '14px', sm: '16px' },
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
-              '&:hover': {
-                background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
-                boxShadow: "0 6px 20px rgba(102, 126, 234, 0.4)",
-              },
-              '&:disabled': {
-                background: "linear-gradient(135deg, #ccc 0%, #bbb 100%)",
-                color: 'white'
-              }
-            }}
-          >
-            {usersStatus === 'loading' ? 'Đang tạo...' : 'Tạo Người Dùng'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                    <span className="ml-2 text-sm text-gray-700">Tài khoản hoạt động</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <button
+                onClick={handleCloseCreateDialog}
+                className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateUser}
+                disabled={usersStatus === 'loading'}
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {usersStatus === 'loading' ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang tạo...
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon className="w-4 h-4" />
+                    Tạo Người Dùng
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ban/Unban Confirmation Dialog */}
       <Dialog
