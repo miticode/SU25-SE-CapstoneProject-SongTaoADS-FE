@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaRedo } from 'react-icons/fa';
 import Button from '@mui/material/Button';
 
@@ -7,32 +7,80 @@ const CountdownTimer = ({
   onResend, 
   isResendLoading = false,
   showResendButton = true,
-  className = "" 
+  className = "",
+  timerKey = "default"
 }) => {
   const [countdown, setCountdown] = useState(initialSeconds);
   const [isCountdownActive, setIsCountdownActive] = useState(true);
   const [showResend, setShowResend] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const timerRef = useRef(null);
+
+  // Khởi tạo countdown từ localStorage hoặc bắt đầu mới
+  useEffect(() => {
+    if (isInitialized) return;
+
+    const savedEndTime = localStorage.getItem(`countdown_end_${timerKey}`);
+    
+    if (savedEndTime) {
+      const endTime = parseInt(savedEndTime);
+      const currentTime = Date.now();
+      const remainingTime = Math.ceil((endTime - currentTime) / 1000);
+      
+      if (remainingTime > 0) {
+        setCountdown(remainingTime);
+        setIsCountdownActive(true);
+        setShowResend(false);
+        console.log(`Khôi phục countdown: ${remainingTime}s còn lại`);
+      } else {
+        setCountdown(0);
+        setIsCountdownActive(false);
+        setShowResend(true);
+        localStorage.removeItem(`countdown_end_${timerKey}`);
+      }
+    } else {
+      setCountdown(initialSeconds);
+      setIsCountdownActive(true);
+      setShowResend(false);
+      const endTime = Date.now() + (initialSeconds * 1000);
+      localStorage.setItem(`countdown_end_${timerKey}`, endTime.toString());
+    }
+    
+    setIsInitialized(true);
+  }, [initialSeconds, timerKey, isInitialized]);
 
   // Countdown timer effect
   useEffect(() => {
-    let timer;
-    if (isCountdownActive && countdown > 0) {
-      timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-    } else if (countdown === 0) {
-      setIsCountdownActive(false);
-      setShowResend(true);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown, isCountdownActive]);
+    if (!isInitialized) return;
 
-  // Reset countdown when initialSeconds changes
-  useEffect(() => {
+    if (isCountdownActive && countdown > 0) {
+      timerRef.current = setTimeout(() => {
+        const newCountdown = countdown - 1;
+        setCountdown(newCountdown);
+        
+        if (newCountdown === 0) {
+          setIsCountdownActive(false);
+          setShowResend(true);
+          localStorage.removeItem(`countdown_end_${timerKey}`);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [countdown, isCountdownActive, timerKey, isInitialized]);
+
+  // Reset countdown function
+  const resetCountdown = () => {
     setCountdown(initialSeconds);
     setIsCountdownActive(true);
     setShowResend(false);
-  }, [initialSeconds]);
+    const endTime = Date.now() + (initialSeconds * 1000);
+    localStorage.setItem(`countdown_end_${timerKey}`, endTime.toString());
+  };
 
   // Format countdown time
   const formatTime = (seconds) => {
@@ -41,17 +89,16 @@ const CountdownTimer = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle resend - chỉ gọi callback, không tự xử lý
+  // Handle resend
   const handleResend = async () => {
     if (onResend && !isResendLoading) {
       await onResend();
-      // Không reset countdown ở đây nữa vì sẽ được xử lý bởi component cha
+      resetCountdown();
     }
   };
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Countdown timer - luôn hiển thị */}
       <div className="flex items-center justify-center space-x-2">
         <div className="text-sm text-gray-600">Thời gian còn lại:</div>
         <div className={`text-lg font-bold px-3 py-1 rounded-lg ${
@@ -63,7 +110,6 @@ const CountdownTimer = ({
         </div>
       </div>
       
-      {/* Resend button */}
       {showResendButton && showResend && (
         <div className="flex items-center justify-center">
           <Button

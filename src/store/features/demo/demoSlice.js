@@ -10,7 +10,8 @@ import {
   deleteDemoDesignApi,
   uploadDemoSubImagesApi,
   getDemoSubImagesApi,
-  getCustomDesignRequestSubImagesApi
+  getCustomDesignRequestSubImagesApi,
+  deleteDemoSubImageApi
 } from '../../../api/demoService';
 
 // Initial state
@@ -133,6 +134,16 @@ export const getCustomDesignRequestSubImages = createAsyncThunk(
   }
 );
 
+// Xóa sub-image cụ thể của demo design
+export const deleteDemoSubImage = createAsyncThunk(
+  'demo/deleteDemoSubImage',
+  async ({ customDesignId, subImageId }, { rejectWithValue }) => {
+    const res = await deleteDemoSubImageApi(customDesignId, subImageId);
+    if (!res.success) return rejectWithValue(res.error);
+    return res.result;
+  }
+);
+
 const demoSlice = createSlice({
   name: 'demo',
   initialState,
@@ -188,8 +199,16 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(updateDemoDesignImage.fulfilled, (state, _action) => {
+      .addCase(updateDemoDesignImage.fulfilled, (state, action) => {
         state.actionStatus = 'succeeded';
+        // Cập nhật demo trong mảng nếu cần
+        const updatedDemo = action.payload;
+        if (updatedDemo) {
+          const index = state.demoDesigns.findIndex(d => d.id === updatedDemo.id);
+          if (index !== -1) {
+            state.demoDesigns[index] = { ...state.demoDesigns[index], ...updatedDemo };
+          }
+        }
       })
       .addCase(updateDemoDesignImage.rejected, (state, action) => {
         state.actionStatus = 'failed';
@@ -210,8 +229,16 @@ const demoSlice = createSlice({
         state.actionStatus = 'loading';
         state.actionError = null;
       })
-      .addCase(updateDemoDesignDescription.fulfilled, (state, _action) => {
+      .addCase(updateDemoDesignDescription.fulfilled, (state, action) => {
         state.actionStatus = 'succeeded';
+        // Cập nhật demo trong mảng nếu cần
+        const updatedDemo = action.payload;
+        if (updatedDemo) {
+          const index = state.demoDesigns.findIndex(d => d.id === updatedDemo.id);
+          if (index !== -1) {
+            state.demoDesigns[index] = { ...state.demoDesigns[index], ...updatedDemo };
+          }
+        }
       })
       .addCase(updateDemoDesignDescription.rejected, (state, action) => {
         state.actionStatus = 'failed';
@@ -234,8 +261,13 @@ const demoSlice = createSlice({
       })
       .addCase(deleteDemoDesign.fulfilled, (state, action) => {
         state.actionStatus = 'succeeded';
-        // Xóa demo khỏi mảng nếu cần
-        state.demoDesigns = state.demoDesigns.filter(d => d.id !== action.meta.arg);
+        // Xóa demo khỏi mảng
+        const deletedDemoId = action.meta.arg;
+        state.demoDesigns = state.demoDesigns.filter(d => d.id !== deletedDemoId);
+        // Xóa sub-images của demo đã xóa
+        if (state.demoSubImages[deletedDemoId]) {
+          delete state.demoSubImages[deletedDemoId];
+        }
       })
       .addCase(deleteDemoDesign.rejected, (state, action) => {
         state.actionStatus = 'failed';
@@ -280,6 +312,21 @@ const demoSlice = createSlice({
       .addCase(getCustomDesignRequestSubImages.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(deleteDemoSubImage.pending, (state) => {
+        state.actionStatus = 'loading';
+        state.actionError = null;
+      })
+      .addCase(deleteDemoSubImage.fulfilled, (state, action) => {
+        state.actionStatus = 'succeeded';
+        // Xóa sub-image cụ thể từ danh sách
+        const { customDesignId, subImageId } = action.meta.arg;
+        const subImages = state.customDesignRequestSubImages[customDesignId] || [];
+        state.customDesignRequestSubImages[customDesignId] = subImages.filter(img => img.id !== subImageId);
+      })
+      .addCase(deleteDemoSubImage.rejected, (state, action) => {
+        state.actionStatus = 'failed';
+        state.actionError = action.payload;
       });
   },
 });

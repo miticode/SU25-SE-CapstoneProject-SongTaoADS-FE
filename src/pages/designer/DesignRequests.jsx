@@ -51,6 +51,9 @@ import {
   uploadDemoSubImages,
   getDemoSubImages,
   selectDemoSubImages,
+  updateDemoDesignImage,
+  updateDemoDesignDescription,
+  deleteDemoSubImage,
 } from "../../store/features/demo/demoSlice";
 import { fetchImageFromS3 } from "../../store/features/s3/s3Slice";
 import { getPresignedUrl } from "../../api/s3Service";
@@ -159,6 +162,18 @@ const DesignRequests = () => {
     title: "",
   });
 
+  // State cho dialog cập nhật demo
+  const [openUpdateDemoDialog, setOpenUpdateDemoDialog] = useState(false);
+  const [updateDemoForm, setUpdateDemoForm] = useState({
+    designerDescription: "",
+    customDesignImage: null,
+    subImages: [],
+    subImagesToRemove: [], // Danh sách sub-images sẽ bị xóa
+  });
+  const [updateDemoError, setUpdateDemoError] = useState("");
+
+
+
   // Lấy sub-images cho demo hiện tại
   const demoSubImages = useSelector((state) =>
     latestDemo ? selectDemoSubImages(state, latestDemo.id) : []
@@ -193,6 +208,35 @@ const DesignRequests = () => {
           customDesignImage: acceptedFiles[0],
         }));
       }
+    },
+  });
+
+  // Dropzone cho cập nhật demo - main image
+  const updateMainImageDropzone = useDropzone({
+    accept: {
+      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".bmp", ".webp"],
+    },
+    maxFiles: 1,
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        setUpdateDemoForm((prev) => ({
+          ...prev,
+          customDesignImage: acceptedFiles[0],
+        }));
+      }
+    },
+  });
+
+  // Dropzone cho cập nhật demo - sub images
+  const updateSubImagesDropzone = useDropzone({
+    accept: {
+      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".bmp", ".webp"],
+    },
+    onDrop: (acceptedFiles) => {
+      setUpdateDemoForm((prev) => ({
+        ...prev,
+        subImages: [...prev.subImages, ...acceptedFiles],
+      }));
     },
   });
 
@@ -557,19 +601,93 @@ const DesignRequests = () => {
   };
 
   const handleOpenDemoDialog = async (isUpdate = false) => {
-    setDemoForm({
-      designerDescription: "",
-      customDesignImage: null,
-      subImages: [],
-    });
-    setDemoFormError("");
-    setUpdateDemoMode(isUpdate);
-    setOpenDemoDialog(true);
+    if (isUpdate && latestDemo) {
+      // Mở dialog cập nhật demo
+      setUpdateDemoForm({
+        designerDescription: latestDemo.designerDescription || "",
+        customDesignImage: null,
+        subImages: [],
+        subImagesToRemove: [], // Khởi tạo danh sách sub-images sẽ bị xóa
+      });
+      setUpdateDemoError("");
+      setOpenUpdateDemoDialog(true);
+    } else {
+      // Mở dialog tạo demo mới
+      setDemoForm({
+        designerDescription: "",
+        customDesignImage: null,
+        subImages: [],
+      });
+      setDemoFormError("");
+      setUpdateDemoMode(false);
+      setOpenDemoDialog(true);
+    }
   };
+
   const handleCloseDemoDialog = () => {
     setOpenDemoDialog(false);
     setDemoFormError("");
   };
+
+  const handleCloseUpdateDemoDialog = () => {
+    setOpenUpdateDemoDialog(false);
+    setUpdateDemoError("");
+  };
+
+  // Hàm cập nhật demo
+  const handleUpdateDemo = async () => {
+    if (!latestDemo) return;
+    
+    setActionLoading(true);
+    setUpdateDemoError("");
+    
+    try {
+      // Cập nhật mô tả nếu có thay đổi
+      if (updateDemoForm.designerDescription !== latestDemo.designerDescription) {
+        await dispatch(updateDemoDesignDescription({
+          customDesignId: latestDemo.id,
+          data: { designerDescription: updateDemoForm.designerDescription }
+        })).unwrap();
+      }
+
+      // Cập nhật hình ảnh chính nếu có
+      if (updateDemoForm.customDesignImage) {
+        const formData = new FormData();
+        // Theo Swagger: field name phải là 'file'
+        formData.append('file', updateDemoForm.customDesignImage);
+        
+        await dispatch(updateDemoDesignImage({
+          customDesignId: latestDemo.id,
+          data: formData
+        })).unwrap();
+      }
+
+      // Cập nhật hình ảnh phụ
+      if (updateDemoForm.subImages.length > 0) {
+        // Chỉ gửi sub-images mới khi có
+        await dispatch(uploadDemoSubImages({
+          customDesignId: latestDemo.id,
+          files: updateDemoForm.subImages
+        })).unwrap();
+      }
+      // Lưu ý: Không thể xóa sub-images hiện tại mà không có sub-images mới
+      // vì backend yêu cầu danh sách không được rỗng
+
+      setNotification({
+        open: true,
+        message: "Cập nhật demo thành công!",
+        severity: "success",
+      });
+      setOpenUpdateDemoDialog(false);
+      
+      // Refresh data
+      await refreshDemoData(selectedRequest.id);
+    } catch (err) {
+      setUpdateDemoError(err || "Cập nhật demo thất bại");
+    }
+    setActionLoading(false);
+  };
+
   const handleDemoFormChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "customDesignImage") {
@@ -588,6 +706,23 @@ const DesignRequests = () => {
     setDemoForm((f) => ({
       ...f,
       subImages: f.subImages.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Hàm xóa sub-image khỏi danh sách cập nhật demo
+  const handleRemoveUpdateSubImage = (index) => {
+    setUpdateDemoForm((f) => ({
+      ...f,
+      subImages: f.subImages.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Hàm xóa sub-image hiện tại khỏi danh sách (để không lưu khi cập nhật)
+  const handleRemoveCurrentSubImage = (subImageId) => {
+    // Cập nhật state để đánh dấu sub-image này sẽ bị xóa
+    setUpdateDemoForm((prev) => ({
+      ...prev,
+      subImagesToRemove: [...(prev.subImagesToRemove || []), subImageId],
     }));
   };
 
@@ -2091,29 +2226,32 @@ const DesignRequests = () => {
             )}
 
             {selectedRequest && selectedRequest.status === "DEMO_SUBMITTED" && (
-              <Button
-                variant="contained"
-                onClick={() => handleOpenDemoDialog(true)}
-                disabled={actionLoading}
-                sx={{
-                  borderRadius: 4,
-                  px: 6,
-                  py: 2,
-                  fontWeight: 700,
-                  fontSize: "1rem",
-                  bgcolor: "#f59e0b",
-                  color: "white",
-                  letterSpacing: "-0.015em",
-                  "&:hover": {
-                    bgcolor: "#d97706",
-                    transform: "translateY(-1px)",
-                    boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
-                  },
-                  transition: "all 0.2s ease-in-out",
-                }}
-              >
-                Cập nhật Demo
-              </Button>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="contained"
+                  onClick={() => handleOpenDemoDialog(true)}
+                  disabled={actionLoading}
+                  sx={{
+                    borderRadius: 4,
+                    px: 4,
+                    py: 1.5,
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    bgcolor: "#f59e0b",
+                    color: "white",
+                    letterSpacing: "-0.015em",
+                    "&:hover": {
+                      bgcolor: "#d97706",
+                      transform: "translateY(-1px)",
+                      boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1)",
+                    },
+                    transition: "all 0.2s ease-in-out",
+                  }}
+                >
+                  Cập nhật Demo
+                </Button>
+
+              </Stack>
             )}
 
             {selectedRequest && selectedRequest.status === "FULLY_PAID" && (
@@ -2742,6 +2880,357 @@ const DesignRequests = () => {
           </Typography>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog cập nhật demo */}
+      <Dialog
+        open={openUpdateDemoDialog}
+        onClose={handleCloseUpdateDemoDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Cập nhật demo thiết kế
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Bạn có thể cập nhật mô tả, hình ảnh chính và hình ảnh phụ của demo hiện tại.
+          </Typography>
+
+          {/* Mô tả demo */}
+          <TextField
+            label="Mô tả demo"
+            name="designerDescription"
+            value={updateDemoForm.designerDescription}
+            onChange={(e) => setUpdateDemoForm(prev => ({
+              ...prev,
+              designerDescription: e.target.value
+            }))}
+            fullWidth
+            margin="normal"
+            multiline
+            minRows={2}
+          />
+
+          {/* Ảnh demo chính */}
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+            Ảnh demo chính
+          </Typography>
+
+          {/* Hiển thị ảnh demo chính hiện tại */}
+          {!updateDemoForm.customDesignImage && mainDemoS3Url && latestDemo?.demoImage && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                Ảnh demo chính hiện tại:
+              </Typography>
+              <Box
+                sx={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 2,
+                  p: 2,
+                  bgcolor: "#f8fafc",
+                  display: "inline-block",
+                }}
+              >
+                {mainDemoS3Url ? (
+                  <img
+                    src={mainDemoS3Url}
+                    alt="Current demo"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: 200,
+                      borderRadius: 8,
+                      objectFit: "contain",
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      width: 200,
+                      height: 200,
+                      bgcolor: "#f3f4f6",
+                      borderRadius: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "1px dashed #d1d5db",
+                    }}
+                  >
+                    <CircularProgress size={30} />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          )}
+
+          {/* Dropzone cho ảnh chính mới */}
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+            Chọn ảnh mới để thay thế (tùy chọn):
+          </Typography>
+          <Box
+            {...updateMainImageDropzone.getRootProps()}
+            sx={{
+              border: "2px dashed #f59e0b",
+              borderRadius: 2,
+              p: 3,
+              textAlign: "center",
+              cursor: "pointer",
+              bgcolor: updateMainImageDropzone.isDragActive
+                ? "#fef3c7"
+                : "transparent",
+              transition: "all 0.2s",
+              "&:hover": { bgcolor: "#fef3c7" },
+              mb: 2,
+            }}
+          >
+            <input {...updateMainImageDropzone.getInputProps()} />
+            {updateDemoForm.customDesignImage ? (
+              <Box>
+                <img
+                  src={URL.createObjectURL(updateDemoForm.customDesignImage)}
+                  alt="Updated demo"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: 200,
+                    borderRadius: 8,
+                    objectFit: "contain",
+                  }}
+                />
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {updateDemoForm.customDesignImage.name}
+                </Typography>
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setUpdateDemoForm((prev) => ({
+                      ...prev,
+                      customDesignImage: null,
+                    }));
+                  }}
+                  sx={{ mt: 1 }}
+                >
+                  Xóa ảnh
+                </Button>
+              </Box>
+            ) : (
+              <Box>
+                <Typography variant="body1" color="primary">
+                  {updateMainImageDropzone.isDragActive
+                    ? "Thả ảnh vào đây..."
+                    : "Kéo thả ảnh hoặc click để chọn (tùy chọn)"}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Chỉ hỗ trợ file ảnh (JPG, PNG, GIF, BMP, WEBP)
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Hình ảnh chi tiết Demo */}
+          <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>
+            Hình ảnh chi tiết Demo
+          </Typography>
+
+          {/* Hiển thị sub-images hiện tại */}
+          {demoSubImages && demoSubImages.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                Sub-images hiện tại ({demoSubImages.filter(subImage => !updateDemoForm.subImagesToRemove.includes(subImage.id)).length} ảnh):
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {demoSubImages
+                  .filter(subImage => !updateDemoForm.subImagesToRemove.includes(subImage.id))
+                  .map((subImage) => (
+                  <Box
+                    key={subImage.id}
+                    sx={{
+                      position: "relative",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 1,
+                      p: 0.5,
+                      bgcolor: "white",
+                    }}
+                  >
+                    {s3ImageUrls[subImage.id] ? (
+                      <img
+                        src={s3ImageUrls[subImage.id]}
+                        alt={`Sub image ${subImage.id}`}
+                        style={{
+                          width: 80,
+                          height: 80,
+                          objectFit: "cover",
+                          borderRadius: 4,
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          bgcolor: "#f3f4f6",
+                          borderRadius: 4,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px dashed #d1d5db",
+                        }}
+                      >
+                        <CircularProgress size={20} />
+                      </Box>
+                    )}
+                    {/* Nút xóa sub-image */}
+                    <IconButton
+                      size="small"
+                      disabled={updateDemoForm.subImages.length === 0}
+                      sx={{
+                        position: "absolute",
+                        top: -8,
+                        right: -8,
+                        bgcolor: updateDemoForm.subImages.length === 0 ? "#9ca3af" : "error.main",
+                        color: "white",
+                        "&:hover": { 
+                          bgcolor: updateDemoForm.subImages.length === 0 ? "#9ca3af" : "error.dark" 
+                        },
+                        width: 24,
+                        height: 24,
+                        cursor: updateDemoForm.subImages.length === 0 ? "not-allowed" : "pointer",
+                      }}
+                      onClick={() => handleRemoveCurrentSubImage(subImage.id)}
+                      title={updateDemoForm.subImages.length === 0 ? "Phải thêm ít nhất một sub-image mới để có thể xóa" : "Xóa sub-image này"}
+                    >
+                      <DeleteIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: "block" }}>
+                Lưu ý: Nút X sẽ bị disable (màu xám) khi không có sub-images mới nào. Để xóa sub-images hiện tại, bạn phải thêm ít nhất một sub-image mới để thay thế.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Dropzone cho sub-images mới */}
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+            Chọn ảnh mới để thêm vào (tùy chọn):
+          </Typography>
+          <Box
+            {...updateSubImagesDropzone.getRootProps()}
+            sx={{
+              border: "2px dashed #f59e0b",
+              borderRadius: 2,
+              p: 3,
+              textAlign: "center",
+              cursor: "pointer",
+              bgcolor: updateSubImagesDropzone.isDragActive
+                ? "#fef3c7"
+                : "transparent",
+              transition: "all 0.2s",
+              "&:hover": { bgcolor: "#fef3c7" },
+              mb: 2,
+            }}
+          >
+            <input {...updateSubImagesDropzone.getInputProps()} />
+            <Typography variant="body1" color="textSecondary">
+              {updateSubImagesDropzone.isDragActive
+                ? "Thả ảnh vào đây..."
+                : "Kéo thả nhiều ảnh hoặc click để chọn (tùy chọn)"}
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Có thể chọn nhiều ảnh cùng lúc
+            </Typography>
+          </Box>
+
+          {/* Hiển thị danh sách sub-images sẽ được lưu */}
+          {updateDemoForm.subImages.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Sub-images mới sẽ được lưu ({updateDemoForm.subImages.length} ảnh):
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {/* Hiển thị sub-images mới */}
+                {updateDemoForm.subImages.map((file, index) => (
+                  <Box
+                    key={`new-${index}`}
+                    sx={{
+                      position: "relative",
+                      border: "1px solid #f59e0b",
+                      borderRadius: 1,
+                      p: 0.5,
+                      bgcolor: "#fffbeb",
+                    }}
+                  >
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`New sub image ${index + 1}`}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                      }}
+                    />
+                    <IconButton
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        top: -8,
+                        right: -8,
+                        bgcolor: "error.main",
+                        color: "white",
+                        "&:hover": { bgcolor: "error.dark" },
+                        width: 24,
+                        height: 24,
+                      }}
+                      onClick={() => handleRemoveUpdateSubImage(index)}
+                    >
+                      <DeleteIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                    <Typography variant="caption" sx={{ 
+                      position: "absolute", 
+                      bottom: -20, 
+                      left: 0, 
+                      right: 0, 
+                      textAlign: "center",
+                      fontSize: "10px",
+                      color: "#d97706"
+                    }}>
+                      Mới
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {updateDemoError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {updateDemoError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUpdateDemoDialog} disabled={actionLoading}>
+            Hủy
+          </Button>
+          <Button
+            onClick={handleUpdateDemo}
+            variant="contained"
+            color="primary"
+            disabled={actionLoading}
+          >
+            {actionLoading ? "Đang cập nhật..." : "CẬP NHẬT"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
 
       <Snackbar
         open={notification.open}
