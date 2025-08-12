@@ -620,836 +620,709 @@ const CostTypeManager = () => {
 
   // Render product type selection step
   const renderProductTypeSelection = () => (
-    <>
-      <Typography
-        variant="h6"
-        sx={{ mb: 3, color: "#2e7d32", textAlign: "center" }}
-      >
-        Chọn loại sản phẩm để tạo chi phí
-      </Typography>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center">
+        <Typography
+          variant="h5"
+          className="!font-bold !text-gray-800 !mb-2"
+        >
+          🏷️ Chọn loại sản phẩm
+        </Typography>
+        <Typography
+          variant="body1"
+          className="!text-gray-600"
+        >
+          Lựa chọn loại sản phẩm để tạo chi phí tương ứng
+        </Typography>
+      </div>
 
-      <TextField
-        fullWidth
-        placeholder="Tìm kiếm loại sản phẩm..."
-        value={productTypeSearchTerm}
-        onChange={(e) => setProductTypeSearchTerm(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mb: 3 }}
-      />
+      {/* Search Field */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <SearchIcon className="!text-gray-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="Tìm kiếm loại sản phẩm..."
+          value={productTypeSearchTerm}
+          onChange={(e) => setProductTypeSearchTerm(e.target.value)}
+          className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-700 placeholder-gray-400"
+        />
+      </div>
 
-      <Paper
-        sx={{ maxHeight: 400, overflow: "auto", border: "1px solid #e0e0e0" }}
-      >
-        {productTypesStatus === "loading" ? (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-            <CircularProgress size={40} />
-            <Typography variant="body2" sx={{ ml: 2 }}>
-              Đang tải danh sách loại sản phẩm...
-            </Typography>
-          </Box>
-        ) : (
-          <List>
-            {filteredProductTypes.length === 0 ? (
-              <ListItem>
-                <ListItemText
-                  primary="Không tìm thấy loại sản phẩm nào"
-                  sx={{ textAlign: "center", color: "text.secondary" }}
-                />
-              </ListItem>
-            ) : (
-              filteredProductTypes.map((productType) => (
-                <ListItem key={productType.id} disablePadding>
-                  <ListItemButton
-                    selected={selectedProductType?.id === productType.id}
-                    onClick={() => handleProductTypeSelect(productType)}
-                    sx={{
-                      "&.Mui-selected": {
-                        backgroundColor: "rgba(46, 125, 50, 0.12)",
-                        "&:hover": {
-                          backgroundColor: "rgba(46, 125, 50, 0.2)",
-                        },
-                      },
-                      "&:hover": {
-                        backgroundColor: "rgba(46, 125, 50, 0.08)",
-                      },
-                    }}
-                  >
-                    <Checkbox
-                      checked={selectedProductType?.id === productType.id}
-                      sx={{ mr: 2 }}
-                    />
-                    <Avatar
-                      sx={{ mr: 2, bgcolor: "#2e7d32", width: 50, height: 50 }}
-                    >
-                      {productType.name.charAt(0)}
-                    </Avatar>
-                    <ListItemText
-                      primary={
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                          {productType.name}
-                        </Typography>
-                      }
-                      secondary={
-                        <Typography variant="body2" color="text.secondary">
-                          {productType.description || "Không có mô tả"}
-                        </Typography>
-                      }
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))
-            )}
-          </List>
-        )}
-      </Paper>
+      {/* Product Types List */}
+      <div className="border-2 border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+        <div className="max-h-96 overflow-y-auto">
+          {productTypesStatus === "loading" ? (
+            <div className="flex items-center justify-center p-12">
+              <CircularProgress size={32} className="text-emerald-600" />
+              <Typography variant="body2" className="!ml-3 !text-gray-600">
+                Đang tải danh sách loại sản phẩm...
+              </Typography>
+            </div>
+          ) : filteredProductTypes.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <SearchIcon className="!text-gray-400 !text-2xl" />
+              </div>
+              <Typography variant="h6" className="!text-gray-500 !mb-2">
+                Không tìm thấy loại sản phẩm
+              </Typography>
+              <Typography variant="body2" className="!text-gray-400">
+                Thử thay đổi từ khóa tìm kiếm
+              </Typography>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {filteredProductTypes.map((productType) => (
+                <div
+                  key={productType.id}
+                  onClick={() => handleProductTypeSelect(productType)}
+                  className={`p-4 cursor-pointer transition-all duration-200 hover:bg-emerald-50 ${
+                    selectedProductType?.id === productType.id
+                      ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-r-4 border-emerald-500'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-4">
+                    {/* Checkbox */}
+                    <div className="flex-shrink-0">
+                      <div className={`w-5 h-5 rounded border-2 transition-all duration-200 flex items-center justify-center ${
+                        selectedProductType?.id === productType.id
+                          ? 'bg-emerald-500 border-emerald-500'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedProductType?.id === productType.id && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
 
+                    {/* Avatar */}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-lg ${
+                      selectedProductType?.id === productType.id
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-lg'
+                        : 'bg-gradient-to-r from-gray-400 to-gray-500'
+                    }`}>
+                      {productType.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <Typography 
+                        variant="h6" 
+                        className={`!font-semibold !mb-1 ${
+                          selectedProductType?.id === productType.id
+                            ? '!text-emerald-700'
+                            : '!text-gray-800'
+                        }`}
+                      >
+                        {productType.name}
+                      </Typography>
+                      <Typography 
+                        variant="body2" 
+                        className="!text-gray-500 !leading-relaxed"
+                      >
+                        {productType.description || "Chưa có mô tả"}
+                      </Typography>
+                    </div>
+
+                    {/* Selection indicator */}
+                    {selectedProductType?.id === productType.id && (
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Success Message */}
       {selectedProductType && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          <Typography variant="body2">
-            ✓ Đã chọn: <strong>{selectedProductType.name}</strong>
-          </Typography>
-        </Alert>
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-400 p-4 rounded-r-xl">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <Typography variant="body1" className="!font-semibold !text-emerald-800">
+                Đã chọn loại sản phẩm
+              </Typography>
+              <Typography variant="body2" className="!text-emerald-600">
+                <strong>{selectedProductType.name}</strong> - Sẵn sàng để tiếp tục
+              </Typography>
+            </div>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 
   // Render cost type form step
   const renderCostTypeForm = () => (
-    <>
+    <div className="space-y-6">
+      {/* Product Type Info Banner */}
       {selectedProductType && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            Tạo chi phí cho loại sản phẩm:{" "}
-            <strong>{selectedProductType.name}</strong>
-          </Typography>
-        </Alert>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 p-4 rounded-r-xl">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <Typography variant="body1" className="!font-semibold !text-blue-800">
+                Tạo chi phí cho loại sản phẩm
+              </Typography>
+              <Typography variant="body2" className="!text-blue-600">
+                <strong>{selectedProductType.name}</strong>
+              </Typography>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Hiển thị lỗi submit */}
+      {/* Submit Error */}
       {validationErrors.submit && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {validationErrors.submit}
-        </Alert>
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-xl">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <Typography variant="body2" className="!text-red-800">
+              {validationErrors.submit}
+            </Typography>
+          </div>
+        </div>
       )}
 
-      <Grid container spacing={3}>
+      {/* Form Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Tên loại chi phí */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Tên loại chi phí"
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-gray-700">
+            Tên loại chi phí <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
             name="name"
             value={newCostType.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
-            required
-            error={!!validationErrors.name}
-            helperText={validationErrors.name}
-            inputProps={{ maxLength: 100 }}
+            maxLength={100}
+            className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-emerald-200 transition-all duration-200 ${
+              validationErrors.name 
+                ? 'border-red-300 focus:border-red-500' 
+                : 'border-gray-200 focus:border-emerald-500'
+            }`}
+            placeholder="Nhập tên loại chi phí"
           />
-        </Grid>
+          {validationErrors.name && (
+            <Typography variant="caption" className="!text-red-500">
+              {validationErrors.name}
+            </Typography>
+          )}
+        </div>
 
         {/* Độ ưu tiên */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Độ ưu tiên"
-            name="priority"
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-gray-700">
+            Độ ưu tiên <span className="text-red-500">*</span>
+          </label>
+          <input
             type="number"
+            name="priority"
             value={newCostType.priority}
-            onChange={(e) =>
-              handleInputChange("priority", parseInt(e.target.value) || 0)
-            }
-            required
-            error={!!validationErrors.priority}
-            helperText={validationErrors.priority || "Từ 1 đến 999"}
-            inputProps={{ min: 1, max: 999 }}
+            onChange={(e) => handleInputChange("priority", parseInt(e.target.value) || 0)}
+            min={1}
+            max={999}
+            className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-emerald-200 transition-all duration-200 ${
+              validationErrors.priority 
+                ? 'border-red-300 focus:border-red-500' 
+                : 'border-gray-200 focus:border-emerald-500'
+            }`}
+            placeholder="1-999"
           />
-        </Grid>
+          <Typography variant="caption" className={validationErrors.priority ? "!text-red-500" : "!text-gray-500"}>
+            {validationErrors.priority || "Từ 1 đến 999"}
+          </Typography>
+        </div>
+      </div>
 
-        {/* Mô tả */}
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Mô tả"
-            name="description"
-            multiline
-            rows={3}
-            value={newCostType.description}
-            onChange={(e) => handleInputChange("description", e.target.value)}
-            required
-            error={!!validationErrors.description}
-            helperText={
-              validationErrors.description ||
-              `${newCostType.description.length}/500 ký tự`
-            }
-            inputProps={{ maxLength: 500 }}
-          />
-        </Grid>
+      {/* Mô tả - Full width */}
+      <div className="space-y-2">
+        <label className="block text-sm font-semibold text-gray-700">
+          Mô tả <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          name="description"
+          value={newCostType.description}
+          onChange={(e) => handleInputChange("description", e.target.value)}
+          rows={3}
+          maxLength={500}
+          className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-emerald-200 transition-all duration-200 resize-none ${
+            validationErrors.description 
+              ? 'border-red-300 focus:border-red-500' 
+              : 'border-gray-200 focus:border-emerald-500'
+          }`}
+          placeholder="Nhập mô tả cho loại chi phí"
+        />
+        <div className="flex justify-between items-center">
+          {validationErrors.description ? (
+            <Typography variant="caption" className="!text-red-500">
+              {validationErrors.description}
+            </Typography>
+          ) : (
+            <span></span>
+          )}
+          <Typography variant="caption" className="!text-gray-500">
+            {newCostType.description.length}/500 ký tự
+          </Typography>
+        </div>
+      </div>
 
-        {/* Chi phí cốt lõi - Đặt trước công thức */}
-        <Grid item xs={12} sm={6}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={newCostType.isCore}
-                onChange={(e) => handleInputChange("isCore", e.target.checked)}
-                color="warning"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>
+      {/* Toggle Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Chi phí cốt lõi */}
+        <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+          newCostType.isCore 
+            ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200' 
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                newCostType.isCore ? 'bg-orange-100' : 'bg-gray-200'
+              }`}>
+                {newCostType.isCore ? '🎯' : '📊'}
+              </div>
+              <div>
+                <Typography variant="body1" className="!font-semibold !text-gray-800">
                   Chi phí cốt lõi
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" className="!text-gray-600">
                   {newCostType.isCore
                     ? "Sử dụng thuộc tính & kích thước"
                     : "Sử dụng các loại chi phí hiện có"}
                 </Typography>
-              </Box>
-            }
-          />
-        </Grid>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleInputChange("isCore", !newCostType.isCore)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                newCostType.isCore ? 'bg-orange-500' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                newCostType.isCore ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+        </div>
 
         {/* Đang hoạt động */}
-        <Grid item xs={12} sm={6}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={newCostType.isAvailable}
-                onChange={(e) =>
-                  handleInputChange("isAvailable", e.target.checked)
-                }
-              />
-            }
-            label="Đang hoạt động"
-          />
-        </Grid>
-
-        {/* Công thức tính */}
-        <Grid item xs={12}>
-          <Box>
-            <Typography
-              variant="subtitle1"
-              fontWeight="500"
-              sx={{ mb: 1, color: "text.primary" }}
+        <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+          newCostType.isAvailable 
+            ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-emerald-200' 
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                newCostType.isAvailable ? 'bg-emerald-100' : 'bg-gray-200'
+              }`}>
+                {newCostType.isAvailable ? '✅' : '⏸️'}
+              </div>
+              <div>
+                <Typography variant="body1" className="!font-semibold !text-gray-800">
+                  Đang hoạt động
+                </Typography>
+                <Typography variant="caption" className="!text-gray-600">
+                  {newCostType.isAvailable ? "Sẵn sàng sử dụng" : "Tạm dừng hoạt động"}
+                </Typography>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleInputChange("isAvailable", !newCostType.isAvailable)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                newCostType.isAvailable ? 'bg-emerald-500' : 'bg-gray-300'
+              }`}
             >
-              Công thức tính toán *
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                newCostType.isAvailable ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Công thức tính */}
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-gray-700">
+          Công thức tính toán <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          ref={formulaRef}
+          name="formula"
+          value={newCostType.formula}
+          onChange={(e) => handleInputChange("formula", e.target.value)}
+          rows={4}
+          className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-emerald-200 transition-all duration-200 font-mono text-sm resize-none ${
+            validationErrors.formula 
+              ? 'border-red-300 focus:border-red-500' 
+              : 'border-gray-200 focus:border-emerald-500'
+          }`}
+          placeholder="Nhập công thức tính toán"
+        />
+        <div className="text-sm text-gray-600">
+          {validationErrors.formula ? (
+            <Typography variant="caption" className="!text-red-500">
+              {validationErrors.formula}
             </Typography>
-            <TextField
-              name="formula"
-              value={newCostType.formula}
-              onChange={(e) => handleInputChange("formula", e.target.value)}
-              inputRef={formulaRef}
-              fullWidth
-              multiline
-              rows={3}
-              variant="outlined"
-              placeholder="Nhập công thức tính toán"
-              required
-              error={!!validationErrors.formula}
-              InputProps={{
-                sx: {
-                  borderRadius: 1.5,
-                  fontFamily: "monospace",
-                  fontSize: "1rem",
-                },
-              }}
-              helperText={
-                validationErrors.formula ||
-                (newCostType.isCore
-                  ? "Chi phí cốt lõi: Sử dụng thuộc tính và kích thước để tạo công thức"
-                  : "Chi phí thường: Sử dụng các loại chi phí hiện có của loại sản phẩm này")
-              }
-              FormHelperTextProps={{
-                sx: {
-                  fontSize: "0.75rem",
-                  color: validationErrors.formula
-                    ? "error.main"
-                    : "text.secondary",
-                  mt: 0.5,
-                },
-              }}
-            />
-          </Box>
-        </Grid>
+          ) : (
+            <Typography variant="caption" className="!text-gray-600">
+              {newCostType.isCore
+                ? "Chi phí cốt lõi: Sử dụng thuộc tính và kích thước để tạo công thức"
+                : "Chi phí thường: Sử dụng các loại chi phí hiện có của loại sản phẩm này"}
+            </Typography>
+          )}
+        </div>
+      </div>
 
-        {/* Công cụ hỗ trợ */}
-        <Grid item xs={12}>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              flexWrap: "wrap",
-              p: 2,
-              borderRadius: 2,
-              bgcolor: newCostType.isCore ? "#fff3e0" : "#f3e5f5",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1.5,
-                alignItems: "center",
-                flexWrap: "wrap",
-                flex: 1,
+      {/* Công cụ hỗ trợ */}
+      <div className={`p-4 rounded-2xl border-2 ${
+        newCostType.isCore ? 'bg-orange-50 border-orange-200' : 'bg-purple-50 border-purple-200'
+      }`}>
+        <div className="flex flex-wrap gap-3">
+          <Typography variant="body2" className="!font-semibold !text-gray-700 w-full mb-2">
+            🛠️ Công cụ hỗ trợ:
+          </Typography>
+
+          {/* Nút chọn thuộc tính (cho isCore = true) */}
+          {newCostType.isCore && (
+            <button
+              type="button"
+              onClick={() => setShowAttributes(!showAttributes)}
+              className={`px-4 py-2 rounded-xl border-2 transition-all duration-200 flex items-center gap-2 ${
+                showAttributes
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50'
+              }`}
+            >
+              {showAttributes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />}
+              {showAttributes ? "Ẩn thuộc tính" : "Chọn thuộc tính"}
+            </button>
+          )}
+
+          {/* Nút chọn kích thước (cho isCore = true) */}
+          {newCostType.isCore && (
+            <button
+              type="button"
+              onClick={() => setShowSizes(!showSizes)}
+              className={`px-4 py-2 rounded-xl border-2 transition-all duration-200 flex items-center gap-2 ${
+                showSizes
+                  ? 'bg-purple-100 border-purple-300 text-purple-700'
+                  : 'bg-white border-purple-200 text-purple-600 hover:bg-purple-50'
+              }`}
+            >
+              {showSizes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />}
+              {showSizes ? "Ẩn kích thước" : "Xem kích thước"}
+            </button>
+          )}
+
+          {/* Nút chọn loại chi phí (cho isCore = false) */}
+          {!newCostType.isCore && (
+            <button
+              type="button"
+              onClick={() => setShowAttributes(!showAttributes)}
+              className={`px-4 py-2 rounded-xl border-2 transition-all duration-200 flex items-center gap-2 ${
+                showAttributes
+                  ? 'bg-orange-100 border-orange-300 text-orange-700'
+                  : 'bg-white border-orange-200 text-orange-600 hover:bg-orange-50'
+              }`}
+            >
+              {showAttributes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />}
+              {showAttributes ? "Ẩn loại chi phí" : "Chọn loại chi phí"}
+            </button>
+          )}
+
+          {/* Dropdown phép tính */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              className="px-4 py-2 bg-white border-2 border-cyan-200 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-all duration-200 flex items-center gap-2"
+            >
+              Phép tính
+              <ArrowDropDownIcon />
+            </button>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+              PaperProps={{
+                className: "!shadow-2xl !border !border-gray-100 !rounded-2xl !mt-2"
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                fontWeight="500"
-              >
-                Công cụ hỗ trợ:
-              </Typography>
-
-              {/* Nút chọn thuộc tính (cho isCore = true) */}
-              {newCostType.isCore && (
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => setShowAttributes(!showAttributes)}
-                  startIcon={
-                    showAttributes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />
-                  }
-                  sx={{
-                    borderRadius: 1.5,
-                    textTransform: "none",
-                    fontWeight: 500,
-                    boxShadow: showAttributes
-                      ? "0 2px 5px rgba(0,0,0,0.08)"
-                      : "none",
-                    bgcolor: showAttributes
-                      ? "rgba(25, 118, 210, 0.04)"
-                      : "transparent",
+              {[
+                { symbol: '+', name: 'Cộng' },
+                { symbol: '-', name: 'Trừ' },
+                { symbol: '*', name: 'Nhân' },
+                { symbol: '/', name: 'Chia' },
+                { symbol: '(', name: '(' },
+                { symbol: ')', name: ')' }
+              ].map((op, index) => (
+                <MenuItem
+                  key={op.symbol}
+                  onClick={() => {
+                    insertOperator(op.symbol);
+                    setAnchorEl(null);
                   }}
+                  className={`${index === 4 ? '!border-t !border-gray-200 !mt-1 !pt-2' : ''}`}
                 >
-                  {showAttributes ? "Ẩn thuộc tính" : "Chọn thuộc tính"}
-                </Button>
+                  <Typography className="!font-mono !font-bold">
+                    {op.symbol} {op.name && `(${op.name})`}
+                  </Typography>
+                </MenuItem>
+              ))}
+            </Menu>
+          </div>
+        </div>
+      </div>
+
+      {/* Danh sách thuộc tính (cho isCore = true) */}
+      {newCostType.isCore && (
+        <div className={`overflow-hidden transition-all duration-300 ${showAttributes ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="border-2 border-blue-100 rounded-2xl bg-blue-50">
+            <div className="max-h-64 overflow-y-auto">
+              {attributeStatus === "loading" && (
+                <div className="flex items-center justify-center p-8">
+                  <CircularProgress size={24} className="text-blue-600 mr-2" />
+                  <Typography variant="body2" className="!text-blue-700">
+                    Đang tải thuộc tính...
+                  </Typography>
+                </div>
               )}
 
-              {/* Nút chọn kích thước (cho isCore = true) */}
-              {newCostType.isCore && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => setShowSizes(!showSizes)}
-                  startIcon={
-                    showSizes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />
-                  }
-                  sx={{
-                    borderRadius: 1.5,
-                    textTransform: "none",
-                    fontWeight: 500,
-                    boxShadow: showSizes
-                      ? "0 2px 5px rgba(0,0,0,0.08)"
-                      : "none",
-                    bgcolor: showSizes
-                      ? "rgba(156, 39, 176, 0.04)"
-                      : "transparent",
-                  }}
-                >
-                  {showSizes ? "Ẩn kích thước" : "Xem kích thước"}
-                </Button>
-              )}
-
-              {/* Nút chọn loại chi phí (cho isCore = false) */}
-              {!newCostType.isCore && (
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  onClick={() => setShowAttributes(!showAttributes)}
-                  startIcon={
-                    showAttributes ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />
-                  }
-                  sx={{
-                    borderRadius: 1.5,
-                    textTransform: "none",
-                    fontWeight: 500,
-                    boxShadow: showAttributes
-                      ? "0 2px 5px rgba(0,0,0,0.08)"
-                      : "none",
-                    bgcolor: showAttributes
-                      ? "rgba(255, 152, 0, 0.04)"
-                      : "transparent",
-                  }}
-                >
-                  {showAttributes ? "Ẩn loại chi phí" : "Chọn loại chi phí"}
-                </Button>
-              )}
-
-              {/* Dropdown phép tính */}
-              <Box sx={{ position: "relative" }}>
-                <Button
-                  variant="outlined"
-                  size="medium"
-                  color="info"
-                  endIcon={<ArrowDropDownIcon />}
-                  onClick={(e) => setAnchorEl(e.currentTarget)}
-                  sx={{
-                    borderRadius: 1.5,
-                    textTransform: "none",
-                    fontWeight: 500,
-                  }}
-                >
-                  Phép tính
-                </Button>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={() => setAnchorEl(null)}
-                  PaperProps={{
-                    sx: {
-                      boxShadow: "0px 5px 15px rgba(0,0,0,0.08)",
-                      borderRadius: 2,
-                      width: 180,
-                    },
-                  }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      insertOperator("+");
-                      setAnchorEl(null);
-                    }}
-                    sx={{ py: 1 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                    >
-                      + (Cộng)
-                    </Typography>
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      insertOperator("-");
-                      setAnchorEl(null);
-                    }}
-                    sx={{ py: 1 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                    >
-                      - (Trừ)
-                    </Typography>
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      insertOperator("*");
-                      setAnchorEl(null);
-                    }}
-                    sx={{ py: 1 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                    >
-                      * (Nhân)
-                    </Typography>
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      insertOperator("/");
-                      setAnchorEl(null);
-                    }}
-                    sx={{ py: 1 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                    >
-                      / (Chia)
-                    </Typography>
-                  </MenuItem>
-                  <Divider />
-                  <MenuItem
-                    onClick={() => {
-                      insertOperator("(");
-                      setAnchorEl(null);
-                    }}
-                    sx={{ py: 1 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                    >
-                      (
-                    </Typography>
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      insertOperator(")");
-                      setAnchorEl(null);
-                    }}
-                    sx={{ py: 1 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                    >
-                      )
-                    </Typography>
-                  </MenuItem>
-                </Menu>
-              </Box>
-            </Box>
-          </Box>
-        </Grid>
-
-        {/* Danh sách thuộc tính (cho isCore = true) */}
-        {newCostType.isCore && (
-          <Grid item xs={12}>
-            <Collapse in={showAttributes} sx={{ width: "100%" }}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  maxHeight: 250,
-                  overflow: "auto",
-                  border: "1px solid rgba(0, 0, 0, 0.12)",
-                  borderRadius: 2,
-                }}
-              >
-                {attributeStatus === "loading" && (
-                  <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    py={3}
-                  >
-                    <CircularProgress size={24} sx={{ mr: 1 }} />
-                    <Typography variant="body2">
-                      Đang tải thuộc tính...
-                    </Typography>
-                  </Box>
-                )}
-
-                {attributeStatus === "failed" && (
-                  <Box p={3}>
-                    <Alert severity="error" sx={{ borderRadius: 1.5 }}>
+              {attributeStatus === "failed" && (
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                    <Typography variant="body2" className="!text-red-600">
                       Không thể tải thuộc tính
-                    </Alert>
-                  </Box>
-                )}
-
-                {attributeStatus === "succeeded" && attributes.length === 0 && (
-                  <Box p={3} textAlign="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Không có thuộc tính cho loại biển hiệu này
                     </Typography>
-                  </Box>
-                )}
+                  </div>
+                </div>
+              )}
 
-                {attributeStatus === "succeeded" && attributes.length > 0 && (
-                  <List>
-                    {attributes.map((attribute) => (
-                      <ListItem
-                        key={attribute.id}
-                        component="div"
-                        divider
-                        onClick={() => insertAttributeToFormula(attribute)}
-                        sx={{
-                          "&:hover": {
-                            bgcolor: "rgba(25, 118, 210, 0.04)",
-                            cursor: "pointer",
-                          },
-                          py: 1.5,
-                        }}
-                      >
-                        <ListItemText
-                          primary={attribute.name}
-                          primaryTypographyProps={{
-                            fontWeight: "500",
-                            variant: "body1",
-                          }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </Paper>
-            </Collapse>
-          </Grid>
-        )}
+              {attributeStatus === "succeeded" && attributes.length === 0 && (
+                <div className="p-8 text-center">
+                  <Typography variant="body2" className="!text-blue-600">
+                    Không có thuộc tính cho loại biển hiệu này
+                  </Typography>
+                </div>
+              )}
 
-        {/* Danh sách kích thước (cho isCore = true) */}
-        {newCostType.isCore && (
-          <Grid item xs={12}>
-            <Collapse in={showSizes} sx={{ width: "100%" }}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  maxHeight: 250,
-                  overflow: "auto",
-                  border: "1px solid rgba(0, 0, 0, 0.12)",
-                  borderRadius: 2,
-                }}
-              >
-                {sizesStatus === "loading" && (
-                  <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    py={3}
-                  >
-                    <CircularProgress
-                      size={24}
-                      sx={{ mr: 1 }}
-                      color="secondary"
-                    />
-                    <Typography variant="body2">
-                      Đang tải kích thước...
-                    </Typography>
-                  </Box>
-                )}
+              {attributeStatus === "succeeded" && attributes.length > 0 && (
+                <div className="divide-y divide-blue-100">
+                  {attributes.map((attribute) => (
+                    <div
+                      key={attribute.id}
+                      onClick={() => insertAttributeToFormula(attribute)}
+                      className="p-4 cursor-pointer hover:bg-blue-100 transition-colors duration-200"
+                    >
+                      <Typography className="!font-medium !text-blue-800">
+                        {attribute.name}
+                      </Typography>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-                {sizesStatus === "failed" && (
-                  <Box p={3}>
-                    <Alert severity="error" sx={{ borderRadius: 1.5 }}>
+      {/* Danh sách kích thước (cho isCore = true) */}
+      {newCostType.isCore && (
+        <div className={`overflow-hidden transition-all duration-300 ${showSizes ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="border-2 border-purple-100 rounded-2xl bg-purple-50">
+            <div className="max-h-64 overflow-y-auto">
+              {sizesStatus === "loading" && (
+                <div className="flex items-center justify-center p-8">
+                  <CircularProgress size={24} className="text-purple-600 mr-2" />
+                  <Typography variant="body2" className="!text-purple-700">
+                    Đang tải kích thước...
+                  </Typography>
+                </div>
+              )}
+
+              {sizesStatus === "failed" && (
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                    <Typography variant="body2" className="!text-red-600">
                       Không thể tải kích thước
-                    </Alert>
-                  </Box>
-                )}
-
-                {sizesStatus === "succeeded" &&
-                  productTypeSizes.length === 0 && (
-                    <Box p={3} textAlign="center">
-                      <Typography variant="body2" color="text.secondary">
-                        Không có kích thước nào cho loại biển hiệu này
-                      </Typography>
-                    </Box>
-                  )}
-
-                {sizesStatus === "succeeded" && productTypeSizes.length > 0 && (
-                  <List>
-                    {productTypeSizes.map((sizeItem) => {
-                      const sizeData = sizeItem.sizes || {};
-                      return (
-                        <ListItem
-                          key={sizeItem.id}
-                          component="div"
-                          divider
-                          onClick={() => insertSizeToFormula(sizeItem)}
-                          sx={{
-                            py: 1.5,
-                            "&:hover": {
-                              bgcolor: "rgba(156, 39, 176, 0.04)",
-                              cursor: "pointer",
-                            },
-                          }}
-                        >
-                          <ListItemText
-                            primary={sizeData.name || "Không xác định"}
-                            primaryTypographyProps={{
-                              fontWeight: "500",
-                              variant: "body1",
-                            }}
-                          />
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                )}
-              </Paper>
-            </Collapse>
-          </Grid>
-        )}
-
-        {/* Danh sách loại chi phí của product type (cho isCore = false) */}
-        {!newCostType.isCore && (
-          <Grid item xs={12}>
-            <Collapse in={showAttributes} sx={{ width: "100%" }}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  maxHeight: 250,
-                  overflow: "auto",
-                  border: "1px solid rgba(0, 0, 0, 0.12)",
-                  borderRadius: 2,
-                }}
-              >
-                {productTypeCostTypesStatus === "loading" && (
-                  <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    py={3}
-                  >
-                    <CircularProgress
-                      size={24}
-                      sx={{ mr: 1 }}
-                      color="warning"
-                    />
-                    <Typography variant="body2">
-                      Đang tải loại chi phí của {selectedProductType?.name}...
                     </Typography>
-                  </Box>
-                )}
+                  </div>
+                </div>
+              )}
 
-                {productTypeCostTypesStatus === "failed" && (
-                  <Box p={3}>
-                    <Alert severity="error" sx={{ borderRadius: 1.5 }}>
-                      Không thể tải loại chi phí: {productTypeCostTypesError}
-                    </Alert>
-                  </Box>
-                )}
+              {sizesStatus === "succeeded" && productTypeSizes.length === 0 && (
+                <div className="p-8 text-center">
+                  <Typography variant="body2" className="!text-purple-600">
+                    Không có kích thước nào cho loại biển hiệu này
+                  </Typography>
+                </div>
+              )}
 
-                {productTypeCostTypesStatus === "succeeded" &&
-                  productTypeCostTypes.length === 0 && (
-                    <Box p={3} textAlign="center">
-                      <Typography variant="body2" color="text.secondary">
-                        Chưa có loại chi phí nào cho loại sản phẩm{" "}
-                        <strong>{selectedProductType?.name}</strong>
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mt: 1, display: "block" }}
+              {sizesStatus === "succeeded" && productTypeSizes.length > 0 && (
+                <div className="divide-y divide-purple-100">
+                  {productTypeSizes.map((sizeItem) => {
+                    const sizeData = sizeItem.sizes || {};
+                    return (
+                      <div
+                        key={sizeItem.id}
+                        onClick={() => insertSizeToFormula(sizeItem)}
+                        className="p-4 cursor-pointer hover:bg-purple-100 transition-colors duration-200"
                       >
-                        Hãy tạo chi phí cốt lõi trước khi tạo chi phí thường
+                        <Typography className="!font-medium !text-purple-800">
+                          {sizeData.name || "Không xác định"}
+                        </Typography>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Danh sách loại chi phí của product type (cho isCore = false) */}
+      {!newCostType.isCore && (
+        <div className={`overflow-hidden transition-all duration-300 ${showAttributes ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="border-2 border-orange-100 rounded-2xl bg-orange-50">
+            <div className="max-h-64 overflow-y-auto">
+              {productTypeCostTypesStatus === "loading" && (
+                <div className="flex items-center justify-center p-8">
+                  <CircularProgress size={24} className="text-orange-600 mr-2" />
+                  <Typography variant="body2" className="!text-orange-700">
+                    Đang tải loại chi phí của {selectedProductType?.name}...
+                  </Typography>
+                </div>
+              )}
+
+              {productTypeCostTypesStatus === "failed" && (
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                    <Typography variant="body2" className="!text-red-600">
+                      Không thể tải loại chi phí: {productTypeCostTypesError}
+                    </Typography>
+                  </div>
+                </div>
+              )}
+
+              {productTypeCostTypesStatus === "succeeded" && productTypeCostTypes.length === 0 && (
+                <div className="p-8 text-center">
+                  <Typography variant="body2" className="!text-orange-600 !mb-2">
+                    Chưa có loại chi phí nào cho loại sản phẩm{" "}
+                    <strong>{selectedProductType?.name}</strong>
+                  </Typography>
+                  <Typography variant="caption" className="!text-orange-500">
+                    Hãy tạo chi phí cốt lõi trước khi tạo chi phí thường
+                  </Typography>
+                </div>
+              )}
+
+              {productTypeCostTypesStatus === "succeeded" && productTypeCostTypes.length > 0 && (
+                <div className="divide-y divide-orange-100">
+                  {productTypeCostTypes.map((costType) => (
+                    <div
+                      key={costType.id}
+                      onClick={() => insertCostTypeToFormula(costType)}
+                      className="p-4 cursor-pointer hover:bg-orange-100 transition-colors duration-200"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Typography className="!font-medium !text-orange-800">
+                          {costType.name}
+                        </Typography>
+                        {costType.isCore && (
+                          <span className="px-2 py-1 bg-orange-200 text-orange-700 text-xs rounded-full font-medium">
+                            Cốt lõi
+                          </span>
+                        )}
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                          Độ ưu tiên: {costType.priority}
+                        </span>
+                      </div>
+                      <Typography variant="caption" className="!text-orange-600 !block !mb-1">
+                        {costType.description || "Không có mô tả"}
                       </Typography>
-                    </Box>
-                  )}
+                      <Typography variant="caption" className="!text-orange-600 !font-mono !block">
+                        Công thức: {costType.formula || "Chưa có công thức"}
+                      </Typography>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-                {productTypeCostTypesStatus === "succeeded" &&
-                  productTypeCostTypes.length > 0 && (
-                    <List>
-                      {productTypeCostTypes.map((costType) => (
-                        <ListItem
-                          key={costType.id}
-                          component="div"
-                          divider
-                          onClick={() => insertCostTypeToFormula(costType)}
-                          sx={{
-                            "&:hover": {
-                              bgcolor: "rgba(255, 152, 0, 0.04)",
-                              cursor: "pointer",
-                            },
-                            py: 1.5,
-                          }}
-                        >
-                          <ListItemText
-                            primary={
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                }}
-                              >
-                                <Typography variant="body1" fontWeight="500">
-                                  {costType.name}
-                                </Typography>
-                                {costType.isCore && (
-                                  <Chip
-                                    label="Cốt lõi"
-                                    size="small"
-                                    color="warning"
-                                    variant="outlined"
-                                  />
-                                )}
-                                <Chip
-                                  label={`Độ ưu tiên: ${costType.priority}`}
-                                  size="small"
-                                  color="info"
-                                  variant="outlined"
-                                />
-                              </Box>
-                            }
-                            secondary={
-                              <Box sx={{ mt: 0.5 }}>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ display: "block" }}
-                                >
-                                  {costType.description || "Không có mô tả"}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{
-                                    fontFamily: "monospace",
-                                    mt: 0.5,
-                                    display: "block",
-                                  }}
-                                >
-                                  Công thức:{" "}
-                                  {costType.formula || "Chưa có công thức"}
-                                </Typography>
-                              </Box>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-              </Paper>
-            </Collapse>
-          </Grid>
-        )}
-
-        {/* Thông tin và ví dụ */}
-        <Grid item xs={12}>
-          <Box sx={{ mt: 1, bgcolor: "#f9fbe7", p: 2, borderRadius: 2 }}>
-            <Typography
-              component="div"
-              variant="subtitle2"
-              color="text.secondary"
-              sx={{ display: "flex", alignItems: "center", mb: 1 }}
-            >
-              <InfoOutlinedIcon sx={{ fontSize: 18, mr: 1 }} />
-              Ví dụ công thức
+      {/* Thông tin và ví dụ */}
+      <div className="bg-gradient-to-r from-lime-50 to-yellow-50 p-4 rounded-2xl border-2 border-lime-200">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 bg-lime-100 rounded-full flex items-center justify-center mt-1">
+            <InfoOutlinedIcon className="!text-lime-600 !text-lg" />
+          </div>
+          <div className="flex-1">
+            <Typography variant="subtitle2" className="!font-semibold !text-lime-800 !mb-3">
+              💡 Ví dụ công thức
             </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 1,
-                "& > span": {
-                  bgcolor: "rgba(0,0,0,0.04)",
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontFamily: "monospace",
-                  fontSize: "0.85rem",
-                },
-              }}
-            >
+            <div className="flex flex-wrap gap-2">
               {newCostType.isCore ? (
                 <>
-                  <Typography component="span" variant="caption">
+                  <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
                     #CAO * #RONG * #SOLUONG
-                  </Typography>
-                  <Typography component="span" variant="caption">
+                  </span>
+                  <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
                     (#CAO + #RONG) * 2 * #DONGIA
-                  </Typography>
+                  </span>
                 </>
               ) : (
                 <>
-                  <Typography component="span" variant="caption">
+                  <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
                     #VẬTTƯ + #NHÂNCÔNG
-                  </Typography>
-                  <Typography component="span" variant="caption">
+                  </span>
+                  <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
                     #VẬTTƯ * 1.2 + #NHÂNCÔNG
-                  </Typography>
-                  <Typography component="span" variant="caption">
+                  </span>
+                  <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
                     (#VẬTTƯ + #NHÂNCÔNG + #VẬNHÀNH) * 0.25
-                  </Typography>
+                  </span>
                 </>
               )}
-            </Box>
-          </Box>
-        </Grid>
-      </Grid>
-    </>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -2025,174 +1898,191 @@ const CostTypeManager = () => {
         onClose={handleCloseDialog}
         maxWidth="lg"
         fullWidth
-        fullScreen={false}
-        sx={{
-          "& .MuiDialog-paper": {
-            borderRadius: { xs: 0, sm: 3 },
-            margin: { xs: 0, sm: 2 },
-            maxHeight: { xs: "100vh", sm: "90vh" },
-            width: { xs: "100vw", sm: "auto" },
-          },
+        PaperProps={{
+          className: "!rounded-2xl !shadow-2xl !max-h-[90vh]"
         }}
       >
-        <DialogTitle
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: "linear-gradient(45deg, #2e7d32 30%, #388e3c 90%)",
-            color: "white",
-            py: { xs: 2, sm: 3 },
-            px: { xs: 2, sm: 3 },
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 600,
-              fontSize: { xs: "1.1rem", sm: "1.25rem" },
-            }}
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5 border-b border-gray-200 relative">
+          <Typography 
+            variant="h5" 
+            className="!font-bold !text-gray-800 !pr-12"
           >
             {isEditMode
               ? "✏️ Chỉnh sửa loại chi phí"
               : dialogStep === 0
-              ? "Chọn loại sản phẩm"
-              : "Tạo loại chi phí mới"}
+              ? "🏷️ Chọn loại sản phẩm"
+              : "🎯 Tạo loại chi phí mới"}
           </Typography>
-          <Button
-            onClick={handleCloseDialog}
-            sx={{
-              color: "white",
-              minWidth: "auto",
-              p: 1,
-              borderRadius: 2,
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" },
-            }}
+          <Typography 
+            variant="body2" 
+            className="!text-gray-600 !mt-1"
           >
-            <CloseIcon />
-          </Button>
-        </DialogTitle>
+            {isEditMode
+              ? "Cập nhật thông tin loại chi phí đã chọn"
+              : dialogStep === 0
+              ? "Vui lòng chọn loại sản phẩm để tiếp tục"
+              : "Điền thông tin chi tiết để tạo loại chi phí"}
+          </Typography>
+          
+          <button
+            onClick={handleCloseDialog}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors duration-200"
+          >
+            <CloseIcon className="!text-gray-700" />
+          </button>
+        </div>
 
-        <DialogContent
-          sx={{
-            pt: { xs: 2, sm: 3 },
-            px: { xs: 2, sm: 3 },
-            pb: 0,
-          }}
-        >
+        <div className="p-6 bg-white max-h-[calc(90vh-180px)] overflow-y-auto">
           {/* Enhanced Stepper - Ẩn khi edit mode */}
           {!isEditMode && (
-            <Stepper
-              activeStep={dialogStep}
-              sx={{
-                mb: { xs: 3, sm: 4 },
-                "& .MuiStepLabel-label": {
-                  fontSize: { xs: "0.875rem", sm: "1rem" },
-                },
-              }}
-            >
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
-                </Step>
-              ))}
-            </Stepper>
+            <div className="mb-8">
+              {/* Desktop Stepper */}
+              <div className="hidden sm:flex items-center mb-6 px-4">
+                {steps.map((label, index) => (
+                  <React.Fragment key={label}>
+                    {/* Step Circle and Label */}
+                    <div className="flex flex-col items-center min-w-0 flex-shrink-0">
+                      <div 
+                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-base transition-all duration-300 relative z-10 ${
+                          index <= dialogStep
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                            : 'bg-gray-200 text-gray-500'
+                        }`}
+                      >
+                        {index <= dialogStep ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          index + 1
+                        )}
+                      </div>
+                      <div className="mt-3 text-center max-w-[140px]">
+                        <div 
+                          className={`text-sm font-semibold transition-colors duration-300 leading-tight ${
+                            index <= dialogStep ? 'text-emerald-600' : 'text-gray-400'
+                          }`}
+                        >
+                          {label}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Connecting Line */}
+                    {index < steps.length - 1 && (
+                      <div className="flex-1 mx-6 min-w-[60px]">
+                        <div 
+                          className={`h-1 w-full rounded-full transition-all duration-500 ${
+                            index < dialogStep 
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
+                              : 'bg-gray-200'
+                          }`}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+              
+              {/* Mobile Stepper */}
+              <div className="block sm:hidden mb-6">
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-600">
+                      Bước {dialogStep + 1} / {steps.length}
+                    </span>
+                    <span className="text-sm text-emerald-600 font-medium">
+                      {Math.round(((dialogStep + 1) / steps.length) * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${((dialogStep + 1) / steps.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Current Step Label */}
+                <div className="text-center p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200">
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                      {dialogStep + 1}
+                    </div>
+                    <span className="text-lg font-bold text-emerald-700">
+                      {steps[dialogStep]}
+                    </span>
+                  </div>
+                  <div className="text-sm text-emerald-600">
+                    {dialogStep === 0 
+                      ? "Chọn loại sản phẩm để tiếp tục" 
+                      : "Hoàn thành thông tin chi phí"}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Conditional rendering based on step */}
-          {isEditMode || dialogStep === 1
-            ? renderCostTypeForm()
-            : renderProductTypeSelection()}
-        </DialogContent>
+          <div className="min-h-[400px]">
+            {isEditMode || dialogStep === 1
+              ? renderCostTypeForm()
+              : renderProductTypeSelection()}
+          </div>
+        </div>
 
-        <DialogActions
-          sx={{
-            p: { xs: 2, sm: 3 },
-            flexDirection: { xs: "column", sm: "row" },
-            gap: { xs: 1, sm: 0 },
-            borderTop: "1px solid rgba(224, 224, 224, 1)",
-            backgroundColor: "#fafafa",
-          }}
-        >
-          <Button
-            onClick={handleCloseDialog}
-            color="inherit"
-            disabled={isSubmitting}
-            sx={{
-              order: { xs: 3, sm: 1 },
-              width: { xs: "100%", sm: "auto" },
-              textTransform: "none",
-              borderRadius: 2,
-            }}
-          >
-            Hủy
-          </Button>
-
-          {!isEditMode && dialogStep === 1 && (
-            <Button
-              onClick={handlePreviousStep}
-              startIcon={<ArrowBackIcon />}
-              color="inherit"
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-2xl">
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+            <button
+              onClick={handleCloseDialog}
               disabled={isSubmitting}
-              sx={{
-                order: { xs: 2, sm: 2 },
-                width: { xs: "100%", sm: "auto" },
-                textTransform: "none",
-                borderRadius: 2,
-              }}
+              className="order-3 sm:order-1 w-full sm:w-auto px-6 py-2.5 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-100 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Quay lại
-            </Button>
-          )}
+              Hủy bỏ
+            </button>
 
-          {!isEditMode && dialogStep === 0 ? (
-            <Button
-              onClick={handleNextStep}
-              variant="contained"
-              endIcon={<ArrowForwardIcon />}
-              sx={{
-                backgroundColor: "#2e7d32",
-                order: { xs: 1, sm: 3 },
-                width: { xs: "100%", sm: "auto" },
-                textTransform: "none",
-                borderRadius: 2,
-                py: 1.5,
-                fontWeight: 600,
-                "&:hover": { backgroundColor: "#1b5e20" },
-              }}
-              disabled={!selectedProductType}
-            >
-              Tiếp theo
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
-              sx={{
-                backgroundColor: "#2e7d32",
-                order: { xs: 1, sm: 3 },
-                width: { xs: "100%", sm: "auto" },
-                textTransform: "none",
-                borderRadius: 2,
-                py: 1.5,
-                fontWeight: 600,
-                "&:hover": { backgroundColor: "#1b5e20" },
-              }}
-              disabled={!isFormValid() || isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <CircularProgress size={20} sx={{ mr: 1 }} />
-                  {isEditMode ? "Đang cập nhật..." : "Đang tạo..."}
-                </>
-              ) : isEditMode ? (
-                "Cập nhật loại chi phí"
-              ) : (
-                "Tạo loại chi phí"
-              )}
-            </Button>
-          )}
-        </DialogActions>
+            {!isEditMode && dialogStep === 1 && (
+              <button
+                onClick={handlePreviousStep}
+                disabled={isSubmitting}
+                className="order-2 sm:order-2 w-full sm:w-auto px-6 py-2.5 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-100 transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowBackIcon className="!text-sm" />
+                Quay lại
+              </button>
+            )}
+
+            {!isEditMode && dialogStep === 0 ? (
+              <button
+                onClick={handleNextStep}
+                disabled={!selectedProductType || isSubmitting}
+                className="order-1 sm:order-3 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tiếp tục
+                <ArrowForwardIcon className="!text-sm" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!isFormValid() || isSubmitting}
+                className="order-1 sm:order-3 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <CircularProgress size={18} className="text-white" />
+                    {isEditMode ? "Đang cập nhật..." : "Đang tạo..."}
+                  </>
+                ) : (
+                  <>
+                    <AddIcon className="!text-sm" />
+                    {isEditMode ? "Cập nhật loại chi phí" : "Tạo loại chi phí"}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
       </Dialog>
     </Box>
   );
