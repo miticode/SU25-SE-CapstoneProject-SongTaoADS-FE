@@ -9,50 +9,13 @@ import {
   Avatar,
   Badge,
   Button,
-  Tabs,
-  Tab,
-  Chip,
-  Divider,
-  Switch,
-  FormControlLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Tooltip,
-  Menu,
-  MenuItem,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Card,
-  CardContent,
-  Fade,
-  Zoom,
-  Slide,
 } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
-import SettingsIcon from "@mui/icons-material/Settings";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
-import PsychologyIcon from "@mui/icons-material/Psychology";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import SpeedIcon from "@mui/icons-material/Speed";
-import HelpIcon from "@mui/icons-material/Help";
-import InfoIcon from "@mui/icons-material/Info";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import BusinessIcon from "@mui/icons-material/Business";
-import PaletteIcon from "@mui/icons-material/Palette";
-import PaymentIcon from "@mui/icons-material/Payment";
-import SupportIcon from "@mui/icons-material/Support";
-import HistoryIcon from "@mui/icons-material/History";
 import TuneIcon from "@mui/icons-material/Tune";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
@@ -63,12 +26,7 @@ import {
   selectChatMessages,
   selectChatStatus,
 } from "../store/features/chat/chatSlice";
-import {
-  fetchAllTopics,
-  selectAllTopics,
-  selectTopicLoading,
-} from "../store/features/topic/topicSlice";
-import {} from "../store/features/question/questionSlice";
+import { selectIsAuthenticated } from "../store/features/auth/authSlice";
 
 const FAQS = [
   "Song Tạo có bảo hành biển quảng cáo không?",
@@ -77,63 +35,7 @@ const FAQS = [
   "Cửa hàng địa chỉ ở đâu ?",
 ];
 
-const QUICK_ACTIONS = [
-  {
-    label: "Tư vấn thiết kế",
-    icon: <PaletteIcon />,
-    color: "#ff6b35",
-    description: "Nhận tư vấn thiết kế phù hợp",
-  },
-  {
-    label: "Báo giá nhanh",
-    icon: <PaymentIcon />,
-    color: "#4ecdc4",
-    description: "Nhận báo giá chi tiết ngay",
-  },
-  {
-    label: "Đặt hàng",
-    icon: <BusinessIcon />,
-    color: "#45b7d1",
-    description: "Hướng dẫn đặt hàng",
-  },
-  {
-    label: "Hỗ trợ kỹ thuật",
-    icon: <SupportIcon />,
-    color: "#96ceb4",
-    description: "Giải đáp thắc mắc kỹ thuật",
-  },
-];
 
-const ADVANCED_FEATURES = [
-  {
-    id: "smart_suggestions",
-    title: "Gợi ý thông minh",
-    description: "AI gợi ý câu hỏi phù hợp với nhu cầu",
-    icon: <PsychologyIcon />,
-    enabled: true,
-  },
-  {
-    id: "detailed_questions",
-    title: "Câu hỏi chi tiết",
-    description: "Hướng dẫn khách hàng từng bước",
-    icon: <HelpIcon />,
-    enabled: true,
-  },
-  {
-    id: "quick_responses",
-    title: "Phản hồi nhanh",
-    description: "Tối ưu tốc độ trả lời",
-    icon: <SpeedIcon />,
-    enabled: true,
-  },
-  {
-    id: "context_aware",
-    title: "Hiểu ngữ cảnh",
-    description: "AI nhớ cuộc trò chuyện trước đó",
-    icon: <AutoAwesomeIcon />,
-    enabled: true,
-  },
-];
 
 const TypingIndicator = () => (
   <Box
@@ -149,7 +51,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#1a237e",
+        bgcolor: "#6366f1",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0s",
       }}
@@ -159,7 +61,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#1a237e",
+        bgcolor: "#6366f1",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0.2s",
       }}
@@ -169,7 +71,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#1a237e",
+        bgcolor: "#6366f1",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0.4s",
       }}
@@ -197,12 +99,7 @@ const AIChatbot = () => {
   const location = useLocation();
   const messages = useSelector(selectChatMessages);
   const status = useSelector(selectChatStatus);
-  const topics = useSelector(selectAllTopics);
-  const topicLoading = useSelector(selectTopicLoading);
-
-  // Debug topics state
-  console.log("🎯 Current topics state:", topics);
-  console.log("🎯 Topic loading state:", topicLoading);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
 
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -211,13 +108,6 @@ const AIChatbot = () => {
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
-
-  // Load topics when component mounts
-  useEffect(() => {
-    dispatch(fetchAllTopics()).then((result) => {
-      console.log("🎯 Topics data structure:", result.payload);
-    });
-  }, [dispatch]);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -271,12 +161,25 @@ const AIChatbot = () => {
     if (open) setUnreadCount(0);
   }, [messages, open]);
 
+  // Hiển thị thông báo đăng nhập khi mở chatbot lần đầu và chưa đăng nhập
+  useEffect(() => {
+    if (open && !isAuthenticated && messages.length === 0) {
+      dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
+    }
+  }, [open, isAuthenticated, messages.length, dispatch]);
+
   const handleSend = async (msg) => {
     if ((!input.trim() && !msg) || status === "loading") return;
+    
+    // Kiểm tra trạng thái đăng nhập
+    if (!isAuthenticated) {
+      dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
+      return;
+    }
+    
     const userMessage = msg || input.trim();
     setInput("");
 
-    // Chat thông thường
     dispatch(addUserMessage(userMessage));
     try {
       await dispatch(sendChatMessage(userMessage)).unwrap();
@@ -286,7 +189,6 @@ const AIChatbot = () => {
   };
 
   const handleAdvancedToggle = () => {
-    // Chuyển đến trang Advanced Chat thay vì mở modal
     navigate("/advanced-chat");
   };
 
@@ -297,82 +199,46 @@ const AIChatbot = () => {
 
   return (
     <>
-      {/* Floating Button with robot icon */}
+      {/* Floating Button */}
       {!open && (
-        <>
-          <Box
-            sx={{
-              position: "fixed",
-              bottom: 100,
-              right: 32,
-              zIndex: 10000,
-              display: isHover ? "block" : "none",
-              transition: "opacity 0.2s",
-              opacity: isHover ? 1 : 0,
-            }}
-          >
-            <Box
-              sx={{
-                bgcolor: "#fff",
-                border: "1.5px solid #3949ab",
-                borderRadius: 2,
-                boxShadow: "0 4px 24px 0 rgba(26,35,126,0.10)",
-                px: 2,
-                py: 1.2,
-                minWidth: 180,
-                fontSize: 15,
-                fontWeight: 500,
-              }}
-            >
-              <div className="text-custom-primary">
-                <b>Hỗ trợ 24/7</b>
-              </div>
-              <div className="text-custom-primary">Tư vấn miễn phí</div>
-              <div className="text-custom-primary">Phản hồi nhanh chóng</div>
-              <div style={{ fontSize: 13, color: "#3949ab" }}>
-                Nhấn để bắt đầu trò chuyện!
-              </div>
-            </Box>
-          </Box>
-          <Badge
-            color="error"
-            badgeContent={unreadCount > 0 ? unreadCount : null}
-            overlap="circular"
-            sx={{
-              position: "fixed",
-              bottom: 32,
-              right: 32,
-              zIndex: 9999,
-            }}
+        <Badge
+          color="error"
+          badgeContent={unreadCount > 0 ? unreadCount : null}
+          overlap="circular"
+          sx={{
+            position: "fixed",
+            bottom: 32,
+            right: 32,
+            zIndex: 9999,
+          }}
+        >
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
           >
             <IconButton
               sx={{
-                bgcolor: "#fff",
-                color: "#3949ab",
-                boxShadow: "0 4px 16px 0 rgba(26,35,126,0.10)",
-                border: "2px solid #3949ab",
-                width: 64,
-                height: 64,
-                p: 0,
-                transition: "all 0.2s",
+                bgcolor: "#6366f1",
+                color: "#fff",
+                width: 68,
+                height: 68,
+                boxShadow: "0 8px 25px rgba(99, 102, 241, 0.3)",
                 "&:hover": {
-                  bgcolor: "#e8eaf6",
-                  color: "#1a237e",
-                  border: "2px solid #1a237e",
+                  bgcolor: "#4f46e5",
+                  boxShadow: "0 12px 35px rgba(99, 102, 241, 0.4)",
                 },
               }}
               onClick={() => setOpen(true)}
-              onMouseEnter={() => setIsHover(true)}
-              onMouseLeave={() => setIsHover(false)}
             >
               <Avatar
                 src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                 alt="AI Bot"
-                sx={{ width: 56, height: 56, bgcolor: "transparent" }}
+                sx={{ width: 60, height: 60, bgcolor: "transparent" }}
               />
             </IconButton>
-          </Badge>
-        </>
+          </motion.div>
+        </Badge>
       )}
 
       {/* Chatbox */}
@@ -380,10 +246,16 @@ const AIChatbot = () => {
         {open && (
           <motion.div
             ref={chatBoxRef}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            transition={{ duration: 0.35, ease: "easeInOut" }}
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.95 }}
+            transition={{ 
+              duration: 0.4, 
+              ease: [0.4, 0, 0.2, 1],
+              type: "spring",
+              stiffness: 300,
+              damping: 30
+            }}
             style={{
               position: "fixed",
               bottom: 32,
@@ -393,57 +265,41 @@ const AIChatbot = () => {
               height: 600,
               display: "flex",
               flexDirection: "column",
-              borderRadius: 20,
-              boxShadow: "0 8px 32px 0 rgba(26,35,126,0.18)",
+              borderRadius: 24,
               overflow: "hidden",
             }}
           >
             <Paper
-              elevation={0}
+              elevation={3}
               sx={{
                 width: "100%",
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
                 borderRadius: 3,
-                boxShadow: "none",
                 overflow: "hidden",
-                bgcolor: "#f4f6fb",
+                bgcolor: "#fff",
               }}
             >
-              {/* Header - Always visible */}
+              {/* Header */}
               <Box
                 sx={{
                   p: 2,
-                  background:
-                    "linear-gradient(90deg, #1a237e 60%, #3949ab 100%)",
+                  bgcolor: "#6366f1",
                   color: "#fff",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
-                  boxShadow: "0 2px 8px 0 rgba(26,35,126,0.10)",
-                  zIndex: 10,
                 }}
               >
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Avatar
                     src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                     alt="AI Bot"
-                    sx={{
-                      bgcolor: "#fff",
-                      width: 36,
-                      height: 36,
-                      boxShadow: 1,
-                    }}
+                    sx={{ width: 32, height: 32 }}
                   />
-                  <Typography
-                    fontWeight={700}
-                    fontSize={20}
-                    letterSpacing={0.5}
-                  >
-                    Song Tạo AI Pro 4.1
+                  <Typography variant="h6" fontWeight={600}>
+                    Song Tạo AI Pro
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1}>
@@ -451,14 +307,7 @@ const AIChatbot = () => {
                     <IconButton
                       size="small"
                       onClick={handleAdvancedToggle}
-                      sx={{
-                        color: "#fff",
-                        transition: "all 0.2s ease",
-                        "&:hover": {
-                          bgcolor: "rgba(255,255,255,0.1)",
-                          transform: "scale(1.1)",
-                        },
-                      }}
+                      sx={{ color: "#fff" }}
                     >
                       <TuneIcon />
                     </IconButton>
@@ -466,7 +315,7 @@ const AIChatbot = () => {
                   <IconButton
                     size="small"
                     onClick={() => setOpen(false)}
-                    sx={{ color: "#fff", ml: 1 }}
+                    sx={{ color: "#fff" }}
                   >
                     <CloseIcon />
                   </IconButton>
@@ -474,35 +323,28 @@ const AIChatbot = () => {
               </Box>
 
               {/* Advanced Mode Toggle */}
-              <Box sx={{ px: 2, pt: 1, pb: 0, bgcolor: "#f4f6fb" }}>
+              <Box sx={{ px: 2, py: 1, bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Button
                     size="small"
                     variant="outlined"
                     onClick={handleAdvancedToggle}
                     sx={{
-                      borderColor: "#3949ab",
-                      color: "#3949ab",
-                      bgcolor: "transparent",
+                      borderColor: "#6366f1",
+                      color: "#6366f1",
                       textTransform: "none",
                       fontSize: 12,
-                      borderRadius: 999,
+                      borderRadius: 2,
                       px: 2,
                       py: 0.5,
-                      "&:hover": {
-                        bgcolor: "#e8eaf6",
-                      },
                     }}
                   >
                     <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
                     Advanced
                   </Button>
-                  <Chip
-                    label="Nhấn để mở chế độ nâng cao"
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: 10 }}
-                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Nhấn để mở chế độ nâng cao
+                  </Typography>
                 </Stack>
               </Box>
 
@@ -510,141 +352,116 @@ const AIChatbot = () => {
               <Box
                 sx={{
                   flex: 1,
-                  overflowY: "auto", // Main scroll for the entire content area
+                  overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
-                  // Scrollbar styles moved from Body to here for the main scroll
                   scrollbarWidth: "thin",
                   "&::-webkit-scrollbar": {
                     width: 6,
                     background: "transparent",
                   },
                   "&::-webkit-scrollbar-thumb": {
-                    background: "#e0e3ef",
+                    background: "rgba(99, 102, 241, 0.3)",
                     borderRadius: 8,
+                    "&:hover": {
+                      background: "rgba(99, 102, 241, 0.5)",
+                    },
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "rgba(17, 24, 39, 0.1)",
                   },
                 }}
               >
-                {/* FAQ Quick Replies - Show in normal mode */}
-                <Fade in={true} timeout={400}>
-                  <Box sx={{ px: 2, pt: 2, pb: 0, bgcolor: "#f4f6fb" }}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ mb: 1.5, color: "#1a237e", fontWeight: 600 }}
-                    >
-                      Câu hỏi thường gặp:
-                    </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      {FAQS.map((faq, idx) => (
-                        <Zoom
-                          in={true}
-                          style={{ transitionDelay: `${idx * 80}ms` }}
-                          key={idx}
-                        >
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            sx={{
-                              borderColor: "#3949ab",
-                              color: "#3949ab",
-                              textTransform: "none",
-                              fontSize: 13,
-                              borderRadius: 2, // Thay đổi từ 999 thành 2 để tạo hình vuông
-                              mb: 1,
-                              px: 2,
-                              py: 0.5,
-                              boxShadow: "0 1px 4px 0 rgba(26,35,126,0.04)",
-                              transition: "all 0.2s ease",
-                              "&:hover": {
-                                borderColor: "#1a237e",
-                                color: "#1a237e",
-                                bgcolor: "#e8eaf6",
-                                transform: "translateY(-1px)",
-                                boxShadow: "0 2px 8px 0 rgba(26,35,126,0.12)",
-                              },
-                            }}
-                            onClick={() => handleSend(faq)}
-                            disabled={status === "loading"}
-                          >
-                            {faq}
-                          </Button>
-                        </Zoom>
-                      ))}
-                    </Stack>
-                  </Box>
-                </Fade>
+                                 {/* FAQ Quick Replies */}
+                 <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#fff" }}>
+                   <Typography
+                     variant="subtitle2"
+                     sx={{ mb: 2, color: "#6366f1", fontWeight: 600 }}
+                   >
+                     Câu hỏi thường gặp:
+                   </Typography>
+                   <Stack direction="row" spacing={1} flexWrap="wrap">
+                     {FAQS.map((faq, idx) => (
+                       <Button
+                         key={idx}
+                         size="small"
+                         variant="outlined"
+                         sx={{
+                           borderColor: "#6366f1",
+                           color: "#6366f1",
+                           textTransform: "none",
+                           fontSize: 12,
+                           borderRadius: 2,
+                           mb: 1,
+                         }}
+                         onClick={() => handleSend(faq)}
+                         disabled={status === "loading"}
+                       >
+                         {faq}
+                       </Button>
+                     ))}
+                   </Stack>
+                   {!isAuthenticated && (
+                     <Typography
+                       variant="caption"
+                       sx={{ 
+                         color: "#ef4444", 
+                         fontStyle: "italic",
+                         display: "block",
+                         mt: 1
+                       }}
+                     >
+                       * Vui lòng đăng nhập để được hỗ trợ chi tiết
+                     </Typography>
+                   )}
+                 </Box>
 
-                {/* Body - Always show in Advanced mode, adjust height based on content */}
+                {/* Chat Messages */}
                 <Box
                   sx={{
                     flex: 1,
                     p: 2,
-                    bgcolor: "#f4f6fb",
+                    bgcolor: "#fff",
                     display: "flex",
                     flexDirection: "column",
                   }}
                 >
-                  <Stack spacing={1.5}>
+                  <Stack spacing={2}>
                     {messages.map((msg, idx) => (
                       <Box
                         key={idx}
                         sx={{
                           display: "flex",
-                          flexDirection:
-                            msg.from === "user" ? "row-reverse" : "row",
+                          flexDirection: msg.from === "user" ? "row-reverse" : "row",
                           alignItems: "flex-end",
                           gap: 1,
                         }}
                       >
                         <Avatar
                           sx={{
-                            bgcolor: msg.from === "user" ? "#1a237e" : "#fff",
-                            color: msg.from === "user" ? "#fff" : "#3949ab",
+                            bgcolor: msg.from === "user" ? "#6366f1" : "#f1f5f9",
+                            color: msg.from === "user" ? "#fff" : "#6366f1",
                             width: 32,
                             height: 32,
-                            boxShadow: 1,
-                            border:
-                              msg.from === "user"
-                                ? "2px solid #1a237e"
-                                : "2px solid #3949ab",
-                            mt: msg.from === "user" ? 0 : 0.5,
-                            ml: msg.from === "user" ? 1 : 0,
-                            mr: msg.from === "user" ? 0 : 1,
                           }}
                           src={
                             msg.from === "bot"
                               ? "https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
                               : undefined
                           }
-                          alt={msg.from === "bot" ? "AI Bot" : "User"}
                         >
-                          {msg.from === "user" ? (
-                            <PersonIcon fontSize="small" />
-                          ) : null}
+                          {msg.from === "user" ? <PersonIcon fontSize="small" /> : null}
                         </Avatar>
                         <Box
                           sx={{
-                            bgcolor: msg.from === "user" ? "#1a237e" : "#fff",
-                            color: msg.from === "user" ? "#fff" : "#1a237e",
+                            bgcolor: msg.from === "user" ? "#6366f1" : "#f8fafc",
+                            color: msg.from === "user" ? "#fff" : "#1e293b",
                             px: 2,
-                            py: 1.2,
-                            borderRadius: 2.5,
-                            maxWidth: "75%",
-                            boxShadow:
-                              msg.from === "bot"
-                                ? "0 2px 8px 0 rgba(26, 35, 126, 0.08)"
-                                : "0 1px 4px 0 rgba(26,35,126,0.04)",
-                            fontSize: 15,
-                            ml: msg.from === "user" ? 0 : 0,
-                            mr: msg.from === "user" ? 0 : 0,
-                            minHeight: 36,
-                            display: "flex",
-                            alignItems: "center",
-                            borderTopLeftRadius: msg.from === "user" ? 16 : 6,
-                            borderTopRightRadius: msg.from === "user" ? 6 : 16,
-                            borderBottomLeftRadius: 16,
-                            borderBottomRightRadius: 16,
-                            whiteSpace: "pre-line",
+                            py: 1,
+                            borderRadius: 2,
+                            maxWidth: "70%",
+                            fontSize: 14,
+                            border: msg.from === "bot" ? "1px solid #e2e8f0" : "none",
                           }}
                         >
                           {msg.text}
@@ -663,35 +480,21 @@ const AIChatbot = () => {
                       >
                         <Avatar
                           sx={{
-                            bgcolor: "#fff",
-                            color: "#3949ab",
+                            bgcolor: "#f1f5f9",
+                            color: "#6366f1",
                             width: 32,
                             height: 32,
-                            boxShadow: 1,
-                            border: "2px solid #3949ab",
-                            mt: 0.5,
-                            mr: 1,
                           }}
                           src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
-                          alt="AI Bot"
                         />
                         <Box
                           sx={{
-                            bgcolor: "#fff",
-                            color: "#1a237e",
+                            bgcolor: "#f8fafc",
+                            color: "#1e293b",
                             px: 2,
-                            py: 1.2,
-                            borderRadius: 2.5,
-                            maxWidth: "75%",
-                            boxShadow: "0 2px 8px 0 rgba(26, 35, 126, 0.08)",
-                            fontSize: 15,
-                            minHeight: 36,
-                            display: "flex",
-                            alignItems: "center",
-                            borderTopLeftRadius: 16,
-                            borderTopRightRadius: 6,
-                            borderBottomLeftRadius: 16,
-                            borderBottomRightRadius: 16,
+                            py: 1,
+                            borderRadius: 2,
+                            border: "1px solid #e2e8f0",
                           }}
                         >
                           <TypingIndicator />
@@ -703,86 +506,55 @@ const AIChatbot = () => {
                 </Box>
               </Box>
 
-              {/* Input - Always visible, especially in Advanced mode */}
+              {/* Input Area */}
               <Box
                 sx={{
                   p: 2,
-                  borderTop: "1px solid #e3e3e3",
+                  borderTop: "1px solid #e2e8f0",
                   display: "flex",
                   gap: 1,
                   bgcolor: "#fff",
                   alignItems: "center",
-                  boxShadow: "0 -2px 8px 0 rgba(26,35,126,0.04)",
-                  position: "relative",
-                  mt: 0, // Remove margin top when in pricing flow to avoid overlap
-                  minHeight: "70px", // Ensure minimum height
                 }}
               >
-                <TextField
-                  size="small"
-                  fullWidth
-                  placeholder="Bạn cần hỗ trợ gì?..."
-                  value={input}
-                  inputRef={inputRef}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  sx={{
-                    bgcolor: "#f8f9fa",
-                    borderRadius: 999,
-                    border: "none",
-                    "& .MuiOutlinedInput-root": {
-                      "& fieldset": { borderColor: "#e0e3ef" },
-                      "&:hover fieldset": { borderColor: "#3949ab" },
-                      "&.Mui-focused fieldset": { borderColor: "#1a237e" },
-                    },
-                    "& .MuiInputBase-input": {
-                      color: "#1a237e",
-                      fontSize: 15,
-                      py: 1.2,
-                      fontWeight: 400,
-                    },
-                    "& .MuiInputBase-input::placeholder": {
-                      color: "#3949ab",
-                      opacity: 0.7,
-                      fontWeight: 400,
-                    },
-                    boxShadow: "none",
-                  }}
-                  disabled={status === "loading"}
-                />
-                <IconButton
-                  onClick={() => handleSend()}
-                  disabled={status === "loading" || !input.trim()}
-                  sx={{
-                    bgcolor: "#3949ab",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    width: 44,
-                    height: 44,
-                    ml: 1,
-                    border: `2px solid #3949ab`,
-                    p: 0,
-                    transition: "all 0.2s",
-                    "&:hover": {
-                      bgcolor: "#1a237e",
-                      color: "#fff",
-                      border: `2px solid #1a237e`,
-                    },
-                  }}
-                >
-                  <SendIcon sx={{ fontSize: 26 }} />
-                </IconButton>
+                                 <TextField
+                   size="small"
+                   fullWidth
+                   placeholder={isAuthenticated ? "Bạn cần hỗ trợ gì?..." : "Vui lòng đăng nhập để được hỗ trợ..."}
+                   value={input}
+                   inputRef={inputRef}
+                   onChange={(e) => setInput(e.target.value)}
+                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                   sx={{
+                     "& .MuiOutlinedInput-root": {
+                       "& fieldset": { borderColor: "#e2e8f0" },
+                       "&:hover fieldset": { borderColor: "#6366f1" },
+                       "&.Mui-focused fieldset": { borderColor: "#6366f1" },
+                     },
+                   }}
+                   disabled={status === "loading" || !isAuthenticated}
+                 />
+                                 <IconButton
+                   onClick={() => handleSend()}
+                   disabled={status === "loading" || !input.trim() || !isAuthenticated}
+                   sx={{
+                     bgcolor: "#6366f1",
+                     color: "#fff",
+                     "&:hover": {
+                       bgcolor: "#4f46e5",
+                     },
+                     "&:disabled": {
+                       bgcolor: "#cbd5e1",
+                     },
+                   }}
+                 >
+                   <SendIcon />
+                 </IconButton>
               </Box>
             </Paper>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Advanced Settings Dialog */}
-      {/* This section is removed as the settings dialog is removed */}
-
-      {/* Flow nhập từng trường báo giá truyền thống - REMOVED */}
-      {/* Hiển thị kết quả báo giá sau khi gọi API - REMOVED */}
     </>
   );
 };
