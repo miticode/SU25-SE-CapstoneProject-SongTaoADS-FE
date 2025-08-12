@@ -32,6 +32,7 @@ import dashboardReducer from "./features/dashboard/dashboardSlice";
 
 import topicReducer from "./features/topic/topicSlice";
 import questionReducer from "./features/question/questionSlice";
+import notificationReducer from "./features/notification/notificationSlice";
 
 
 export const store = configureStore({
@@ -69,6 +70,7 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     topic: topicReducer,
     question: questionReducer,
+    notification: notificationReducer,
   },
 });
 

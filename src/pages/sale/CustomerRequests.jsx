@@ -3175,18 +3175,19 @@ const CustomerRequests = () => {
                             Giao task thiết kế
                           </Typography>
                         </Stack>
+
                         <Grid container spacing={1.5} alignItems="end">
                           <Grid item xs={12} md={8}>
                             <FormControl fullWidth size="small">
                               <InputLabel sx={{ fontSize: "0.85rem" }}>
-                                Chọn designer
+                                Chọn designer thực hiện
                               </InputLabel>
                               <Select
                                 value={selectedDesigner || ""}
                                 onChange={(e) =>
                                   setSelectedDesigner(e.target.value)
                                 }
-                                label="Chọn designer"
+                                label="Chọn designer thực hiện"
                                 disabled={loadingDesigners}
                                 sx={{
                                   "& .MuiSelect-select": {
@@ -3198,18 +3199,28 @@ const CustomerRequests = () => {
                               >
                                 {loadingDesigners ? (
                                   <MenuItem disabled>
-                                    <CircularProgress size={16} />
-                                    <Typography
-                                      sx={{ ml: 1, fontSize: "0.85rem" }}
+                                    <Stack
+                                      direction="row"
+                                      alignItems="center"
+                                      spacing={1}
                                     >
-                                      Đang tải...
-                                    </Typography>
+                                      <CircularProgress size={16} />
+                                      <Typography sx={{ fontSize: "0.85rem" }}>
+                                        Đang tải...
+                                      </Typography>
+                                    </Stack>
                                   </MenuItem>
                                 ) : (
                                   designers.map((designer) => (
                                     <MenuItem
                                       key={designer.id}
                                       value={designer.id}
+                                      sx={{
+                                        py: 1,
+                                        "&:hover": {
+                                          bgcolor: "primary.50",
+                                        },
+                                      }}
                                     >
                                       <Stack
                                         direction="row"
@@ -3218,13 +3229,29 @@ const CustomerRequests = () => {
                                       >
                                         <Avatar
                                           src={designer.avatar}
-                                          sx={{ width: 20, height: 20 }}
+                                          sx={{
+                                            width: 24,
+                                            height: 24,
+                                          }}
                                         />
-                                        <Typography
-                                          sx={{ fontSize: "0.85rem" }}
-                                        >
-                                          {designer.fullName}
-                                        </Typography>
+                                        <Box>
+                                          <Typography
+                                            sx={{
+                                              fontSize: "0.85rem",
+                                              fontWeight: "500",
+                                            }}
+                                          >
+                                            {designer.fullName}
+                                          </Typography>
+                                          <Typography
+                                            sx={{
+                                              fontSize: "0.7rem",
+                                              color: "text.secondary",
+                                            }}
+                                          >
+                                            {designer.email}
+                                          </Typography>
+                                        </Box>
                                       </Stack>
                                     </MenuItem>
                                   ))
@@ -3249,12 +3276,15 @@ const CustomerRequests = () => {
                               startIcon={
                                 assigningDesigner ? (
                                   <CircularProgress size={16} color="inherit" />
-                                ) : null
+                                ) : (
+                                  <PersonAddIcon fontSize="small" />
+                                )
                               }
                               fullWidth
                               sx={{
                                 py: 1,
                                 fontSize: "0.8rem",
+                                fontWeight: "600",
                                 transition: "all 0.2s ease",
                                 "&:hover": { transform: "scale(1.02)" },
                               }}
@@ -3716,33 +3746,6 @@ const CustomerRequests = () => {
                         : selectedRequest.status === "REJECTED_PRICING"
                         ? "BÁO GIÁ LẠI"
                         : "BÁO GIÁ"}
-                    </Button>
-                  )}
-                {/* Nút giao task chỉ hiện khi request có status là DEPOSITED hoặc DESIGNER_REJECTED */}
-                {selectedRequest &&
-                  (selectedRequest.status === "DEPOSITED" ||
-                    selectedRequest.status === "DESIGNER_REJECTED") && (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      disabled={
-                        !selectedDesigner ||
-                        assigningDesigner ||
-                        loadingDesigners
-                      }
-                      onClick={async () => {
-                        await handleAssignDesigner();
-                        handleCloseDetails(); // Đóng dialog sau khi giao task thành công
-                      }}
-                      startIcon={
-                        assigningDesigner ? (
-                          <CircularProgress size={20} color="inherit" />
-                        ) : null
-                      }
-                    >
-                      {assigningDesigner
-                        ? "Đang giao..."
-                        : "Giao task thiết kế"}
                     </Button>
                   )}
               </DialogActions>

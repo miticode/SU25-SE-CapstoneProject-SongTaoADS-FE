@@ -44,6 +44,7 @@ import ManagerLayout from "./layouts/ManagerLayout";
 import AdvancedChatLayout from "./layouts/AdvancedChatLayout";
 
 import MyTicket from "./pages/MyTicket";
+import Notification from "./pages/Notification";
 
 
 import ForgotPassword from "./pages/ForgotPassword";
@@ -279,6 +280,7 @@ const App = () => {
               <Route path="/payment/cancel" element={<PaymentCancel />} />
               <Route path="custom-design" element={<CustomDesign />} />
               <Route path="my-ticket" element={<MyTicket />} />
+              <Route path="notifications" element={<Notification />} />
               <Route path="access-denied" element={<AccessDeny />} />
 
               {/* Protected routes - chỉ cho CUSTOMER */}
