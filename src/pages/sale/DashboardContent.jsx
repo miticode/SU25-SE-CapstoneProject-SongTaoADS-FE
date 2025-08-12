@@ -1665,7 +1665,7 @@ const OrderCard = memo(
               </Button>
             )}
 
-            {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT" || order.status === "CONTRACT_CONFIRMED") && (
+            {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT" || order.status === "CONTRACT_CONFIRMED" || order.status === "CONTRACT_DISCUSS" || order.status === "CONTRACT_RESIGNED") && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 <Button
                   variant="outlined"
@@ -1949,8 +1949,8 @@ const OrderRow = memo(
                 </Button>
               )}
 
-              {/* Nút xem hợp đồng cho trạng thái CONTRACT_SIGNED, CONTRACT_SENT và CONTRACT_CONFIRMED */}
-              {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT" || order.status === "CONTRACT_CONFIRMED") && (
+              {/* Nút xem hợp đồng cho trạng thái CONTRACT_SIGNED, CONTRACT_SENT, CONTRACT_CONFIRMED, CONTRACT_DISCUSS và CONTRACT_RESIGNED */}
+              {(order.status === "CONTRACT_SIGNED" || order.status === "CONTRACT_SENT" || order.status === "CONTRACT_CONFIRMED" || order.status === "CONTRACT_DISCUSS" || order.status === "CONTRACT_RESIGNED") && (
                 <Button
                   variant="outlined"
                   color="primary"
@@ -3283,31 +3283,42 @@ const DashboardContent = ({
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          {/* Hiển thị nút "Yêu cầu ký lại" cho hợp đồng đã ký (dựa trên orderId) */}
+          {/* Hiển thị nút "Yêu cầu ký lại" cho hợp đồng đã ký, nhưng không cho trạng thái CONTRACT_SENT, CONTRACT_DISCUSS và CONTRACT_RESIGNED */}
           {contractDialog.orderId && (
-            <Button
-              variant="outlined"
-              color="warning"
-              startIcon={<UploadIcon />}
-              onClick={() => {
-                handleRequestResign(contractDialog.orderId);
-                handleCloseContractDialog(); // Đóng dialog sau khi thực hiện
-              }}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: "medium",
-                borderWidth: 2,
-                "&:hover": {
-                  borderWidth: 2,
-                  boxShadow: 2,
-                  transform: "translateY(-1px)",
-                  background: "rgba(255, 152, 0, 0.04)",
-                },
-              }}
-            >
-               Yêu cầu ký lại
-            </Button>
+            (() => {
+              // Tìm order dựa trên orderId để kiểm tra trạng thái
+              const currentOrder = orders.find(o => o.id === contractDialog.orderId);
+              const shouldShowResignButton = currentOrder && 
+                currentOrder.status !== 'CONTRACT_SENT' && 
+                currentOrder.status !== 'CONTRACT_DISCUSS' &&
+                currentOrder.status !== 'CONTRACT_RESIGNED';
+              
+              return shouldShowResignButton ? (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<UploadIcon />}
+                  onClick={() => {
+                    handleRequestResign(contractDialog.orderId);
+                    handleCloseContractDialog(); // Đóng dialog sau khi thực hiện
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: "medium",
+                    borderWidth: 2,
+                    "&:hover": {
+                      borderWidth: 2,
+                      boxShadow: 2,
+                      transform: "translateY(-1px)",
+                      background: "rgba(255, 152, 0, 0.04)",
+                    },
+                  }}
+                >
+                   Yêu cầu ký lại
+                </Button>
+              ) : null;
+            })()
           )}
           
           <Button onClick={handleCloseContractDialog} sx={{ ml: "auto" }}>
