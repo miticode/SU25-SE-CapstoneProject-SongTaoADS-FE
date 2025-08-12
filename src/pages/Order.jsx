@@ -2607,57 +2607,59 @@ const Order = () => {
                     </Button>
                   </div>
 
-                  {/* Nút tạo đơn hàng mới */}
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    fullWidth
-                    onClick={() => {
-                      setUserClickedMainButtons(true);
-                      
-                      // Lưu order ID và order Type vào localStorage
-                      if (currentOrder?.id) {
-                        localStorage.setItem('orderIdForNewOrder', currentOrder.id.toString());
-                        localStorage.setItem('orderTypeForNewOrder', currentOrder.orderType || formData.orderType || '');
-                      }
-                      
-                      // KHÔNG clear localStorage để giữ lại thông tin order hiện tại
-                      // clearOrderLocalStorage();
-                      
-                      // Reset chỉ form data, không reset order
-                      setFormData({
-                        address: currentOrder?.address || "",
-                        orderType: finalIsFromAIDesign ? "AI_DESIGN" : (finalIsFromCustomDesign ? (finalHasConstruction ? "CUSTOM_DESIGN_WITH_CONSTRUCTION" : "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") : ""),
-                        quantity: 1,
-                      });
-                      setSuccessMessage("");
-                      setErrorMessage("");
-                      
-                      // Chuyển đến trang tương ứng dựa trên loại đơn hàng
-                      if (finalIsFromAIDesign) {
-                        // Chuyển đến case 3 của trang AI Design (chọn loại biển hiệu)
-                        navigate("/ai-design?step=billboard");
-                      } else if (finalIsFromCustomDesign) {
-                        // Chuyển đến step 3 của trang AI Design (chọn loại biển hiệu) cho Custom Design
-                        navigate("/ai-design?step=billboard");
-                      } else {
-                        // Mặc định chuyển đến AI Design
-                        navigate("/ai-design?step=billboard");
-                      }
-                    }}
-                    className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
-                    sx={{
-                      borderColor: "#059669",
-                      color: "#059669",
-                      "&:hover": {
-                        borderColor: "#047857",
-                        color: "#047857",
-                        backgroundColor: "#f8f9fa",
-                      },
-                    }}
-                  >
-                    🎯 Tạo đơn hàng mới
-                  </Button>
+                  {/* Nút tạo đơn hàng mới - Ẩn khi là đơn hàng thiết kế thủ công */}
+                  {!finalIsFromCustomDesign && (
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      fullWidth
+                      onClick={() => {
+                        setUserClickedMainButtons(true);
+                        
+                        // Lưu order ID và order Type vào localStorage
+                        if (currentOrder?.id) {
+                          localStorage.setItem('orderIdForNewOrder', currentOrder.id.toString());
+                          localStorage.setItem('orderTypeForNewOrder', currentOrder.orderType || formData.orderType || '');
+                        }
+                        
+                        // KHÔNG clear localStorage để giữ lại thông tin order hiện tại
+                        // clearOrderLocalStorage();
+                        
+                        // Reset chỉ form data, không reset order
+                        setFormData({
+                          address: currentOrder?.address || "",
+                          orderType: finalIsFromAIDesign ? "AI_DESIGN" : (finalIsFromCustomDesign ? (finalHasConstruction ? "CUSTOM_DESIGN_WITH_CONSTRUCTION" : "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") : ""),
+                          quantity: 1,
+                        });
+                        setSuccessMessage("");
+                        setErrorMessage("");
+                        
+                        // Chuyển đến trang tương ứng dựa trên loại đơn hàng
+                        if (finalIsFromAIDesign) {
+                          // Chuyển đến case 3 của trang AI Design (chọn loại biển hiệu)
+                          navigate("/ai-design?step=billboard");
+                        } else if (finalIsFromCustomDesign) {
+                          // Chuyển đến step 3 của trang AI Design (chọn loại biển hiệu) cho Custom Design
+                          navigate("/ai-design?step=billboard");
+                        } else {
+                          // Mặc định chuyển đến AI Design
+                          navigate("/ai-design?step=billboard");
+                        }
+                      }}
+                      className="py-4 text-lg font-semibold rounded-xl border-2 transition-all duration-200 hover:scale-[1.02]"
+                      sx={{
+                        borderColor: "#059669",
+                        color: "#059669",
+                        "&:hover": {
+                          borderColor: "#047857",
+                          color: "#047857",
+                          backgroundColor: "#f8f9fa",
+                        },
+                      }}
+                    >
+                      🎯 Tạo đơn hàng mới
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
