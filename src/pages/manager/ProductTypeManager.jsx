@@ -519,7 +519,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
                           ? 'bg-green-100 text-green-700 border border-green-200'
                           : 'bg-gray-100 text-gray-600 border border-gray-200'
                       }`}>
-                        {row.isAvailable ? "✅ Có sẵn" : "⏸️ Không có sẵn"}
+                        {row.isAvailable ? "✅ Có sẵn" : " Không có sẵn"}
                       </span>
                     </TableCell>
                     <TableCell className="!py-4">

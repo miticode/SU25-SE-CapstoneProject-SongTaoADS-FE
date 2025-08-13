@@ -5,9 +5,12 @@ import {
   fetchProductTypeSizesByProductTypeId,
   addSizeToProductType,
   deleteProductTypeSize,
+  updateProductTypeSize,
   selectAllProductTypes,
   selectProductTypeSizes,
   selectProductTypeSizesStatus,
+  selectUpdateSizeStatus,
+  selectUpdateSizeError,
 } from "../../store/features/productType/productTypeSlice";
 import {
   fetchSizes,
@@ -46,6 +49,7 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 
 const Illustration = () => (
@@ -104,17 +108,30 @@ const ProductSizeManager = () => {
   const allSizes = useSelector(selectAllSizes);
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const sizesStatus = useSelector(selectProductTypeSizesStatus);
+  const updateSizeStatus = useSelector(selectUpdateSizeStatus);
+  const updateSizeError = useSelector(selectUpdateSizeError);
 
   const [search, setSearch] = useState("");
   const [selectedProductTypeId, setSelectedProductTypeId] = useState(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingSize, setEditingSize] = useState(null);
   const [selectedSizeId, setSelectedSizeId] = useState("");
   const [sizeData, setSizeData] = useState({
     minValue: 0,
     maxValue: 0,
     dimensionType: "WIDTH"
   });
+  const [editSizeData, setEditSizeData] = useState({
+    minValue: 0,
+    maxValue: 0,
+    dimensionType: "WIDTH"
+  });
   const [validationErrors, setValidationErrors] = useState({
+    minValue: "",
+    maxValue: ""
+  });
+  const [editValidationErrors, setEditValidationErrors] = useState({
     minValue: "",
     maxValue: ""
   });
@@ -169,6 +186,30 @@ const ProductSizeManager = () => {
     return "";
   };
 
+  // Validation functions for edit
+  const validateEditMinValue = (value) => {
+    const numValue = parseFloat(value);
+    if (!value || value === "") return "Vui lòng nhập giá trị tối thiểu";
+    if (isNaN(numValue)) return "Giá trị phải là số";
+    if (numValue <= 0) return "Giá trị phải lớn hơn 0";
+    if (editSizeData.maxValue && numValue >= parseFloat(editSizeData.maxValue)) {
+      return "Giá trị tối thiểu phải nhỏ hơn giá trị tối đa";
+    }
+    return "";
+  };
+
+  const validateEditMaxValue = (value) => {
+    const numValue = parseFloat(value);
+    if (!value || value === "") return "Vui lòng nhập giá trị tối đa";
+    if (isNaN(numValue)) return "Giá trị phải là số";
+    if (numValue <= 0) return "Giá trị phải lớn hơn 0";
+    if (numValue >= 10) return "Giá trị tối đa phải nhỏ hơn 10";
+    if (editSizeData.minValue && numValue <= parseFloat(editSizeData.minValue)) {
+      return "Giá trị tối đa phải lớn hơn giá trị tối thiểu";
+    }
+    return "";
+  };
+
   // Handle input changes with validation
   const handleMinValueChange = (value) => {
     setSizeData({ ...sizeData, minValue: value });
@@ -194,6 +235,31 @@ const ProductSizeManager = () => {
     }
   };
 
+  // Handle input changes with validation for edit
+  const handleEditMinValueChange = (value) => {
+    setEditSizeData({ ...editSizeData, minValue: value });
+    const error = validateEditMinValue(value);
+    setEditValidationErrors(prev => ({ ...prev, minValue: error }));
+    
+    // Re-validate max value if it exists
+    if (editSizeData.maxValue) {
+      const maxError = validateEditMaxValue(editSizeData.maxValue);
+      setEditValidationErrors(prev => ({ ...prev, maxValue: maxError }));
+    }
+  };
+
+  const handleEditMaxValueChange = (value) => {
+    setEditSizeData({ ...editSizeData, maxValue: value });
+    const error = validateEditMaxValue(value);
+    setEditValidationErrors(prev => ({ ...prev, maxValue: error }));
+    
+    // Re-validate min value if it exists
+    if (editSizeData.minValue) {
+      const minError = validateEditMinValue(editSizeData.minValue);
+      setEditValidationErrors(prev => ({ ...prev, minValue: minError }));
+    }
+  };
+
   const handleOpenAdd = () => {
     setSelectedSizeId(availableSizes[0]?.id || "");
     setSizeData({
@@ -206,6 +272,20 @@ const ProductSizeManager = () => {
       maxValue: ""
     });
     setAddDialogOpen(true);
+  };
+
+  const handleOpenEdit = (ptSize) => {
+    setEditingSize(ptSize);
+    setEditSizeData({
+      minValue: ptSize.minValue || 0,
+      maxValue: ptSize.maxValue || 0,
+      dimensionType: ptSize.dimensionType || "WIDTH"
+    });
+    setEditValidationErrors({
+      minValue: "",
+      maxValue: ""
+    });
+    setEditDialogOpen(true);
   };
 
   const handleAddSize = async () => {
@@ -265,6 +345,64 @@ const ProductSizeManager = () => {
       });
     }
     setAddDialogOpen(false);
+  };
+
+  const handleEditSize = async () => {
+    // Validate all fields first
+    const minError = validateEditMinValue(editSizeData.minValue);
+    const maxError = validateEditMaxValue(editSizeData.maxValue);
+    
+    setEditValidationErrors({
+      minValue: minError,
+      maxValue: maxError
+    });
+
+    // Check if there are any validation errors
+    if (minError || maxError) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng sửa các lỗi trước khi tiếp tục!",
+        severity: "error",
+      });
+      return;
+    }
+
+    if (!editingSize) {
+      setSnackbar({
+        open: true,
+        message: "Không tìm thấy kích thước để cập nhật!",
+        severity: "error",
+      });
+      return;
+    }
+
+    try {
+      await dispatch(
+        updateProductTypeSize({
+          productTypeSizeId: editingSize.id,
+          sizeData: {
+            minValue: parseFloat(editSizeData.minValue),
+            maxValue: parseFloat(editSizeData.maxValue),
+            dimensionType: editSizeData.dimensionType,
+          },
+        })
+      ).unwrap();
+      setSnackbar({
+        open: true,
+        message: "Cập nhật kích thước thành công!",
+        severity: "success",
+      });
+      await dispatch(
+        fetchProductTypeSizesByProductTypeId(selectedProductTypeId)
+      );
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err || "Cập nhật thất bại!",
+        severity: "error",
+      });
+    }
+    setEditDialogOpen(false);
   };
 
   const handleDelete = async (productTypeSizeId) => {
@@ -478,6 +616,13 @@ const ProductSizeManager = () => {
                         )}
                       </TableCell>
                       <TableCell align="right">
+                        <IconButton
+                          color="primary"
+                          onClick={() => handleOpenEdit(ptSize)}
+                          sx={{ borderRadius: 2, mr: 1 }}
+                        >
+                          <EditIcon />
+                        </IconButton>
                         <IconButton
                           color="error"
                           onClick={() => handleDelete(ptSize.id)}
@@ -732,6 +877,215 @@ const ProductSizeManager = () => {
           </Button>
         </div>
       </Dialog>
+
+      {/* Edit Size Dialog */}
+      <Dialog 
+        open={editDialogOpen} 
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          className: "!rounded-2xl !shadow-2xl"
+        }}
+      >
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
+          <Typography variant="h5" className="!font-bold !text-gray-800 flex items-center gap-2">
+            <EditIcon className="text-green-600" />
+            Chỉnh sửa kích thước
+          </Typography>
+          <Typography variant="body2" className="!text-gray-600 !mt-1">
+            {editingSize && `Đang chỉnh sửa kích thước: ${editingSize.sizes?.name}`}
+          </Typography>
+        </div>
+        
+        <DialogContent className="!p-8 !bg-white">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Display current size info */}
+            <div className="lg:col-span-2 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 font-semibold text-lg">
+                    {editingSize?.sizes?.name?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{editingSize?.sizes?.name}</h3>
+                  <p className="text-sm text-gray-500">{editingSize?.sizes?.description}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Min Value */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Giá trị tối thiểu
+              </label>
+              <TextField
+                type="number"
+                fullWidth
+                value={editSizeData.minValue}
+                onChange={(e) => handleEditMinValueChange(e.target.value)}
+                inputProps={{ min: 0, step: 0.1, max: 9.9 }}
+                placeholder="Nhập giá trị tối thiểu..."
+                className="!rounded-xl"
+                error={!!editValidationErrors.minValue}
+                helperText={editValidationErrors.minValue}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    backgroundColor: editValidationErrors.minValue ? '#fef2f2' : '#f9fafb',
+                    '&:hover': {
+                      backgroundColor: editValidationErrors.minValue ? '#fef2f2' : '#f3f4f6',
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff',
+                    },
+                    '&.Mui-error': {
+                      borderColor: '#ef4444',
+                    }
+                  },
+                  '& .MuiFormHelperText-root': {
+                    marginLeft: '4px',
+                    marginTop: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }
+                }}
+              />
+            </div>
+            
+            {/* Max Value */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Giá trị tối đa
+                <span className="text-xs text-gray-500 ml-1">(&lt; 10)</span>
+              </label>
+              <TextField
+                type="number"
+                fullWidth
+                value={editSizeData.maxValue}
+                onChange={(e) => handleEditMaxValueChange(e.target.value)}
+                inputProps={{ min: 0, step: 0.1, max: 9.9 }}
+                placeholder="Nhập giá trị tối đa..."
+                className="!rounded-xl"
+                error={!!editValidationErrors.maxValue}
+                helperText={editValidationErrors.maxValue}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    backgroundColor: editValidationErrors.maxValue ? '#fef2f2' : '#f9fafb',
+                    '&:hover': {
+                      backgroundColor: editValidationErrors.maxValue ? '#fef2f2' : '#f3f4f6',
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff',
+                    },
+                    '&.Mui-error': {
+                      borderColor: '#ef4444',
+                    }
+                  },
+                  '& .MuiFormHelperText-root': {
+                    marginLeft: '4px',
+                    marginTop: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }
+                }}
+              />
+            </div>
+            
+            {/* Dimension Type */}
+            <div className="lg:col-span-2 space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Loại kích thước
+              </label>
+              <FormControl fullWidth>
+                <Select
+                  value={editSizeData.dimensionType}
+                  onChange={(e) => setEditSizeData({ ...editSizeData, dimensionType: e.target.value })}
+                  displayEmpty
+                  className="!rounded-xl !bg-gray-50 hover:!bg-gray-100 transition-all duration-200"
+                  MenuProps={{ 
+                    PaperProps: { 
+                      className: "!rounded-xl !shadow-lg !border !border-gray-200 !mt-2" 
+                    } 
+                  }}
+                >
+                  {dimensionTypeOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value} className="!py-3 hover:!bg-green-50">
+                      <div className="flex items-center gap-3 w-full">
+                        <div 
+                          className="w-4 h-4 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: getDimensionTypeColor(option.value) }}
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-800">{option.label}</div>
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">
+                            {option.value}
+                          </div>
+                        </div>
+                        {editSizeData.dimensionType === option.value && (
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+          </div>
+          
+          {/* Info Note */}
+          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-green-800 mb-1">
+                  Lưu ý khi chỉnh sửa
+                </h4>
+                <ul className="text-xs text-green-700 space-y-1">
+                  <li>• Giá trị tối thiểu phải nhỏ hơn giá trị tối đa</li>
+                  <li>• Các giá trị phải lớn hơn 0</li>
+                  <li>• Việc thay đổi sẽ ảnh hưởng đến tính toán giá</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+        
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row gap-3 sm:justify-end rounded-b-2xl">
+          <Button 
+            onClick={() => setEditDialogOpen(false)} 
+            className="!rounded-xl !px-6 !py-2.5 !text-gray-600 !border-gray-300 hover:!bg-gray-100 !transition-all !duration-200 !font-medium order-2 sm:order-1"
+            variant="outlined"
+          >
+            Hủy bỏ
+          </Button>
+          <Button
+            onClick={handleEditSize}
+            variant="contained"
+            disabled={
+              !editSizeData.minValue || 
+              !editSizeData.maxValue || 
+              !!editValidationErrors.minValue || 
+              !!editValidationErrors.maxValue
+            }
+            className="!rounded-xl !px-6 !py-2.5 !bg-gradient-to-r !from-green-600 !to-emerald-600 hover:!from-green-700 hover:!to-emerald-700 !shadow-lg hover:!shadow-xl !transition-all !duration-200 !font-semibold order-1 sm:order-2 disabled:!opacity-50 disabled:!cursor-not-allowed"
+          >
+            <EditIcon className="mr-2" />
+            Cập nhật kích thước
+          </Button>
+        </div>
+      </Dialog>
+
       {/* Snackbar */}
       <Snackbar
         open={snackbar.open}

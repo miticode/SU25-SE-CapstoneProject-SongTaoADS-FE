@@ -125,6 +125,7 @@ const App = () => {
   const [authLoading, setAuthLoading] = useState(true);
 
   const { isAuthenticated, user, status } = useSelector((state) => state.auth);
+  const showChatbot = isAuthenticated && user && user.role === ROLES.CUSTOMER;
   const authInitialized = useRef(false); // Thêm ref để track đã init hay chưa
 
   // Xử lý sự kiện đăng nhập thành công
@@ -374,8 +375,8 @@ const App = () => {
           </Routes>
         </AnimatePresence>
 
-        {/* AI Chatbot */}
-        <AIChatbot />
+        {/* AI Chatbot chỉ hiện cho CUSTOMER */}
+        {showChatbot && <AIChatbot />}
       </>
     </LocalizationProvider>
   );

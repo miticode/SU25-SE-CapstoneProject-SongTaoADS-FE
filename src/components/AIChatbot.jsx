@@ -16,7 +16,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import TuneIcon from "@mui/icons-material/Tune";
-// eslint-disable-next-line no-unused-vars
+import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest"; // Import SettingsSuggestIcon
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -34,8 +34,6 @@ const FAQS = [
   "Bên bạn có những dịch vụ gì nổi bật ?",
   "Cửa hàng địa chỉ ở đâu ?",
 ];
-
-
 
 const TypingIndicator = () => (
   <Box
@@ -170,13 +168,13 @@ const AIChatbot = () => {
 
   const handleSend = async (msg) => {
     if ((!input.trim() && !msg) || status === "loading") return;
-    
+
     // Kiểm tra trạng thái đăng nhập
     if (!isAuthenticated) {
       dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
       return;
     }
-    
+
     const userMessage = msg || input.trim();
     setInput("");
 
@@ -249,12 +247,12 @@ const AIChatbot = () => {
             initial={{ opacity: 0, y: 40, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ 
-              duration: 0.4, 
+            transition={{
+              duration: 0.4,
               ease: [0.4, 0, 0.2, 1],
               type: "spring",
               stiffness: 300,
-              damping: 30
+              damping: 30,
             }}
             style={{
               position: "fixed",
@@ -303,15 +301,6 @@ const AIChatbot = () => {
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                  <Tooltip title="Mở chế độ nâng cao">
-                    <IconButton
-                      size="small"
-                      onClick={handleAdvancedToggle}
-                      sx={{ color: "#fff" }}
-                    >
-                      <TuneIcon />
-                    </IconButton>
-                  </Tooltip>
                   <IconButton
                     size="small"
                     onClick={() => setOpen(false)}
@@ -319,32 +308,15 @@ const AIChatbot = () => {
                   >
                     <CloseIcon />
                   </IconButton>
-                </Stack>
-              </Box>
-
-              {/* Advanced Mode Toggle */}
-              <Box sx={{ px: 2, py: 1, bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={handleAdvancedToggle}
-                    sx={{
-                      borderColor: "#6366f1",
-                      color: "#6366f1",
-                      textTransform: "none",
-                      fontSize: 12,
-                      borderRadius: 2,
-                      px: 2,
-                      py: 0.5,
-                    }}
-                  >
-                    <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                    Advanced
-                  </Button>
-                  <Typography variant="caption" color="text.secondary">
-                    Nhấn để mở chế độ nâng cao
-                  </Typography>
+                  <Tooltip title="Mở chế độ nâng cao">
+                    <IconButton
+                      size="small"
+                      onClick={handleAdvancedToggle}
+                      sx={{ color: "#fff" }}
+                    >
+                      <SettingsSuggestIcon />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               </Box>
 
@@ -372,49 +344,49 @@ const AIChatbot = () => {
                   },
                 }}
               >
-                                 {/* FAQ Quick Replies */}
-                 <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#fff" }}>
-                   <Typography
-                     variant="subtitle2"
-                     sx={{ mb: 2, color: "#6366f1", fontWeight: 600 }}
-                   >
-                     Câu hỏi thường gặp:
-                   </Typography>
-                   <Stack direction="row" spacing={1} flexWrap="wrap">
-                     {FAQS.map((faq, idx) => (
-                       <Button
-                         key={idx}
-                         size="small"
-                         variant="outlined"
-                         sx={{
-                           borderColor: "#6366f1",
-                           color: "#6366f1",
-                           textTransform: "none",
-                           fontSize: 12,
-                           borderRadius: 2,
-                           mb: 1,
-                         }}
-                         onClick={() => handleSend(faq)}
-                         disabled={status === "loading"}
-                       >
-                         {faq}
-                       </Button>
-                     ))}
-                   </Stack>
-                   {!isAuthenticated && (
-                     <Typography
-                       variant="caption"
-                       sx={{ 
-                         color: "#ef4444", 
-                         fontStyle: "italic",
-                         display: "block",
-                         mt: 1
-                       }}
-                     >
-                       * Vui lòng đăng nhập để được hỗ trợ chi tiết
-                     </Typography>
-                   )}
-                 </Box>
+                {/* FAQ Quick Replies */}
+                <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#fff" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 2, color: "#6366f1", fontWeight: 600 }}
+                  >
+                    Câu hỏi thường gặp:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {FAQS.map((faq, idx) => (
+                      <Button
+                        key={idx}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: "#6366f1",
+                          color: "#6366f1",
+                          textTransform: "none",
+                          fontSize: 12,
+                          borderRadius: 2,
+                          mb: 1,
+                        }}
+                        onClick={() => handleSend(faq)}
+                        disabled={status === "loading"}
+                      >
+                        {faq}
+                      </Button>
+                    ))}
+                  </Stack>
+                  {!isAuthenticated && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#ef4444",
+                        fontStyle: "italic",
+                        display: "block",
+                        mt: 1,
+                      }}
+                    >
+                      * Vui lòng đăng nhập để được hỗ trợ chi tiết
+                    </Typography>
+                  )}
+                </Box>
 
                 {/* Chat Messages */}
                 <Box
@@ -432,14 +404,16 @@ const AIChatbot = () => {
                         key={idx}
                         sx={{
                           display: "flex",
-                          flexDirection: msg.from === "user" ? "row-reverse" : "row",
+                          flexDirection:
+                            msg.from === "user" ? "row-reverse" : "row",
                           alignItems: "flex-end",
                           gap: 1,
                         }}
                       >
                         <Avatar
                           sx={{
-                            bgcolor: msg.from === "user" ? "#6366f1" : "#f1f5f9",
+                            bgcolor:
+                              msg.from === "user" ? "#6366f1" : "#f1f5f9",
                             color: msg.from === "user" ? "#fff" : "#6366f1",
                             width: 32,
                             height: 32,
@@ -450,18 +424,22 @@ const AIChatbot = () => {
                               : undefined
                           }
                         >
-                          {msg.from === "user" ? <PersonIcon fontSize="small" /> : null}
+                          {msg.from === "user" ? (
+                            <PersonIcon fontSize="small" />
+                          ) : null}
                         </Avatar>
                         <Box
                           sx={{
-                            bgcolor: msg.from === "user" ? "#6366f1" : "#f8fafc",
+                            bgcolor:
+                              msg.from === "user" ? "#6366f1" : "#f8fafc",
                             color: msg.from === "user" ? "#fff" : "#1e293b",
                             px: 2,
                             py: 1,
                             borderRadius: 2,
                             maxWidth: "70%",
                             fontSize: 14,
-                            border: msg.from === "bot" ? "1px solid #e2e8f0" : "none",
+                            border:
+                              msg.from === "bot" ? "1px solid #e2e8f0" : "none",
                           }}
                         >
                           {msg.text}
@@ -517,39 +495,45 @@ const AIChatbot = () => {
                   alignItems: "center",
                 }}
               >
-                                 <TextField
-                   size="small"
-                   fullWidth
-                   placeholder={isAuthenticated ? "Bạn cần hỗ trợ gì?..." : "Vui lòng đăng nhập để được hỗ trợ..."}
-                   value={input}
-                   inputRef={inputRef}
-                   onChange={(e) => setInput(e.target.value)}
-                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                   sx={{
-                     "& .MuiOutlinedInput-root": {
-                       "& fieldset": { borderColor: "#e2e8f0" },
-                       "&:hover fieldset": { borderColor: "#6366f1" },
-                       "&.Mui-focused fieldset": { borderColor: "#6366f1" },
-                     },
-                   }}
-                   disabled={status === "loading" || !isAuthenticated}
-                 />
-                                 <IconButton
-                   onClick={() => handleSend()}
-                   disabled={status === "loading" || !input.trim() || !isAuthenticated}
-                   sx={{
-                     bgcolor: "#6366f1",
-                     color: "#fff",
-                     "&:hover": {
-                       bgcolor: "#4f46e5",
-                     },
-                     "&:disabled": {
-                       bgcolor: "#cbd5e1",
-                     },
-                   }}
-                 >
-                   <SendIcon />
-                 </IconButton>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder={
+                    isAuthenticated
+                      ? "Bạn cần hỗ trợ gì?..."
+                      : "Vui lòng đăng nhập để được hỗ trợ..."
+                  }
+                  value={input}
+                  inputRef={inputRef}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      "& fieldset": { borderColor: "#e2e8f0" },
+                      "&:hover fieldset": { borderColor: "#6366f1" },
+                      "&.Mui-focused fieldset": { borderColor: "#6366f1" },
+                    },
+                  }}
+                  disabled={status === "loading" || !isAuthenticated}
+                />
+                <IconButton
+                  onClick={() => handleSend()}
+                  disabled={
+                    status === "loading" || !input.trim() || !isAuthenticated
+                  }
+                  sx={{
+                    bgcolor: "#6366f1",
+                    color: "#fff",
+                    "&:hover": {
+                      bgcolor: "#4f46e5",
+                    },
+                    "&:disabled": {
+                      bgcolor: "#cbd5e1",
+                    },
+                  }}
+                >
+                  <SendIcon />
+                </IconButton>
               </Box>
             </Paper>
           </motion.div>
