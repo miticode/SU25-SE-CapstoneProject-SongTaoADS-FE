@@ -27,6 +27,8 @@ import {
   Backdrop,
   CircularProgress,
   Button,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 import {
   FaCheck,
@@ -36,6 +38,7 @@ import {
   FaSave,
   FaTimes,
   FaRobot,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -1268,58 +1271,103 @@ const ModernBillboardForm = ({
                   const sizeId = ptSize.sizes?.id; // Thêm optional chaining
                   const fieldName = `size_${sizeId}`;
                   const savedSize = customerChoiceSizes[sizeId];
+                  const isFontSize = ptSize.dimensionType === "FONT_SIZE";
 
                   return (
                     <Grid item key={ptSize.id} xs={6} sm={4} md={3}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label={ptSize.sizes?.name} // Thêm optional chaining
-                        name={fieldName}
-                        type="number"
-                        value={
-                          isEditingSizes
-                            ? editedSizes[sizeId] || ""
-                            : formData[fieldName] || ""
-                        }
-                        onChange={
-                          isEditingSizes
-                            ? (e) =>
-                                handleSizeEditChange(sizeId, e.target.value)
-                            : handleChange
-                        }
-                        disabled={sizesConfirmed && !isEditingSizes}
-                        error={!!validationErrors[fieldName]}
-                        helperText={
-                          validationErrors[fieldName] ||
-                          `Khoảng: ${ptSize.minValue || "N/A"}m - ${
-                            ptSize.maxValue || "N/A"
-                          }m`
-                        }
-                        InputProps={{
-                          inputProps: {
-                            min: ptSize.minValue,
-                            max: ptSize.maxValue,
-                            step: 0.01,
-                          },
-                          startAdornment: (
-                            <span className="text-gray-400 mr-1 text-xs">
-                              #
-                            </span>
-                          ),
-                          endAdornment: (
-                            <span className="text-gray-500 text-xs">m</span>
-                          ),
-                          style: { fontSize: "0.8rem", height: "36px" },
-                        }}
-                        InputLabelProps={{ style: { fontSize: "0.8rem" } }}
-                        variant="outlined"
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "4px",
-                          },
-                        }}
-                      />
+                      <Box sx={{ position: "relative" }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={ptSize.sizes?.name} // Thêm optional chaining
+                          name={fieldName}
+                          type="number"
+                          value={
+                            isEditingSizes
+                              ? editedSizes[sizeId] || ""
+                              : formData[fieldName] || ""
+                          }
+                          onChange={
+                            isEditingSizes
+                              ? (e) =>
+                                  handleSizeEditChange(sizeId, e.target.value)
+                              : handleChange
+                          }
+                          disabled={sizesConfirmed && !isEditingSizes}
+                          error={!!validationErrors[fieldName]}
+                          helperText={
+                            validationErrors[fieldName] ||
+                            `Khoảng: ${ptSize.minValue || "N/A"}m - ${
+                              ptSize.maxValue || "N/A"
+                            }m`
+                          }
+                          InputProps={{
+                            inputProps: {
+                              min: ptSize.minValue,
+                              max: ptSize.maxValue,
+                              step: 0.01,
+                            },
+                            startAdornment: (
+                              <span className="text-gray-400 mr-1 text-xs">
+                                #
+                              </span>
+                            ),
+                            endAdornment: (
+                              <Box sx={{ display: "flex", alignItems: "center" }}>
+                                <span className="text-gray-500 text-xs mr-1">m</span>
+                                {isFontSize && (
+                                  <Tooltip 
+                                    title="Kích thước này chỉ mang tính tham khảo, Sale sẽ báo giá lại sau nếu có thay đổi"
+                                    placement="top"
+                                    arrow
+                                  >
+                                    <IconButton
+                                      size="small"
+                                      sx={{ 
+                                        padding: "2px",
+                                        color: "#ff9800",
+                                        "&:hover": {
+                                          backgroundColor: "rgba(255, 152, 0, 0.04)"
+                                        }
+                                      }}
+                                    >
+                                      <FaExclamationTriangle size={12} />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </Box>
+                            ),
+                            style: { fontSize: "0.8rem", height: "36px" },
+                          }}
+                          InputLabelProps={{ 
+                            style: { fontSize: "0.8rem" },
+                            sx: isFontSize ? {
+                              color: "#ff9800",
+                              "&.Mui-focused": {
+                                color: "#ff9800"
+                              }
+                            } : {}
+                          }}
+                          variant="outlined"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "4px",
+                              ...(isFontSize && {
+                                "& fieldset": {
+                                  borderColor: "#ffcc02",
+                                  borderWidth: "2px"
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: "#ff9800",
+                                },
+                                "&.Mui-focused fieldset": {
+                                  borderColor: "#ff9800",
+                                }
+                              })
+                            },
+                          }}
+                        />
+                      </Box>
                     </Grid>
                   );
                 })}
