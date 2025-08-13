@@ -49,7 +49,24 @@ export const createAttributeValueApi = async (attributeId, attributeValueData) =
     const response = await attributeValueService.post(`/api/attributes/${attributeId}/attribute-values`, attributeValueData);
     const { success, result, message } = response.data;
     if (success) {
-      return { success: true, data: result };
+      // Process the result to match frontend expectations
+      const processedData = {
+        id: result.id,
+        name: result.name,
+        unit: result.unit,
+        materialPrice: result.materialPrice,
+        unitPrice: result.unitPrice,
+        isMultiplier: result.isMultiplier,
+        isAvailable: result.isAvailable,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        // Extract attribute info from the attributes object
+        attributeId: result.attributes?.id || attributeId,
+        attributeName: result.attributes?.name,
+        attributeDescription: result.attributes?.description,
+        attributeOrderCode: result.attributes?.orderCode
+      };
+      return { success: true, data: processedData };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
@@ -81,8 +98,11 @@ export const getAttributeValuesByAttributeIdApi = async (attributeId, page = 1, 
         isAvailable: item.isAvailable,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        // Xử lý attributesId - lấy id của attribute
-        attributeId: item.attributesId?.id || attributeId
+        // Xử lý attribute info - có thể từ attributes object hoặc attributesId
+        attributeId: item.attributes?.id || item.attributesId?.id || attributeId,
+        attributeName: item.attributes?.name || item.attributesId?.name,
+        attributeDescription: item.attributes?.description || item.attributesId?.description,
+        attributeOrderCode: item.attributes?.orderCode || item.attributesId?.orderCode
       }));
       return { 
         success: true, 
@@ -108,7 +128,24 @@ export const updateAttributeValueApi = async (attributeValueId, attributeValueDa
     const response = await attributeValueService.put(`/api/attribute-values/${attributeValueId}`, attributeValueData);
     const { success, result, message } = response.data;
     if (success) {
-      return { success: true, data: result };
+      // Process the result to match frontend expectations
+      const processedData = {
+        id: result.id,
+        name: result.name,
+        unit: result.unit,
+        materialPrice: result.materialPrice,
+        unitPrice: result.unitPrice,
+        isMultiplier: result.isMultiplier,
+        isAvailable: result.isAvailable,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        // Extract attribute info from the attributes object
+        attributeId: result.attributes?.id,
+        attributeName: result.attributes?.name,
+        attributeDescription: result.attributes?.description,
+        attributeOrderCode: result.attributes?.orderCode
+      };
+      return { success: true, data: processedData };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {

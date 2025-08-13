@@ -100,6 +100,7 @@ const AttributeValueManager = () => {
     materialPrice: 0,
     unitPrice: 0,
     isAvailable: true,
+    isMultiplier: false,
   });
   // Fetch all product types on mount
   useEffect(() => {
@@ -145,6 +146,7 @@ const AttributeValueManager = () => {
       materialPrice: 0,
       unitPrice: 0,
       isAvailable: true,
+      isMultiplier: false,
     });
     setOpenDialog(true);
   };
@@ -152,12 +154,13 @@ const AttributeValueManager = () => {
   const handleOpenEdit = (value) => {
     setEditMode(true);
     setForm({
-      attributeId: value.attributesId, // Use attributesId from the API response
+      attributeId: value.attributeId || value.attributesId?.id || value.attributesId, // Handle different response formats
       name: value.name,
       unit: value.unit,
       materialPrice: value.materialPrice,
       unitPrice: value.unitPrice,
       isAvailable: value.isAvailable,
+      isMultiplier: value.isMultiplier || false,
     });
     setSelectedId(value.id);
     setOpenDialog(true);
@@ -165,7 +168,15 @@ const AttributeValueManager = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setForm({ attributeId: "", value: "", description: "" });
+    setForm({ 
+      attributeId: "", 
+      name: "", 
+      unit: "", 
+      materialPrice: 0, 
+      unitPrice: 0, 
+      isAvailable: true, 
+      isMultiplier: false 
+    });
     setSelectedId(null);
   };
 
@@ -197,6 +208,7 @@ const AttributeValueManager = () => {
       materialPrice: parseFloat(form.materialPrice) || 0,
       unitPrice: parseFloat(form.unitPrice) || 0,
       isAvailable: form.isAvailable,
+      isMultiplier: form.isMultiplier,
     };
 
     if (editMode) {
@@ -540,255 +552,331 @@ const AttributeValueManager = () => {
         )}
       </Box>
 
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog with Tailwind CSS */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
           elevation: 3,
-          sx: {
-            borderRadius: 2,
-            overflow: "hidden",
-          },
+          className: "rounded-2xl overflow-hidden",
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-          }}
-        >
-          <DialogTitle
-            sx={{
-              fontWeight: 700,
-              fontSize: 22,
-              p: 3,
-              bgcolor: "#f8f9fa",
-              borderBottom: "1px solid #eee",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1.5}>
-              {editMode ? (
-                <EditIcon color="primary" />
-              ) : (
-                <AddIcon color="primary" />
-              )}
-              {editMode ? "Sửa giá trị thuộc tính" : "Thêm giá trị thuộc tính"}
-            </Box>
-            <IconButton
-              onClick={handleCloseDialog}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </DialogTitle>
+        <div className="flex flex-col h-full">
+          {/* Dialog Header */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-4 py-6 sm:px-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {editMode ? (
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <EditIcon className="text-blue-600 w-6 h-6" />
+                  </div>
+                ) : (
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <AddIcon className="text-green-600 w-6 h-6" />
+                  </div>
+                )}
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {editMode ? "Sửa giá trị thuộc tính" : "Thêm giá trị thuộc tính"}
+                </h2>
+              </div>
+              <button
+                onClick={handleCloseDialog}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <CloseIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+          </div>
 
-          <DialogContent sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Chọn thuộc tính */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Thuộc tính
-                </Typography>
-                <FormControl fullWidth required>
-                  <Select
-                    name="attributeId"
-                    value={form.attributeId}
+          {/* Dialog Content */}
+          <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+            {/* Form Grid Layout - Responsive */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Chọn thuộc tính */}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-blue-600 transition-colors">
+                    Thuộc tính <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <FormControl fullWidth required>
+                      <Select
+                        name="attributeId"
+                        value={form.attributeId}
+                        onChange={handleChange}
+                        displayEmpty
+                        className="rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
+                        sx={{ 
+                          borderRadius: '12px',
+                          '& .MuiOutlinedInput-root': {
+                            '& fieldset': {
+                              borderColor: '#d1d5db',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: '#3b82f6',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#3b82f6',
+                            },
+                          },
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          <em className="text-gray-500">Chọn thuộc tính</em>
+                        </MenuItem>
+                        {attributes.map((attr) => (
+                          <MenuItem key={attr.id} value={attr.id}>
+                            {attr.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </div>
+                </div>
+
+                {/* Tên giá trị */}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-blue-600 transition-colors">
+                    Tên giá trị <span className="text-red-500">*</span>
+                  </label>
+                  <TextField
+                    name="name"
+                    value={form.name}
                     onChange={handleChange}
-                    displayEmpty
-                    sx={{ borderRadius: 1.5 }}
-                  >
-                    <MenuItem value="" disabled>
-                      <em>Chọn thuộc tính</em>
-                    </MenuItem>
-                    {attributes.map((attr) => (
-                      <MenuItem key={attr.id} value={attr.id}>
-                        {attr.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+                    fullWidth
+                    required
+                    variant="outlined"
+                    placeholder="Nhập tên giá trị thuộc tính"
+                    className="rounded-xl"
+                    InputProps={{
+                      className: "rounded-xl shadow-sm",
+                      sx: {
+                        '& fieldset': {
+                          borderColor: '#d1d5db',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#3b82f6',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#3b82f6',
+                        },
+                      },
+                    }}
+                  />
+                </div>
 
-              {/* Tên giá trị */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Tên giá trị
-                </Typography>
-                <TextField
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  variant="outlined"
-                  placeholder="Nhập tên giá trị thuộc tính"
-                  InputProps={{
-                    sx: {
-                      borderRadius: 1.5,
-                      fontSize: "1rem",
-                    },
-                  }}
-                />
-              </Box>
+                {/* Đơn vị */}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-blue-600 transition-colors">
+                    Đơn vị <span className="text-red-500">*</span>
+                  </label>
+                  <TextField
+                    name="unit"
+                    value={form.unit}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                    variant="outlined"
+                    placeholder="Nhập đơn vị (vd: cm, m², kg...)"
+                    className="rounded-xl"
+                    InputProps={{
+                      className: "rounded-xl shadow-sm",
+                      sx: {
+                        '& fieldset': {
+                          borderColor: '#d1d5db',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#3b82f6',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#3b82f6',
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
 
-              {/* Đơn vị */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Đơn vị
-                </Typography>
-                <TextField
-                  name="unit"
-                  value={form.unit}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  variant="outlined"
-                  placeholder="Nhập đơn vị (vd: cm, m², kg...)"
-                  InputProps={{
-                    sx: {
-                      borderRadius: 1.5,
-                      fontSize: "1rem",
-                    },
-                  }}
-                />
-              </Box>
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Giá vật liệu */}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-blue-600 transition-colors">
+                    Giá vật liệu <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <TextField
+                      name="materialPrice"
+                      value={form.materialPrice}
+                      onChange={handleChange}
+                      fullWidth
+                      required
+                      type="number"
+                      inputProps={{ min: "0", step: "0.01" }}
+                      variant="outlined"
+                      placeholder="0"
+                      className="rounded-xl"
+                      InputProps={{
+                        className: "rounded-xl shadow-sm",
+                        startAdornment: <span className="text-gray-500 mr-2">₫</span>,
+                        sx: {
+                          '& fieldset': {
+                            borderColor: '#d1d5db',
+                          },
+                          '&:hover fieldset': {
+                            borderColor: '#3b82f6',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#3b82f6',
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                </div>
 
-              {/* Giá vật liệu */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Giá vật liệu
-                </Typography>
-                <TextField
-                  name="materialPrice"
-                  value={form.materialPrice}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  type="number"
-                  inputProps={{ min: "0", step: "0.01" }}
-                  variant="outlined"
-                  placeholder="Nhập giá vật liệu"
-                  InputProps={{
-                    sx: {
-                      borderRadius: 1.5,
-                      fontSize: "1rem",
-                    },
-                  }}
-                />
-              </Box>
+                {/* Đơn giá */}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-blue-600 transition-colors">
+                    Đơn giá <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <TextField
+                      name="unitPrice"
+                      value={form.unitPrice}
+                      onChange={handleChange}
+                      fullWidth
+                      required
+                      type="number"
+                      inputProps={{ min: "0", step: "0.01" }}
+                      variant="outlined"
+                      placeholder="0"
+                      className="rounded-xl"
+                      InputProps={{
+                        className: "rounded-xl shadow-sm",
+                        startAdornment: <span className="text-gray-500 mr-2">₫</span>,
+                        sx: {
+                          '& fieldset': {
+                            borderColor: '#d1d5db',
+                          },
+                          '&:hover fieldset': {
+                            borderColor: '#3b82f6',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#3b82f6',
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                </div>
 
-              {/* Đơn giá */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Đơn giá
-                </Typography>
-                <TextField
-                  name="unitPrice"
-                  value={form.unitPrice}
-                  onChange={handleChange}
-                  fullWidth
-                  required
-                  type="number"
-                  inputProps={{ min: "0", step: "0.01" }}
-                  variant="outlined"
-                  placeholder="Nhập đơn giá"
-                  InputProps={{
-                    sx: {
-                      borderRadius: 1.5,
-                      fontSize: "1rem",
-                    },
-                  }}
-                />
-              </Box>
+                {/* Status Toggle */}
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Trạng thái
+                  </label>
+                  <div className="flex items-center space-x-3 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                        form.isAvailable ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                          form.isAvailable ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${form.isAvailable ? 'text-green-600' : 'text-gray-500'}`}>
+                      {form.isAvailable ? 'Khả dụng' : 'Không khả dụng'}
+                    </span>
+                  </div>
 
-              {/* Hướng dẫn */}
-              <Box sx={{ mt: 1, bgcolor: "#f9fbe7", p: 2, borderRadius: 2 }}>
-                <Typography
-                  component="div"
-                  variant="subtitle2"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                >
-                  <InfoOutlinedIcon sx={{ fontSize: 18, mr: 1 }} />
-                  Thông tin
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Giá trị thuộc tính được sử dụng để cung cấp các tùy chọn khi
-                  tạo biển hiệu. Hãy nhập đầy đủ thông tin về giá vật liệu và
-                  đơn giá để hệ thống tính toán chi phí chính xác.
-                </Typography>
-              </Box>
-            </Box>
-          </DialogContent>
+                  {/* Is Multiplier Toggle */}
+                  <div className="flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, isMultiplier: !form.isMultiplier })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+                        form.isMultiplier ? 'bg-purple-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                          form.isMultiplier ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${form.isMultiplier ? 'text-purple-600' : 'text-gray-500'}`}>
+                      {form.isMultiplier ? 'Là hệ số nhân' : 'Không phải hệ số nhân'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <DialogActions
-            sx={{ p: 2.5, borderTop: "1px solid #eee", bgcolor: "#f8f9fa" }}
-          >
-            <Button
-              onClick={handleCloseDialog}
-              size="large"
-              sx={{
-                borderRadius: 1.5,
-                px: 3,
-                textTransform: "none",
-                fontWeight: 500,
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
-              size="large"
-              disabled={
-                isLoading || !form.attributeId || !form.name || !form.unit
-              }
-              sx={{
-                borderRadius: 1.5,
-                px: 3,
-                boxShadow: "0 3px 5px 0 rgba(76,175,80,0.3)",
-                textTransform: "none",
-                fontWeight: 500,
-              }}
-            >
-              {isLoading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : editMode ? (
-                "Lưu thay đổi"
-              ) : (
-                "Thêm giá trị"
-              )}
-            </Button>
-          </DialogActions>
-        </Box>
+            {/* Information Card */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 lg:p-6">
+              <div className="flex items-start space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                  <InfoOutlinedIcon className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-900 mb-2">Thông tin quan trọng</h4>
+                  <div className="space-y-2">
+                    <p className="text-sm text-blue-700 leading-relaxed">
+                      Giá trị thuộc tính được sử dụng để cung cấp các tùy chọn khi tạo biển hiệu. 
+                      Hãy nhập đầy đủ thông tin về giá vật liệu và đơn giá để hệ thống tính toán chi phí chính xác.
+                    </p>
+                    <p className="text-sm text-blue-700 leading-relaxed">
+                      <strong>Hệ số nhân:</strong> Khi bật tính năng này, giá trị sẽ được sử dụng như một hệ số nhân trong tính toán thay vì giá trị cố định.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dialog Footer */}
+          <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3">
+              <button
+                onClick={handleCloseDialog}
+                className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={isLoading || !form.attributeId || !form.name || !form.unit}
+                className={`w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  isLoading || !form.attributeId || !form.name || !form.unit
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : editMode
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl'
+                }`}
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <CircularProgress size={20} color="inherit" />
+                    <span>Đang xử lý...</span>
+                  </div>
+                ) : editMode ? (
+                  "Lưu thay đổi"
+                ) : (
+                  "Thêm giá trị"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </Dialog>
       <Dialog
         open={viewValuesDialog}
@@ -868,6 +956,9 @@ const AttributeValueManager = () => {
                       Đơn giá
                     </TableCell>
                     <TableCell align="center" sx={{ fontWeight: 600 }}>
+                      Loại
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 600 }}>
                       Trạng thái
                     </TableCell>
                     {/* Add Thao tác column */}
@@ -892,6 +983,23 @@ const AttributeValueManager = () => {
                           style: "currency",
                           currency: "VND",
                         }).format(value.unitPrice)}
+                      </TableCell>
+                      <TableCell align="center">
+                        {value.isMultiplier ? (
+                          <Chip
+                            label="Hệ số nhân"
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                          />
+                        ) : (
+                          <Chip
+                            label="Giá trị thường"
+                            size="small"
+                            color="default"
+                            variant="outlined"
+                          />
+                        )}
                       </TableCell>
                       <TableCell align="center">
                         {value.isAvailable ? (
