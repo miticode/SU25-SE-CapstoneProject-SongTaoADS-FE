@@ -88,6 +88,63 @@ const DesignEditor = ({
     }
   }, [moveInsideBounds]);
 
+  // 🎯 useEffect để tự động điều chỉnh canvas theo kích thước ảnh (DISABLED - handled in AIDesign.jsx)
+  useEffect(() => {
+    // Logic này đã được xử lý trong AIDesign.jsx để tránh conflict
+    // Chỉ log để debug
+    if (fabricCanvas && (selectedBackgroundForCanvas || generatedImage)) {
+      console.log("🎯 [DESIGN EDITOR] Canvas adjustment handled by AIDesign.jsx");
+      console.log("🎯 [DESIGN EDITOR] Current canvas size:", fabricCanvas.getWidth(), "x", fabricCanvas.getHeight());
+    }
+  }, [fabricCanvas, selectedBackgroundForCanvas, generatedImage, pixelValueData]);
+
+  // 🎯 useEffect để đồng bộ CSS của canvas element với kích thước Fabric.js canvas
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    const syncCanvasStyle = () => {
+      try {
+        const canvasElement = fabricCanvas.getElement();
+        const fabricWidth = fabricCanvas.getWidth();
+        const fabricHeight = fabricCanvas.getHeight();
+
+        console.log("🎯 [CANVAS SYNC] Syncing canvas element style");
+        console.log("🎯 [CANVAS SYNC] Fabric canvas size:", fabricWidth, "x", fabricHeight);
+        console.log("🎯 [CANVAS SYNC] Canvas element size:", canvasElement.width, "x", canvasElement.height);
+
+        // Đồng bộ style của canvas element
+        canvasElement.style.width = fabricWidth + 'px';
+        canvasElement.style.height = fabricHeight + 'px';
+
+        console.log("🎯 [CANVAS SYNC] ✅ Canvas element style synchronized!");
+
+      } catch (error) {
+        console.error("🎯 [CANVAS SYNC] Error syncing canvas style:", error);
+      }
+    };
+
+    // Sync ngay lập tức
+    syncCanvasStyle();
+
+    // Theo dõi sự thay đổi kích thước canvas
+    const checkCanvasResize = () => {
+      const canvasElement = fabricCanvas.getElement();
+      const fabricWidth = fabricCanvas.getWidth();
+      const fabricHeight = fabricCanvas.getHeight();
+      
+      if (canvasElement.style.width !== fabricWidth + 'px' || 
+          canvasElement.style.height !== fabricHeight + 'px') {
+        syncCanvasStyle();
+      }
+    };
+
+    const resizeInterval = setInterval(checkCanvasResize, 100);
+
+    return () => {
+      clearInterval(resizeInterval);
+    };
+  }, [fabricCanvas]);
+
   useEffect(() => {
     if (!fabricCanvas) return;
 
@@ -444,29 +501,35 @@ const DesignEditor = ({
             </div>
 
             <div
-              className="border-2 border-gray-200 rounded-lg"
+              className="border-2 border-gray-200 rounded-lg canvas-container"
               style={{
                 position: "relative",
                 width: "100%",
                 display: "flex",
                 justifyContent: "center",
-                alignItems: "center",
-                minHeight: "400px",
+                alignItems: "center", // Center canvas vertically
+                minHeight: "200px",
                 backgroundColor: "#f8f9fa",
+                overflow: "visible", // Changed from auto to visible
+                padding: "10px",
+                zIndex: 1, // Ensure canvas is visible
               }}
             >
               <canvas
                 ref={canvasRef}
                 style={{ 
                   display: "block",
+                  maxWidth: "none", // Allow canvas to be its actual size
+                  height: "auto",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  backgroundColor: "transparent", // Changed to transparent to see background images
+                  zIndex: 2, // Higher z-index
+                  imageRendering: "auto", // Ensure good image rendering
                 }}
               />
-              {/* Hiển thị thông tin kích thước canvas */}
-              {pixelValueData && pixelValueData.width && pixelValueData.height && (
-                <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                  Gốc: {pixelValueData.width} × {pixelValueData.height} px (Auto Scale)
-                </div>
-              )}
+             
+            
             </div>
           </div>
         </div>
