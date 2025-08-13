@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   FaBell,
   FaBars,
@@ -8,6 +8,8 @@ import {
   FaCircle,
   FaEye,
   FaTimes,
+  FaInfoCircle,
+  FaCheckCircle,
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -38,6 +40,7 @@ export default function Header() {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [alertNotifications, setAlertNotifications] = useState([]);
 
   
   // Socket.IO ref
@@ -51,6 +54,29 @@ export default function Header() {
   const unreadCount = useSelector(selectTotalUnreadCount);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // Alert notification functions
+  const showAlertNotification = useCallback((notification) => {
+    const alertData = {
+      id: Date.now() + Math.random(),
+      type: notification.roleTarget ? 'role' : 'user',
+      title: notification.roleTarget ? 'Thông báo vai trò' : 'Thông báo cá nhân',
+      message: notification.message,
+      orderCode: notification.roleTarget?.orderCode || notification.userTarget?.orderCode,
+      timestamp: notification.createdAt || new Date().toISOString(),
+    };
+
+    setAlertNotifications(prev => [...prev, alertData]);
+
+    // Auto close after 5 seconds
+    setTimeout(() => {
+      setAlertNotifications(prev => prev.filter(alert => alert.id !== alertData.id));
+    }, 5000);
+  }, []);
+
+  const closeAlertNotification = (alertId) => {
+    setAlertNotifications(prev => prev.filter(alert => alert.id !== alertId));
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -68,20 +94,6 @@ export default function Header() {
       dispatch(fetchNotifications({ page: 1, size: 10 }));
       dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
     }
-  }, [dispatch, isAuthenticated]);
-
-  // Auto refresh notifications every 30 seconds when authenticated
-  useEffect(() => {
-    let interval;
-    if (isAuthenticated) {
-      interval = setInterval(() => {
-        dispatch(fetchNotifications({ page: 1, size: 10 }));
-        dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
-      }, 30000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
   }, [dispatch, isAuthenticated]);
 
   // Socket.IO connection for real-time notifications
@@ -140,6 +152,9 @@ export default function Header() {
         // Add to Redux store for ROLE notifications
         dispatch(addRoleNotificationRealtime(newNotification));
         
+        // Show alert notification
+        showAlertNotification(newNotification);
+        
         // Show browser notification if supported
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('Thông báo vai trò', {
@@ -166,6 +181,9 @@ export default function Header() {
         // Add to Redux store
         dispatch(addNotificationRealtime(newNotification));
         
+        // Show alert notification
+        showAlertNotification(newNotification);
+        
         // Show browser notification if supported
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('Thông báo cá nhân', {
@@ -177,9 +195,6 @@ export default function Header() {
 
       socketRef.current.on('reconnect', (attemptNumber) => {
         console.log('Socket reconnected after', attemptNumber, 'attempts');
-        // Refresh notifications after reconnection
-        dispatch(fetchNotifications({ page: 1, size: 10 }));
-        dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
       });
     }
 
@@ -191,7 +206,7 @@ export default function Header() {
         socketRef.current = null;
       }
     };
-  }, [isAuthenticated, dispatch]);
+  }, [isAuthenticated, dispatch, showAlertNotification]);
 
   // Request notification permission when component mounts
   useEffect(() => {
@@ -232,12 +247,6 @@ export default function Header() {
     
     setNotificationMenuOpen(!notificationMenuOpen);
     setUserMenuOpen(false); // Close user menu when opening notification menu
-    
-    // Fetch fresh notifications when opening
-    if (!notificationMenuOpen && isAuthenticated) {
-      dispatch(fetchNotifications({ page: 1, size: 15 }));
-      dispatch(fetchRoleNotifications({ page: 1, size: 15 }));
-    }
   };
 
   const handleNotificationClick = async (notification) => {
@@ -365,8 +374,146 @@ export default function Header() {
     return <FaUserCircle size={size} className={`text-[#2B2F4A] ${className}`} />;
   };
 
+  // Alert Notification Item Component
+  const AlertNotificationItem = ({ alert, onClose }) => (
+    <div className={`
+      relative bg-white rounded-xl shadow-2xl border-l-4 
+      ${alert.type === 'role' ? 'border-l-blue-500' : 'border-l-green-500'}
+      p-4 mb-3 mx-3 sm:mx-0
+      w-[calc(100vw-24px)] sm:w-96 max-w-sm
+      transform transition-all duration-300 hover:scale-[1.02] hover:shadow-3xl
+      backdrop-blur-sm bg-white/95
+      animate-slideInRight
+    `}>
+      {/* Background gradient overlay */}
+      <div className={`
+        absolute inset-0 rounded-xl opacity-5 pointer-events-none
+        ${alert.type === 'role' 
+          ? 'bg-gradient-to-br from-blue-500 to-indigo-600' 
+          : 'bg-gradient-to-br from-green-500 to-emerald-600'
+        }
+      `}></div>
+      
+      <div className="relative flex items-start space-x-3">
+        {/* Icon with animated background */}
+        <div className={`
+          flex-shrink-0 p-2 rounded-full
+          ${alert.type === 'role' 
+            ? 'bg-blue-50 ring-2 ring-blue-100' 
+            : 'bg-green-50 ring-2 ring-green-100'
+          }
+          transition-all duration-300 hover:scale-110
+        `}>
+          {alert.type === 'role' ? (
+            <FaInfoCircle className="text-blue-600 animate-pulse" size={18} />
+          ) : (
+            <FaCheckCircle className="text-green-600 animate-bounce" size={18} />
+          )}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          {/* Header with title and close button */}
+          <div className="flex items-center justify-between mb-2">
+            <h4 className={`
+              text-sm sm:text-base font-bold tracking-tight
+              ${alert.type === 'role' ? 'text-blue-900' : 'text-green-900'}
+              flex items-center space-x-2
+            `}>
+              <span>{alert.title}</span>
+              {alert.type === 'role' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                  Vai trò
+                </span>
+              )}
+            </h4>
+            <button
+              onClick={() => onClose(alert.id)}
+              className={`
+                p-1.5 rounded-full transition-all duration-200 
+                hover:bg-gray-100 hover:scale-110 active:scale-95
+                text-gray-400 hover:text-gray-600
+                focus:outline-none focus:ring-2 focus:ring-gray-300
+              `}
+            >
+              <FaTimes size={12} />
+            </button>
+          </div>
+          
+          {/* Message */}
+          <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-3 font-medium">
+            {alert.message}
+          </p>
+          
+          {/* Order code badge */}
+          {alert.orderCode && (
+            <div className="flex items-center mb-3">
+              <div className={`
+                inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold
+                ${alert.type === 'role'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  : 'bg-green-50 text-green-700 border border-green-200'
+                }
+                transition-all duration-200 hover:scale-105
+              `}>
+                <ShoppingCartIcon sx={{ fontSize: 14 }} className="mr-1.5" />
+                <span>Đơn hàng: {alert.orderCode}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Timestamp */}
+          <div className="text-xs text-gray-500 mt-2 font-mono">
+            <span>{new Date(alert.timestamp).toLocaleTimeString('vi-VN')}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Subtle bottom border animation */}
+      <div className={`
+        absolute bottom-0 left-0 h-0.5 rounded-b-xl
+        ${alert.type === 'role'
+          ? 'bg-gradient-to-r from-transparent via-blue-500 to-transparent'
+          : 'bg-gradient-to-r from-transparent via-green-500 to-transparent'
+        }
+        animate-pulse w-full
+      `}></div>
+    </div>
+  );
+
   return (
-    <header
+    <>
+      {/* Alert Notifications Container - All slide from right */}
+      {alertNotifications.length > 0 && (
+        <div className={`
+          fixed z-[60] pointer-events-none
+          top-4 right-4
+          w-full sm:w-auto
+          flex flex-col justify-start
+          space-y-2 sm:space-y-3
+          overflow-hidden
+        `}>
+          <div className="pointer-events-auto">
+            {alertNotifications.map((alert, index) => (
+              <div
+                key={alert.id}
+                style={{
+                  animationDelay: `${index * 0.1}s`
+                }}
+              >
+                <AlertNotificationItem
+                  alert={alert}
+                  onClose={closeAlertNotification}
+                />
+              </div>
+            ))}
+          </div>
+          
+          {/* Mobile backdrop blur overlay (optional) */}
+          <div className="sm:hidden fixed inset-0 bg-black/5 backdrop-blur-[1px] pointer-events-none -z-10"></div>
+        </div>
+      )}
+
+      <header
       className={`sticky top-0 z-40 transition-all duration-500 ${
         isScrolled
           ? "shadow-xl bg-white/95 backdrop-blur-lg border-b border-gray-100"
@@ -899,5 +1046,6 @@ export default function Header() {
         </div>
       )}
     </header>
+    </>
   );
 }

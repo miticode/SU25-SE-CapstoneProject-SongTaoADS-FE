@@ -40,6 +40,8 @@ import HistoryIcon from "@mui/icons-material/History";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import BrushIcon from "@mui/icons-material/Brush";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import DescriptionIcon from "@mui/icons-material/Description";
 import StarIcon from "@mui/icons-material/Star";
@@ -1205,6 +1207,8 @@ const OrderHistory = () => {
     loading: false,
     title: "",
     description: "",
+    allImages: [], // Thêm array chứa tất cả ảnh
+    currentIndex: 0, // Thêm index hiện tại
   });
   const [offerDialog, setOfferDialog] = useState({
     open: false,
@@ -1386,7 +1390,19 @@ const OrderHistory = () => {
 
     if (logsWithStatus.length === 0) return null;
 
-    // Ưu tiên log có ảnh
+    // Ưu tiên log có description và ảnh
+    for (const log of logsWithStatus) {
+      const images = getProgressLogImages(log.id);
+      if (images && images.length > 0 && log.description) {
+        console.log(
+          `Found progress log with images and description: ${log.id}, description: "${log.description}", images:`,
+          images
+        );
+        return log;
+      }
+    }
+
+    // Ưu tiên log có ảnh (nếu không có log nào có cả ảnh và description)
     for (const log of logsWithStatus) {
       const images = getProgressLogImages(log.id);
       if (images && images.length > 0) {
@@ -1398,9 +1414,19 @@ const OrderHistory = () => {
       }
     }
 
-    // Nếu không có log nào có ảnh, lấy log đầu tiên
+    // Ưu tiên log có description (nếu không có log nào có ảnh)
+    for (const log of logsWithStatus) {
+      if (log.description) {
+        console.log(
+          `Found progress log with description: ${log.id}, description: "${log.description}"`
+        );
+        return log;
+      }
+    }
+
+    // Nếu không có log nào có ảnh hoặc description, lấy log đầu tiên
     console.log(
-      `No progress log with images found, using first log: ${logsWithStatus[0].id}`
+      `No progress log with images or description found, using first log: ${logsWithStatus[0].id}`
     );
     return logsWithStatus[0];
   };
@@ -1714,6 +1740,9 @@ const OrderHistory = () => {
     // Lấy progress logs cho đơn hàng này
     const progressLogs = getProgressLogs(order.id);
     const producingLog = getProgressLogByStatus(order.id, "PRODUCING");
+    const deliveringLog = getProgressLogByStatus(order.id, "DELIVERING");
+    const installedLog = getProgressLogByStatus(order.id, "INSTALLED");
+    const productionCompletedLog = getProgressLogByStatus(order.id, "PRODUCTION_COMPLETED");
 
     // Cập nhật hàm handleStepClick để hỗ trợ ảnh từ progress log
     const handleStepClick = async (step) => {
@@ -1743,21 +1772,28 @@ const OrderHistory = () => {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
           imageUrl = allProductionImages[0].imageUrl;
           allImages = allProductionImages.map((img) => img.imageUrl);
-          title = `Ảnh tiến độ - Đang sản xuất (${allProductionImages.length} ảnh)`;
+          title = `Ảnh tiến độ - Đang sản xuất`;
           description =
             producingLogs.find((log) => log.description)?.description ||
             "Đang sản xuất";
-          console.log("Using production images:", {
+          console.log("PRODUCING - Using production images:", {
             imageUrl,
             allImages,
             title,
+            description,
+            producingLogs,
           });
         } else if (order?.draftImageUrl) {
           // Fallback về draftImageUrl cũ nếu chưa có ảnh progress log
           imageUrl = order.draftImageUrl;
           allImages = [order.draftImageUrl];
           title = "Ảnh thiết kế - Đang thi công";
-          console.log("Fallback to draftImageUrl:", imageUrl);
+          description = "Đang sản xuất";
+          console.log("PRODUCING - Fallback to draftImageUrl:", {
+            imageUrl,
+            title,
+            description,
+          });
         }
       }
       // Xử lý cho step "Đã thi công" - ưu tiên ảnh từ progress log
@@ -1819,21 +1855,28 @@ const OrderHistory = () => {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
           imageUrl = allDeliveringImages[0].imageUrl;
           allImages = allDeliveringImages.map((img) => img.imageUrl);
-          title = `Ảnh vận chuyển (${allDeliveringImages.length} ảnh)`;
+          title = `Ảnh vận chuyển`;
           description =
             deliveringLogs.find((log) => log.description)?.description ||
             "Đang vận chuyển";
-          console.log("Using delivering images:", {
+          console.log("DELIVERING - Using delivering images:", {
             imageUrl,
             allImages,
             title,
+            description,
+            deliveringLogs,
           });
         } else if (order?.deliveryImageUrl) {
           // Fallback về deliveryImageUrl cũ nếu chưa có ảnh progress log
           imageUrl = order.deliveryImageUrl;
           allImages = [order.deliveryImageUrl];
           title = "Ảnh vận chuyển - Đang vận chuyển";
-          console.log("Fallback to deliveryImageUrl:", imageUrl);
+          description = "Đang vận chuyển";
+          console.log("DELIVERING - Fallback to deliveryImageUrl:", {
+            imageUrl,
+            title,
+            description,
+          });
         }
       }
       // Xử lý cho step "Đã lắp đặt" - ưu tiên ảnh từ progress log
@@ -1857,366 +1900,278 @@ const OrderHistory = () => {
           // Nếu có ảnh progress log, sử dụng ảnh đầu tiên và lưu tất cả
           imageUrl = allInstalledImages[0].imageUrl;
           allImages = allInstalledImages.map((img) => img.imageUrl);
-          title = `Ảnh lắp đặt hoàn thành (${allInstalledImages.length} ảnh)`;
+          title = `Ảnh lắp đặt hoàn thành`;
           description =
             installedLogs.find((log) => log.description)?.description ||
             "Đã lắp đặt hoàn thành";
-          console.log("Using installed images:", {
+          console.log("INSTALLED - Using installed images:", {
             imageUrl,
             allImages,
             title,
+            description,
+            installedLogs,
           });
         } else if (order?.installationImageUrl) {
           // Fallback về installationImageUrl cũ nếu chưa có ảnh progress log
           imageUrl = order.installationImageUrl;
           allImages = [order.installationImageUrl];
           title = "Ảnh lắp đặt hoàn thành - Đã lắp đặt";
-          console.log("Fallback to installationImageUrl:", imageUrl);
+          description = "Đã lắp đặt hoàn thành";
+          console.log("INSTALLED - Fallback to installationImageUrl:", {
+            imageUrl,
+            title,
+            description,
+          });
         }
-        title = "Ảnh lắp đặt hoàn thành - Đã lắp đặt";
       }
 
       // Nếu không có ảnh thì không làm gì
       if (!imageUrl || allImages.length === 0) return;
 
-      // Nếu chỉ có 1 ảnh, hiển thị bằng dialog cũ
-      if (allImages.length === 1) {
-        setImageDialog({
-          open: true,
-          imageUrl: null,
-          loading: true,
-          title: title,
-          description: description,
-        });
+      // Sử dụng ImageDialog để hiển thị ảnh với description
+      console.log("Setting ImageDialog with:", {
+        title,
+        description,
+        totalImages: allImages.length,
+      });
+      
+      setImageDialog({
+        open: true,
+        imageUrl: null,
+        loading: true,
+        title: title,
+        description: description,
+        allImages: allImages, // Truyền tất cả ảnh
+        currentIndex: 0, // Bắt đầu từ ảnh đầu tiên
+      });
 
-        try {
-          const result = await getImageFromS3(imageUrl);
-          if (result.success) {
-            setImageDialog((prev) => ({
-              ...prev,
-              imageUrl: result.imageUrl,
-              loading: false,
-            }));
-          } else {
-            setImageDialog((prev) => ({
-              ...prev,
-              loading: false,
-            }));
-            setNotification({
-              open: true,
-              message:
-                "Không thể tải ảnh: " +
-                (result.message || "Lỗi không xác định"),
-              severity: "error",
-            });
-          }
-        } catch (error) {
-          console.error("Error getting image from S3:", error);
+      try {
+        // Load ảnh đầu tiên
+        const result = await getImageFromS3(imageUrl);
+        if (result.success) {
+          setImageDialog((prev) => ({
+            ...prev,
+            imageUrl: result.imageUrl,
+            loading: false,
+          }));
+        } else {
           setImageDialog((prev) => ({
             ...prev,
             loading: false,
           }));
           setNotification({
             open: true,
-            message: "Có lỗi xảy ra khi tải ảnh",
+            message:
+              "Không thể tải ảnh: " +
+              (result.message || "Lỗi không xác định"),
             severity: "error",
           });
         }
-      } else {
-        // Nếu có nhiều ảnh, hiển thị gallery
-        const loadAllImages = async () => {
-          try {
-            const imagePromises = allImages.map(async (img) => {
-              const result = await getImageFromS3(img);
-              return result.success ? result.imageUrl : null;
-            });
-
-            const resolvedImages = await Promise.all(imagePromises);
-            const validImages = resolvedImages.filter((img) => img !== null);
-
-            if (validImages.length > 0) {
-              setGalleryImages(validImages);
-              setGalleryIndex(0);
-              setGalleryOpen(true);
-            } else {
-              setNotification({
-                open: true,
-                message: "Không thể tải ảnh",
-                severity: "error",
-              });
-            }
-          } catch (error) {
-            console.error("Error loading gallery images:", error);
-            setNotification({
-              open: true,
-              message: "Có lỗi xảy ra khi tải ảnh",
-              severity: "error",
-            });
-          }
-        };
-
-        loadAllImages();
+      } catch (error) {
+        console.error("Error getting image from S3:", error);
+        setImageDialog((prev) => ({
+          ...prev,
+          loading: false,
+        }));
+        setNotification({
+          open: true,
+          message: "Có lỗi xảy ra khi tải ảnh",
+          severity: "error",
+        });
       }
     };
 
+    // Xác định các step đã hoàn thành
+    const getCompletedSteps = () => {
+      const completed = new Set();
+      
+      // Nếu đã lắp đặt (INSTALLED), tất cả các bước đều hoàn thành
+      if (status === "INSTALLED" || status === "ORDER_COMPLETED") {
+        steps.forEach(step => completed.add(step.key));
+        return completed;
+      }
+      
+      // Các bước trước currentStepIndex được coi là hoàn thành
+      for (let i = 0; i < currentStepIndex; i++) {
+        completed.add(steps[i].key);
+      }
+      
+      return completed;
+    };
+
+    const completedSteps = getCompletedSteps();
+
+    // Render step circle
+    const renderStepCircle = (step, index, isCompleted, isActive) => {
+      // Kiểm tra xem step có ảnh không
+      let hasProgressLogImage = false;
+      const allProgressLogs = getProgressLogs(order.id);
+
+      if (step.key === "PRODUCING") {
+        const producingLogs = allProgressLogs.filter((log) => log.status === "PRODUCING");
+        hasProgressLogImage = producingLogs.some((log) => {
+          const images = getProgressLogImages(log.id);
+          return images && images.length > 0;
+        });
+      } else if (step.key === "PRODUCTION_COMPLETED") {
+        const completedLogs = allProgressLogs.filter((log) => log.status === "PRODUCTION_COMPLETED");
+        hasProgressLogImage = completedLogs.some((log) => {
+          const images = getProgressLogImages(log.id);
+          return images && images.length > 0;
+        });
+      } else if (step.key === "DELIVERING") {
+        const deliveringLogs = allProgressLogs.filter((log) => log.status === "DELIVERING");
+        hasProgressLogImage = deliveringLogs.some((log) => {
+          const images = getProgressLogImages(log.id);
+          return images && images.length > 0;
+        });
+      } else if (step.key === "INSTALLED") {
+        const installedLogs = allProgressLogs.filter((log) => log.status === "INSTALLED");
+        hasProgressLogImage = installedLogs.some((log) => {
+          const images = getProgressLogImages(log.id);
+          return images && images.length > 0;
+        });
+      }
+
+      const isClickable =
+        hasProgressLogImage ||
+        (step.key === "PRODUCING" && order?.draftImageUrl) ||
+        (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) ||
+        (step.key === "DELIVERING" && order?.deliveryImageUrl) ||
+        (step.key === "INSTALLED" && order?.installationImageUrl);
+      
+      return (
+        <div className="flex flex-col items-center flex-1 relative min-w-0">
+          {/* Step Circle */}
+          <div 
+            className={`
+              relative w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 
+              rounded-full flex items-center justify-center 
+              text-white text-sm sm:text-base lg:text-lg
+              border-2 border-white shadow-md transition-all duration-300 z-10
+              ${isCompleted 
+                ? 'bg-green-500 hover:bg-green-600' 
+                : isActive 
+                ? 'bg-blue-500 hover:bg-blue-600 ring-4 ring-blue-200' 
+                : 'bg-gray-400'
+              }
+              ${isClickable ? 'cursor-pointer hover:scale-110' : 'cursor-default'}
+            `}
+            onClick={isClickable ? () => handleStepClick(step) : undefined}
+          >
+            {isCompleted ? (
+              <span className="text-white font-bold">✓</span>
+            ) : isActive ? (
+              <div className="w-2 h-2 bg-white rounded-full"></div>
+            ) : null}
+          </div>
+
+          {/* Step Label */}
+          <div className="mt-2 text-center max-w-[80px] sm:max-w-[100px] lg:max-w-[120px] z-10 relative">
+            <span 
+              className={`
+                text-xs sm:text-sm font-medium block leading-tight
+                ${isCompleted 
+                  ? 'text-green-600' 
+                  : isActive 
+                  ? 'text-blue-600' 
+                  : 'text-gray-500'
+                }
+                ${isClickable ? 'cursor-pointer hover:underline' : ''}
+                ${isClickable && !isCompleted ? 'text-blue-600' : ''}
+              `}
+              onClick={isClickable ? () => handleStepClick(step) : undefined}
+            >
+              {step.label}
+              {isClickable && " 📷"}
+            </span>
+            
+            {/* Progress log description for PRODUCING step */}
+            {step.key === "PRODUCING" && producingLog && producingLog.description && (
+              <span className="text-xs italic text-blue-500 block mt-1">
+                "{producingLog.description}"
+              </span>
+            )}
+            
+            {/* Progress log description for DELIVERING step */}
+            {step.key === "DELIVERING" && deliveringLog && deliveringLog.description && (
+              <span className="text-xs italic text-blue-500 block mt-1">
+                "{deliveringLog.description}"
+              </span>
+            )}
+            
+            {/* Progress log description for INSTALLED step */}
+            {step.key === "INSTALLED" && installedLog && installedLog.description && (
+              <span className="text-xs italic text-blue-500 block mt-1">
+                "{installedLog.description}"
+              </span>
+            )}
+            
+            {/* Progress log description for PRODUCTION_COMPLETED step */}
+            {step.key === "PRODUCTION_COMPLETED" && productionCompletedLog && productionCompletedLog.description && (
+              <span className="text-xs italic text-blue-500 block mt-1">
+                "{productionCompletedLog.description}"
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <Box sx={{ mt: 2, mb: 1 }}>
-        <Typography
-          variant="body2"
-          color="primary.main"
-          fontWeight={600}
-          gutterBottom
-        >
-          🔨 Tiến độ thi công
-        </Typography>
-
-        {/* Progress Bar */}
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {currentStep?.label}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {progress}%
-            </Typography>
-          </Box>
-          <LinearProgress
-            variant="determinate"
-            value={progress}
-            sx={{
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: "grey.200",
-              "& .MuiLinearProgress-bar": {
-                borderRadius: 4,
-                backgroundColor:
-                  progress === 100 ? "success.main" : "primary.main",
-              },
-            }}
-          />
-        </Box>
-
-        {/* Step indicators */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            position: "relative",
-          }}
-        >
-          {steps.map((step, index) => {
-            // Kiểm tra xem step có thể click được không
-            let hasProgressLogImage = false;
-            const allProgressLogs = getProgressLogs(order.id);
-
-            if (step.key === "PRODUCING") {
-              // Kiểm tra tất cả progress logs có status PRODUCING
-              const producingLogs = allProgressLogs.filter(
-                (log) => log.status === "PRODUCING"
-              );
-              hasProgressLogImage = producingLogs.some((log) => {
-                const images = getProgressLogImages(log.id);
-                return images && images.length > 0;
-              });
-            } else if (step.key === "PRODUCTION_COMPLETED") {
-              // Kiểm tra tất cả progress logs có status PRODUCTION_COMPLETED
-              const completedLogs = allProgressLogs.filter(
-                (log) => log.status === "PRODUCTION_COMPLETED"
-              );
-              hasProgressLogImage = completedLogs.some((log) => {
-                const images = getProgressLogImages(log.id);
-                return images && images.length > 0;
-              });
-            } else if (step.key === "DELIVERING") {
-              // Kiểm tra tất cả progress logs có status DELIVERING
-              const deliveringLogs = allProgressLogs.filter(
-                (log) => log.status === "DELIVERING"
-              );
-              hasProgressLogImage = deliveringLogs.some((log) => {
-                const images = getProgressLogImages(log.id);
-                return images && images.length > 0;
-              });
-            } else if (step.key === "INSTALLED") {
-              // Kiểm tra tất cả progress logs có status INSTALLED
-              const installedLogs = allProgressLogs.filter(
-                (log) => log.status === "INSTALLED"
-              );
-              hasProgressLogImage = installedLogs.some((log) => {
-                const images = getProgressLogImages(log.id);
-                return images && images.length > 0;
-              });
-            }
-
-            const isClickable =
-              hasProgressLogImage ||
-              (step.key === "PRODUCING" && order?.draftImageUrl) ||
-              (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) ||
-              (step.key === "DELIVERING" && order?.deliveryImageUrl) ||
-              (step.key === "INSTALLED" && order?.installationImageUrl);
-            const isCurrentStep = index === currentStepIndex;
-            const isCompletedStep = index < currentStepIndex;
-
-            return (
-              <Box
-                key={step.key}
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  flex: 1,
-                  position: "relative",
-                  cursor: isClickable ? "pointer" : "default",
-                  "&:hover": isClickable
-                    ? {
-                        "& .step-circle": {
-                          transform: "scale(1.1)",
-                          boxShadow: 3,
-                        },
-                      }
-                    : {},
-                }}
-                onClick={() => handleStepClick(step)}
-              >
-                {/* Step circle */}
-                <Box
-                  className="step-circle"
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    backgroundColor:
-                      index <= currentStepIndex
-                        ? index === currentStepIndex
-                          ? "primary.main"
-                          : "success.main"
-                        : "grey.300",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mb: 1,
-                    zIndex: 2,
-                    border: "2px solid white",
-                    boxShadow: 1,
-                    transition: "all 0.2s ease-in-out",
-                    ...(isClickable && {
-                      border: "2px solid",
-                      borderColor:
-                        isCurrentStep || isCompletedStep
-                          ? "primary.dark"
-                          : "primary.light",
-                      "&:hover": {
-                        borderColor: "primary.dark",
-                        boxShadow: 2,
-                      },
-                    }),
-                  }}
-                >
-                  {index < currentStepIndex ? (
-                    <Typography
-                      variant="caption"
-                      color="white"
-                      fontWeight="bold"
-                    >
-                      ✓
-                    </Typography>
-                  ) : index === currentStepIndex ? (
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        backgroundColor: "white",
-                      }}
-                    />
-                  ) : null}
-                </Box>
-
-                {/* Step label */}
-                <Typography
-                  variant="caption"
-                  color={
-                    index <= currentStepIndex
-                      ? "text.primary"
-                      : "text.secondary"
-                  }
-                  fontWeight={index === currentStepIndex ? 600 : 400}
-                  textAlign="center"
-                  sx={{
-                    fontSize: "0.7rem",
-                    lineHeight: 1.2,
-                    maxWidth: 70,
-                    ...(isClickable && {
-                      color: "primary.main",
-                      fontWeight: 600,
-                      textDecoration: "underline",
-                    }),
-                  }}
-                >
-                  {step.label}
-                  {isClickable && " 📷"}
-                </Typography>
-
-                {/* Progress log description for PRODUCING step */}
-                {step.key === "PRODUCING" &&
-                  producingLog &&
-                  producingLog.description && (
-                    <Typography
-                      variant="caption"
-                      color="primary.main"
-                      textAlign="center"
-                      sx={{
-                        fontSize: "0.6rem",
-                        lineHeight: 1.1,
-                        maxWidth: 80,
-                        fontStyle: "italic",
-                        mt: 0.5,
-                      }}
-                    >
-                      "{producingLog.description}"
-                    </Typography>
+      <div className="w-full bg-white rounded-lg border border-gray-200 shadow-sm mb-4 p-4">
+        {/* Header */}
+        <div className="mb-4">
+          <h4 className="text-base font-semibold text-green-600 mb-1">
+            🔨 Tiến độ thi công
+          </h4>
+          <p className="text-sm text-gray-600">
+            Theo dõi quá trình sản xuất và lắp đặt
+          </p>
+        </div>
+        
+        {/* Progress Steps */}
+        <div className="relative px-4">
+          <div className="relative flex justify-between items-start gap-4">
+            {steps.map((step, index) => {
+              const isCompleted = completedSteps.has(step.key);
+              const isActive = index === currentStepIndex && !isCompleted;
+              // Đường nối sẽ xanh nếu bước hiện tại đã hoàn thành
+              const isLineCompleted = completedSteps.has(step.key);
+              
+              return (
+                <div key={step.key} className="flex-1 relative min-w-0">
+                  {/* Connecting Line to Next Step */}
+                  {index < steps.length - 1 && (
+                    <div className="absolute top-4 sm:top-5 lg:top-6 left-1/2 w-full h-0.5 flex">
+                      <div className={`flex-1 h-full ${isLineCompleted ? 'bg-green-500' : 'bg-gray-300'} transition-all duration-300`}></div>
+                    </div>
                   )}
+                  
+                  {renderStepCircle(step, index, isCompleted, isActive)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-                {/* Connecting line */}
-                {index < steps.length - 1 && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      top: 12,
-                      left: "50%",
-                      right: "-50%",
-                      height: 2,
-                      backgroundColor:
-                        index < currentStepIndex ? "success.main" : "grey.300",
-                      zIndex: 1,
-                    }}
-                  />
-                )}
-              </Box>
-            );
-          })}
-        </Box>
-
-        {/* Status message */}
-        <Box
-          sx={{
-            mt: 2,
-            p: 1.5,
-            backgroundColor: "primary.50",
-            borderRadius: 1,
-            border: "1px solid",
-            borderColor: "primary.200",
-          }}
-        >
-          <Typography variant="body2" color="primary.dark">
+        {/* Status Information */}
+        <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <span className="text-sm font-medium text-blue-700">Trạng thái hiện tại:</span>
+              <span className="text-sm text-blue-600">
+                {currentStep?.label || 'Không xác định'}
+              </span>
+            </div>
+            
+            {/* Status-specific messages */}
             {status === "PRODUCING" && (
-              <>
+              <div className="text-sm text-blue-600">
                 🔨 Đơn hàng đang được thi công
                 {(() => {
-                  // Kiểm tra có ảnh progress log không từ tất cả progress logs PRODUCING
                   const allProgressLogs = getProgressLogs(order.id);
-                  const producingLogs = allProgressLogs.filter(
-                    (log) => log.status === "PRODUCING"
-                  );
+                  const producingLogs = allProgressLogs.filter((log) => log.status === "PRODUCING");
                   let totalProgressLogImages = 0;
 
                   for (const log of producingLogs) {
@@ -2228,188 +2183,60 @@ const OrderHistory = () => {
 
                   if (totalProgressLogImages > 0) {
                     return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đang thi công" để xem ảnh tiến độ (
-                        {totalProgressLogImages} ảnh)
-                      </Typography>
+                      <div className="text-xs italic mt-1 text-blue-500">
+                        💡 Click vào "Đang thi công" để xem ảnh tiến độ ({totalProgressLogImages} ảnh)
+                      </div>
                     );
                   } else if (order?.draftImageUrl) {
                     return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
+                      <div className="text-xs italic mt-1 text-blue-500">
                         💡 Click vào "Đang thi công" để xem ảnh thiết kế
-                      </Typography>
+                      </div>
                     );
                   }
                   return null;
                 })()}
-              </>
+              </div>
             )}
+            
             {status === "PRODUCTION_COMPLETED" && (
-              <>
+              <div className="text-sm text-blue-600">
                 ✅ Thi công hoàn tất, chuẩn bị vận chuyển
-                {(() => {
-                  // Kiểm tra có ảnh progress log không từ tất cả progress logs PRODUCTION_COMPLETED
-                  const allProgressLogs = getProgressLogs(order.id);
-                  const completedLogs = allProgressLogs.filter(
-                    (log) => log.status === "PRODUCTION_COMPLETED"
-                  );
-                  let totalCompletedImages = 0;
-
-                  for (const log of completedLogs) {
-                    const images = getProgressLogImages(log.id);
-                    if (images && images.length > 0) {
-                      totalCompletedImages += images.length;
-                    }
-                  }
-
-                  if (totalCompletedImages > 0) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đã thi công" để xem ảnh sản phẩm hoàn
-                        thành ({totalCompletedImages} ảnh)
-                      </Typography>
-                    );
-                  } else if (order?.productImageUrl) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đã thi công" để xem ảnh sản phẩm hoàn
-                        thành
-                      </Typography>
-                    );
-                  }
-                  return null;
-                })()}
-              </>
+                <div className="text-xs italic mt-1 text-blue-500">
+                  💡 Click vào các bước có biểu tượng 📷 để xem ảnh
+                </div>
+              </div>
             )}
+            
             {status === "DELIVERING" && (
-              <>
+              <div className="text-sm text-blue-600">
                 🚛 Đang vận chuyển đến địa chỉ của bạn
-                {(() => {
-                  // Kiểm tra có ảnh progress log không từ tất cả progress logs DELIVERING
-                  const allProgressLogs = getProgressLogs(order.id);
-                  const deliveringLogs = allProgressLogs.filter(
-                    (log) => log.status === "DELIVERING"
-                  );
-                  let totalDeliveringImages = 0;
-
-                  for (const log of deliveringLogs) {
-                    const images = getProgressLogImages(log.id);
-                    if (images && images.length > 0) {
-                      totalDeliveringImages += images.length;
-                    }
-                  }
-
-                  if (totalDeliveringImages > 0) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đang vận chuyển" để xem ảnh vận chuyển (
-                        {totalDeliveringImages} ảnh)
-                      </Typography>
-                    );
-                  } else if (order?.deliveryImageUrl) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đang vận chuyển" để xem ảnh vận chuyển
-                      </Typography>
-                    );
-                  }
-                  return null;
-                })()}
-                {/* Hiển thị hint cho các ảnh có thể xem từ các bước trước */}
-                {(order?.draftImageUrl || order?.productImageUrl) && (
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5, fontStyle: "italic" }}
-                  >
-                    💡 Click vào các bước có biểu tượng 📷 để xem ảnh
-                  </Typography>
-                )}
-              </>
+                <div className="text-xs italic mt-1 text-blue-500">
+                  💡 Click vào các bước có biểu tượng 📷 để xem ảnh
+                </div>
+              </div>
             )}
+            
             {status === "INSTALLED" && (
-              <>
+              <div className="text-sm text-blue-600">
                 🎉 Đã lắp đặt hoàn tất!
-                {(() => {
-                  // Kiểm tra có ảnh progress log không từ tất cả progress logs INSTALLED
-                  const allProgressLogs = getProgressLogs(order.id);
-                  const installedLogs = allProgressLogs.filter(
-                    (log) => log.status === "INSTALLED"
-                  );
-                  let totalInstalledImages = 0;
-
-                  for (const log of installedLogs) {
-                    const images = getProgressLogImages(log.id);
-                    if (images && images.length > 0) {
-                      totalInstalledImages += images.length;
-                    }
-                  }
-
-                  if (totalInstalledImages > 0) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đã lắp đặt" để xem ảnh lắp đặt hoàn thành
-                        ({totalInstalledImages} ảnh)
-                      </Typography>
-                    );
-                  } else if (order?.installationImageUrl) {
-                    return (
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ mt: 0.5, fontStyle: "italic" }}
-                      >
-                        💡 Click vào "Đã lắp đặt" để xem ảnh lắp đặt hoàn thành
-                      </Typography>
-                    );
-                  }
-                  return null;
-                })()}
-                {/* Hiển thị hint cho tất cả các ảnh có thể xem từ các bước trước */}
-                {(order?.draftImageUrl ||
-                  order?.productImageUrl ||
-                  order?.deliveryImageUrl) && (
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5, fontStyle: "italic" }}
-                  >
-                    💡 Click vào các bước có biểu tượng 📷 để xem ảnh
-                  </Typography>
-                )}
-              </>
+                <div className="text-xs italic mt-1 text-blue-500">
+                  💡 Click vào các bước có biểu tượng 📷 để xem ảnh
+                </div>
+              </div>
             )}
-          </Typography>
-        </Box>
-      </Box>
+            
+            {order?.estimatedDeliveryDate && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-sm font-medium text-blue-700">Ngày giao dự kiến:</span>
+                <span className="text-sm text-blue-600">
+                  {new Date(order.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     );
   };
   const handleCloseImageDialog = () => {
@@ -2419,7 +2246,103 @@ const OrderHistory = () => {
       loading: false,
       title: "",
       description: "",
+      allImages: [],
+      currentIndex: 0,
     });
+  };
+
+  // Hàm chuyển ảnh tiếp theo
+  const handleNextImage = async () => {
+    if (imageDialog.allImages.length <= 1) return;
+    
+    const nextIndex = (imageDialog.currentIndex + 1) % imageDialog.allImages.length;
+    
+    // Cập nhật index trước, giữ nguyên imageUrl hiện tại khi loading
+    setImageDialog(prev => ({
+      ...prev,
+      loading: true,
+      currentIndex: nextIndex,
+    }));
+
+    try {
+      const result = await getImageFromS3(imageDialog.allImages[nextIndex]);
+      if (result.success) {
+        setImageDialog(prev => ({
+          ...prev,
+          imageUrl: result.imageUrl,
+          loading: false,
+        }));
+      } else {
+        setImageDialog(prev => ({
+          ...prev,
+          loading: false,
+        }));
+        setNotification({
+          open: true,
+          message: "Không thể tải ảnh",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading next image:", error);
+      setImageDialog(prev => ({
+        ...prev,
+        loading: false,
+      }));
+      setNotification({
+        open: true,
+        message: "Có lỗi xảy ra khi tải ảnh",
+        severity: "error",
+      });
+    }
+  };
+
+  // Hàm chuyển ảnh trước đó
+  const handlePreviousImage = async () => {
+    if (imageDialog.allImages.length <= 1) return;
+    
+    const prevIndex = imageDialog.currentIndex === 0 
+      ? imageDialog.allImages.length - 1 
+      : imageDialog.currentIndex - 1;
+    
+    // Cập nhật index trước, giữ nguyên imageUrl hiện tại khi loading
+    setImageDialog(prev => ({
+      ...prev,
+      loading: true,
+      currentIndex: prevIndex,
+    }));
+
+    try {
+      const result = await getImageFromS3(imageDialog.allImages[prevIndex]);
+      if (result.success) {
+        setImageDialog(prev => ({
+          ...prev,
+          imageUrl: result.imageUrl,
+          loading: false,
+        }));
+      } else {
+        setImageDialog(prev => ({
+          ...prev,
+          loading: false,
+        }));
+        setNotification({
+          open: true,
+          message: "Không thể tải ảnh",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading previous image:", error);
+      setImageDialog(prev => ({
+        ...prev,
+        loading: false,
+      }));
+      setNotification({
+        open: true,
+        message: "Có lỗi xảy ra khi tải ảnh",
+        severity: "error",
+      });
+    }
   };
   const handleUploadSignedContract = async (contractId, file) => {
     if (!file) {
@@ -9286,6 +9209,15 @@ const OrderHistory = () => {
               sx={{ display: "flex", alignItems: "center", gap: 1 }}
             >
               📷 {imageDialog.title}
+              {imageDialog.allImages.length > 1 && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ ml: 1 }}
+                >
+                  ({imageDialog.currentIndex + 1}/{imageDialog.allImages.length})
+                </Typography>
+              )}
             </Typography>
             <IconButton
               onClick={handleCloseImageDialog}
@@ -9303,9 +9235,11 @@ const OrderHistory = () => {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "flex-start",
               minHeight: 400,
+              maxHeight: "80vh", // Giới hạn chiều cao dialog
               p: 3,
+              overflow: "hidden", // Ngăn overflow
             }}
           >
             {imageDialog.loading ? (
@@ -9322,38 +9256,125 @@ const OrderHistory = () => {
                   Đang tải ảnh thiết kế...
                 </Typography>
               </Box>
-            ) : imageDialog.imageUrl ? (
+            ) : imageDialog.imageUrl || imageDialog.allImages.length > 0 ? (
               <Box
                 sx={{
                   width: "100%",
+                  height: "100%",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   gap: 2,
+                  overflow: "hidden",
                 }}
               >
+                {/* Container cho ảnh - flexible height */}
                 <Box
-                  component="img"
-                  src={imageDialog.imageUrl}
-                  alt="Ảnh thiết kế"
                   sx={{
-                    maxWidth: "100%",
-                    maxHeight: "70vh",
-                    objectFit: "contain",
-                    borderRadius: 1,
-                    boxShadow: 3,
-                    border: "1px solid",
-                    borderColor: "grey.200",
+                    width: "100%",
+                    flex: 1,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    minHeight: 200,
+                    overflow: "hidden",
                   }}
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                    setNotification({
-                      open: true,
-                      message: "Không thể hiển thị ảnh",
-                      severity: "error",
-                    });
-                  }}
-                />
+                >
+                  {/* Hiển thị ảnh hoặc loading */}
+                  {imageDialog.loading ? (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 1,
+                        py: 4,
+                      }}
+                    >
+                      <CircularProgress size={30} />
+                      <Typography variant="body2" color="text.secondary">
+                        Đang tải ảnh...
+                      </Typography>
+                    </Box>
+                  ) : imageDialog.imageUrl ? (
+                    <Box
+                      component="img"
+                      src={imageDialog.imageUrl}
+                      alt="Ảnh thiết kế"
+                      sx={{
+                        maxWidth: "100%",
+                        maxHeight: "45vh", // Giảm chiều cao để có chỗ cho navigation
+                        width: "auto",
+                        height: "auto",
+                        objectFit: "contain",
+                        borderRadius: 1,
+                        boxShadow: 3,
+                        border: "1px solid",
+                        borderColor: "grey.200",
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        setNotification({
+                          open: true,
+                          message: "Không thể hiển thị ảnh",
+                          severity: "error",
+                        });
+                      }}
+                    />
+                  ) : (
+                    <Typography color="text.secondary">
+                      Không thể tải ảnh
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Navigation buttons ở dưới ảnh */}
+                {imageDialog.allImages.length > 1 && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 2,
+                      py: 1,
+                      px: 2,
+                      backgroundColor: "rgba(255, 255, 255, 0.95)",
+                      borderRadius: 2,
+                      boxShadow: 1,
+                      zIndex: 10,
+                      flexShrink: 0, // Không cho phép thu nhỏ
+                    }}
+                  >
+                    <IconButton
+                      onClick={handlePreviousImage}
+                      disabled={imageDialog.loading}
+                      size="small"
+                      sx={{
+                        backgroundColor: "primary.50",
+                        "&:hover": { backgroundColor: "primary.100" },
+                        "&:disabled": { backgroundColor: "grey.100" },
+                      }}
+                    >
+                      <ArrowBackIcon />
+                    </IconButton>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      Ảnh {imageDialog.currentIndex + 1} / {imageDialog.allImages.length}
+                    </Typography>
+                    <IconButton
+                      onClick={handleNextImage}
+                      disabled={imageDialog.loading}
+                      size="small"
+                      sx={{
+                        backgroundColor: "primary.50",
+                        "&:hover": { backgroundColor: "primary.100" },
+                        "&:disabled": { backgroundColor: "grey.100" },
+                      }}
+                    >
+                      <ArrowForwardIcon />
+                    </IconButton>
+                  </Box>
+                )}
+
                 {imageDialog.description && (
                   <Box
                     sx={{
