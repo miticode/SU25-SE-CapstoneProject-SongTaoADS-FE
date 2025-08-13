@@ -30,6 +30,7 @@ import {
 import DesignRequests from "./DesignRequests";
 import SaleChat from "./SaleChat";
 import DashboardContent from "./DashboardContent";
+import IconManager from "./IconManager";
 
 const DesignerDashboard = () => {
   const theme = useTheme();
@@ -80,6 +81,8 @@ const DesignerDashboard = () => {
         return <DesignRequests />;
       case "chat":
         return <SaleChat />;
+      case "icons":
+        return <IconManager />;
       default:
         return <DashboardContent stats={{}} orders={[]} />;
     }
@@ -220,6 +223,7 @@ const DesignerDashboard = () => {
                 { id: "dashboard", text: "Dashboard", color: "#2e7d32" },
                 { id: "designs", text: "Yêu cầu thiết kế", color: "#1976d2" },
                 { id: "chat", text: "Chat với Sale", color: "#ff6f00" },
+                { id: "icons", text: "Quản lý Icon", color: "#9c27b0" },
               ].map((item) => (
                 <Button
                   key={item.id}
