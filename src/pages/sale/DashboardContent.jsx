@@ -4,7 +4,7 @@ import { getImageFromS3, openFileInNewTab } from "../../api/s3Service";
 import { getOrderContractApi } from "../../api/contractService";
 import { useDispatch, useSelector } from "react-redux";
 import { uploadContract, uploadRevisedContract } from "../../store/features/contract/contractSlice";
-import { contractResignOrder, contractSignedOrder, updateOrderEstimatedDeliveryDate } from "../../store/features/order/orderSlice";
+import { contractSignedOrder, updateOrderEstimatedDeliveryDate } from "../../store/features/order/orderSlice";
 import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
 import {
   Box,
@@ -2351,37 +2351,6 @@ const DashboardContent = ({
     }
   }, [onRefreshOrders]);
 
-  // Handler yêu cầu khách hàng ký lại hợp đồng
-  const handleRequestResign = useCallback(async (orderId) => {
-    try {
-      setSnackbar({
-        open: true,
-        message: "Đang gửi yêu cầu ký lại hợp đồng...",
-        severity: "info",
-      });
-
-      await dispatch(contractResignOrder(orderId)).unwrap();
-      
-      setSnackbar({
-        open: true,
-        message: "Đã gửi yêu cầu ký lại hợp đồng thành công!",
-        severity: "success",
-      });
-
-      // Tự động làm mới danh sách orders
-      if (onRefreshOrders) {
-        onRefreshOrders();
-      }
-    } catch (error) {
-      console.error("Error requesting contract resign:", error);
-      setSnackbar({
-        open: true,
-        message: error || "Có lỗi xảy ra khi gửi yêu cầu ký lại hợp đồng",
-        severity: "error",
-      });
-    }
-  }, [dispatch, onRefreshOrders]);
-
   // Handler xác nhận hợp đồng đã ký
   const handleConfirmSigned = useCallback(async (orderId) => {
     try {
@@ -3283,44 +3252,6 @@ const DashboardContent = ({
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          {/* Hiển thị nút "Yêu cầu ký lại" cho hợp đồng đã ký, nhưng không cho trạng thái CONTRACT_SENT, CONTRACT_DISCUSS và CONTRACT_RESIGNED */}
-          {contractDialog.orderId && (
-            (() => {
-              // Tìm order dựa trên orderId để kiểm tra trạng thái
-              const currentOrder = orders.find(o => o.id === contractDialog.orderId);
-              const shouldShowResignButton = currentOrder && 
-                currentOrder.status !== 'CONTRACT_SENT' && 
-                currentOrder.status !== 'CONTRACT_DISCUSS' &&
-                currentOrder.status !== 'CONTRACT_RESIGNED';
-              
-              return shouldShowResignButton ? (
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  startIcon={<UploadIcon />}
-                  onClick={() => {
-                    handleRequestResign(contractDialog.orderId);
-                    handleCloseContractDialog(); // Đóng dialog sau khi thực hiện
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: "medium",
-                    borderWidth: 2,
-                    "&:hover": {
-                      borderWidth: 2,
-                      boxShadow: 2,
-                      transform: "translateY(-1px)",
-                      background: "rgba(255, 152, 0, 0.04)",
-                    },
-                  }}
-                >
-                   Yêu cầu ký lại
-                </Button>
-              ) : null;
-            })()
-          )}
-          
           <Button onClick={handleCloseContractDialog} sx={{ ml: "auto" }}>
             Đóng
           </Button>

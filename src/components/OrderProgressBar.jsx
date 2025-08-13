@@ -107,25 +107,24 @@ const OrderProgressBar = ({ status, order, compact = false }) => {
         completed.add('CONTRACT_SENT');
         break;
       case 'CONTRACT_CONFIRMED':
+        // Khi đã xác nhận hợp đồng, tất cả các bước trước đó đều được coi là hoàn thành
         completed.add('PENDING_CONTRACT');
         completed.add('CONTRACT_SENT');
-        // Nếu đã qua bước xử lý hoặc đã ký
-        if (status === 'CONTRACT_DISCUSS' || status === 'CONTRACT_RESIGNED') {
-          completed.add('CONTRACT_PROCESSING');
-        } else {
-          completed.add('CONTRACT_SIGNED');
-        }
+        completed.add('CONTRACT_SIGNED');
+        completed.add('CONTRACT_PROCESSING');
         break;
       case 'DEPOSITED':
         completed.add('PENDING_CONTRACT');
         completed.add('CONTRACT_SENT');
         completed.add('CONTRACT_SIGNED');
+        completed.add('CONTRACT_PROCESSING');
         completed.add('CONTRACT_CONFIRMED');
         break;
       case 'IN_PROGRESS':
         completed.add('PENDING_CONTRACT');
         completed.add('CONTRACT_SENT');
         completed.add('CONTRACT_SIGNED');
+        completed.add('CONTRACT_PROCESSING');
         completed.add('CONTRACT_CONFIRMED');
         completed.add('DEPOSITED');
         break;
