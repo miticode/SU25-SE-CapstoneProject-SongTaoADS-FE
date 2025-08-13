@@ -1,5 +1,11 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { fetchIconsApi } from "../../../api/iconService";
+import {
+  fetchIconsApi,
+  createIconApi,
+  updateIconInfoApi,
+  updateIconImageApi,
+  deleteIconApi
+} from "../../../api/iconService";
 
 // Initial state
 const initialState = {
@@ -10,7 +16,7 @@ const initialState = {
   pagination: {
     currentPage: 1,
     totalPages: 1,
-    pageSize: 20,
+    pageSize: 10,
     totalElements: 0,
   },
   // States for individual icon fetch
@@ -22,7 +28,7 @@ const initialState = {
 // Async thunk for fetching all icons with pagination
 export const fetchIcons = createAsyncThunk(
   "icon/fetchIcons",
-  async ({ page = 1, size = 20 } = {}, { rejectWithValue }) => {
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
     try {
       console.log("Fetching icons with pagination:", { page, size });
 
@@ -83,6 +89,95 @@ export const refreshIconPresignedUrls = createAsyncThunk(
     }
   }
 );
+
+// Async thunk để tạo icon mới
+export const createIcon = createAsyncThunk(
+  "icon/createIcon",
+  async (formData, { rejectWithValue }) => {
+    try {
+      console.log("Creating new icon with formData:", formData);
+
+      const response = await createIconApi(formData);
+
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to create icon");
+      }
+
+      console.log("Icon created successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error in create icon thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
+
+// Async thunk để cập nhật thông tin icon
+export const updateIconInfo = createAsyncThunk(
+  "icon/updateIconInfo",
+  async ({ iconId, updateData }, { rejectWithValue }) => {
+    try {
+      console.log(`Updating icon ${iconId} with data:`, updateData);
+
+      const response = await updateIconInfoApi(iconId, updateData);
+
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to update icon info");
+      }
+
+      console.log("Icon info updated successfully:", response.data);
+      return { iconId, updatedIcon: response.data };
+    } catch (error) {
+      console.error("Error in update icon info thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
+
+// Async thunk để cập nhật hình ảnh icon
+export const updateIconImage = createAsyncThunk(
+  "icon/updateIconImage",
+  async ({ iconId, formData }, { rejectWithValue }) => {
+    try {
+      console.log(`Updating icon image for ${iconId}`);
+
+      const response = await updateIconImageApi(iconId, formData);
+
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to update icon image");
+      }
+
+      console.log("Icon image updated successfully:", response.data);
+      return { iconId, updatedIcon: response.data };
+    } catch (error) {
+      console.error("Error in update icon image thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
+
+// Async thunk để xóa icon
+export const deleteIcon = createAsyncThunk(
+  "icon/deleteIcon",
+  async (fileDataId, { rejectWithValue }) => {
+    try {
+      console.log(`Deleting icon with fileDataId: ${fileDataId}`);
+
+      const response = await deleteIconApi(fileDataId);
+
+      if (!response.success) {
+        return rejectWithValue(response.error || "Failed to delete icon");
+      }
+
+      console.log("Icon deleted successfully:", response.message);
+      return { fileDataId, message: response.message };
+    } catch (error) {
+      console.error("Error in delete icon thunk:", error);
+      return rejectWithValue(error.message || "Something went wrong");
+    }
+  }
+);
+
 // Icon slice
 const iconSlice = createSlice({
   name: "icon",
@@ -111,7 +206,7 @@ const iconSlice = createSlice({
       state.pagination = {
         currentPage: 1,
         totalPages: 1,
-        pageSize: 20,
+        pageSize: 10,
         totalElements: 0,
       };
       console.log("Icons cleared");
@@ -131,10 +226,10 @@ const iconSlice = createSlice({
     setPagination: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
-      updateIconUrl: (state, action) => {
+    updateIconUrl: (state, action) => {
       const { iconId, presignedUrl } = action.payload;
       const iconIndex = state.icons.findIndex(icon => icon.id === iconId);
-      
+
       if (iconIndex !== -1) {
         state.icons[iconIndex] = {
           ...state.icons[iconIndex],
@@ -142,10 +237,10 @@ const iconSlice = createSlice({
           fullImageUrl: presignedUrl,
           lastUpdated: Date.now()
         };
-        
+
         console.log(`Icon ${iconId} URL updated in store`);
       }
-      
+
       // Also update selected icon if it matches
       if (state.selectedIcon?.id === iconId) {
         state.selectedIcon = {
@@ -182,6 +277,83 @@ const iconSlice = createSlice({
         state.icons = [];
         console.error("Failed to fetch icons:", action.payload);
       })
+      // Create icon cases
+      .addCase(createIcon.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+        console.log("Creating icon...");
+      })
+      .addCase(createIcon.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.icons.unshift(action.payload);
+        state.error = null;
+        console.log("Icon created successfully:", action.payload);
+      })
+      .addCase(createIcon.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        console.error("Failed to create icon:", action.payload);
+      })
+      // Update icon info cases
+      .addCase(updateIconInfo.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+        console.log("Updating icon info...");
+      })
+      .addCase(updateIconInfo.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        const { iconId, updatedIcon } = action.payload;
+        const iconIndex = state.icons.findIndex(icon => icon.id === iconId);
+        if (iconIndex !== -1) {
+          state.icons[iconIndex] = { ...state.icons[iconIndex], ...updatedIcon };
+        }
+        state.error = null;
+        console.log("Icon info updated successfully:", updatedIcon);
+      })
+      .addCase(updateIconInfo.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        console.error("Failed to update icon info:", action.payload);
+      })
+      // Update icon image cases
+      .addCase(updateIconImage.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+        console.log("Updating icon image...");
+      })
+      .addCase(updateIconImage.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        const { iconId, updatedIcon } = action.payload;
+        const iconIndex = state.icons.findIndex(icon => icon.id === iconId);
+        if (iconIndex !== -1) {
+          state.icons[iconIndex] = { ...state.icons[iconIndex], ...updatedIcon };
+        }
+        state.error = null;
+        console.log("Icon image updated successfully:", updatedIcon);
+      })
+      .addCase(updateIconImage.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        console.error("Failed to update icon image:", action.payload);
+      })
+      // Delete icon cases
+      .addCase(deleteIcon.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+        console.log("Deleting icon...");
+      })
+      .addCase(deleteIcon.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        const { fileDataId } = action.payload;
+        state.icons = state.icons.filter(icon => icon.id !== fileDataId);
+        state.error = null;
+        console.log("Icon deleted successfully:", action.payload.message);
+      })
+      .addCase(deleteIcon.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        console.error("Failed to delete icon:", action.payload);
+      })
       .addCase(refreshIconPresignedUrls.fulfilled, (state, action) => {
         state.icons = action.payload;
         console.log("Icon presigned URLs refreshed successfully");
@@ -194,7 +366,7 @@ const iconSlice = createSlice({
 
 // Export actions
 export const {
- resetIconStatus,
+  resetIconStatus,
   setSelectedIcon,
   clearSelectedIcon,
   clearIcons,
