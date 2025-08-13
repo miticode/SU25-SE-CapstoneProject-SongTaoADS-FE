@@ -120,9 +120,9 @@ const ProductAttributeManager = () => {
       formulaRef.current?.selectionStart || form.calculateFormula.length;
     const formulaText = form.calculateFormula;
 
-    // Get the size name and process it - add hash prefix, remove spaces and make uppercase
+    // Get the size name and process it - add hash prefix, replace spaces with underscores and make uppercase
     const originalName = sizeItem.sizes?.name || "SIZE";
-    const sizeName = "#" + originalName.toUpperCase().replace(/\s+/g, "");
+    const sizeName = "#" + originalName.toUpperCase().replace(/\s+/g, "_");
 
     // Make sure we don't insert into the #ĐƠN_GIÁ part
     const minPosition = "#ĐƠN_GIÁ".length;
@@ -579,67 +579,52 @@ const ProductAttributeManager = () => {
           </TableContainer>
         )}
       </Box>
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog with Tailwind CSS */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
           elevation: 3,
-          sx: {
-            borderRadius: 2,
-            overflow: "hidden",
-          },
+          className: "rounded-2xl overflow-hidden",
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-          }}
-        >
-          <DialogTitle
-            sx={{
-              fontWeight: 700,
-              fontSize: 22,
-              p: 3,
-              bgcolor: "#f8f9fa",
-              borderBottom: "1px solid #eee",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1.5}>
-              {editMode ? (
-                <EditIcon color="primary" />
-              ) : (
-                <AddIcon color="primary" />
-              )}
-              {editMode ? "Sửa thuộc tính" : "Thêm thuộc tính"}
-            </Box>
-            <IconButton
-              onClick={handleCloseDialog}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </DialogTitle>
+        <div className="flex flex-col h-full">
+          {/* Dialog Header */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200 px-4 py-6 sm:px-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {editMode ? (
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <EditIcon className="text-blue-600 w-6 h-6" />
+                  </div>
+                ) : (
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <AddIcon className="text-green-600 w-6 h-6" />
+                  </div>
+                )}
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {editMode ? "Sửa thuộc tính" : "Thêm thuộc tính"}
+                </h2>
+              </div>
+              <button
+                onClick={handleCloseDialog}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <CloseIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+          </div>
 
-          <DialogContent sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Phần tên thuộc tính */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Tên thuộc tính
-                </Typography>
+          {/* Dialog Content */}
+          <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+            <div className="space-y-6">
+              {/* Tên thuộc tính */}
+              <div className="group">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-green-600 transition-colors">
+                  Tên thuộc tính <span className="text-red-500">*</span>
+                </label>
                 <TextField
                   autoFocus
                   name="name"
@@ -649,32 +634,34 @@ const ProductAttributeManager = () => {
                   required
                   variant="outlined"
                   placeholder="Nhập tên thuộc tính"
+                  className="rounded-xl"
                   InputProps={{
+                    className: "rounded-xl shadow-sm",
                     sx: {
-                      borderRadius: 1.5,
-                      fontSize: "1rem",
+                      '& fieldset': {
+                        borderColor: '#d1d5db',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: '#10b981',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#10b981',
+                      },
                     },
                   }}
-                  helperText="Tên thuộc tính sẽ tự động chuyển thành CHỮ HOA"
-                  FormHelperTextProps={{
-                    sx: {
-                      fontSize: "0.75rem",
-                      color: "text.secondary",
-                      mt: 0.5,
-                    },
-                  }}
+                  helperText={
+                    <span className="text-xs text-gray-500 mt-1">
+                      Tên thuộc tính sẽ tự động chuyển thành CHỮ HOA
+                    </span>
+                  }
                 />
-              </Box>
+              </div>
 
-              {/* Phần công thức tính */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="500"
-                  sx={{ mb: 1, color: "text.primary" }}
-                >
-                  Công thức tính
-                </Typography>
+              {/* Công thức tính */}
+              <div className="group">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-green-600 transition-colors">
+                  Công thức tính <span className="text-red-500">*</span>
+                </label>
                 <TextField
                   name="calculateFormula"
                   value={form.calculateFormula}
@@ -685,124 +672,97 @@ const ProductAttributeManager = () => {
                   inputRef={formulaRef}
                   variant="outlined"
                   placeholder="Nhập công thức tính"
+                  className="rounded-xl"
                   InputProps={{
+                    className: "rounded-xl shadow-sm font-mono",
                     sx: {
-                      borderRadius: 1.5,
-                      fontFamily: "monospace",
-                      fontSize: "1rem",
+                      '& fieldset': {
+                        borderColor: formulaErrors.length > 0 ? '#ef4444' : '#d1d5db',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: formulaErrors.length > 0 ? '#dc2626' : '#10b981',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: formulaErrors.length > 0 ? '#dc2626' : '#10b981',
+                      },
                     },
                   }}
                   error={formulaErrors.length > 0}
-                  helperText={
-                    formulaErrors.length > 0 ? (
-                      <Typography
-                        color="error"
-                        variant="caption"
-                        sx={{ display: "block", mt: 0.5 }}
-                      >
-                        {formulaErrors.join(". ")}
-                      </Typography>
-                    ) : (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: "block", mt: 0.5 }}
-                      >
-                        Công thức luôn phải chứa #ĐƠN_GIÁ
-                      </Typography>
-                    )
-                  }
-                  FormHelperTextProps={{
-                    sx: { fontSize: "0.75rem" },
-                  }}
                 />
-              </Box>
+                {/* Error and helper text */}
+                <div className="mt-2 space-y-1">
+                  {formulaErrors.length > 0 ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <div className="flex items-start space-x-2">
+                        <div className="w-5 h-5 text-red-500 mt-0.5">
+                          <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-red-800">Lỗi công thức</h4>
+                          <ul className="text-sm text-red-700 mt-1 list-disc list-inside space-y-0.5">
+                            {formulaErrors.map((error, index) => (
+                              <li key={index}>{error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      Công thức luôn phải chứa #ĐƠN_GIÁ
+                    </p>
+                  )}
+                </div>
+              </div>
 
-              {/* Phần các nút chức năng */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: { xs: "column", sm: "row" },
-                  gap: 2,
-                  flexWrap: "wrap",
-                  p: 2,
-                  borderRadius: 2,
-                  bgcolor: "#f5f9ff",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 1.5,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    flex: 1,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    fontWeight="500"
-                  >
-                    Công cụ hỗ trợ:
-                  </Typography>
+              {/* Công cụ hỗ trợ */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 lg:p-6">
+                <h3 className="text-sm font-semibold text-blue-900 mb-4 flex items-center">
+                  <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  Công cụ hỗ trợ
+                </h3>
 
+                <div className="flex flex-col sm:flex-row gap-3">
                   {/* Nút chọn kích thước */}
-                  <Button
-                    variant="outlined"
-                    size="medium"
-                    color="primary"
+                  <button
+                    type="button"
                     onClick={() => setShowSizesList(!showSizesList)}
-                    startIcon={
-                      showSizesList ? (
-                        <ArrowDropUpIcon />
-                      ) : (
-                        <ArrowDropDownIcon />
-                      )
-                    }
-                    sx={{
-                      borderRadius: 1.5,
-                      textTransform: "none",
-                      fontWeight: 500,
-                      boxShadow: showSizesList
-                        ? "0 2px 5px rgba(0,0,0,0.08)"
-                        : "none",
-                      bgcolor: showSizesList
-                        ? "rgba(25, 118, 210, 0.04)"
-                        : "transparent",
-                    }}
+                    className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium ${
+                      showSizesList
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-md'
+                        : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300'
+                    }`}
                   >
-                    Chọn kích thước
-                  </Button>
+                    {showSizesList ? (
+                      <ArrowDropUpIcon className="w-5 h-5" />
+                    ) : (
+                      <ArrowDropDownIcon className="w-5 h-5" />
+                    )}
+                    <span>Chọn kích thước</span>
+                  </button>
 
                   {/* Dropdown phép tính */}
-                  <Box sx={{ position: "relative" }}>
-                    <Button
-                      variant="outlined"
-                      size="medium"
-                      color="secondary"
-                      endIcon={<ArrowDropDownIcon />}
-                      onClick={(e) => {
-                        setAnchorEl(e.currentTarget);
-                      }}
-                      sx={{
-                        borderRadius: 1.5,
-                        textTransform: "none",
-                        fontWeight: 500,
-                      }}
+                  <div className="relative flex-1 sm:flex-none">
+                    <button
+                      type="button"
+                      onClick={(e) => setAnchorEl(e.currentTarget)}
+                      className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-3 bg-white border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 rounded-xl transition-all duration-200 font-medium"
                     >
-                      Phép tính
-                    </Button>
+                      <span>Phép tính</span>
+                      <ArrowDropDownIcon className="w-5 h-5" />
+                    </button>
                     <Menu
                       anchorEl={anchorEl}
                       open={Boolean(anchorEl)}
                       onClose={() => setAnchorEl(null)}
                       PaperProps={{
-                        sx: {
-                          boxShadow: "0px 5px 15px rgba(0,0,0,0.08)",
-                          borderRadius: 2,
-                          width: 180,
-                        },
+                        className: "!shadow-2xl !border !border-gray-100 !rounded-2xl !mt-2"
                       }}
                     >
                       <MenuItem
@@ -810,56 +770,36 @@ const ProductAttributeManager = () => {
                           insertOperator("+");
                           setAnchorEl(null);
                         }}
-                        sx={{ py: 1 }}
+                        className="!py-3 hover:!bg-green-50"
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                        >
-                          + (Cộng)
-                        </Typography>
+                        <Typography className="!font-mono !font-bold">+ (Cộng)</Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
                           insertOperator("-");
                           setAnchorEl(null);
                         }}
-                        sx={{ py: 1 }}
+                        className="!py-3 hover:!bg-red-50"
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                        >
-                          - (Trừ)
-                        </Typography>
+                        <Typography className="!font-mono !font-bold">- (Trừ)</Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
                           insertOperator("*");
                           setAnchorEl(null);
                         }}
-                        sx={{ py: 1 }}
+                        className="!py-3 hover:!bg-blue-50"
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                        >
-                          * (Nhân)
-                        </Typography>
+                        <Typography className="!font-mono !font-bold">* (Nhân)</Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
                           insertOperator("/");
                           setAnchorEl(null);
                         }}
-                        sx={{ py: 1 }}
+                        className="!py-3 hover:!bg-orange-50"
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                        >
-                          / (Chia)
-                        </Typography>
+                        <Typography className="!font-mono !font-bold">/ (Chia)</Typography>
                       </MenuItem>
                       <Divider />
                       <MenuItem
@@ -867,187 +807,134 @@ const ProductAttributeManager = () => {
                           insertOperator("(");
                           setAnchorEl(null);
                         }}
-                        sx={{ py: 1 }}
+                        className="!py-3 hover:!bg-gray-50"
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                        >
-                          (
-                        </Typography>
+                        <Typography className="!font-mono !font-bold">(</Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
                           insertOperator(")");
                           setAnchorEl(null);
                         }}
-                        sx={{ py: 1 }}
+                        className="!py-3 hover:!bg-gray-50"
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                        >
-                          )
-                        </Typography>
+                        <Typography className="!font-mono !font-bold">)</Typography>
                       </MenuItem>
                     </Menu>
-                  </Box>
-                </Box>
-              </Box>
+                  </div>
+                </div>
+              </div>
 
               {/* Dropdown kích thước */}
-              <Collapse in={showSizesList} sx={{ width: "100%" }}>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    maxHeight: 250,
-                    overflow: "auto",
-                    border: "1px solid rgba(0, 0, 0, 0.12)",
-                    borderRadius: 2,
-                  }}
-                >
-                  {sizesStatus === "loading" && (
-                    <Box
-                      display="flex"
-                      justifyContent="center"
-                      alignItems="center"
-                      py={3}
-                    >
-                      <CircularProgress size={24} sx={{ mr: 1 }} />
-                      <Typography variant="body2">
-                        Đang tải kích thước...
-                      </Typography>
-                    </Box>
-                  )}
+              <Collapse in={showSizesList} className="w-full">
+                <div className="border-2 border-blue-100 rounded-2xl bg-blue-50 overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto">
+                    {sizesStatus === "loading" && (
+                      <div className="flex items-center justify-center p-8">
+                        <CircularProgress size={24} className="text-blue-600 mr-3" />
+                        <Typography className="!text-blue-700">Đang tải kích thước...</Typography>
+                      </div>
+                    )}
 
-                  {sizesStatus === "failed" && (
-                    <Box p={3}>
-                      <Alert severity="error" sx={{ borderRadius: 1.5 }}>
-                        {sizesError || "Không thể tải kích thước"}
-                      </Alert>
-                    </Box>
-                  )}
+                    {sizesStatus === "failed" && (
+                      <div className="p-6">
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                          <Typography className="!text-red-600">
+                            {sizesError || "Không thể tải kích thước"}
+                          </Typography>
+                        </div>
+                      </div>
+                    )}
 
-                  {sizesStatus === "succeeded" &&
-                    productTypeSizes.length === 0 && (
-                      <Box p={3} textAlign="center">
-                        <Typography variant="body2" color="text.secondary">
+                    {sizesStatus === "succeeded" && productTypeSizes.length === 0 && (
+                      <div className="p-8 text-center">
+                        <Typography className="!text-blue-600">
                           Không có kích thước cho loại biển hiệu này
                         </Typography>
-                      </Box>
+                      </div>
                     )}
 
-                  {sizesStatus === "succeeded" &&
-                    productTypeSizes.length > 0 && (
-                      <List>
+                    {sizesStatus === "succeeded" && productTypeSizes.length > 0 && (
+                      <div className="divide-y divide-blue-100">
                         {productTypeSizes.map((sizeItem) => (
-                          <ListItem
+                          <div
                             key={sizeItem.id}
-                            button
-                            divider
                             onClick={() => insertSizeToFormula(sizeItem)}
-                            sx={{
-                              "&:hover": {
-                                bgcolor: "rgba(25, 118, 210, 0.04)",
-                              },
-                              py: 1.5,
-                            }}
+                            className="p-4 cursor-pointer hover:bg-blue-100 transition-colors duration-200 flex items-center justify-between"
                           >
-                            <ListItemText
-                              primary={sizeItem.sizes?.name || "Không có tên"}
-                              secondary={
-                                sizeItem.sizes
-                                  ? `${sizeItem.sizes.width || "N/A"} × ${
-                                      sizeItem.sizes.height || "N/A"
-                                    } ${sizeItem.sizes.unit || "cm"}`
-                                  : "Không có thông tin kích thước"
-                              }
-                              primaryTypographyProps={{
-                                fontWeight: "500",
-                                variant: "body1",
-                              }}
-                              secondaryTypographyProps={{
-                                variant: "caption",
-                              }}
-                            />
-                          </ListItem>
+                            <div>
+                              <Typography className="!font-medium !text-blue-800">
+                                {sizeItem.sizes?.name || "Không có tên"}
+                              </Typography>
+                              <Typography className="!text-sm !text-blue-600 !mt-1">
+                                {sizeItem.sizes
+                                  ? `${sizeItem.sizes.width || "N/A"} × ${sizeItem.sizes.height || "N/A"} ${sizeItem.sizes.unit || "cm"}`
+                                  : "Không có thông tin kích thước"}
+                              </Typography>
+                            </div>
+                            <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </div>
+                          </div>
                         ))}
-                      </List>
+                      </div>
                     )}
-                </Paper>
+                  </div>
+                </div>
               </Collapse>
 
               {/* Ví dụ công thức */}
-              <Box sx={{ mt: 1, bgcolor: "#f9fbe7", p: 2, borderRadius: 2 }}>
-                <Typography
-                  component="div"
-                  variant="subtitle2"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                >
-                  <InfoOutlinedIcon sx={{ fontSize: 18, mr: 1 }} />
-                  Ví dụ công thức
-                </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 1,
-                    "& > span": {
-                      bgcolor: "rgba(0,0,0,0.04)",
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      fontFamily: "monospace",
-                      fontSize: "0.85rem",
-                    },
-                  }}
-                >
-                  <Typography component="span" variant="caption">
-                    #ĐƠN_GIÁ * #CAO * #RONG
-                  </Typography>
-                  <Typography component="span" variant="caption">
-                    #ĐƠN_GIÁ * (#CAO + #RONG) * 2
-                  </Typography>
-                  <Typography component="span" variant="caption">
-                    #ĐƠN_GIÁ * #CAO * #RONG * 2.5
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-          </DialogContent>
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 lg:p-6">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                    <InfoOutlinedIcon className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-green-900 mb-3">💡 Ví dụ công thức</h4>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-3 py-2 bg-green-100 rounded-lg font-mono text-sm text-green-700 border border-green-200">
+                        #ĐƠN_GIÁ * #CHIỀU_CAO * #CHIỀU_RỘNG
+                      </span>
+                      <span className="px-3 py-2 bg-green-100 rounded-lg font-mono text-sm text-green-700 border border-green-200">
+                        #ĐƠN_GIÁ * (#CHIỀU_CAO + #CHIỀU_RỘNG) * 2
+                      </span>
+                      <span className="px-3 py-2 bg-green-100 rounded-lg font-mono text-sm text-green-700 border border-green-200">
+                        #ĐƠN_GIÁ * #CHIỀU_CAO * #CHIỀU_RỘNG * 2.5
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <DialogActions
-            sx={{ p: 2.5, borderTop: "1px solid #eee", bgcolor: "#f8f9fa" }}
-          >
-            <Button
-              onClick={handleCloseDialog}
-              size="large"
-              sx={{
-                borderRadius: 1.5,
-                px: 3,
-                textTransform: "none",
-                fontWeight: 500,
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
-              size="large"
-              sx={{
-                borderRadius: 1.5,
-                px: 3,
-                boxShadow: "0 3px 5px 0 rgba(76,175,80,0.3)",
-                textTransform: "none",
-                fontWeight: 500,
-              }}
-            >
-              {editMode ? "Lưu thay đổi" : "Thêm thuộc tính"}
-            </Button>
-          </DialogActions>
-        </Box>
+          {/* Dialog Footer */}
+          <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3">
+              <button
+                onClick={handleCloseDialog}
+                className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={formulaErrors.length > 0 || !form.name.trim()}
+                className={`w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+                  formulaErrors.length > 0 || !form.name.trim()
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : editMode
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl'
+                }`}
+              >
+                {editMode ? "Lưu thay đổi" : "Thêm thuộc tính"}
+              </button>
+            </div>
+          </div>
+        </div>
       </Dialog>
       {/* Confirm Delete Dialog */}
       <Dialog

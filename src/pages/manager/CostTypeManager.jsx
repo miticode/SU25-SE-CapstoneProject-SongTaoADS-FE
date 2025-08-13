@@ -498,7 +498,7 @@ const CostTypeManager = () => {
   const insertAttributeToFormula = (attribute) => {
     const attributeName = `#${attribute.name
       .toUpperCase()
-      .replace(/\s+/g, "")}`;
+      .replace(/\s+/g, "_")}`;
     const cursorPosition =
       formulaRef.current?.selectionStart || newCostType.formula.length;
     const formulaText = newCostType.formula;
@@ -527,7 +527,7 @@ const CostTypeManager = () => {
   const insertSizeToFormula = (sizeItem) => {
     const sizeName = `#${sizeItem.sizes.name
       .toUpperCase()
-      .replace(/\s+/g, "")}`;
+      .replace(/\s+/g, "_")}`;
     const cursorPosition =
       formulaRef.current?.selectionStart || newCostType.formula.length;
     const formulaText = newCostType.formula;
@@ -554,7 +554,7 @@ const CostTypeManager = () => {
   };
 
   const insertCostTypeToFormula = (costType) => {
-    const costTypeName = `#${costType.name.toUpperCase().replace(/\s+/g, "")}`;
+    const costTypeName = `#${costType.name.toUpperCase().replace(/\s+/g, "_")}`;
     const cursorPosition =
       formulaRef.current?.selectionStart || newCostType.formula.length;
     const formulaText = newCostType.formula;
@@ -1299,22 +1299,22 @@ const CostTypeManager = () => {
               {newCostType.isCore ? (
                 <>
                   <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
-                    #CAO * #RONG * #SOLUONG
+                    #CHIỀU_CAO * #CHIỀU_RỘNG * #SỐ_LƯỢNG
                   </span>
                   <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
-                    (#CAO + #RONG) * 2 * #DONGIA
+                    (#CHIỀU_CAO + #CHIỀU_RỘNG) * 2 * #ĐƠN_GIÁ
                   </span>
                 </>
               ) : (
                 <>
                   <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
-                    #VẬTTƯ + #NHÂNCÔNG
+                    #VẬT_TƯ + #NHÂN_CÔNG
                   </span>
                   <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
-                    #VẬTTƯ * 1.2 + #NHÂNCÔNG
+                    #VẬT_TƯ * 1.2 + #NHÂN_CÔNG
                   </span>
                   <span className="px-3 py-2 bg-lime-100 rounded-lg font-mono text-sm text-lime-700 border border-lime-200">
-                    (#VẬTTƯ + #NHÂNCÔNG + #VẬNHÀNH) * 0.25
+                    (#VẬT_TƯ + #NHÂN_CÔNG + #VẬN_HÀNH) * 0.25
                   </span>
                 </>
               )}

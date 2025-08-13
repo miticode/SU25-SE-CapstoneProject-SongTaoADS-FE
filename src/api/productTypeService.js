@@ -302,4 +302,39 @@ export const deleteProductTypeSizeApi = async (productTypeSizeId) => {
   }
 };
 
+// Cập nhật product type size
+export const updateProductTypeSizeApi = async (productTypeSizeId, sizeData) => {
+  try {
+    const response = await productTypeService.patch(
+      `/api/product-type-sizes/${productTypeSizeId}`,
+      sizeData
+    );
+    const { success, result, message } = response.data;
+    if (success) {
+      // Xử lý dữ liệu để phù hợp với frontend
+      const processedData = {
+        id: result.id,
+        maxValue: result.maxValue,
+        minValue: result.minValue,
+        dimensionType: result.dimensionType,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        productTypes: result.productTypes,
+        sizes: result.sizes,
+        // Thêm các field để tương thích với code hiện tại
+        sizeId: result.sizes?.id,
+        sizeName: result.sizes?.name,
+      };
+      return { success, data: processedData };
+    }
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error.response?.data?.message || "Failed to update product type size",
+    };
+  }
+};
+
 export default productTypeService;
