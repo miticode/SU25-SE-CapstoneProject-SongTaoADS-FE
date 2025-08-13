@@ -5158,28 +5158,7 @@ const CustomerRequests = () => {
                                     Tải lên hợp đồng
                                   </Button>
 
-                                  {/* Chỉ hiển thị nút này khi cần cập nhật trạng thái thủ công */}
-                                  <Button
-                                    variant="outlined"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() => {
-                                      // Hiện thông báo xác nhận trước khi thay đổi trạng thái
-                                      if (
-                                        window.confirm(
-                                          "Xác nhận đã gửi hợp đồng cho khách hàng (không tải file)?"
-                                        )
-                                      ) {
-                                        handleUpdateOrderStatus(
-                                          selectedOrder.id,
-                                          "CONTRACT_SENT"
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    Đánh dấu đã gửi hợp đồng
-                                  </Button>
+                                  {/* Đã loại bỏ nút Đánh dấu đã gửi hợp đồng theo yêu cầu */}
                                 </>
                               )}
 
@@ -5543,38 +5522,7 @@ const CustomerRequests = () => {
                           </Box>
                         )}
 
-                        {/* Cancel option - available in most states except COMPLETED */}
-                        {selectedOrder.status !== "COMPLETED" &&
-                          selectedOrder.status !== "CANCELLED" && (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                                width: "100%",
-                                mt: 2,
-                              }}
-                            >
-                              <Typography variant="subtitle2" color="error">
-                                Hủy đơn hàng:
-                              </Typography>
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                size="small"
-                                disabled={actionLoading}
-                                onClick={() =>
-                                  handleUpdateOrderStatus(
-                                    selectedOrder.id,
-                                    "CANCELLED"
-                                  )
-                                }
-                                startIcon={<CancelIcon />}
-                              >
-                                Hủy đơn hàng
-                              </Button>
-                            </Box>
-                          )}
+                        {/* Đã loại bỏ nút Hủy đơn hàng theo yêu cầu */}
                       </Box>
                     </Paper>
                   </Box>

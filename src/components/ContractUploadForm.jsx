@@ -28,6 +28,66 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
   const [fileError, setFileError] = useState("");
   const [preview, setPreview] = useState("");
 
+  // Validation states
+  const [contractNumberError, setContractNumberError] = useState("");
+  const [depositPercentError, setDepositPercentError] = useState("");
+
+  // Validation functions
+  const validateContractNumber = (value) => {
+    if (!value || value.trim() === "") {
+      return "Số hợp đồng không được để trống";
+    }
+    if (value.trim().length > 50) {
+      return "Số hợp đồng không được vượt quá 50 ký tự";
+    }
+    // Kiểm tra định dạng số hợp đồng (chỉ cho phép chữ, số, dấu gạch ngang và dấu chấm)
+    const contractNumberRegex = /^[a-zA-Z0-9.\-/]+$/;
+    if (!contractNumberRegex.test(value.trim())) {
+      return "Số hợp đồng chỉ được chứa chữ cái, số, dấu gạch ngang (-), dấu chấm (.) và dấu gạch chéo (/)";
+    }
+    return "";
+  };
+
+  const validateDepositPercent = (value) => {
+    if (!value || value.toString().trim() === "") {
+      return "Phần trăm đặt cọc không được để trống";
+    }
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) {
+      return "Phần trăm đặt cọc phải là một số hợp lệ";
+    }
+    if (numValue < 0) {
+      return "Phần trăm đặt cọc không được âm";
+    }
+    if (numValue > 100) {
+      return "Phần trăm đặt cọc không được vượt quá 100%";
+    }
+    if (numValue === 0) {
+      return "Phần trăm đặt cọc phải lớn hơn 0%";
+    }
+    return "";
+  };
+
+  const validateFile = (file) => {
+    if (!file) {
+      return "Vui lòng chọn file hợp đồng";
+    }
+
+    // Kiểm tra định dạng file
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    if (!allowedTypes.includes(file.type)) {
+      return "Vui lòng chỉ tải lên file PDF, JPEG hoặc PNG";
+    }
+
+    // Kiểm tra kích thước file (giới hạn 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return "Kích thước file không được vượt quá 10MB";
+    }
+
+    return "";
+  };
+
   // Reset form when dialog opens or closes
   React.useEffect(() => {
     if (open) {
@@ -38,6 +98,9 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
       setPreview("");
       setError(null);
       setSuccess(false);
+      // Reset validation errors
+      setContractNumberError("");
+      setDepositPercentError("");
     }
   }, [open]);
 
@@ -59,15 +122,21 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
 
       return () => clearTimeout(timer);
     }
-  }, [success]);
+  }, [success, onSuccess, handleClose]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      setContractFile(null);
+      setFileError("");
+      setPreview("");
+      return;
+    }
 
-    // Validate file type
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
-      setFileError("Vui lòng chỉ tải lên file PDF, JPEG hoặc PNG");
+    // Validate file using the new validation function
+    const fileValidationError = validateFile(file);
+    if (fileValidationError) {
+      setFileError(fileValidationError);
       setContractFile(null);
       setPreview("");
       return;
@@ -86,6 +155,26 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
     } else {
       setPreview(""); // No preview for PDF
     }
+  };
+
+  // Handle contract number change with validation
+  const handleContractNumberChange = (e) => {
+    const value = e.target.value;
+    setContractNumber(value);
+
+    // Real-time validation
+    const error = validateContractNumber(value);
+    setContractNumberError(error);
+  };
+
+  // Handle deposit percent change with validation
+  const handleDepositPercentChange = (e) => {
+    const value = e.target.value;
+    setDepositPercentChanged(value);
+
+    // Real-time validation
+    const error = validateDepositPercent(value);
+    setDepositPercentError(error);
   };
 
   const uploadContract = async (orderId, formData) => {
@@ -139,8 +228,25 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!contractFile) {
-      setFileError("Vui lòng chọn file hợp đồng");
+    // Validate all fields before submission
+    const contractNumberValidation = validateContractNumber(contractNumber);
+    const depositPercentValidation = validateDepositPercent(
+      depositPercentChanged
+    );
+    const fileValidation = validateFile(contractFile);
+
+    // Set all validation errors
+    setContractNumberError(contractNumberValidation);
+    setDepositPercentError(depositPercentValidation);
+    setFileError(fileValidation);
+
+    // Check if there are any validation errors
+    if (
+      contractNumberValidation ||
+      depositPercentValidation ||
+      fileValidation
+    ) {
+      setError("Vui lòng kiểm tra và sửa các lỗi trong form");
       return;
     }
 
@@ -204,8 +310,10 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
             fullWidth
             margin="normal"
             value={contractNumber}
-            onChange={(e) => setContractNumber(e.target.value)}
+            onChange={handleContractNumberChange}
             required
+            error={!!contractNumberError}
+            helperText={contractNumberError || "Nhập số hợp đồng ( lớn hơn 0)"}
           />
 
           <TextField
@@ -214,10 +322,13 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
             fullWidth
             margin="normal"
             value={depositPercentChanged}
-            onChange={(e) => setDepositPercentChanged(e.target.value)}
-            inputProps={{ min: 0, max: 100 }}
-            helperText="Nhập phần trăm đặt cọc (0-100)"
+            onChange={handleDepositPercentChange}
+            inputProps={{ min: 0, max: 100, step: 0.01 }}
+            helperText={
+              depositPercentError || "Nhập phần trăm đặt cọc (1-100%)"
+            }
             required
+            error={!!depositPercentError}
           />
 
           <Box sx={{ mt: 2 }}>
@@ -286,7 +397,15 @@ const ContractUploadForm = ({ open, handleClose, orderId, onSuccess }) => {
             type="submit"
             variant="contained"
             color="primary"
-            disabled={loading || !contractFile || !contractNumber || !depositPercentChanged}
+            disabled={
+              loading ||
+              !contractFile ||
+              !contractNumber ||
+              !depositPercentChanged ||
+              !!contractNumberError ||
+              !!depositPercentError ||
+              !!fileError
+            }
           >
             {loading ? <CircularProgress size={24} /> : "Tải lên"}
           </Button>
