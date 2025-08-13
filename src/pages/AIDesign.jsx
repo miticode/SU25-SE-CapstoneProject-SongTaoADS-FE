@@ -27,6 +27,8 @@ import {
   Backdrop,
   CircularProgress,
   Button,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 import {
   FaCheck,
@@ -36,6 +38,7 @@ import {
   FaSave,
   FaTimes,
   FaRobot,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -1268,58 +1271,103 @@ const ModernBillboardForm = ({
                   const sizeId = ptSize.sizes?.id; // Thêm optional chaining
                   const fieldName = `size_${sizeId}`;
                   const savedSize = customerChoiceSizes[sizeId];
+                  const isFontSize = ptSize.dimensionType === "FONT_SIZE";
 
                   return (
                     <Grid item key={ptSize.id} xs={6} sm={4} md={3}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label={ptSize.sizes?.name} // Thêm optional chaining
-                        name={fieldName}
-                        type="number"
-                        value={
-                          isEditingSizes
-                            ? editedSizes[sizeId] || ""
-                            : formData[fieldName] || ""
-                        }
-                        onChange={
-                          isEditingSizes
-                            ? (e) =>
-                                handleSizeEditChange(sizeId, e.target.value)
-                            : handleChange
-                        }
-                        disabled={sizesConfirmed && !isEditingSizes}
-                        error={!!validationErrors[fieldName]}
-                        helperText={
-                          validationErrors[fieldName] ||
-                          `Khoảng: ${ptSize.minValue || "N/A"}m - ${
-                            ptSize.maxValue || "N/A"
-                          }m`
-                        }
-                        InputProps={{
-                          inputProps: {
-                            min: ptSize.minValue,
-                            max: ptSize.maxValue,
-                            step: 0.01,
-                          },
-                          startAdornment: (
-                            <span className="text-gray-400 mr-1 text-xs">
-                              #
-                            </span>
-                          ),
-                          endAdornment: (
-                            <span className="text-gray-500 text-xs">m</span>
-                          ),
-                          style: { fontSize: "0.8rem", height: "36px" },
-                        }}
-                        InputLabelProps={{ style: { fontSize: "0.8rem" } }}
-                        variant="outlined"
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "4px",
-                          },
-                        }}
-                      />
+                      <Box sx={{ position: "relative" }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={ptSize.sizes?.name} // Thêm optional chaining
+                          name={fieldName}
+                          type="number"
+                          value={
+                            isEditingSizes
+                              ? editedSizes[sizeId] || ""
+                              : formData[fieldName] || ""
+                          }
+                          onChange={
+                            isEditingSizes
+                              ? (e) =>
+                                  handleSizeEditChange(sizeId, e.target.value)
+                              : handleChange
+                          }
+                          disabled={sizesConfirmed && !isEditingSizes}
+                          error={!!validationErrors[fieldName]}
+                          helperText={
+                            validationErrors[fieldName] ||
+                            `Khoảng: ${ptSize.minValue || "N/A"}m - ${
+                              ptSize.maxValue || "N/A"
+                            }m`
+                          }
+                          InputProps={{
+                            inputProps: {
+                              min: ptSize.minValue,
+                              max: ptSize.maxValue,
+                              step: 0.01,
+                            },
+                            startAdornment: (
+                              <span className="text-gray-400 mr-1 text-xs">
+                                #
+                              </span>
+                            ),
+                            endAdornment: (
+                              <Box sx={{ display: "flex", alignItems: "center" }}>
+                                <span className="text-gray-500 text-xs mr-1">m</span>
+                                {isFontSize && (
+                                  <Tooltip 
+                                    title="Kích thước này chỉ mang tính tham khảo, Sale sẽ báo giá lại sau nếu có thay đổi"
+                                    placement="top"
+                                    arrow
+                                  >
+                                    <IconButton
+                                      size="small"
+                                      sx={{ 
+                                        padding: "2px",
+                                        color: "#ff9800",
+                                        "&:hover": {
+                                          backgroundColor: "rgba(255, 152, 0, 0.04)"
+                                        }
+                                      }}
+                                    >
+                                      <FaExclamationTriangle size={12} />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </Box>
+                            ),
+                            style: { fontSize: "0.8rem", height: "36px" },
+                          }}
+                          InputLabelProps={{ 
+                            style: { fontSize: "0.8rem" },
+                            sx: isFontSize ? {
+                              color: "#ff9800",
+                              "&.Mui-focused": {
+                                color: "#ff9800"
+                              }
+                            } : {}
+                          }}
+                          variant="outlined"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "4px",
+                              ...(isFontSize && {
+                                "& fieldset": {
+                                  borderColor: "#ffcc02",
+                                  borderWidth: "2px"
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: "#ff9800",
+                                },
+                                "&.Mui-focused fieldset": {
+                                  borderColor: "#ff9800",
+                                }
+                              })
+                            },
+                          }}
+                        />
+                      </Box>
                     </Grid>
                   );
                 })}
@@ -3425,64 +3473,16 @@ const AIDesign = () => {
       const canvasContainer = canvasRef.current.parentElement;
       const containerWidth = canvasContainer.clientWidth;
 
-      // 🎯 Tính toán kích thước canvas để vừa với viewport VÀ GIỮ ĐÚNG ASPECT RATIO
+      // 🎯 Khởi tạo canvas với kích thước tạm thời - sẽ được điều chỉnh lại khi tải ảnh
       let canvasWidth, canvasHeight;
-      let originalWidth, originalHeight;
 
-      if (pixelValueData && pixelValueData.width && pixelValueData.height) {
-        // Sử dụng pixel value từ API
-        originalWidth = pixelValueData.width;
-        originalHeight = pixelValueData.height;
-        console.log(
-          "🎯 [CANVAS] Pixel value từ API:",
-          originalWidth,
-          "x",
-          originalHeight
-        );
+      // Sử dụng kích thước tạm thời để khởi tạo canvas
+      canvasWidth = Math.min(containerWidth - 40, 800); // Max 800px width
+      canvasHeight = Math.round(canvasWidth / 1.5); // Tỷ lệ 3:2 tạm thời
 
-        // Tính toán scale để ảnh vừa với container NHƯNG GIỮ ĐÚNG TỶ LỆ
-        const maxCanvasWidth = containerWidth - 40; // Trừ padding
-        const maxCanvasHeight = window.innerHeight * 0.6; // 60% viewport height
-
-        const scaleX = maxCanvasWidth / originalWidth;
-        const scaleY = maxCanvasHeight / originalHeight;
-        const scale = Math.min(scaleX, scaleY, 1); // Không scale lên quá kích thước gốc
-
-        // Canvas PHẢI giữ đúng aspect ratio của ảnh gốc
-        canvasWidth = Math.round(originalWidth * scale);
-        canvasHeight = Math.round(originalHeight * scale);
-
-        console.log("🎯 [CANVAS] Scale tính toán:", scale);
-        console.log(
-          "🎯 [CANVAS] Canvas hiển thị:",
-          canvasWidth,
-          "x",
-          canvasHeight
-        );
-        console.log(
-          "🎯 [CANVAS] Kích thước gốc:",
-          originalWidth,
-          "x",
-          originalHeight
-        );
-        console.log(
-          "🎯 [CANVAS] Aspect ratio gốc:",
-          (originalWidth / originalHeight).toFixed(2)
-        );
-        console.log(
-          "🎯 [CANVAS] Aspect ratio canvas:",
-          (canvasWidth / canvasHeight).toFixed(2)
-        );
-      } else {
-        // Fallback về kích thước mặc định
-        console.log(
-          "🎯 [CANVAS] Không có pixel value, sử dụng kích thước mặc định"
-        );
-        canvasWidth = containerWidth;
-        canvasHeight = Math.round(containerWidth / 2);
-        originalWidth = canvasWidth;
-        originalHeight = canvasHeight;
-      }
+      console.log("🎯 [CANVAS] Khởi tạo canvas với kích thước tạm thời:");
+      console.log("🎯 [CANVAS] Temporary canvas size:", canvasWidth, "x", canvasHeight);
+      console.log("🎯 [CANVAS] Canvas sẽ tự động điều chỉnh theo ảnh được tải!");
 
       const canvas = new fabric.Canvas(canvasRef.current, {
         width: Math.round(canvasWidth),
@@ -3628,116 +3628,217 @@ const AIDesign = () => {
               );
               console.log("🎯 [CANVAS] Image URL:", finalImageUrl);
               console.log(
-                "🎯 [CANVAS] Image dimensions:",
+                "🎯 [CANVAS] Original Image dimensions:",
                 img.width,
                 "x",
                 img.height
               );
-              console.log(
-                "🎯 [CANVAS] Canvas dimensions:",
-                canvasWidth,
-                "x",
-                canvasHeight
-              );
 
-              try {
+              // 🎯 ĐIỀU CHỈNH CANVAS THEO KÍCH THƯỚC ẢNH
+              const canvasContainer = canvasRef.current.parentElement;
+              const containerWidth = canvasContainer.clientWidth - 40; // Trừ padding
+              const maxCanvasHeight = window.innerHeight * 0.6; // 60% viewport height
+
+              // Tính tỷ lệ để canvas vừa với container nhưng giữ đúng aspect ratio ảnh
+              const imageAspectRatio = img.width / img.height;
+              
+              let newCanvasWidth, newCanvasHeight;
+              
+              // Tính kích thước canvas dựa trên ảnh
+              if (containerWidth / imageAspectRatio <= maxCanvasHeight) {
+                // Ảnh có thể hiển thị toàn bộ chiều rộng container
+                newCanvasWidth = containerWidth;
+                newCanvasHeight = containerWidth / imageAspectRatio;
+              } else {
+                // Ảnh cao, giới hạn theo chiều cao
+                newCanvasHeight = maxCanvasHeight;
+                newCanvasWidth = maxCanvasHeight * imageAspectRatio;
+              }
+
+              newCanvasWidth = Math.round(newCanvasWidth);
+              newCanvasHeight = Math.round(newCanvasHeight);
+
+              console.log("🎯 [CANVAS] Resizing canvas to match image:");
+              console.log("🎯 [CANVAS] Original canvas size:", canvasWidth, "x", canvasHeight);
+              console.log("🎯 [CANVAS] New canvas size:", newCanvasWidth, "x", newCanvasHeight);
+              console.log("🎯 [CANVAS] Image aspect ratio:", imageAspectRatio.toFixed(2));
+
+                // 🎯 RESIZE CANVAS THEO ẢNH
+                canvas.setDimensions({
+                  width: newCanvasWidth,
+                  height: newCanvasHeight
+                });
+
+                // 🎯 QUAN TRỌNG: Cập nhật cả canvas element để tránh mismatch
+                const canvasElement = canvas.getElement();
+                canvasElement.width = newCanvasWidth;
+                canvasElement.height = newCanvasHeight;
+                canvasElement.style.width = newCanvasWidth + 'px';
+                canvasElement.style.height = newCanvasHeight + 'px';
+
+                console.log("🎯 [CANVAS] Canvas element after resize:");
+                console.log("🎯 [CANVAS] Element dimensions:", canvasElement.width, "x", canvasElement.height);
+                console.log("🎯 [CANVAS] Element style:", canvasElement.style.width, "x", canvasElement.style.height);
+
+                // Cập nhật biến kích thước cho các thao tác sau này
+                canvasWidth = newCanvasWidth;
+                canvasHeight = newCanvasHeight;              try {
                 const fabricImg = new fabric.Image(img, {
                   left: 0,
                   top: 0,
                   selectable: false,
                   evented: false,
                   name: `backgroundImage-${imageSource}`,
+                  opacity: 1, // Đảm bảo ảnh không trong suốt
+                  visible: true, // Đảm bảo ảnh hiển thị
                 });
 
                 console.log("🎯 [CANVAS] Fabric image created:", fabricImg);
+                console.log("🎯 [CANVAS] Fabric image width:", fabricImg.width);
+                console.log("🎯 [CANVAS] Fabric image height:", fabricImg.height);
+                console.log("🎯 [CANVAS] Fabric image opacity:", fabricImg.opacity);
+                console.log("🎯 [CANVAS] Fabric image visible:", fabricImg.visible);
 
-                // 🎯 Hiển thị ảnh FILL HẾT canvas với đúng aspect ratio
-                if (
-                  pixelValueData &&
-                  pixelValueData.width &&
-                  pixelValueData.height
-                ) {
-                  console.log("🎯 [CANVAS] Hiển thị ảnh fill hết canvas");
-                  console.log(
-                    "🎯 [CANVAS] Canvas size:",
-                    canvasWidth,
-                    "x",
-                    canvasHeight
-                  );
-                  console.log(
-                    "🎯 [CANVAS] Canvas aspect ratio:",
-                    (canvasWidth / canvasHeight).toFixed(2)
-                  );
-                  console.log(
-                    "🎯 [CANVAS] Image size:",
-                    fabricImg.width,
-                    "x",
-                    fabricImg.height
-                  );
-                  console.log(
-                    "🎯 [CANVAS] Image aspect ratio:",
-                    (fabricImg.width / fabricImg.height).toFixed(2)
-                  );
-
-                  // Vì canvas đã được tính với đúng aspect ratio của ảnh,
-                  // ta chỉ cần scale ảnh để fill hết canvas
-                  const imageScaleX = canvasWidth / fabricImg.width;
-                  const imageScaleY = canvasHeight / fabricImg.height;
-
-                  // Dùng scale đồng đều để giữ aspect ratio
-                  const imageScale = Math.min(imageScaleX, imageScaleY);
-
-                  fabricImg.set({
-                    scaleX: imageScale,
-                    scaleY: imageScale,
-                    left: (canvasWidth - fabricImg.width * imageScale) / 2,
-                    top: (canvasHeight - fabricImg.height * imageScale) / 2,
-                  });
-
-                  console.log(
-                    "🎯 [CANVAS] Image scale X:",
-                    imageScaleX.toFixed(3)
-                  );
-                  console.log(
-                    "🎯 [CANVAS] Image scale Y:",
-                    imageScaleY.toFixed(3)
-                  );
-                  console.log(
-                    "🎯 [CANVAS] Final scale:",
-                    imageScale.toFixed(3)
-                  );
-                  console.log(
-                    "🎯 [CANVAS] Ảnh hiển thị trong canvas, không có khoảng trống"
-                  );
-                } else {
-                  // Với background hoặc khi không có pixel value, vẫn scale để fit canvas
-                  console.log("🎯 [CANVAS] Scale ảnh để fit canvas");
-
-                  const scaleX = canvasWidth / fabricImg.width;
-                  const scaleY = canvasHeight / fabricImg.height;
-                  const scale = Math.max(scaleX, scaleY);
-
-                  fabricImg.set({
-                    scaleX: scale,
-                    scaleY: scale,
-                    left: (canvasWidth - fabricImg.width * scale) / 2,
-                    top: (canvasHeight - fabricImg.height * scale) / 2,
-                  });
+                // 🎯 Scale ảnh để fill toàn bộ canvas (không có khoảng trống)
+                const scaleX = canvasWidth / fabricImg.width;
+                const scaleY = canvasHeight / fabricImg.height;
+                
+                // 🎯 IMPROVED: Đảm bảo scale không quá nhỏ và ảnh luôn hiển thị
+                let scale = Math.max(scaleX, scaleY);
+                
+                // Đảm bảo scale tối thiểu để ảnh có thể nhìn thấy được
+                const minScale = 0.1; // Scale tối thiểu 10%
+                if (scale < minScale) {
+                  console.warn("🎯 [CANVAS] Scale quá nhỏ, sử dụng scale tối thiểu:", minScale);
+                  scale = minScale;
                 }
 
+                // 🎯 Tính toán vị trí center cho ảnh
+                const scaledWidth = fabricImg.width * scale;
+                const scaledHeight = fabricImg.height * scale;
+                const centerX = (canvasWidth - scaledWidth) / 2;
+                const centerY = (canvasHeight - scaledHeight) / 2;
+
+                fabricImg.set({
+                  scaleX: scale,
+                  scaleY: scale,
+                  left: centerX,
+                  top: centerY,
+                  originX: 'left',
+                  originY: 'top',
+                });
+
+                console.log("🎯 [CANVAS] Image scaling:");
+                console.log("🎯 [CANVAS] Scale X:", scaleX.toFixed(3));
+                console.log("🎯 [CANVAS] Scale Y:", scaleY.toFixed(3));
+                console.log("🎯 [CANVAS] Final scale (cover):", scale.toFixed(3));
+                console.log("🎯 [CANVAS] Scaled dimensions:", scaledWidth.toFixed(1), "x", scaledHeight.toFixed(1));
+                console.log("🎯 [CANVAS] Position:", centerX.toFixed(1), ",", centerY.toFixed(1));
+                console.log("🎯 [CANVAS] ✅ Canvas đã được điều chỉnh theo ảnh - không còn khoảng trống!");
+
                 canvas.add(fabricImg);
-                canvas.sendToBack(fabricImg);
+                
+                // 🎯 IMPROVED: Safe sendToBack with better fallback methods
+                try {
+                  if (typeof canvas.sendToBack === 'function') {
+                    canvas.sendToBack(fabricImg);
+                    console.log("🎯 [CANVAS] Used sendToBack successfully");
+                  } else {
+                    throw new Error("sendToBack not available");
+                  }
+                } catch (error) {
+                  console.warn("🎯 [CANVAS] sendToBack failed, using sendBackwards fallback:", error.message);
+                  try {
+                    // Try sendBackwards multiple times
+                    const objects = canvas.getObjects();
+                    let currentIndex = objects.indexOf(fabricImg);
+                    while (currentIndex > 0 && typeof canvas.sendBackwards === 'function') {
+                      canvas.sendBackwards(fabricImg);
+                      currentIndex--;
+                    }
+                    console.log("🎯 [CANVAS] Used sendBackwards successfully");
+                  } catch (sendBackwardsError) {
+                    console.warn("🎯 [CANVAS] sendBackwards failed, using manual reordering:", sendBackwardsError.message);
+                    try {
+                      // Manual reordering: collect all objects except background, clear canvas, add background first
+                      const allObjects = canvas.getObjects().filter(obj => obj !== fabricImg);
+                      canvas.clear();
+                      canvas.add(fabricImg); // Background first
+                      allObjects.forEach(obj => {
+                        try {
+                          canvas.add(obj);
+                        } catch (addError) {
+                          console.warn("🎯 [CANVAS] Could not re-add object:", addError);
+                        }
+                      });
+                      console.log("🎯 [CANVAS] Used manual reordering successfully");
+                    } catch (manualError) {
+                      console.error("🎯 [CANVAS] All sendToBack methods failed:", manualError);
+                      // At least the image is still on canvas, just not in back
+                    }
+                  }
+                }
+                
                 canvas.renderAll();
+                
+                // 🎯 DEBUG: Kiểm tra trạng thái canvas sau khi add image
+                console.log("🎯 [CANVAS] Post-add debugging:");
+                console.log("🎯 [CANVAS] Total objects on canvas:", canvas.getObjects().length);
+                console.log("🎯 [CANVAS] Canvas dimensions:", canvas.getWidth(), "x", canvas.getHeight());
+                console.log("🎯 [CANVAS] Background image position:", fabricImg.left, ",", fabricImg.top);
+                console.log("🎯 [CANVAS] Background image scale:", fabricImg.scaleX, ",", fabricImg.scaleY);
+                console.log("🎯 [CANVAS] Background image visible:", fabricImg.visible);
+                console.log("🎯 [CANVAS] Canvas background color:", canvas.backgroundColor);
+                
+                // Đảm bảo canvas element cũng được cập nhật
+                const canvasElement = canvas.getElement();
+                console.log("🎯 [CANVAS] Canvas element dimensions:", canvasElement.width, "x", canvasElement.height);
+                console.log("🎯 [CANVAS] Canvas element style:", canvasElement.style.width, "x", canvasElement.style.height);
 
                 console.log(
                   `🎯 [CANVAS] ${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
                 );
 
-                // Force refresh canvas
+                // Force refresh canvas với delay và kiểm tra hiển thị
                 setTimeout(() => {
                   canvas.renderAll();
-                  console.log("🎯 [CANVAS] Force refresh canvas");
-                }, 100);
+                  console.log("🎯 [CANVAS] Force refresh canvas completed");
+                  
+                  // Double check image is still there and visible
+                  const objects = canvas.getObjects();
+                  const backgroundImg = objects.find(obj => obj.name?.includes('backgroundImage'));
+                  if (backgroundImg) {
+                    console.log("🎯 [CANVAS] ✅ Background image confirmed present on canvas");
+                    console.log("🎯 [CANVAS] Background image details:");
+                    console.log("  - Position:", backgroundImg.left, ",", backgroundImg.top);
+                    console.log("  - Scale:", backgroundImg.scaleX, ",", backgroundImg.scaleY);
+                    console.log("  - Visible:", backgroundImg.visible);
+                    console.log("  - Opacity:", backgroundImg.opacity);
+                    
+                    // 🎯 Force another render nếu ảnh vẫn không hiển thị
+                    if (backgroundImg.visible && backgroundImg.opacity > 0) {
+                      backgroundImg.bringToFront();
+                      canvas.renderAll();
+                      console.log("🎯 [CANVAS] Brought image to front as backup");
+                    }
+                  } else {
+                    console.error("🎯 [CANVAS] ❌ Background image missing from canvas!");
+                    
+                    // 🎯 ULTIMATE FALLBACK: Try setBackgroundImage
+                    console.log("🎯 [CANVAS] Trying setBackgroundImage as ultimate fallback...");
+                    try {
+                      if (typeof canvas.setBackgroundImage === 'function') {
+                        canvas.setBackgroundImage(finalImageUrl, canvas.renderAll.bind(canvas), {
+                          scaleX: canvasWidth / img.width,
+                          scaleY: canvasHeight / img.height,
+                        });
+                        console.log("🎯 [CANVAS] ✅ setBackgroundImage fallback successful");
+                      }
+                    } catch (bgError) {
+                      console.error("🎯 [CANVAS] setBackgroundImage fallback failed:", bgError);
+                    }
+                  }
+                }, 200); // Increased delay to 200ms
 
                 setSnackbar({
                   open: true,
@@ -3748,7 +3849,23 @@ const AIDesign = () => {
                   severity: "success",
                 });
               } catch (error) {
-                console.error("ERROR creating fabric image:", error);
+                console.error("🎯 [CANVAS] ERROR creating fabric image:", error);
+                
+                // 🎯 FALLBACK: Try using setBackgroundImage instead
+                try {
+                  console.log("🎯 [CANVAS] Trying setBackgroundImage fallback...");
+                  if (typeof canvas.setBackgroundImage === 'function') {
+                    canvas.setBackgroundImage(finalImageUrl, canvas.renderAll.bind(canvas), {
+                      scaleX: canvasWidth / img.width,
+                      scaleY: canvasHeight / img.height,
+                    });
+                    console.log("🎯 [CANVAS] ✅ Used setBackgroundImage successfully");
+                  } else {
+                    console.error("🎯 [CANVAS] setBackgroundImage also not available");
+                  }
+                } catch (bgError) {
+                  console.error("🎯 [CANVAS] setBackgroundImage fallback also failed:", bgError);
+                }
               }
             };
 
