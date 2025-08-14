@@ -155,10 +155,10 @@ const menuItems = [
   },
   {
     id: "fine-tune-ai",
-    text: "Fine Tune AI",
+    text: "Tinh chỉnh AI",
     icon: <BuildCircleIcon />,
     color: "#607d8b",
-    description: "Tinh chỉnh AI",
+    description: "Tinh chỉnh và quản lý AI chatbot",
   },
   {
     id: "support-ticket",
