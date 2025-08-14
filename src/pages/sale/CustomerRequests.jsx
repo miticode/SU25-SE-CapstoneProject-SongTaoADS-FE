@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, memo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
@@ -89,6 +89,7 @@ import {
   updatePriceProposalPricing,
 } from "../../api/priceService";
 import orderService from "../../api/orderService";
+import { uploadOrderContractApi, uploadRevisedContractApi, getOrderContractApi } from "../../api/contractService";
 import {
   contractResignOrder,
   contractSignedOrder,
@@ -105,10 +106,11 @@ import {
 
 import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
 
-import ContractUploadForm from "../../components/ContractUploadForm";
+// Thay thế import cũ bằng import mới
+// import ContractUploadForm from "../../components/ContractUploadForm";
+// import S3Avatar from "../../components/S3Avatar";
+// import UploadRevisedContract from "../../components/UploadRevisedContract";
 import S3Avatar from "../../components/S3Avatar";
-import UploadRevisedContract from "../../components/UploadRevisedContract";
-import { getOrderContractApi } from "../../api/contractService";
 import { getPresignedUrl } from "../../api/s3Service";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -3970,21 +3972,6 @@ const CustomerRequests = () => {
             {notification.message}
           </Alert>
         </Snackbar>
-        <ContractUploadForm
-          open={openContractUpload}
-          handleClose={() => setOpenContractUpload(false)}
-          orderId={selectedOrder?.id}
-          onSuccess={handleContractUploadSuccess}
-        />
-        <UploadRevisedContract
-          open={openRevisedContractUpload}
-          onClose={() => {
-            setOpenRevisedContractUpload(false);
-            setContractId(null);
-          }}
-          contractId={contractId}
-          onSuccess={handleRevisedContractUploadSuccess}
-        />
         <Dialog
           open={contractDialog.open}
           onClose={handleCloseContractDialog}
@@ -5549,9 +5536,423 @@ const CustomerRequests = () => {
           order={contractorDialog.order}
           onReportDelivery={handleReportDelivery}
         />
+
+        {/* Component Upload Contract Dialog - Đồng nhất với DashboardContent.jsx */}
+        <UploadContractDialog
+          open={openContractUpload}
+          onClose={() => setOpenContractUpload(false)}
+          orderId={selectedOrder?.id}
+          onUploadSuccess={handleContractUploadSuccess}
+        />
+
+        {/* Component Upload Revised Contract Dialog - Đồng nhất với DashboardContent.jsx */}
+        <UploadRevisedContractDialog
+          open={openRevisedContractUpload}
+          onClose={() => {
+            setOpenRevisedContractUpload(false);
+            setContractId(null);
+          }}
+          orderId={selectedOrder?.id}
+          onUploadSuccess={handleRevisedContractUploadSuccess}
+        />
       </Container>
     </LocalizationProvider>
   );
 };
+
+// Component Upload Contract Dialog - Đồng nhất với DashboardContent.jsx
+const UploadContractDialog = memo(
+  ({ open, onClose, orderId, onUploadSuccess }) => {
+    const dispatch = useDispatch();
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState(null);
+    const [depositPercent, setDepositPercent] = useState(10); // Mặc định 10%
+    const [contractNumber, setContractNumber] = useState(""); // Số hợp đồng
+
+    const handleFileSelect = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        // Kiểm tra định dạng file (chỉ cho phép PDF)
+        if (file.type !== "application/pdf") {
+          setError("Vui lòng chọn file PDF");
+          return;
+        }
+
+        // Kiểm tra kích thước file (tối đa 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          setError("Kích thước file không được vượt quá 10MB");
+          return;
+        }
+
+        setSelectedFile(file);
+        setError(null);
+      }
+    };
+
+    const handleDepositPercentChange = (event) => {
+      const value = parseFloat(event.target.value);
+      if (isNaN(value) || value < 0 || value > 100) {
+        setError("Phần trăm cọc phải từ 0% đến 100%");
+        return;
+      }
+      setDepositPercent(value);
+      setError(null);
+    };
+
+    const handleContractNumberChange = (event) => {
+      setContractNumber(event.target.value);
+      setError(null);
+    };
+
+    const handleUpload = async () => {
+      if (!selectedFile) {
+        setError("Vui lòng chọn file hợp đồng");
+        return;
+      }
+
+      if (depositPercent < 0 || depositPercent > 100) {
+        setError("Phần trăm cọc phải từ 0% đến 100%");
+        return;
+      }
+
+      setUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("contactFile", selectedFile); // Theo API spec: contactFile
+        formData.append("depositPercentChanged", depositPercent.toString());
+        formData.append("contractNumber", contractNumber.trim()); // Sử dụng giá trị Sale nhập
+
+        // Sử dụng API upload contract từ contractService
+        const response = await uploadOrderContractApi(orderId, formData);
+
+        if (response.success) {
+          // Thông báo thành công và refresh danh sách
+          onUploadSuccess();
+          handleClose();
+        } else {
+          setError(response.error || "Có lỗi xảy ra khi tải lên hợp đồng");
+        }
+      } catch (error) {
+        setError(error?.response?.data?.message || "Có lỗi xảy ra khi tải lên hợp đồng");
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    const handleClose = () => {
+      setSelectedFile(null);
+      setError(null);
+      setUploading(false);
+      setDepositPercent(10); // Reset về mặc định 10%
+      setContractNumber(""); // Reset số hợp đồng
+      onClose();
+    };
+
+    return (
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <UploadIcon color="primary" />
+            <Typography variant="h6">Tải lên hợp đồng</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ py: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Chọn file hợp đồng (định dạng PDF, tối đa 10MB)
+            </Typography>
+
+            {/* Trường nhập phần trăm cọc */}
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <TextField
+                label="Phần trăm cọc (%)"
+                type="number"
+                value={depositPercent}
+                onChange={handleDepositPercentChange}
+                fullWidth
+                inputProps={{
+                  min: 0,
+                  max: 100,
+                  step: 0.1,
+                }}
+                helperText="Nhập phần trăm tiền cọc (mặc định 10%)"
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                label="Số hợp đồng"
+                type="text"
+                value={contractNumber}
+                onChange={handleContractNumberChange}
+                fullWidth
+                placeholder="Nhập số hợp đồng (tùy chọn)"
+                helperText="Số hợp đồng để quản lý và tra cứu"
+                sx={{ mb: 2 }}
+              />
+            </Box>
+
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <input
+                accept=".pdf"
+                style={{ display: "none" }}
+                id="contract-file-input"
+                type="file"
+                onChange={handleFileSelect}
+              />
+              <label htmlFor="contract-file-input">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<UploadIcon />}
+                  sx={{ mb: 1 }}
+                  fullWidth
+                >
+                  Chọn file hợp đồng
+                </Button>
+              </label>
+
+              {selectedFile && (
+                <Box
+                  sx={{
+                    mt: 1,
+                    p: 2,
+                    bgcolor: "success.50",
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: "success.200",
+                  }}
+                >
+                  <Typography variant="body2" color="success.main">
+                    ✓ Đã chọn file: {selectedFile.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Kích thước: {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                    MB
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} disabled={uploading}>
+            Hủy
+          </Button>
+          <Button
+            onClick={handleUpload}
+            variant="contained"
+            disabled={!selectedFile || uploading}
+            startIcon={
+              uploading ? <CircularProgress size={20} /> : <UploadIcon />
+            }
+          >
+            {uploading ? "Đang tải lên..." : "Tải lên"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+);
+
+UploadContractDialog.displayName = "UploadContractDialog";
+
+// Component Upload Revised Contract Dialog - Đồng nhất với DashboardContent.jsx
+const UploadRevisedContractDialog = memo(({ open, onClose, orderId, onUploadSuccess }) => {
+  const dispatch = useDispatch();
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [depositPercent, setDepositPercent] = useState(10); // Mặc định 10%
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Kiểm tra định dạng file (chỉ cho phép PDF)
+      if (file.type !== 'application/pdf') {
+        setError('Vui lòng chọn file PDF');
+        return;
+      }
+      
+      // Kiểm tra kích thước file (tối đa 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Kích thước file không được vượt quá 10MB');
+        return;
+      }
+      
+      setSelectedFile(file);
+      setError(null);
+    }
+  };
+
+  const handleDepositPercentChange = (event) => {
+    const value = parseFloat(event.target.value);
+    if (isNaN(value) || value < 0 || value > 100) {
+      setError('Phần trăm cọc phải từ 0% đến 100%');
+      return;
+    }
+    setDepositPercent(value);
+    setError(null);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError('Vui lòng chọn file hợp đồng đã chỉnh sửa');
+      return;
+    }
+
+    if (depositPercent < 0 || depositPercent > 100) {
+      setError('Phần trăm cọc phải từ 0% đến 100%');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Lấy thông tin hợp đồng từ orderId để có contractId
+      const contractResponse = await getOrderContractApi(orderId);
+      if (!contractResponse.success) {
+        setError('Không thể lấy thông tin hợp đồng để gửi lại');
+        setUploading(false);
+        return;
+      }
+
+      const contractId = contractResponse.data.id;
+      const formData = new FormData();
+      formData.append('contactFile', selectedFile); // Theo API spec: contactFile
+      formData.append('depositPercentChanged', depositPercent.toString());
+
+      // Sử dụng API upload revised contract từ contractService
+      const response = await uploadRevisedContractApi(contractId, formData);
+
+      if (response.success) {
+        // Thông báo thành công và refresh danh sách
+        onUploadSuccess();
+        handleClose();
+      } else {
+        setError(response.error || 'Có lỗi xảy ra khi tải lên hợp đồng đã chỉnh sửa');
+      }
+      
+    } catch (error) {
+      setError(error?.response?.data?.message || 'Có lỗi xảy ra khi tải lên hợp đồng đã chỉnh sửa');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedFile(null);
+    setError(null);
+    setUploading(false);
+    setDepositPercent(10); // Reset về mặc định 10%
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <UploadIcon color="warning" />
+          <Typography variant="h6">Gửi lại hợp đồng đã chỉnh sửa</Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ py: 2 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Tải lên hợp đồng đã chỉnh sửa theo yêu cầu thảo luận của khách hàng
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
+            Chọn file hợp đồng (định dạng PDF, tối đa 10MB)
+          </Typography>
+
+          {/* Trường nhập phần trăm cọc */}
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <TextField
+              label="Phần trăm cọc (%)"
+              type="number"
+              value={depositPercent}
+              onChange={handleDepositPercentChange}
+              fullWidth
+              inputProps={{
+                min: 0,
+                max: 100,
+                step: 0.1,
+              }}
+              helperText="Nhập phần trăm tiền cọc (mặc định 10%)"
+              sx={{ mb: 2 }}
+            />
+          </Box>
+          
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <input
+              accept=".pdf"
+              style={{ display: 'none' }}
+              id="revised-contract-file-input"
+              type="file"
+              onChange={handleFileSelect}
+            />
+            <label htmlFor="revised-contract-file-input">
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<UploadIcon />}
+                sx={{ mb: 1 }}
+                fullWidth
+                color="warning"
+              >
+                Chọn file hợp đồng đã chỉnh sửa
+              </Button>
+            </label>
+            
+            {selectedFile && (
+              <Box sx={{ 
+                mt: 1, 
+                p: 2, 
+                bgcolor: 'warning.50',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'warning.200'
+              }}>
+                <Typography variant="body2" color="warning.main">
+                  ✓ Đã chọn file: {selectedFile.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Kích thước: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={uploading}>
+          Hủy
+        </Button>
+        <Button 
+          onClick={handleUpload} 
+          variant="contained" 
+          color="warning"
+          disabled={!selectedFile || uploading}
+          startIcon={uploading ? <CircularProgress size={20} /> : <UploadIcon />}
+        >
+          {uploading ? 'Đang gửi lại...' : 'Gửi lại hợp đồng'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+});
+
+UploadRevisedContractDialog.displayName = "UploadRevisedContractDialog";
 
 export default CustomerRequests;
