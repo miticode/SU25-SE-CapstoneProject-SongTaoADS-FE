@@ -47,6 +47,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import {
   uploadFileFineTune,
   fineTuneModel,
@@ -69,6 +70,8 @@ import {
   selectFineTuneFileDetailStatus,
   fetchFineTuneJobDetail,
   selectSucceededFineTuneJobs,
+  checkFineTuneJobStatus,
+  selectCurrentJobStatus,
   // Model-chat API
   fetchFineTunedModelsModelChat,
   selectModelChatFineTunedModels,
@@ -221,6 +224,7 @@ const ManagerFineTuneAI = () => {
   const fineTuneFileDetailStatus = useSelector(selectFineTuneFileDetailStatus);
   const fineTuneFileContent = useSelector(selectFineTuneFileContent);
   const fineTuneFileContentStatus = useSelector(selectFineTuneFileContentStatus);
+  const currentJobStatus = useSelector(selectCurrentJobStatus);
   const succeededJobs = useSelector(selectSucceededFineTuneJobs);
   const [selectedSucceededJob, setSelectedSucceededJob] = useState(null);
   const [integrateAlert, setIntegrateAlert] = useState(null);
@@ -253,6 +257,11 @@ const ManagerFineTuneAI = () => {
     message: '',
     onConfirm: null,
   });
+
+  // Progress states for upload
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadCompleted, setUploadCompleted] = useState(false);
+  const [isDeletingFile, setIsDeletingFile] = useState(false);
 
   // Debug dữ liệu file
   console.log("fineTuneFiles:", fineTuneFiles);
@@ -329,6 +338,14 @@ const ManagerFineTuneAI = () => {
     // if (tab === 0) dispatch(fetchOpenAiModels());
   }, [tab, dispatch]);
 
+  // Kiểm tra trạng thái job hiện tại khi chuyển tab hoặc khi có job
+  useEffect(() => {
+    if (fineTuningJobId && (tab === 0 || tab === 1)) {
+      // Kiểm tra trạng thái job khi vào tab quản lý tinh chỉnh hoặc danh sách job
+      dispatch(checkFineTuneJobStatus(fineTuningJobId));
+    }
+  }, [fineTuningJobId, tab, dispatch]);
+
   useEffect(() => {
     if (fineTuneJobs && fineTuneJobs.length > 0) {
       const activeJob = fineTuneJobs.find((j) => j.active);
@@ -392,6 +409,24 @@ const ManagerFineTuneAI = () => {
     }
   }, [integrateAlert]);
 
+  // Kiểm tra trạng thái job fine-tune định kỳ khi có job đang chạy
+  useEffect(() => {
+    let intervalId;
+    
+    if (fineTuningJobId && trainingStatus === 'loading') {
+      // Kiểm tra trạng thái mỗi 30 giây
+      intervalId = setInterval(() => {
+        dispatch(checkFineTuneJobStatus(fineTuningJobId));
+      }, 30000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [fineTuningJobId, trainingStatus, dispatch]);
+
   const handleTrainingFileChange = (e) => {
     setTrainingFile(e.target.files[0]);
     setUploadResult(null);
@@ -403,7 +438,33 @@ const ManagerFineTuneAI = () => {
       setAlert({ type: "warning", message: "Vui lòng chọn file." });
       return;
     }
+
+    // Kiểm tra nếu đã có file được upload
+    if (uploadedFile) {
+      setAlert({ 
+        type: "warning", 
+        message: "Đã có file được upload. Vui lòng xóa file cũ trước khi upload file mới." 
+      });
+      return;
+    }
+    
+    // Reset progress states
+    setUploadProgress(0);
+    setUploadCompleted(false);
+    setAlert(null);
+    
     try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+      
       let result;
       if (fileType === "jsonl") {
         result = await dispatch(uploadFileFineTune(trainingFile)).unwrap();
@@ -415,10 +476,46 @@ const ManagerFineTuneAI = () => {
           })
         ).unwrap();
       }
+      
+      // Complete progress
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadCompleted(true);
+      
       setUploadResult(result);
       setTrainingFile(null);
+      
+      // Reset progress after 3 seconds
+      setTimeout(() => {
+        setUploadProgress(0);
+        setUploadCompleted(false);
+      }, 3000);
+      
     } catch (error) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
+      setUploadCompleted(false);
       setAlert({ type: "error", message: error || "Lỗi khi upload file" });
+    }
+  };
+
+  const handleDeleteUploadedFile = async (fileId) => {
+    if (!fileId) {
+      setAlert({ type: "error", message: "Không tìm thấy ID file để xóa." });
+      return;
+    }
+
+    setIsDeletingFile(true);
+    try {
+      await dispatch(deleteFineTuneFile(fileId)).unwrap();
+      setAlert({ type: "success", message: "Đã xóa file thành công. Bây giờ bạn có thể upload file mới." });
+      setUploadResult(null);
+      setTrainingFile(null); // Clear the file input
+      // Note: uploadedFile state will be automatically cleared by Redux after deleteFineTuneFile.fulfilled
+    } catch (error) {
+      setAlert({ type: "error", message: error || "Lỗi khi xóa file" });
+    } finally {
+      setIsDeletingFile(false);
     }
   };
 
@@ -426,17 +523,37 @@ const ManagerFineTuneAI = () => {
     if (!uploadedFile) {
       setAlert({
         type: "warning",
-        message: "Vui lòng upload file trước khi training.",
+        message: "Vui lòng upload file trước khi tinh chỉnh.",
       });
       return;
     }
     if (!selectedModel) {
       setAlert({
         type: "warning",
-        message: "Vui lòng chọn model trước khi training.",
+        message: "Vui lòng chọn model trước khi tinh chỉnh.",
       });
       return;
     }
+    
+    // Kiểm tra nếu đã có job đang chạy hoặc đã hoàn thành
+    if (fineTuningJobId && trainingStatus !== 'idle') {
+      if (trainingStatus === 'loading') {
+        setAlert({
+          type: "warning",
+          message: "Đã có job tinh chỉnh đang chạy. Vui lòng đợi hoặc huỷ job hiện tại.",
+        });
+        return;
+      } else if (trainingStatus === 'succeeded' || trainingStatus === 'failed') {
+        setAlert({
+          type: "info",
+          message: "Job trước đã hoàn thành. Vui lòng nhấn 'Bắt đầu mới' để tạo job mới.",
+        });
+        return;
+      }
+    }
+    
+    setAlert(null);
+    
     try {
       await dispatch(
         fineTuneModel({
@@ -444,20 +561,65 @@ const ManagerFineTuneAI = () => {
           trainingFile: uploadedFile.id,
         })
       ).unwrap();
-      setAlert({ type: "success", message: "Training model thành công!" });
+      
+      setAlert({ type: "success", message: "Tinh chỉnh model thành công!" });
+      
     } catch (error) {
-      setAlert({ type: "error", message: error || "Lỗi khi training model" });
+      setAlert({ type: "error", message: error || "Lỗi khi tinh chỉnh model AI" });
     }
   };
 
   const handleCancelTraining = async () => {
-    if (!fineTuningJobId) return;
-    try {
-      await dispatch(cancelFineTuneJob(fineTuningJobId)).unwrap();
-      setAlert({ type: "info", message: "Đã huỷ training." });
-    } catch (error) {
-      setAlert({ type: "error", message: error || "Lỗi khi huỷ training" });
+    if (!fineTuningJobId) {
+      return;
     }
+
+    try {
+      // Kiểm tra trạng thái hiện tại của job trước khi huỷ
+      const jobStatusResponse = await dispatch(checkFineTuneJobStatus(fineTuningJobId)).unwrap();
+      const currentStatus = jobStatusResponse.status;
+      
+      // Nếu job đã hoàn thành hoặc thất bại, không thể huỷ
+      if (currentStatus === 'succeeded' || currentStatus === 'failed') {
+        setAlert({ 
+          type: "warning", 
+          message: `Không thể huỷ job vì job đã ${currentStatus === 'succeeded' ? 'hoàn thành' : 'thất bại'}.` 
+        });
+        return;
+      }
+      
+      // Nếu job đang chạy, thực hiện huỷ
+      if (currentStatus === 'running' || currentStatus === 'pending' || currentStatus === 'validating_files' || currentStatus === 'fine_tuning' || currentStatus === 'training') {
+        const cancelResult = await dispatch(cancelFineTuneJob(fineTuningJobId)).unwrap();
+        
+        setAlert({ type: "info", message: "Đã huỷ tinh chỉnh." });
+      } else {
+        setAlert({ 
+          type: "info", 
+          message: `Job hiện tại có trạng thái: ${currentStatus}` 
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleCancelTraining:', error);
+      // Nếu lỗi là do job đã hoàn thành, cập nhật trạng thái
+      if (error && error.includes && error.includes('already completed')) {
+        setAlert({ 
+          type: "warning", 
+          message: "Job đã hoàn thành, không thể huỷ." 
+        });
+        // Cập nhật trạng thái để UI phản ánh đúng
+        dispatch(checkFineTuneJobStatus(fineTuningJobId));
+      } else {
+        setAlert({ type: "error", message: error || "Lỗi khi huỷ tinh chỉnh" });
+      }
+    }
+  };
+
+  const handleResetTraining = () => {
+    dispatch(resetFineTuneStatus());
+    setUploadResult(null);
+    setTrainingFile(null); // Clear the file input
+    setAlert({ type: "info", message: "Đã reset trạng thái tinh chỉnh và file upload." });
   };
 
   const handleReloadJobs = () => dispatch(fetchFineTuneJobs());
@@ -482,9 +644,9 @@ const ManagerFineTuneAI = () => {
     try {
       await dispatch(selectModelForModelChat(jobId)).unwrap();
       setActiveModelId(jobId);
-      setAlert({ type: "success", message: "Đã chọn model này cho chat!" });
+      setAlert({ type: "success", message: "Đã chọn model này cho chatbot hệ thống!" });
     } catch (error) {
-      setAlert({ type: "error", message: error || "Lỗi khi chọn model chat" });
+      setAlert({ type: "error", message: error || "Lỗi khi chọn model cho chatbot hệ thống" });
     }
   };
 
@@ -700,12 +862,12 @@ const ManagerFineTuneAI = () => {
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" mb={2}>
-        Quản lí Chatbot- Tinh chỉnh Model-AI
+        Quản lý Chatbot - Tinh chỉnh Model AI & RAG
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Tải lên file dữ liệu của bạn, bắt đầu tinh chỉnh và quản lý model AI của
-        bạn. Tính năng này cho phép quản lý tinh chỉnh AI để có hiệu suất tốt
-        hơn và lấy model mới nhất tích hợp vào Chatbot hệ thống.
+        Tải lên file dữ liệu của bạn, bắt đầu tinh chỉnh và quản lý model AI chatbot.
+        Tính năng này cho phép quản lý tinh chỉnh AI để có hiệu suất tốt hơn và 
+        tích hợp model mới nhất vào hệ thống chatbot.
       </Typography>
       <Tabs
         value={tab}
@@ -742,8 +904,8 @@ const ManagerFineTuneAI = () => {
           },
         }}
       >
-        <Tab label="Quản lý Fine-tune" />
-        <Tab label="Danh sách Job Fine-tune" />
+        <Tab label="Quản lý Tinh chỉnh" />
+        <Tab label="Danh sách Job Tinh chỉnh" />
         <Tab label="Danh sách File Đã Upload" />
         <Tab label="Thống Kê" />
         <Tab label="Danh sách chủ đề" />
@@ -760,21 +922,21 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              1. Tải lên file dữ liệu (jsonl hoặc excel)
+              1. Tải lên file dữ liệu (JSONL hoặc Excel)
             </Typography>
             
             {/* Hướng dẫn */}
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
-                <strong>Hướng dẫn:</strong> Tải lên file dữ liệu để training model AI. 
+                <strong>Hướng dẫn:</strong> Tải lên file dữ liệu để tinh chỉnh model AI. 
                 Hỗ trợ 2 định dạng:
               </Typography>
               <Box mt={1}>
                 <Typography variant="body2" component="div">
-                  • <strong>File JSONL (.jsonl):</strong> Dữ liệu đã được format sẵn cho AI training
+                  • <strong>File JSONL (.jsonl):</strong> Dữ liệu đã được format sẵn cho AI
                 </Typography>
                 <Typography variant="body2" component="div">
-                  • <strong>File Excel (.xlsx, .xls):</strong> Dữ liệu thô, hệ thống sẽ tự động convert thành JSONL
+                  • <strong>File Excel (.xlsx, .xls):</strong> Dữ liệu thô, hệ thống sẽ tự động chuyển đổi thành JSONL
                 </Typography>
               </Box>
               <Typography variant="body2" mt={1}>
@@ -805,10 +967,10 @@ const ManagerFineTuneAI = () => {
                 variant="contained"
                 component="label"
                 startIcon={<CloudUploadIcon />}
-                disabled={fineTuneStatus === "loading"}
+                disabled={fineTuneStatus === "loading" || uploadedFile}
                 sx={{ borderRadius: 2 }}
               >
-                {trainingFile ? trainingFile.name : "Chọn file"}
+                {uploadedFile ? "File đã upload" : (trainingFile ? trainingFile.name : "Chọn file")}
                 <input
                   type="file"
                   hidden
@@ -819,12 +981,87 @@ const ManagerFineTuneAI = () => {
               <Button
                 variant="outlined"
                 onClick={handleUploadTrainingFile}
-                disabled={fineTuneStatus === "loading" || !trainingFile}
+                disabled={fineTuneStatus === "loading" || !trainingFile || uploadedFile}
                 sx={{ borderRadius: 2 }}
               >
                 Upload
               </Button>
             </Box>
+
+            {/* Hiển thị file đã upload */}
+            {uploadedFile && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <InsertDriveFileIcon color="primary" />
+                    <Typography variant="body2" fontWeight={500}>
+                      File đã upload: {uploadedFile.filename || uploadedFile.name || 'File dữ liệu'}
+                    </Typography>
+                  </Box>
+                                 <Button
+                 variant="outlined"
+                 color="error"
+                 size="small"
+                 startIcon={isDeletingFile ? <CircularProgress size={16} /> : <DeleteIcon />}
+                 onClick={() => handleDeleteUploadedFile(uploadedFile.id)}
+                 disabled={fineTuneStatus === "loading" || isDeletingFile}
+                 sx={{ borderRadius: 2 }}
+               >
+                 {isDeletingFile ? "Đang xóa..." : "Xóa file"}
+               </Button>
+                </Box>
+                {uploadedFile.id && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    ID file: {uploadedFile.id}
+                    {uploadedFile.bytes && (
+                      <span> • Kích thước: {(uploadedFile.bytes / 1024).toFixed(2)} KB</span>
+                    )}
+                    {uploadedFile.created_at && (
+                      <span> • Upload lúc: {new Date(uploadedFile.created_at).toLocaleString('vi-VN')}</span>
+                    )}
+                  </Typography>
+                )}
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  File đã được upload thành công. Bạn cần xóa file này trước khi có thể upload file mới.
+                </Alert>
+              </Box>
+            )}
+
+            {/* Progress bar for upload */}
+            {(uploadProgress > 0 || uploadCompleted) && (
+              <Box sx={{ mt: 2, width: '100%' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    {uploadCompleted ? "Hoàn thành!" : "Đang upload..."}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {uploadProgress}%
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={uploadProgress} 
+                  sx={{ 
+                    height: 8, 
+                    borderRadius: 4,
+                    backgroundColor: '#e0e0e0',
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: uploadCompleted ? '#4caf50' : '#1976d2',
+                      borderRadius: 4,
+                    }
+                  }} 
+                />
+                {uploadCompleted && (
+                  <Box display="flex" alignItems="center" gap={1} mt={1}>
+                    <CheckCircleIcon color="success" fontSize="small" />
+                    <Typography variant="body2" color="success.main" fontWeight={500}>
+                      Upload thành công!
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+
             {/* Thông báo sau khi upload file */}
             {uploadResult ? (
               <Alert severity="success" sx={{ mt: 2, width: 300 }}>
@@ -858,21 +1095,21 @@ const ManagerFineTuneAI = () => {
             {/* Hướng dẫn */}
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
-                <strong>Hướng dẫn:</strong> Chọn model OpenAI gốc và bắt đầu quá trình fine-tune với dữ liệu đã upload.
+                <strong>Hướng dẫn:</strong> Chọn model OpenAI gốc và bắt đầu quá trình tinh chỉnh với dữ liệu đã upload.
               </Typography>
               <Box mt={1}>
                 <Typography variant="body2" component="div">
                   • <strong>Chọn model:</strong> GPT-4 hoặc GPT-3.5 là lựa chọn phổ biến
                 </Typography>
                 <Typography variant="body2" component="div">
-                  • <strong>Training:</strong> Quá trình có thể mất từ 10-60 phút tùy thuộc vào lượng dữ liệu
+                  • <strong>Tinh chỉnh:</strong> Quá trình có thể mất từ 10-60 phút tùy thuộc vào lượng dữ liệu
                 </Typography>
                 <Typography variant="body2" component="div">
-                  • <strong>Huỷ training:</strong> Có thể huỷ bất cứ lúc nào nếu cần thiết
+                  • <strong>Huỷ tinh chỉnh:</strong> Có thể huỷ bất cứ lúc nào nếu cần thiết
                 </Typography>
               </Box>
               <Typography variant="body2" mt={1} color="warning.main">
-                <strong>Lưu ý:</strong> Cần upload file dữ liệu ở bước 1 trước khi có thể bắt đầu training
+                <strong>Lưu ý:</strong> Cần upload file dữ liệu ở bước 1 trước khi có thể bắt đầu tinh chỉnh
               </Typography>
             </Alert>
 
@@ -904,17 +1141,42 @@ const ManagerFineTuneAI = () => {
                 sx={{ borderRadius: 2 }}
               >
                 {trainingStatus === "loading"
-                  ? "Đang Training..."
-                  : "Bắt Đầu Training"}
+                  ? "Đang Tinh chỉnh..."
+                  : trainingStatus === "succeeded"
+                  ? "Tinh chỉnh Thành công"
+                  : trainingStatus === "failed"
+                  ? "Tinh chỉnh Thất bại"
+                  : "Bắt Đầu Tinh chỉnh"}
               </Button>
-              {trainingStatus === "loading" && fineTuningJobId && (
+              {/* Debug info */}
+              
+              
+              {/* Test button to verify click handler works */}
+              
+              
+              {(trainingStatus === "loading" || trainingStatus === "succeeded" || trainingStatus === "failed") && fineTuningJobId && (
                 <Button
                   variant="outlined"
                   color="error"
                   onClick={handleCancelTraining}
+                                     disabled={trainingStatus === "succeeded" || trainingStatus === "failed"}
+                   sx={{ borderRadius: 2 }}
+                 >
+                   {trainingStatus === "succeeded" || trainingStatus === "failed"
+                     ? "Không thể huỷ"
+                     : "Huỷ Tinh chỉnh"}
+                 </Button>
+              )}
+
+              {(trainingStatus === "succeeded" || trainingStatus === "failed") && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<AutorenewIcon />}
+                  onClick={handleResetTraining}
                   sx={{ borderRadius: 2 }}
                 >
-                  Huỷ Training
+                  Bắt đầu mới
                 </Button>
               )}
               <Typography
@@ -926,14 +1188,21 @@ const ManagerFineTuneAI = () => {
                     ? "error.main"
                     : trainingStatus === "succeeded"
                     ? "success.main"
+                    : trainingStatus === "failed"
+                    ? "error.main"
                     : "text.secondary"
                 }
               >
-                {trainingStatus === "loading" && "Đang training..."}
-                {trainingStatus === "cancelled" && "Đã huỷ training"}
-                {/* Nếu có API kiểm tra trạng thái job, có thể hiển thị "Training thành công!" khi job hoàn thành */}
+                {trainingStatus === "loading" && (
+                  currentJobStatus ? `Đang tinh chỉnh... (${currentJobStatus})` : "Đang tinh chỉnh..."
+                )}
+                {trainingStatus === "cancelled" && "Đã huỷ tinh chỉnh"}
+                {trainingStatus === "succeeded" && "Tinh chỉnh thành công!"}
+                {trainingStatus === "failed" && "Tinh chỉnh thất bại"}
+                {trainingStatus === "idle" && "Sẵn sàng tinh chỉnh"}
               </Typography>
             </Box>
+            {/* Loading progress */}
             {trainingStatus === "loading" && (
               <LinearProgress sx={{ mt: 2, width: 200 }} />
             )}
@@ -1110,8 +1379,8 @@ const ManagerFineTuneAI = () => {
             {!selectedSucceededJob && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 <Typography variant="body2">
-                  <strong>Hướng dẫn:</strong> Chọn một model đã fine-tune thành công từ danh sách trên để bắt đầu test. 
-                  Model có nhãn "Đang dùng" là model hiện tại đang được sử dụng trong hệ thống.
+                  <strong>Hướng dẫn:</strong> Chọn một model AI đã tinh chỉnh thành công từ danh sách trên để bắt đầu test. 
+                  Model AI có nhãn "Đang dùng" là model hiện tại đang được sử dụng trong hệ thống.
                 </Typography>
               </Alert>
             )}
@@ -1133,11 +1402,11 @@ const ManagerFineTuneAI = () => {
             {/* Hướng dẫn */}
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
-                <strong>Hướng dẫn:</strong> Tích hợp model đã fine-tune thành công vào hệ thống chatbot để sử dụng thực tế.
+                <strong>Hướng dẫn:</strong> Tích hợp model đã tinh chỉnh thành công vào hệ thống chatbot để sử dụng thực tế.
               </Typography>
               <Box mt={1}>
                 <Typography variant="body2" component="div">
-                  • <strong>Chọn model:</strong> Chỉ hiển thị các model đã training thành công
+                  • <strong>Chọn model:</strong> Chỉ hiển thị các model đã tinh chỉnh thành công
                 </Typography>
                 <Typography variant="body2" component="div">
                   • <strong>Model đang dùng:</strong> Được highlight màu xanh, không thể chọn lại
@@ -1218,7 +1487,7 @@ const ManagerFineTuneAI = () => {
                     message: `Đã tích hợp model "${selectedSucceededJob.modelName}" cho chatbot!`,
                   });
                   setAlert(null); // Ẩn alert cũ nếu có
-                  // Refresh lại danh sách model fine-tune để cập nhật trạng thái active
+                  // Refresh lại danh sách model tinh chỉnh để cập nhật trạng thái active
                   dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
                 } catch (error) {
                   setIntegrateAlert({
@@ -1228,7 +1497,7 @@ const ManagerFineTuneAI = () => {
                 }
               }}
             >
-              Tích hợp model vào chatbot
+              Tích hợp model vào chatbot hệ thống
             </Button>
             {integrateAlert && (
               <Alert
@@ -1240,7 +1509,7 @@ const ManagerFineTuneAI = () => {
               </Alert>
             )}
             <Typography variant="body2" color="text.secondary" mt={1}>
-              Model đã training mới nhất có sẵn để tải xuống. Model đang dùng sẽ có nhãn <b>Đang dùng</b>.
+              Model đã tinh chỉnh mới nhất có sẵn để tải xuống. Model đang dùng sẽ có nhãn <b>Đang dùng</b>.
             </Typography>
           </Paper>
         </>
@@ -1248,7 +1517,7 @@ const ManagerFineTuneAI = () => {
       {tab === 1 && (
         <Paper elevation={3} sx={{ borderRadius: 3, boxShadow: '0 4px 24px rgba(25,118,210,0.08)', p: 2 }}>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Typography variant="h6" fontWeight={700}>Danh sách Job Fine-tune</Typography>
+            <Typography variant="h6" fontWeight={700}>Danh sách Job Tinh chỉnh</Typography>
               <TextField
                 size="small"
                 variant="outlined"
@@ -1344,7 +1613,7 @@ const ManagerFineTuneAI = () => {
             maxWidth="md"
             fullWidth
           >
-            <DialogTitle>Chi tiết Job Fine-tune</DialogTitle>
+            <DialogTitle>Chi tiết Job Tinh chỉnh</DialogTitle>
             <DialogContent>
               {jobDetailLoading ? (
                 <CircularProgress />
@@ -1358,7 +1627,7 @@ const ManagerFineTuneAI = () => {
                   </Typography>
                   {selectedJobDetail.fine_tuned_model && (
                     <Typography variant="subtitle2" sx={{ mb: 1, color: 'success.main' }}>
-                      <strong>Model Đã Fine-tune:</strong> {selectedJobDetail.fine_tuned_model}
+                                              <strong>Model Đã Tinh chỉnh:</strong> {selectedJobDetail.fine_tuned_model}
                     </Typography>
                   )}
                   <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -1673,7 +1942,7 @@ const ManagerFineTuneAI = () => {
                ) : fineTuneFileContent ? (
                  <Box>
                    <Typography variant="body2" color="text.secondary" mb={2}>
-                     Nội dung file JSONL (dữ liệu training):
+                     Nội dung file JSONL (dữ liệu tinh chỉnh):
                    </Typography>
                    <Box
                      sx={{

@@ -14,6 +14,7 @@ const initialState = {
   uploadedFile: null,
   trainingStatus: 'idle',
   fineTuningJobId: null,
+  currentJobStatus: null, // Trạng thái thực tế của job từ backend
   fineTuneJobs: [],
   fineTuneJobsStatus: 'idle',
   fineTuneFiles: [],
@@ -69,9 +70,14 @@ export const fineTuneModel = createAsyncThunk(
 export const cancelFineTuneJob = createAsyncThunk(
   'chat/cancelFineTuneJob',
   async (fineTuningJobId, { rejectWithValue }) => {
-    const response = await cancelFineTuneJobApi(fineTuningJobId);
-    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi huỷ training');
-    return response.result;
+    try {
+      const response = await cancelFineTuneJobApi(fineTuningJobId);
+      if (!response.success) return rejectWithValue(response.error || 'Lỗi khi huỷ training');
+      return response.result;
+    } catch (error) {
+      console.error('Error in cancelFineTuneJob thunk:', error);
+      throw error;
+    }
   }
 );
 
@@ -221,6 +227,16 @@ export const fetchOpenAiModels = createAsyncThunk(
   }
 );
 
+// Kiểm tra trạng thái của job fine-tune đang chạy
+export const checkFineTuneJobStatus = createAsyncThunk(
+  'chat/checkFineTuneJobStatus',
+  async (fineTuningJobId, { rejectWithValue }) => {
+    const response = await getFineTuneJobDetailApi(fineTuningJobId);
+    if (!response.success) return rejectWithValue(response.error);
+    return response.result;
+  }
+);
+
 const chatSlice = createSlice({
   name: 'chat',
   initialState,
@@ -245,6 +261,7 @@ const chatSlice = createSlice({
       state.fineTuneStatus = 'idle';
       state.trainingStatus = 'idle';
       state.uploadedFile = null;
+      state.modelChatUploadedFile = null; // Also clear Excel file state
       state.fineTuningJobId = null;
     },
   },
@@ -284,6 +301,7 @@ const chatSlice = createSlice({
       .addCase(fineTuneModel.fulfilled, (state, action) => {
         state.trainingStatus = 'loading';
         state.fineTuningJobId = action.payload.id;
+        state.currentJobStatus = action.payload.status || 'pending';
         state.error = null;
       })
       .addCase(fineTuneModel.rejected, (state, action) => {
@@ -296,6 +314,7 @@ const chatSlice = createSlice({
       .addCase(cancelFineTuneJob.fulfilled, (state) => {
         state.trainingStatus = 'cancelled';
         state.fineTuningJobId = null;
+        state.currentJobStatus = 'cancelled';
       })
       .addCase(cancelFineTuneJob.rejected, (state, action) => {
         state.error = action.payload;
@@ -306,6 +325,7 @@ const chatSlice = createSlice({
       .addCase(deleteFineTuneFile.fulfilled, (state) => {
         state.fineTuneStatus = 'idle';
         state.uploadedFile = null;
+        state.modelChatUploadedFile = null; // Also clear Excel file state
       })
       .addCase(deleteFineTuneFile.rejected, (state, action) => {
         state.fineTuneStatus = 'failed';
@@ -426,6 +446,7 @@ const chatSlice = createSlice({
       .addCase(uploadFileExcelModelChat.fulfilled, (state, action) => {
         state.modelChatUploadedFileStatus = 'succeeded';
         state.modelChatUploadedFile = action.payload;
+        state.uploadedFile = action.payload; // Also set uploadedFile for consistent UI
       })
       .addCase(uploadFileExcelModelChat.rejected, (state, action) => {
         state.modelChatUploadedFileStatus = 'failed';
@@ -480,6 +501,28 @@ const chatSlice = createSlice({
       .addCase(fetchOpenAiModels.rejected, (state, action) => {
         state.openAiModelsStatus = 'failed';
         state.error = action.payload;
+      })
+      // Kiểm tra trạng thái của job fine-tune đang chạy
+      .addCase(checkFineTuneJobStatus.pending, (state) => {
+        // Không thay đổi currentJobStatus khi đang kiểm tra
+      })
+      .addCase(checkFineTuneJobStatus.fulfilled, (state, action) => {
+        const jobStatus = action.payload.status;
+        state.currentJobStatus = jobStatus;
+
+        // Cập nhật trainingStatus dựa trên trạng thái thực tế của job
+        if (jobStatus === 'succeeded') {
+          state.trainingStatus = 'succeeded';
+        } else if (jobStatus === 'failed') {
+          state.trainingStatus = 'failed';
+        } else if (jobStatus === 'cancelled') {
+          state.trainingStatus = 'cancelled';
+        } else if (jobStatus === 'pending' || jobStatus === 'running' || jobStatus === 'fine_tuning' || jobStatus === 'training') {
+          state.trainingStatus = 'loading';
+        }
+      })
+      .addCase(checkFineTuneJobStatus.rejected, (state, action) => {
+        state.error = action.payload;
       });
   },
 });
@@ -523,5 +566,6 @@ export const selectModelChatFineTunedModels = (state) => state.chat.modelChatFin
 export const selectModelChatFineTunedModelsStatus = (state) => state.chat.modelChatFineTunedModelsStatus;
 export const selectFineTuneFileContent = (state) => state.chat.fineTuneFileContent;
 export const selectFineTuneFileContentStatus = (state) => state.chat.fineTuneFileContentStatus;
+export const selectCurrentJobStatus = (state) => state.chat.currentJobStatus;
 
 export default chatSlice.reducer;

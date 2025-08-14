@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import { useNavigate } from "react-router-dom";
@@ -11,10 +11,24 @@ import {
 } from "../../store/features/order/orderSlice";
 import { logout } from "../../store/features/auth/authSlice";
 import {
+  fetchNotifications,
+  fetchRoleNotifications,
+  selectNotifications,
+  selectRoleNotifications,
+  selectNotificationLoading,
+  selectRoleNotificationLoading,
+  selectTotalUnreadCount,
+  addNotificationRealtime,
+  addRoleNotificationRealtime,
+  markNotificationRead,
+  NOTIFICATION_TYPE_MAP,
+} from "../../store/features/notification/notificationSlice";
+import {
   updateOrderStatusApi,
   saleConfirmOrderApi,
 } from "../../api/orderService";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { io } from "socket.io-client";
 
 import {
   Box,
@@ -41,6 +55,8 @@ import {
   Grid,
   Chip,
   CircularProgress,
+  Popover,
+  Alert,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -62,6 +78,9 @@ import {
   Palette as PaletteIcon,
   People as PeopleIcon,
   SupportAgent as SupportAgentIcon,
+  Close as CloseIcon,
+  Circle as CircleIcon,
+  Info as InfoIcon,
 } from "@mui/icons-material";
 import CustomerRequests from "./CustomerRequests";
 import DesignerChat from "./DesignerChat";
@@ -77,9 +96,22 @@ const SaleDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { orders, pagination } = useSelector((state) => state.order);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  
+  // Notification selectors
+  const notifications = useSelector(selectNotifications);
+  const roleNotifications = useSelector(selectRoleNotifications);
+  const notificationLoading = useSelector(selectNotificationLoading);
+  const roleNotificationLoading = useSelector(selectRoleNotificationLoading);
+  const unreadCount = useSelector(selectTotalUnreadCount);
+  
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
+  
+  // Notification states
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [alertNotifications, setAlertNotifications] = useState([]);
+  
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [openDialog, setOpenDialog] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
@@ -87,13 +119,13 @@ const SaleDashboard = () => {
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [showDeliveryPicker, setShowDeliveryPicker] = useState(false);
 
+  // Socket.IO ref
+  const socketRef = useRef(null);
+
   const selectedOrder = useSelector(selectCurrentOrder);
   const currentOrderStatus = useSelector(selectCurrentOrderStatus);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-
-  const handleMenu = (event) => setAnchorEl(event.currentTarget);
-  const handleClose = () => setAnchorEl(null);
 
   const handleAvatarClick = (event) => {
     setAvatarAnchorEl(event.currentTarget);
@@ -102,6 +134,179 @@ const SaleDashboard = () => {
   const handleAvatarClose = () => {
     setAvatarAnchorEl(null);
   };
+
+  // Notification handlers
+  const handleNotificationMenuOpen = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationMenuClose = () => {
+    setNotificationAnchorEl(null);
+  };
+
+  const handleNotificationClick = async (notification) => {
+    if (!notification.isRead) {
+      await dispatch(markNotificationRead(notification.notificationId));
+    }
+    handleNotificationMenuClose();
+    
+    // Navigate based on notification type or content
+    if (notification.type === 'ORDER_STATUS_UPDATE' && notification.userTarget?.orderCode) {
+      setSelectedMenu('dashboard');
+    }
+  };
+
+  // Alert notification functions
+  const showAlertNotification = useCallback((notification) => {
+    const alertData = {
+      id: Date.now() + Math.random(),
+      type: notification.roleTarget ? 'role' : 'user',
+      title: notification.roleTarget ? 'Thông báo vai trò' : 'Thông báo cá nhân',
+      message: notification.message,
+      orderCode: notification.roleTarget?.orderCode || notification.userTarget?.orderCode,
+      timestamp: notification.createdAt || new Date().toISOString(),
+    };
+
+    setAlertNotifications(prev => [...prev, alertData]);
+
+    // Auto close after 5 seconds
+    setTimeout(() => {
+      setAlertNotifications(prev => prev.filter(alert => alert.id !== alertData.id));
+    }, 5000);
+  }, []);
+
+  const closeAlertNotification = (alertId) => {
+    setAlertNotifications(prev => prev.filter(alert => alert.id !== alertId));
+  };
+
+  // Fetch notifications when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchNotifications({ page: 1, size: 10 }));
+      dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
+    }
+  }, [dispatch, isAuthenticated]);
+
+  // Socket.IO connection for real-time notifications
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Cleanup socket if user is not authenticated
+      if (socketRef.current) {
+        console.log('Disconnecting socket - user not authenticated');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    if (!socketRef.current) {
+      console.log('Initializing socket connection...');
+      const token = localStorage.getItem("accessToken");
+      if (!token) return;
+
+      const connectionUrl = `${import.meta.env.VITE_SOCKET_URL || 'https://songtaoads.online'}?token=${token}`;
+      
+      socketRef.current = io(connectionUrl, {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      console.log('Connecting to socket:', connectionUrl);
+
+      socketRef.current.on('connect', () => {
+        console.log('Socket connected successfully');
+      });
+
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+      });
+
+      socketRef.current.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+      });
+
+      // Listen for role-based notifications
+      socketRef.current.on('role_notification', (data) => {
+        console.log('Role notification received:', data);
+        
+        const newNotification = {
+          notificationId: data.notificationId || Date.now(),
+          type: data.type || 'GENERAL',
+          message: data.message,
+          isRead: false,
+          createdAt: data.timestamp || new Date().toISOString(),
+          roleTarget: data.roleTarget || null,
+          userTarget: null,
+        };
+
+        // Add to Redux store for ROLE notifications
+        dispatch(addRoleNotificationRealtime(newNotification));
+        
+        // Show alert notification
+        showAlertNotification(newNotification);
+        
+        // Show browser notification if supported
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Thông báo vai trò', {
+            body: data.message,
+            icon: '/favicon.ico'
+          });
+        }
+      });
+
+      // Listen for user-specific notifications
+      socketRef.current.on('user_notification', (data) => {
+        console.log('User notification received:', data);
+        
+        const newNotification = {
+          notificationId: data.notificationId || Date.now(),
+          type: data.type || 'GENERAL',
+          message: data.message,
+          isRead: false,
+          createdAt: data.timestamp || new Date().toISOString(),
+          roleTarget: null,
+          userTarget: data.userTarget || null,
+        };
+
+        // Add to Redux store
+        dispatch(addNotificationRealtime(newNotification));
+        
+        // Show alert notification
+        showAlertNotification(newNotification);
+        
+        // Show browser notification if supported
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Thông báo cá nhân', {
+            body: data.message,
+            icon: '/favicon.ico'
+          });
+        }
+      });
+
+      socketRef.current.on('reconnect', (attemptNumber) => {
+        console.log('Socket reconnected after', attemptNumber, 'attempts');
+      });
+    }
+
+    // Cleanup function
+    return () => {
+      if (socketRef.current) {
+        console.log('Cleaning up socket connection...');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [isAuthenticated, dispatch, showAlertNotification]);
+
+  // Request notification permission when component mounts
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        console.log('Notification permission:', permission);
+      });
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -599,7 +804,7 @@ const SaleDashboard = () => {
           </Box>
           <IconButton 
             color="inherit" 
-            onClick={handleMenu}
+            onClick={handleNotificationMenuOpen}
             sx={{
               mr: 2,
               backgroundColor: "rgba(255, 255, 255, 0.1)",
@@ -611,46 +816,131 @@ const SaleDashboard = () => {
             }}
           >
             <Badge 
-              badgeContent={2} 
+              badgeContent={unreadCount} 
               color="error"
               sx={{
                 "& .MuiBadge-badge": {
                   backgroundColor: "#ff4444",
                   color: "white",
-                  animation: "pulse 2s infinite",
+                  animation: unreadCount > 0 ? "pulse 2s infinite" : "none",
                 },
               }}
             >
               <NotificationsIcon />
             </Badge>
           </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
+          {/* Notification Popover */}
+          <Popover
+            open={Boolean(notificationAnchorEl)}
+            anchorEl={notificationAnchorEl}
+            onClose={handleNotificationMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
             sx={{
-              mt: "50px",
+              mt: 1,
               "& .MuiPaper-root": {
                 borderRadius: "16px",
-                minWidth: 200,
-                background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
-                color: "white",
-                boxShadow:
-                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                backdropFilter: "blur(10px)",
+                width: 380,
+                maxHeight: 500,
+                background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                border: "1px solid rgba(0, 0, 0, 0.1)",
               },
             }}
           >
-            <MenuItem onClick={handleClose} sx={{
-              "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-              },
-              transition: "all 0.3s ease",
-            }}>
-              Bạn có 2 thông báo mới
-            </MenuItem>
-          </Menu>
+            <Box sx={{ p: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2, color: "#1e293b", fontWeight: 600 }}>
+                Thông báo
+              </Typography>
+              
+              {(notificationLoading || roleNotificationLoading) ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : (
+                <Box sx={{ maxHeight: 350, overflowY: 'auto' }}>
+                  {[...notifications, ...roleNotifications]
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, 10)
+                    .map((notification, index) => (
+                      <Box
+                        key={`${notification.source}-${notification.notificationId}-${index}`}
+                        onClick={() => handleNotificationClick(notification)}
+                        sx={{
+                          p: 2,
+                          mb: 1,
+                          borderRadius: "12px",
+                          backgroundColor: notification.isRead ? "#f8fafc" : "#e0f2fe",
+                          border: notification.isRead ? "1px solid #e2e8f0" : "1px solid #0891b2",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            backgroundColor: notification.isRead ? "#f1f5f9" : "#b3e5fc",
+                            transform: "translateY(-1px)",
+                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                          },
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                          <Box sx={{ mr: 2, mt: 0.5 }}>
+                            {notification.roleTarget ? (
+                              <InfoIcon sx={{ color: "#0891b2", fontSize: 20 }} />
+                            ) : (
+                              <CheckCircleIcon sx={{ color: "#059669", fontSize: 20 }} />
+                            )}
+                          </Box>
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "#1e293b",
+                                fontWeight: notification.isRead ? 400 : 600,
+                                mb: 0.5,
+                              }}
+                            >
+                              {notification.message}
+                            </Typography>
+                            {(notification.roleTarget?.orderCode || notification.userTarget?.orderCode) && (
+                              <Chip
+                                label={`Đơn hàng: ${notification.roleTarget?.orderCode || notification.userTarget?.orderCode}`}
+                                size="small"
+                                sx={{
+                                  backgroundColor: "#e0f2fe",
+                                  color: "#0891b2",
+                                  fontSize: "0.75rem",
+                                  mb: 1,
+                                }}
+                              />
+                            )}
+                            <Typography variant="caption" sx={{ color: "#64748b" }}>
+                              {new Date(notification.createdAt).toLocaleString('vi-VN')}
+                            </Typography>
+                          </Box>
+                          {!notification.isRead && (
+                            <CircleIcon sx={{ color: "#0891b2", fontSize: 8, ml: 1, mt: 1 }} />
+                          )}
+                        </Box>
+                      </Box>
+                    ))
+                  }
+                  
+                  {[...notifications, ...roleNotifications].length === 0 && (
+                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Không có thông báo nào
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </Popover>
           <IconButton 
             onClick={handleAvatarClick} 
             sx={{ 
@@ -1003,6 +1293,68 @@ const SaleDashboard = () => {
           </>
         ) : null}
       </Dialog>
+
+      {/* Alert Notifications */}
+      <Box
+        sx={{
+          position: "fixed",
+          top: 80,
+          right: 20,
+          zIndex: 9999,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+        }}
+      >
+        {alertNotifications.map((alert) => (
+          <Alert
+            key={alert.id}
+            severity={alert.type === 'role' ? 'info' : 'success'}
+            onClose={() => closeAlertNotification(alert.id)}
+            sx={{
+              width: 350,
+              borderRadius: "12px",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+              backdropFilter: "blur(10px)",
+              border: alert.type === 'role' 
+                ? "1px solid rgba(33, 150, 243, 0.3)" 
+                : "1px solid rgba(76, 175, 80, 0.3)",
+              animation: "slideInRight 0.3s ease-out",
+              "@keyframes slideInRight": {
+                from: {
+                  transform: "translateX(100%)",
+                  opacity: 0,
+                },
+                to: {
+                  transform: "translateX(0)",
+                  opacity: 1,
+                },
+              },
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {alert.title}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                {alert.message}
+              </Typography>
+              {alert.orderCode && (
+                <Chip
+                  label={`Đơn hàng: ${alert.orderCode}`}
+                  size="small"
+                  sx={{
+                    mt: 1,
+                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    color: "inherit",
+                    fontSize: "0.75rem",
+                  }}
+                />
+              )}
+            </Box>
+          </Alert>
+        ))}
+      </Box>
     </Box>
   );
 };

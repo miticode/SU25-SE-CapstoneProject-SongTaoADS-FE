@@ -48,6 +48,7 @@ import {
   selectOrderStatus,
   selectCurrentOrder,
   fetchOrderDetails,
+  fetchOrderById,
   selectOrderDetails,
   selectOrderDetailsStatus,
   selectOrderDetailsError,
@@ -627,27 +628,41 @@ const Order = () => {
       shouldRefreshOrderDetails
     });
     
-    if (currentStep === 3 && orderIdToFetch) {
+    if (currentStep === 3 && orderIdToFetch && shouldRefreshOrderDetails) {
       console.log("Order - Fetching order details for step 3:", orderIdToFetch);
-      console.log("Order - Current order info:", {
-        currentOrderId: currentOrder?.id,
-        currentOrderType: currentOrder?.orderType,
-        existingOrderId: existingOrderId,
-        orderIdToFetch: orderIdToFetch
-      });
       
-      // Luôn fetch khi ở step 3 để đảm bảo có dữ liệu mới nhất
-      console.log("Order - Fetching order details for step 3");
+      // Fetch order details
       dispatch(fetchOrderDetails(orderIdToFetch));
       setShouldRefreshOrderDetails(false);
-    } else if (currentStep === 3 && !orderIdToFetch) {
-      console.warn("Order - Không có orderId để fetch details:", {
-        currentStep,
-        currentOrderId: currentOrder?.id,
-        existingOrderId: existingOrderId
-      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, currentOrder?.id, existingOrderId, dispatch, shouldRefreshOrderDetails]);
+
+  // Fetch order information nếu thiếu orderCode hoặc createdAt
+  useEffect(() => {
+    const orderIdToFetch = currentOrder?.id || existingOrderId;
+    const hasOrderCode = currentOrder?.orderCode;
+    const hasCreatedAt = currentOrder?.createdAt;
+    
+    if (currentStep === 3 && orderIdToFetch && (!hasOrderCode || !hasCreatedAt)) {
+      console.log("Order - Missing order info, fetching order by ID:", {
+        orderIdToFetch,
+        hasOrderCode: !!hasOrderCode,
+        hasCreatedAt: !!hasCreatedAt
+      });
+      dispatch(fetchOrderById(orderIdToFetch));
+    }
+  }, [currentStep, currentOrder?.id, currentOrder?.orderCode, currentOrder?.createdAt, existingOrderId, dispatch]);
+
+  // Auto fetch order details khi vào step 3 lần đầu
+  useEffect(() => {
+    const orderIdToFetch = currentOrder?.id || existingOrderId;
+    
+    if (currentStep === 3 && orderIdToFetch && !orderDetails) {
+      console.log("Order - Auto fetching order details on step 3 entry:", orderIdToFetch);
+      dispatch(fetchOrderDetails(orderIdToFetch));
+    }
+  }, [currentStep, currentOrder?.id, existingOrderId, orderDetails, dispatch]);
 
   // Debug orderDetails state
   useEffect(() => {
@@ -671,7 +686,11 @@ const Order = () => {
           editedDesigns: detail.editedDesigns,
           customDesignRequests: detail.customDesignRequests,
           createdAt: detail.createdAt,
-          updatedAt: detail.updatedAt
+          updatedAt: detail.updatedAt,
+          detailConstructionAmount: detail.detailConstructionAmount,
+          detailDesignAmount: detail.detailDesignAmount,
+          totalDetailConstructionAmount: detail.totalDetailConstructionAmount,
+          orders: detail.orders // Thêm log để xem có order info không
         });
       });
     }
@@ -1075,9 +1094,12 @@ const Order = () => {
           console.log("Order - Fetching updated order details after adding new detail:", orderIdToFetch);
           // Fetch ngay lập tức và sau đó fetch lại nhiều lần để đảm bảo
           dispatch(fetchOrderDetails(orderIdToFetch));
+          // Cũng fetch lại order information để có orderCode và createdAt mới nhất
+          dispatch(fetchOrderById(orderIdToFetch));
           setTimeout(() => {
             console.log("Order - Re-fetching order details after 1 second");
             dispatch(fetchOrderDetails(orderIdToFetch));
+            dispatch(fetchOrderById(orderIdToFetch));
           }, 1000);
         }
 
@@ -2028,7 +2050,9 @@ const Order = () => {
                               variant="h6"
                               className="text-blue-800 font-bold"
                             >
-                              {currentOrder?.orderCode || 'N/A'}
+                              {currentOrder?.orderCode || 
+                               (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.orderCode) ||
+                               'N/A'}
                             </Typography>
                           </div>
                           <div className="text-right">
@@ -2044,7 +2068,9 @@ const Order = () => {
                             >
                               {currentOrder?.createdAt 
                                 ? new Date(currentOrder.createdAt).toLocaleString('vi-VN')
-                                : 'N/A'}
+                                : (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.createdAt)
+                                  ? new Date(orderDetails[0].orders.createdAt).toLocaleString('vi-VN')
+                                  : 'N/A'}
                             </Typography>
                           </div>
                         </div>
@@ -2179,17 +2205,9 @@ const Order = () => {
                                         <Typography variant="subtitle2" className="text-green-600 font-semibold">
                                           Thông tin chi tiết
                                         </Typography>
-                                        <div className="flex items-center space-x-2">
-                                          {detail.detailConstructionAmount && detail.detailDesignAmount && (
-                                            <div className="px-3 py-1 bg-green-200 rounded-full">
-                                              <Typography variant="caption" className="text-green-800 font-bold">
-                                                Tổng: {(detail.detailConstructionAmount + detail.detailDesignAmount).toLocaleString('vi-VN')} VNĐ
-                                              </Typography>
-                                            </div>
-                                          )}
-                                        </div>
+                                      
                                       </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div>
                                       <Typography
                                         variant="subtitle2"
@@ -2235,6 +2253,23 @@ const Order = () => {
                                           className="text-green-800 font-medium"
                                         >
                                           {detail.detailDesignAmount.toLocaleString('vi-VN')} VNĐ
+                                        </Typography>
+                                      </div>
+                                    )}
+
+                                    {detail.totalDetailConstructionAmount && (
+                                      <div>
+                                        <Typography
+                                          variant="subtitle2"
+                                          className="text-green-600 font-semibold mb-1"
+                                        >
+                                          Tổng tiền thi công
+                                        </Typography>
+                                        <Typography
+                                          variant="body2"
+                                          className="text-green-800 font-medium"
+                                        >
+                                          {detail.totalDetailConstructionAmount.toLocaleString('vi-VN')} VNĐ
                                         </Typography>
                                       </div>
                                     )}

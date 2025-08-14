@@ -120,6 +120,7 @@ export const cancelFineTuneJobApi = async (fineTuningJobId) => {
     }
     return { success: false, error: message || "Lỗi khi huỷ training" };
   } catch (error) {
+    console.error('API error:', error);
     return {
       success: false,
       error: error.response?.data?.message || "Không thể huỷ training",
