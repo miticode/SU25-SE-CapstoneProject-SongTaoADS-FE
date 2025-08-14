@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 // Sử dụng URL backend từ biến môi trường
-const API_URL = import.meta.env.VITE_API_URL 
+const API_URL = import.meta.env.VITE_API_URL
 
 // Create axios instance with interceptors
 const designTemplateService = axios.create({
@@ -39,13 +39,13 @@ designTemplateService.interceptors.request.use(
 export const fetchDesignTemplatesByProductTypeIdApi = async (productTypeId) => {
   try {
     const response = await designTemplateService.get(`/api/product-types/${productTypeId}/design-templates`);
-    
+
     const { success, result, message } = response.data;
-    
+
     if (success) {
       return { success: true, data: result };
     }
-    
+
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching design templates:', error);
@@ -61,18 +61,18 @@ export const createDesignTemplateApi = async (productTypeId, templateData) => {
   try {
     // Tạo FormData để gửi multipart/form-data
     const formData = new FormData();
-    
+
     // Thêm các trường dữ liệu vào FormData
     if (templateData.name) formData.append('name', templateData.name);
     if (templateData.description) formData.append('description', templateData.description);
     if (templateData.aspectRatio) formData.append('aspectRatio', templateData.aspectRatio);
     if (templateData.isAvailable !== undefined) formData.append('isAvailable', templateData.isAvailable);
-    
+
     // Thêm file hình ảnh nếu có
     if (templateData.designTemplateImage) {
       formData.append('designTemplateImage', templateData.designTemplateImage);
     }
-    
+
     const response = await designTemplateService.post(
       `/api/product-types/${productTypeId}/design-templates`,
       formData,
@@ -82,7 +82,7 @@ export const createDesignTemplateApi = async (productTypeId, templateData) => {
         }
       }
     );
-    
+
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };
@@ -143,12 +143,26 @@ export const updateDesignTemplateImageApi = async (designTemplateId, file) => {
 };
 
 // Lấy tất cả thiết kế mẫu
-export const fetchAllDesignTemplatesApi = async () => {
+export const fetchAllDesignTemplatesApi = async (page = 1, size = 10) => {
   try {
-    const response = await designTemplateService.get(`/api/design-templates`);
-    const { success, result, message } = response.data;
+    const response = await designTemplateService.get(`/api/design-templates`, {
+      params: {
+        page,
+        size
+      }
+    });
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
     if (success) {
-      return { success: true, data: result };
+      return {
+        success: true,
+        data: result,
+        pagination: {
+          currentPage,
+          totalPages,
+          pageSize,
+          totalElements
+        }
+      };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
@@ -206,12 +220,12 @@ export const fetchDesignTemplateSuggestionsByCustomerChoiceIdApi = async (custom
         size
       }
     });
-    
+
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
-    
+
     if (success) {
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: result,
         pagination: {
           currentPage,
@@ -221,7 +235,7 @@ export const fetchDesignTemplateSuggestionsByCustomerChoiceIdApi = async (custom
         }
       };
     }
-    
+
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching design template suggestions:', error);

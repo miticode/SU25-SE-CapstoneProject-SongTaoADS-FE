@@ -33,11 +33,11 @@ export const fetchDesignTemplatesByProductTypeId = createAsyncThunk(
   async (productTypeId, { rejectWithValue }) => {
     try {
       const response = await fetchDesignTemplatesByProductTypeIdApi(productTypeId);
-      
+
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch design templates');
       }
-      
+
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
@@ -96,13 +96,16 @@ export const updateDesignTemplateImage = createAsyncThunk(
 // Async thunk for fetching all design templates
 export const fetchAllDesignTemplates = createAsyncThunk(
   'designTemplate/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchAllDesignTemplatesApi();
+      const response = await fetchAllDesignTemplatesApi(page, size);
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch all design templates');
       }
-      return response.data;
+      return {
+        templates: response.data,
+        pagination: response.pagination
+      };
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
     }
@@ -219,7 +222,9 @@ const designTemplateSlice = createSlice({
       })
       .addCase(fetchAllDesignTemplates.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.designTemplates = action.payload;
+        // Thay thế hoàn toàn dữ liệu mỗi khi load trang mới
+        state.designTemplates = action.payload.templates;
+        state.suggestionsPagination = action.payload.pagination;
         state.error = null;
       })
       .addCase(fetchAllDesignTemplates.rejected, (state, action) => {
