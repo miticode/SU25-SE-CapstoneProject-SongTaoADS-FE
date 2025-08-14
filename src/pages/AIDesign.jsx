@@ -493,68 +493,124 @@ const ModernBillboardForm = ({
 
           // ✅ Tính toán fontSizePixelValue cho size có dimensionType = "FONT_SIZE"
           try {
-            console.log("=== TÍNH TOÁN FONT SIZE PIXEL VALUE TRONG UPDATE SIZE ===");
+            console.log(
+              "=== TÍNH TOÁN FONT SIZE PIXEL VALUE TRONG UPDATE SIZE ==="
+            );
             console.log("🔍 Tìm kiếm size có dimensionType = 'FONT_SIZE'...");
-            
+
             // Tìm size có dimensionType = "FONT_SIZE"
-            const fontSizeData = productTypeSizes.find(ptSize => ptSize.dimensionType === "FONT_SIZE");
-            
+            const fontSizeData = productTypeSizes.find(
+              (ptSize) => ptSize.dimensionType === "FONT_SIZE"
+            );
+
             if (fontSizeData) {
               console.log("✅ Tìm thấy fontSizeData:", fontSizeData);
-              
+
               const sizeId = fontSizeData.sizes?.id;
               const fieldName = `size_${sizeId}`;
               const sizeValue = parseFloat(editedSizes[sizeId]);
               const minValue = fontSizeData.minValue;
               const maxValue = fontSizeData.maxValue;
-              
+
               console.log("📊 Thông tin tính toán:");
               console.log(`- sizeId: ${sizeId}`);
               console.log(`- sizeValue: ${sizeValue}`);
               console.log(`- minValue: ${minValue}`);
               console.log(`- maxValue: ${maxValue}`);
-              
-              if (sizeValue && minValue !== undefined && maxValue !== undefined) {
+
+              if (
+                sizeValue &&
+                minValue !== undefined &&
+                maxValue !== undefined
+              ) {
                 // Áp dụng công thức: fontSizePixelValue = 256 + (1024-256) * (sizeValue-minValue) / (maxValue-minValue)
-                const rawFontSizePixelValue = 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue);
+                const rawFontSizePixelValue =
+                  256 +
+                  ((1024 - 256) * (sizeValue - minValue)) /
+                    (maxValue - minValue);
                 const fontSizePixelValue = Math.round(rawFontSizePixelValue); // Làm tròn số thập phân
-                
-                console.log(`🎯 Kết quả công thức (trước khi làm tròn): ${rawFontSizePixelValue}`);
-                console.log(`🎯 Kết quả cuối cùng (sau khi làm tròn): ${fontSizePixelValue}`);
-                
+
+                console.log(
+                  `🎯 Kết quả công thức (trước khi làm tròn): ${rawFontSizePixelValue}`
+                );
+                console.log(
+                  `🎯 Kết quả cuối cùng (sau khi làm tròn): ${fontSizePixelValue}`
+                );
+
                 // Log chi tiết công thức
                 console.log(`📐 Chi tiết công thức:`);
-                console.log(`   fontSizePixelValue = 256 + (1024-256) * (${sizeValue}-${minValue}) / (${maxValue}-${minValue})`);
-                console.log(`   fontSizePixelValue = 256 + 768 * ${sizeValue - minValue} / ${maxValue - minValue}`);
-                console.log(`   fontSizePixelValue = 256 + 768 * ${(sizeValue - minValue) / (maxValue - minValue)}`);
-                console.log(`   fontSizePixelValue = 256 + ${768 * (sizeValue - minValue) / (maxValue - minValue)}`);
-                console.log(`   fontSizePixelValue (raw) = ${rawFontSizePixelValue}`);
-                console.log(`   fontSizePixelValue (rounded) = ${fontSizePixelValue}`);
-                
+                console.log(
+                  `   fontSizePixelValue = 256 + (1024-256) * (${sizeValue}-${minValue}) / (${maxValue}-${minValue})`
+                );
+                console.log(
+                  `   fontSizePixelValue = 256 + 768 * ${
+                    sizeValue - minValue
+                  } / ${maxValue - minValue}`
+                );
+                console.log(
+                  `   fontSizePixelValue = 256 + 768 * ${
+                    (sizeValue - minValue) / (maxValue - minValue)
+                  }`
+                );
+                console.log(
+                  `   fontSizePixelValue = 256 + ${
+                    (768 * (sizeValue - minValue)) / (maxValue - minValue)
+                  }`
+                );
+                console.log(
+                  `   fontSizePixelValue (raw) = ${rawFontSizePixelValue}`
+                );
+                console.log(
+                  `   fontSizePixelValue (rounded) = ${fontSizePixelValue}`
+                );
+
                 // Có thể lưu vào state hoặc gửi đến API nếu cần
                 // ✅ Lưu fontSizePixelValue vào state để sử dụng trong canvas
-                if (setFontSizePixelValue && typeof setFontSizePixelValue === 'function') {
+                if (
+                  setFontSizePixelValue &&
+                  typeof setFontSizePixelValue === "function"
+                ) {
                   setFontSizePixelValue(fontSizePixelValue);
-                  console.log(`💾 Đã lưu fontSizePixelValue vào state: ${fontSizePixelValue}`);
+                  console.log(
+                    `💾 Đã lưu fontSizePixelValue vào state: ${fontSizePixelValue}`
+                  );
                 } else {
-                  console.warn("⚠️ setFontSizePixelValue prop không có sẵn hoặc không phải function");
+                  console.warn(
+                    "⚠️ setFontSizePixelValue prop không có sẵn hoặc không phải function"
+                  );
                 }
-                
               } else {
-                console.log("⚠️ Thiếu thông tin để tính toán fontSizePixelValue");
-                console.log(`- sizeValue: ${sizeValue} (valid: ${!!sizeValue})`);
-                console.log(`- minValue: ${minValue} (valid: ${minValue !== undefined})`);
-                console.log(`- maxValue: ${maxValue} (valid: ${maxValue !== undefined})`);
+                console.log(
+                  "⚠️ Thiếu thông tin để tính toán fontSizePixelValue"
+                );
+                console.log(
+                  `- sizeValue: ${sizeValue} (valid: ${!!sizeValue})`
+                );
+                console.log(
+                  `- minValue: ${minValue} (valid: ${minValue !== undefined})`
+                );
+                console.log(
+                  `- maxValue: ${maxValue} (valid: ${maxValue !== undefined})`
+                );
               }
             } else {
-              console.log("❌ Không tìm thấy size có dimensionType = 'FONT_SIZE'");
+              console.log(
+                "❌ Không tìm thấy size có dimensionType = 'FONT_SIZE'"
+              );
               console.log("📋 Danh sách productTypeSizes hiện có:");
               productTypeSizes.forEach((ptSize, index) => {
-                console.log(`   ${index + 1}. ID: ${ptSize.id}, dimensionType: ${ptSize.dimensionType}, sizeName: ${ptSize.sizes?.name}`);
+                console.log(
+                  `   ${index + 1}. ID: ${ptSize.id}, dimensionType: ${
+                    ptSize.dimensionType
+                  }, sizeName: ${ptSize.sizes?.name}`
+                );
               });
             }
           } catch (fontCalcError) {
-            console.error("❌ Lỗi khi tính toán fontSizePixelValue:", fontCalcError);
+            console.error(
+              "❌ Lỗi khi tính toán fontSizePixelValue:",
+              fontCalcError
+            );
           }
           console.log("=== KẾT THÚC TÍNH TOÁN FONT SIZE PIXEL VALUE ===");
           console.log("");
@@ -1100,7 +1156,7 @@ const ModernBillboardForm = ({
       // Calculate fontSizePixelValue for FONT_SIZE dimension type
       console.log("🔍 DEBUG: Starting fontSizePixelValue calculation");
       console.log("🔍 DEBUG: productTypeSizes:", productTypeSizes);
-      
+
       // Debug: Log each productTypeSize to see the structure
       productTypeSizes.forEach((ptSize, index) => {
         console.log(`🔍 DEBUG: productTypeSizes[${index}]:`, ptSize);
@@ -1112,54 +1168,77 @@ const ModernBillboardForm = ({
           minValue: ptSize.minValue,
           maxValue: ptSize.maxValue,
           sizes: ptSize.sizes,
-          productTypes: ptSize.productTypes
+          productTypes: ptSize.productTypes,
         });
       });
-      
+
       console.log("🔍 DEBUG: formData:", formData);
-      
-      const fontSizeData = productTypeSizes.find(ptSize => ptSize.dimensionType === "FONT_SIZE");
+
+      const fontSizeData = productTypeSizes.find(
+        (ptSize) => ptSize.dimensionType === "FONT_SIZE"
+      );
       console.log("🔍 DEBUG: fontSizeData found:", fontSizeData);
-      
+
       if (fontSizeData) {
         const sizeId = fontSizeData.sizes?.id;
         const fieldName = `size_${sizeId}`;
         const sizeValue = parseFloat(formData[fieldName]);
         const minValue = fontSizeData.minValue;
         const maxValue = fontSizeData.maxValue;
-        
+
         console.log("🔍 DEBUG: sizeId:", sizeId);
         console.log("🔍 DEBUG: fieldName:", fieldName);
         console.log("🔍 DEBUG: sizeValue (raw):", formData[fieldName]);
         console.log("🔍 DEBUG: sizeValue (parsed):", sizeValue);
         console.log("🔍 DEBUG: isNaN(sizeValue):", isNaN(sizeValue));
-        
+
         if (!isNaN(sizeValue)) {
-          const rawFontSizePixelValue = 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue);
+          const rawFontSizePixelValue =
+            256 +
+            ((1024 - 256) * (sizeValue - minValue)) / (maxValue - minValue);
           const fontSizePixelValue = Math.round(rawFontSizePixelValue); // Làm tròn số thập phân
           console.log("🔤 Font Size Calculation:");
           console.log("- Size Value (user input):", sizeValue);
           console.log("- Min Value:", minValue);
           console.log("- Max Value:", maxValue);
-          console.log("- Formula: 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue)");
-          console.log("- Calculated fontSizePixelValue (raw):", rawFontSizePixelValue);
-          console.log("- Calculated fontSizePixelValue (rounded):", fontSizePixelValue);
-          
+          console.log(
+            "- Formula: 256 + (1024 - 256) * (sizeValue - minValue) / (maxValue - minValue)"
+          );
+          console.log(
+            "- Calculated fontSizePixelValue (raw):",
+            rawFontSizePixelValue
+          );
+          console.log(
+            "- Calculated fontSizePixelValue (rounded):",
+            fontSizePixelValue
+          );
+
           // ✅ Lưu fontSizePixelValue vào state để sử dụng trong canvas
-          if (setFontSizePixelValue && typeof setFontSizePixelValue === 'function') {
+          if (
+            setFontSizePixelValue &&
+            typeof setFontSizePixelValue === "function"
+          ) {
             setFontSizePixelValue(fontSizePixelValue);
-            console.log(`💾 Đã lưu fontSizePixelValue vào state: ${fontSizePixelValue}`);
+            console.log(
+              `💾 Đã lưu fontSizePixelValue vào state: ${fontSizePixelValue}`
+            );
           } else {
-            console.warn("⚠️ setFontSizePixelValue prop không có sẵn hoặc không phải function");
+            console.warn(
+              "⚠️ setFontSizePixelValue prop không có sẵn hoặc không phải function"
+            );
           }
         } else {
           console.log("🔍 DEBUG: sizeValue is NaN, skipping calculation");
         }
       } else {
-        console.log("🔍 DEBUG: No FONT_SIZE dimension type found in productTypeSizes");
-        console.log("🔍 DEBUG: Available dimension types:", productTypeSizes.map(pts => pts.dimensionType));
+        console.log(
+          "🔍 DEBUG: No FONT_SIZE dimension type found in productTypeSizes"
+        );
+        console.log(
+          "🔍 DEBUG: Available dimension types:",
+          productTypeSizes.map((pts) => pts.dimensionType)
+        );
       }
-
     } catch (error) {
       console.error("Failed to submit sizes:", error);
       setSizeValidationError(
@@ -1313,22 +1392,27 @@ const ModernBillboardForm = ({
                               </span>
                             ),
                             endAdornment: (
-                              <Box sx={{ display: "flex", alignItems: "center" }}>
-                                <span className="text-gray-500 text-xs mr-1">m</span>
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
+                              >
+                                <span className="text-gray-500 text-xs mr-1">
+                                  m
+                                </span>
                                 {isFontSize && (
-                                  <Tooltip 
+                                  <Tooltip
                                     title="Kích thước này chỉ mang tính tham khảo, Sale sẽ báo giá lại sau nếu có thay đổi"
                                     placement="top"
                                     arrow
                                   >
                                     <IconButton
                                       size="small"
-                                      sx={{ 
+                                      sx={{
                                         padding: "2px",
                                         color: "#ff9800",
                                         "&:hover": {
-                                          backgroundColor: "rgba(255, 152, 0, 0.04)"
-                                        }
+                                          backgroundColor:
+                                            "rgba(255, 152, 0, 0.04)",
+                                        },
                                       }}
                                     >
                                       <FaExclamationTriangle size={12} />
@@ -1339,14 +1423,16 @@ const ModernBillboardForm = ({
                             ),
                             style: { fontSize: "0.8rem", height: "36px" },
                           }}
-                          InputLabelProps={{ 
+                          InputLabelProps={{
                             style: { fontSize: "0.8rem" },
-                            sx: isFontSize ? {
-                              color: "#ff9800",
-                              "&.Mui-focused": {
-                                color: "#ff9800"
-                              }
-                            } : {}
+                            sx: isFontSize
+                              ? {
+                                  color: "#ff9800",
+                                  "&.Mui-focused": {
+                                    color: "#ff9800",
+                                  },
+                                }
+                              : {},
                           }}
                           variant="outlined"
                           sx={{
@@ -1355,15 +1441,15 @@ const ModernBillboardForm = ({
                               ...(isFontSize && {
                                 "& fieldset": {
                                   borderColor: "#ffcc02",
-                                  borderWidth: "2px"
+                                  borderWidth: "2px",
                                 },
                                 "&:hover fieldset": {
                                   borderColor: "#ff9800",
                                 },
                                 "&.Mui-focused fieldset": {
                                   borderColor: "#ff9800",
-                                }
-                              })
+                                },
+                              }),
                             },
                           }}
                         />
@@ -2055,7 +2141,7 @@ const AIDesign = () => {
     severity: "success",
   });
   const [coreAttributesReady, setCoreAttributesReady] = useState(false);
-  
+
   // ✅ State để lưu fontSizePixelValue để sử dụng trong canvas
   const [fontSizePixelValue, setFontSizePixelValue] = useState(256); // Giá trị mặc định
 
@@ -2075,16 +2161,18 @@ const AIDesign = () => {
     underline: false,
     text: "Sample Text",
   });
-  
+
   // ✅ Chỉ cập nhật textSettings khi có fontSizePixelValue và khác giá trị mặc định
   useEffect(() => {
     if (fontSizePixelValue && fontSizePixelValue !== 256) {
       const baseFontSize = Math.max(fontSizePixelValue * 0.1, 20); // Tối thiểu 20px
-      setTextSettings(prev => ({
+      setTextSettings((prev) => ({
         ...prev,
-        fontSize: baseFontSize
+        fontSize: baseFontSize,
       }));
-      console.log(`📝 Updated text font size: ${baseFontSize}px (based on fontSizePixelValue: ${fontSizePixelValue})`);
+      console.log(
+        `📝 Updated text font size: ${baseFontSize}px (based on fontSizePixelValue: ${fontSizePixelValue})`
+      );
     } else {
       // Giữ nguyên fontSize mặc định khi không có fontSizePixelValue
       console.log(`📝 Keeping default text font size (no scaling applied)`);
@@ -2401,18 +2489,18 @@ const AIDesign = () => {
         const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
         const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
         const hasScaling = fontSizePixelValue && fontSizePixelValue !== 256;
-        
+
         // Combine canvas scaling with fontSizePixelValue scaling
-        const iconSize = hasScaling 
-          ? baseScaleFactor * (fontSizePixelValue / 256) * 100  // Base icon size 100px scaled by both factors
+        const iconSize = hasScaling
+          ? baseScaleFactor * (fontSizePixelValue / 256) * 100 // Base icon size 100px scaled by both factors
           : baseScaleFactor * 100; // Just canvas scaling, base size 100px
-        
+
         console.log(`🔥 Icon hybrid scaling:`, {
           canvasSize,
           baseScaleFactor: baseScaleFactor.toFixed(3),
           fontSizePixelValue,
           hasScaling,
-          iconSize: iconSize.toFixed(1)
+          iconSize: iconSize.toFixed(1),
         });
 
         try {
@@ -2477,7 +2565,7 @@ const AIDesign = () => {
         const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
         const baseScaleFactor = canvasSize / 1000;
         const hasScaling = fontSizePixelValue && fontSizePixelValue !== 256;
-        const placeholderSize = hasScaling 
+        const placeholderSize = hasScaling
           ? baseScaleFactor * (fontSizePixelValue / 256) * 100
           : baseScaleFactor * 100;
 
@@ -3201,7 +3289,7 @@ const AIDesign = () => {
 
     console.log(`🖼️ Adding image`, {
       fontSizePixelValue,
-      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256
+      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256,
     });
 
     const img = new Image();
@@ -3212,18 +3300,18 @@ const AIDesign = () => {
       const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
       const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
       const hasScaling = fontSizePixelValue && fontSizePixelValue !== 256;
-      
+
       // Combine canvas scaling with fontSizePixelValue scaling
-      const imageSize = hasScaling 
-        ? baseScaleFactor * (fontSizePixelValue / 256) * 250  // Base image size 250px scaled by both factors
+      const imageSize = hasScaling
+        ? baseScaleFactor * (fontSizePixelValue / 256) * 250 // Base image size 250px scaled by both factors
         : baseScaleFactor * 250; // Just canvas scaling, base size 250px
-        
+
       console.log(`🖼️ Image hybrid scaling:`, {
         canvasSize,
         baseScaleFactor: baseScaleFactor.toFixed(3),
         fontSizePixelValue,
         hasScaling,
-        imageSize: imageSize.toFixed(1)
+        imageSize: imageSize.toFixed(1),
       });
 
       const fabricImg = new fabric.Image(img, {
@@ -3266,18 +3354,18 @@ const AIDesign = () => {
     }
 
     console.log("Adding to canvas:", type, content);
-    
+
     // ✅ Scale dựa trên canvas size
     const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
     const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
-    
+
     console.log(`🎯 Canvas scaling info:`, {
       canvasWidth: fabricCanvas.width,
       canvasHeight: fabricCanvas.height,
       canvasSize,
       baseScaleFactor: baseScaleFactor.toFixed(3),
       fontSizePixelValue,
-      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256
+      hasScaling: fontSizePixelValue && fontSizePixelValue !== 256,
     });
 
     let text;
@@ -3286,7 +3374,7 @@ const AIDesign = () => {
 
     // ✅ Scale sizes based on both fontSizePixelValue and canvas dimensions
     let companyNameSize, addressSize, contactSize, logoSize;
-    
+
     if (fontSizePixelValue && fontSizePixelValue !== 256) {
       // Có fontSizePixelValue: kết hợp cả fontSizePixelValue và canvas scaling
       const fontScaleFactor = fontSizePixelValue / 256; // Normalize to base 256
@@ -3319,7 +3407,9 @@ const AIDesign = () => {
           fontWeight: "bold",
           name: "companyName",
         });
-        console.log(`📊 Company name: ${Math.round(companyNameSize)}px (canvas-scaled)`);
+        console.log(
+          `📊 Company name: ${Math.round(companyNameSize)}px (canvas-scaled)`
+        );
         break;
 
       case "address":
@@ -3344,16 +3434,18 @@ const AIDesign = () => {
           fill: "#333333",
           name: "contactInfo",
         });
-        console.log(`📊 Contact info: ${Math.round(contactSize)}px (canvas-scaled)`);
+        console.log(
+          `📊 Contact info: ${Math.round(contactSize)}px (canvas-scaled)`
+        );
         break;
 
       case "logoUrl": {
         console.log("Processing logo URL:", content);
         const logoSource = s3Logo || content;
         console.log("Using logo source:", logoSource);
-        
+
         console.log(`📊 Logo size: ${Math.round(logoSize)}px (canvas-scaled)`);
-        
+
         // CÁCH 1: Sử dụng HTML Image element (BỎ crossOrigin)
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -3365,7 +3457,11 @@ const AIDesign = () => {
           try {
             const fabricImg = new fabric.Image(img, {
               left: leftMargin,
-              top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8,
+              top:
+                topBase +
+                companyNameSize * 1.8 +
+                addressSize * 1.8 +
+                contactSize * 1.8,
               name: "logo",
             });
 
@@ -3399,9 +3495,13 @@ const AIDesign = () => {
 
           const placeholder = new fabric.Rect({
             left: leftMargin,
-            top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8,
+            top:
+              topBase +
+              companyNameSize * 1.8 +
+              addressSize * 1.8 +
+              contactSize * 1.8,
             width: logoSize,
-            height: logoSize * 0.67, // Tỉ lệ 3:2 cho placeholder 
+            height: logoSize * 0.67, // Tỉ lệ 3:2 cho placeholder
             fill: "#f0f0f0",
             stroke: "#ddd",
             strokeWidth: 2,
@@ -3413,7 +3513,12 @@ const AIDesign = () => {
           const placeholderTextSize = Math.max(fontSizePixelValue * 0.07, 16);
           const placeholderText = new fabric.Text("LOGO", {
             left: leftMargin + logoSize / 2,
-            top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8 + logoSize * 0.335, // Center vertically in placeholder
+            top:
+              topBase +
+              companyNameSize * 1.8 +
+              addressSize * 1.8 +
+              contactSize * 1.8 +
+              logoSize * 0.335, // Center vertically in placeholder
             fontSize: placeholderTextSize, // Sử dụng kích thước tính từ fontSizePixelValue
             fill: "#666",
             fontWeight: "bold",
@@ -3426,7 +3531,12 @@ const AIDesign = () => {
           const urlTextSize = Math.max(fontSizePixelValue * 0.04, 10);
           const urlText = new fabric.Text("Không thể tải logo", {
             left: leftMargin + logoSize / 2,
-            top: topBase + companyNameSize * 1.8 + addressSize * 1.8 + contactSize * 1.8 + logoSize * 0.5, // Below center of placeholder
+            top:
+              topBase +
+              companyNameSize * 1.8 +
+              addressSize * 1.8 +
+              contactSize * 1.8 +
+              logoSize * 0.5, // Below center of placeholder
             fontSize: urlTextSize, // Sử dụng kích thước tính từ fontSizePixelValue
             fill: "#999",
             textAlign: "center",
@@ -3481,8 +3591,15 @@ const AIDesign = () => {
       canvasHeight = Math.round(canvasWidth / 1.5); // Tỷ lệ 3:2 tạm thời
 
       console.log("🎯 [CANVAS] Khởi tạo canvas với kích thước tạm thời:");
-      console.log("🎯 [CANVAS] Temporary canvas size:", canvasWidth, "x", canvasHeight);
-      console.log("🎯 [CANVAS] Canvas sẽ tự động điều chỉnh theo ảnh được tải!");
+      console.log(
+        "🎯 [CANVAS] Temporary canvas size:",
+        canvasWidth,
+        "x",
+        canvasHeight
+      );
+      console.log(
+        "🎯 [CANVAS] Canvas sẽ tự động điều chỉnh theo ảnh được tải!"
+      );
 
       const canvas = new fabric.Canvas(canvasRef.current, {
         width: Math.round(canvasWidth),
@@ -3641,9 +3758,9 @@ const AIDesign = () => {
 
               // Tính tỷ lệ để canvas vừa với container nhưng giữ đúng aspect ratio ảnh
               const imageAspectRatio = img.width / img.height;
-              
+
               let newCanvasWidth, newCanvasHeight;
-              
+
               // Tính kích thước canvas dựa trên ảnh
               if (containerWidth / imageAspectRatio <= maxCanvasHeight) {
                 // Ảnh có thể hiển thị toàn bộ chiều rộng container
@@ -3659,30 +3776,54 @@ const AIDesign = () => {
               newCanvasHeight = Math.round(newCanvasHeight);
 
               console.log("🎯 [CANVAS] Resizing canvas to match image:");
-              console.log("🎯 [CANVAS] Original canvas size:", canvasWidth, "x", canvasHeight);
-              console.log("🎯 [CANVAS] New canvas size:", newCanvasWidth, "x", newCanvasHeight);
-              console.log("🎯 [CANVAS] Image aspect ratio:", imageAspectRatio.toFixed(2));
+              console.log(
+                "🎯 [CANVAS] Original canvas size:",
+                canvasWidth,
+                "x",
+                canvasHeight
+              );
+              console.log(
+                "🎯 [CANVAS] New canvas size:",
+                newCanvasWidth,
+                "x",
+                newCanvasHeight
+              );
+              console.log(
+                "🎯 [CANVAS] Image aspect ratio:",
+                imageAspectRatio.toFixed(2)
+              );
 
-                // 🎯 RESIZE CANVAS THEO ẢNH
-                canvas.setDimensions({
-                  width: newCanvasWidth,
-                  height: newCanvasHeight
-                });
+              // 🎯 RESIZE CANVAS THEO ẢNH
+              canvas.setDimensions({
+                width: newCanvasWidth,
+                height: newCanvasHeight,
+              });
 
-                // 🎯 QUAN TRỌNG: Cập nhật cả canvas element để tránh mismatch
-                const canvasElement = canvas.getElement();
-                canvasElement.width = newCanvasWidth;
-                canvasElement.height = newCanvasHeight;
-                canvasElement.style.width = newCanvasWidth + 'px';
-                canvasElement.style.height = newCanvasHeight + 'px';
+              // 🎯 QUAN TRỌNG: Cập nhật cả canvas element để tránh mismatch
+              const canvasElement = canvas.getElement();
+              canvasElement.width = newCanvasWidth;
+              canvasElement.height = newCanvasHeight;
+              canvasElement.style.width = newCanvasWidth + "px";
+              canvasElement.style.height = newCanvasHeight + "px";
 
-                console.log("🎯 [CANVAS] Canvas element after resize:");
-                console.log("🎯 [CANVAS] Element dimensions:", canvasElement.width, "x", canvasElement.height);
-                console.log("🎯 [CANVAS] Element style:", canvasElement.style.width, "x", canvasElement.style.height);
+              console.log("🎯 [CANVAS] Canvas element after resize:");
+              console.log(
+                "🎯 [CANVAS] Element dimensions:",
+                canvasElement.width,
+                "x",
+                canvasElement.height
+              );
+              console.log(
+                "🎯 [CANVAS] Element style:",
+                canvasElement.style.width,
+                "x",
+                canvasElement.style.height
+              );
 
-                // Cập nhật biến kích thước cho các thao tác sau này
-                canvasWidth = newCanvasWidth;
-                canvasHeight = newCanvasHeight;              try {
+              // Cập nhật biến kích thước cho các thao tác sau này
+              canvasWidth = newCanvasWidth;
+              canvasHeight = newCanvasHeight;
+              try {
                 const fabricImg = new fabric.Image(img, {
                   left: 0,
                   top: 0,
@@ -3695,21 +3836,33 @@ const AIDesign = () => {
 
                 console.log("🎯 [CANVAS] Fabric image created:", fabricImg);
                 console.log("🎯 [CANVAS] Fabric image width:", fabricImg.width);
-                console.log("🎯 [CANVAS] Fabric image height:", fabricImg.height);
-                console.log("🎯 [CANVAS] Fabric image opacity:", fabricImg.opacity);
-                console.log("🎯 [CANVAS] Fabric image visible:", fabricImg.visible);
+                console.log(
+                  "🎯 [CANVAS] Fabric image height:",
+                  fabricImg.height
+                );
+                console.log(
+                  "🎯 [CANVAS] Fabric image opacity:",
+                  fabricImg.opacity
+                );
+                console.log(
+                  "🎯 [CANVAS] Fabric image visible:",
+                  fabricImg.visible
+                );
 
                 // 🎯 Scale ảnh để fill toàn bộ canvas (không có khoảng trống)
                 const scaleX = canvasWidth / fabricImg.width;
                 const scaleY = canvasHeight / fabricImg.height;
-                
+
                 // 🎯 IMPROVED: Đảm bảo scale không quá nhỏ và ảnh luôn hiển thị
                 let scale = Math.max(scaleX, scaleY);
-                
+
                 // Đảm bảo scale tối thiểu để ảnh có thể nhìn thấy được
                 const minScale = 0.1; // Scale tối thiểu 10%
                 if (scale < minScale) {
-                  console.warn("🎯 [CANVAS] Scale quá nhỏ, sử dụng scale tối thiểu:", minScale);
+                  console.warn(
+                    "🎯 [CANVAS] Scale quá nhỏ, sử dụng scale tối thiểu:",
+                    minScale
+                  );
                   scale = minScale;
                 }
 
@@ -3724,76 +3877,144 @@ const AIDesign = () => {
                   scaleY: scale,
                   left: centerX,
                   top: centerY,
-                  originX: 'left',
-                  originY: 'top',
+                  originX: "left",
+                  originY: "top",
                 });
 
                 console.log("🎯 [CANVAS] Image scaling:");
                 console.log("🎯 [CANVAS] Scale X:", scaleX.toFixed(3));
                 console.log("🎯 [CANVAS] Scale Y:", scaleY.toFixed(3));
-                console.log("🎯 [CANVAS] Final scale (cover):", scale.toFixed(3));
-                console.log("🎯 [CANVAS] Scaled dimensions:", scaledWidth.toFixed(1), "x", scaledHeight.toFixed(1));
-                console.log("🎯 [CANVAS] Position:", centerX.toFixed(1), ",", centerY.toFixed(1));
-                console.log("🎯 [CANVAS] ✅ Canvas đã được điều chỉnh theo ảnh - không còn khoảng trống!");
+                console.log(
+                  "🎯 [CANVAS] Final scale (cover):",
+                  scale.toFixed(3)
+                );
+                console.log(
+                  "🎯 [CANVAS] Scaled dimensions:",
+                  scaledWidth.toFixed(1),
+                  "x",
+                  scaledHeight.toFixed(1)
+                );
+                console.log(
+                  "🎯 [CANVAS] Position:",
+                  centerX.toFixed(1),
+                  ",",
+                  centerY.toFixed(1)
+                );
+                console.log(
+                  "🎯 [CANVAS] ✅ Canvas đã được điều chỉnh theo ảnh - không còn khoảng trống!"
+                );
 
                 canvas.add(fabricImg);
-                
+
                 // 🎯 IMPROVED: Safe sendToBack with better fallback methods
                 try {
-                  if (typeof canvas.sendToBack === 'function') {
+                  if (typeof canvas.sendToBack === "function") {
                     canvas.sendToBack(fabricImg);
                     console.log("🎯 [CANVAS] Used sendToBack successfully");
                   } else {
                     throw new Error("sendToBack not available");
                   }
                 } catch (error) {
-                  console.warn("🎯 [CANVAS] sendToBack failed, using sendBackwards fallback:", error.message);
+                  console.warn(
+                    "🎯 [CANVAS] sendToBack failed, using sendBackwards fallback:",
+                    error.message
+                  );
                   try {
                     // Try sendBackwards multiple times
                     const objects = canvas.getObjects();
                     let currentIndex = objects.indexOf(fabricImg);
-                    while (currentIndex > 0 && typeof canvas.sendBackwards === 'function') {
+                    while (
+                      currentIndex > 0 &&
+                      typeof canvas.sendBackwards === "function"
+                    ) {
                       canvas.sendBackwards(fabricImg);
                       currentIndex--;
                     }
                     console.log("🎯 [CANVAS] Used sendBackwards successfully");
                   } catch (sendBackwardsError) {
-                    console.warn("🎯 [CANVAS] sendBackwards failed, using manual reordering:", sendBackwardsError.message);
+                    console.warn(
+                      "🎯 [CANVAS] sendBackwards failed, using manual reordering:",
+                      sendBackwardsError.message
+                    );
                     try {
                       // Manual reordering: collect all objects except background, clear canvas, add background first
-                      const allObjects = canvas.getObjects().filter(obj => obj !== fabricImg);
+                      const allObjects = canvas
+                        .getObjects()
+                        .filter((obj) => obj !== fabricImg);
                       canvas.clear();
                       canvas.add(fabricImg); // Background first
-                      allObjects.forEach(obj => {
+                      allObjects.forEach((obj) => {
                         try {
                           canvas.add(obj);
                         } catch (addError) {
-                          console.warn("🎯 [CANVAS] Could not re-add object:", addError);
+                          console.warn(
+                            "🎯 [CANVAS] Could not re-add object:",
+                            addError
+                          );
                         }
                       });
-                      console.log("🎯 [CANVAS] Used manual reordering successfully");
+                      console.log(
+                        "🎯 [CANVAS] Used manual reordering successfully"
+                      );
                     } catch (manualError) {
-                      console.error("🎯 [CANVAS] All sendToBack methods failed:", manualError);
+                      console.error(
+                        "🎯 [CANVAS] All sendToBack methods failed:",
+                        manualError
+                      );
                       // At least the image is still on canvas, just not in back
                     }
                   }
                 }
-                
+
                 canvas.renderAll();
-                
+
                 // 🎯 DEBUG: Kiểm tra trạng thái canvas sau khi add image
                 console.log("🎯 [CANVAS] Post-add debugging:");
-                console.log("🎯 [CANVAS] Total objects on canvas:", canvas.getObjects().length);
-                console.log("🎯 [CANVAS] Canvas dimensions:", canvas.getWidth(), "x", canvas.getHeight());
-                console.log("🎯 [CANVAS] Background image position:", fabricImg.left, ",", fabricImg.top);
-                console.log("🎯 [CANVAS] Background image scale:", fabricImg.scaleX, ",", fabricImg.scaleY);
-                console.log("🎯 [CANVAS] Background image visible:", fabricImg.visible);
-                console.log("🎯 [CANVAS] Canvas background color:", canvas.backgroundColor);
-                
+                console.log(
+                  "🎯 [CANVAS] Total objects on canvas:",
+                  canvas.getObjects().length
+                );
+                console.log(
+                  "🎯 [CANVAS] Canvas dimensions:",
+                  canvas.getWidth(),
+                  "x",
+                  canvas.getHeight()
+                );
+                console.log(
+                  "🎯 [CANVAS] Background image position:",
+                  fabricImg.left,
+                  ",",
+                  fabricImg.top
+                );
+                console.log(
+                  "🎯 [CANVAS] Background image scale:",
+                  fabricImg.scaleX,
+                  ",",
+                  fabricImg.scaleY
+                );
+                console.log(
+                  "🎯 [CANVAS] Background image visible:",
+                  fabricImg.visible
+                );
+                console.log(
+                  "🎯 [CANVAS] Canvas background color:",
+                  canvas.backgroundColor
+                );
+
                 // Đảm bảo canvas element cũng được cập nhật
                 const canvasElement = canvas.getElement();
-                console.log("🎯 [CANVAS] Canvas element dimensions:", canvasElement.width, "x", canvasElement.height);
-                console.log("🎯 [CANVAS] Canvas element style:", canvasElement.style.width, "x", canvasElement.style.height);
+                console.log(
+                  "🎯 [CANVAS] Canvas element dimensions:",
+                  canvasElement.width,
+                  "x",
+                  canvasElement.height
+                );
+                console.log(
+                  "🎯 [CANVAS] Canvas element style:",
+                  canvasElement.style.width,
+                  "x",
+                  canvasElement.style.height
+                );
 
                 console.log(
                   `🎯 [CANVAS] ${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
@@ -3803,39 +4024,68 @@ const AIDesign = () => {
                 setTimeout(() => {
                   canvas.renderAll();
                   console.log("🎯 [CANVAS] Force refresh canvas completed");
-                  
+
                   // Double check image is still there and visible
                   const objects = canvas.getObjects();
-                  const backgroundImg = objects.find(obj => obj.name?.includes('backgroundImage'));
+                  const backgroundImg = objects.find((obj) =>
+                    obj.name?.includes("backgroundImage")
+                  );
                   if (backgroundImg) {
-                    console.log("🎯 [CANVAS] ✅ Background image confirmed present on canvas");
+                    console.log(
+                      "🎯 [CANVAS] ✅ Background image confirmed present on canvas"
+                    );
                     console.log("🎯 [CANVAS] Background image details:");
-                    console.log("  - Position:", backgroundImg.left, ",", backgroundImg.top);
-                    console.log("  - Scale:", backgroundImg.scaleX, ",", backgroundImg.scaleY);
+                    console.log(
+                      "  - Position:",
+                      backgroundImg.left,
+                      ",",
+                      backgroundImg.top
+                    );
+                    console.log(
+                      "  - Scale:",
+                      backgroundImg.scaleX,
+                      ",",
+                      backgroundImg.scaleY
+                    );
                     console.log("  - Visible:", backgroundImg.visible);
                     console.log("  - Opacity:", backgroundImg.opacity);
-                    
+
                     // 🎯 Force another render nếu ảnh vẫn không hiển thị
                     if (backgroundImg.visible && backgroundImg.opacity > 0) {
                       backgroundImg.bringToFront();
                       canvas.renderAll();
-                      console.log("🎯 [CANVAS] Brought image to front as backup");
+                      console.log(
+                        "🎯 [CANVAS] Brought image to front as backup"
+                      );
                     }
                   } else {
-                    console.error("🎯 [CANVAS] ❌ Background image missing from canvas!");
-                    
+                    console.error(
+                      "🎯 [CANVAS] ❌ Background image missing from canvas!"
+                    );
+
                     // 🎯 ULTIMATE FALLBACK: Try setBackgroundImage
-                    console.log("🎯 [CANVAS] Trying setBackgroundImage as ultimate fallback...");
+                    console.log(
+                      "🎯 [CANVAS] Trying setBackgroundImage as ultimate fallback..."
+                    );
                     try {
-                      if (typeof canvas.setBackgroundImage === 'function') {
-                        canvas.setBackgroundImage(finalImageUrl, canvas.renderAll.bind(canvas), {
-                          scaleX: canvasWidth / img.width,
-                          scaleY: canvasHeight / img.height,
-                        });
-                        console.log("🎯 [CANVAS] ✅ setBackgroundImage fallback successful");
+                      if (typeof canvas.setBackgroundImage === "function") {
+                        canvas.setBackgroundImage(
+                          finalImageUrl,
+                          canvas.renderAll.bind(canvas),
+                          {
+                            scaleX: canvasWidth / img.width,
+                            scaleY: canvasHeight / img.height,
+                          }
+                        );
+                        console.log(
+                          "🎯 [CANVAS] ✅ setBackgroundImage fallback successful"
+                        );
                       }
                     } catch (bgError) {
-                      console.error("🎯 [CANVAS] setBackgroundImage fallback failed:", bgError);
+                      console.error(
+                        "🎯 [CANVAS] setBackgroundImage fallback failed:",
+                        bgError
+                      );
                     }
                   }
                 }, 200); // Increased delay to 200ms
@@ -3849,22 +4099,38 @@ const AIDesign = () => {
                   severity: "success",
                 });
               } catch (error) {
-                console.error("🎯 [CANVAS] ERROR creating fabric image:", error);
-                
+                console.error(
+                  "🎯 [CANVAS] ERROR creating fabric image:",
+                  error
+                );
+
                 // 🎯 FALLBACK: Try using setBackgroundImage instead
                 try {
-                  console.log("🎯 [CANVAS] Trying setBackgroundImage fallback...");
-                  if (typeof canvas.setBackgroundImage === 'function') {
-                    canvas.setBackgroundImage(finalImageUrl, canvas.renderAll.bind(canvas), {
-                      scaleX: canvasWidth / img.width,
-                      scaleY: canvasHeight / img.height,
-                    });
-                    console.log("🎯 [CANVAS] ✅ Used setBackgroundImage successfully");
+                  console.log(
+                    "🎯 [CANVAS] Trying setBackgroundImage fallback..."
+                  );
+                  if (typeof canvas.setBackgroundImage === "function") {
+                    canvas.setBackgroundImage(
+                      finalImageUrl,
+                      canvas.renderAll.bind(canvas),
+                      {
+                        scaleX: canvasWidth / img.width,
+                        scaleY: canvasHeight / img.height,
+                      }
+                    );
+                    console.log(
+                      "🎯 [CANVAS] ✅ Used setBackgroundImage successfully"
+                    );
                   } else {
-                    console.error("🎯 [CANVAS] setBackgroundImage also not available");
+                    console.error(
+                      "🎯 [CANVAS] setBackgroundImage also not available"
+                    );
                   }
                 } catch (bgError) {
-                  console.error("🎯 [CANVAS] setBackgroundImage fallback also failed:", bgError);
+                  console.error(
+                    "🎯 [CANVAS] setBackgroundImage fallback also failed:",
+                    bgError
+                  );
                 }
               }
             };
@@ -4188,30 +4454,33 @@ const AIDesign = () => {
     // ✅ Scale dựa trên canvas size thay vì chỉ fontSizePixelValue
     const canvasSize = Math.max(fabricCanvas.width, fabricCanvas.height);
     const baseScaleFactor = canvasSize / 1000; // Normalize to 1000px base
-    
+
     // Combine fontSizePixelValue scaling with canvas scaling
     let finalFontSize;
     if (fontSizePixelValue && fontSizePixelValue !== 256) {
       // Có fontSizePixelValue: kết hợp cả 2 scaling factors
       const fontBasedSize = fontSizePixelValue * 0.1;
       const canvasBasedSize = 20 * baseScaleFactor;
-      finalFontSize = Math.max(fontBasedSize * baseScaleFactor, canvasBasedSize);
+      finalFontSize = Math.max(
+        fontBasedSize * baseScaleFactor,
+        canvasBasedSize
+      );
     } else {
       // Không có fontSizePixelValue: chỉ dùng canvas scaling
       finalFontSize = 20 * baseScaleFactor;
     }
-    
+
     // Minimum và maximum constraints
     finalFontSize = Math.max(finalFontSize, 12); // Minimum 12px
     finalFontSize = Math.min(finalFontSize, canvasSize * 0.1); // Maximum 10% of canvas
-      
+
     console.log(`📝 Adding text:`, {
       canvasSize,
       baseScaleFactor: baseScaleFactor.toFixed(3),
       fontSizePixelValue,
       hasScaling: fontSizePixelValue && fontSizePixelValue !== 256,
       finalFontSize: Math.round(finalFontSize),
-      originalFontSize: textSettings.fontSize
+      originalFontSize: textSettings.fontSize,
     });
 
     const text = new fabric.Text("Your Text Here", {
@@ -4803,7 +5072,9 @@ const AIDesign = () => {
     if (currentStep === 3 && productTypeStatus === "idle") {
       // Clear state cũ trước khi fetch mới để tránh hiển thị data cũ
       dispatch(resetProductTypeStatus());
-      console.log("🔄 Fetching product types with isAvailable: true for step 3");
+      console.log(
+        "🔄 Fetching product types with isAvailable: true for step 3"
+      );
       // Cập nhật cách gọi với pagination parameters và chỉ lấy product types có sẵn
       dispatch(fetchProductTypes({ page: 1, size: 10, isAvailable: true })); // Lấy 6 items mỗi trang cho phân trang
     }
@@ -5693,11 +5964,13 @@ const AIDesign = () => {
   // Handler for product type pagination
   const handleProductTypePageChange = (page) => {
     console.log(`🔄 Changing to page ${page} for product types`);
-    dispatch(fetchProductTypes({ 
-      page, 
-      size: 6, // Consistent với initial fetch
-      isAvailable: true 
-    }));
+    dispatch(
+      fetchProductTypes({
+        page,
+        size: 6, // Consistent với initial fetch
+        isAvailable: true,
+      })
+    );
   };
 
   const handleBillboardTypeSelect = async (productTypeId) => {
@@ -6887,47 +7160,6 @@ const AIDesign = () => {
                               }
                             }}
                           />
-
-                          {/* Enhanced Preview Overlay với tiến độ chi tiết */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent rounded-xl pointer-events-none"></div>
-                          <div className="absolute bottom-4 left-4 right-4">
-                            <div className="bg-black/80 backdrop-blur-sm rounded-lg p-4 border border-white/10 shadow-2xl">
-                              <div className="flex items-center justify-between text-white mb-2">
-                                <div className="flex items-center">
-                                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse mr-3 shadow-lg"></div>
-                                  <span className="text-sm font-medium">
-                                    Đang hoàn thiện
-                                  </span>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold text-blue-300 tabular-nums">
-                                    {(
-                                      stableDiffusionProgress.progress * 100
-                                    ).toFixed(2)}
-                                    %
-                                  </div>
-                                  <div className="text-xs text-gray-300 tabular-nums">
-                                    {(
-                                      stableDiffusionProgress.progress * 100
-                                    ).toFixed(4)}
-                                    %
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Mini progress bar trong overlay */}
-                              <div className="w-full bg-gray-600/50 rounded-full h-1.5 mt-2">
-                                <div
-                                  className="h-1.5 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full transition-all duration-300 ease-out"
-                                  style={{
-                                    width: `${(
-                                      stableDiffusionProgress.progress * 100
-                                    ).toFixed(3)}%`,
-                                  }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       );
                     })()}
