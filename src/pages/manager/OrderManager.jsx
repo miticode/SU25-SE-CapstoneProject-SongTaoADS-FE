@@ -48,6 +48,7 @@ import {
   CloudUpload as CloudUploadIcon,
   LocalShipping as LocalShippingIcon,
   Delete as DeleteIcon,
+  AttachMoney as AttachMoneyIcon,
 } from "@mui/icons-material";
 
 // Import Redux actions và selectors
@@ -63,6 +64,12 @@ import {
   createProgressLog,
   resetCreateStatus,
 } from "../../store/features/progressLog/progressLogSlice";
+import {
+  castPaidThunk,
+  selectPaymentLoading,
+  selectPaymentSuccess,
+  selectPaymentError,
+} from "../../store/features/payment/paymentSlice";
 import { getOrdersApi } from "../../api/orderService";
 
 const OrderManager = () => {
@@ -73,6 +80,11 @@ const OrderManager = () => {
   const loading = useSelector(selectOrderStatus) === "loading";
   const error = useSelector(selectOrderError);
   const pagination = useSelector(selectOrderPagination);
+
+  // Payment selectors
+  const paymentLoading = useSelector(selectPaymentLoading);
+  const paymentSuccess = useSelector(selectPaymentSuccess);
+  const paymentError = useSelector(selectPaymentError);
 
   // Local state
   const [currentTab, setCurrentTab] = useState(0);
@@ -91,6 +103,10 @@ const OrderManager = () => {
     useState(false);
   const [installedUploadDialogOpen, setInstalledUploadDialogOpen] =
     useState(false);
+  
+  // State cho dialog xác nhận thanh toán tiền mặt
+  const [cashPaymentDialogOpen, setCashPaymentDialogOpen] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   
   // Snackbar state cho thông báo
   const [snackbar, setSnackbar] = useState({
@@ -117,6 +133,44 @@ const OrderManager = () => {
     setSelectedFiles([]);
     setFilePreviews([]);
     setDescription("");
+  };
+
+  // Function mở dialog xác nhận thanh toán tiền mặt
+  const openCashPaymentDialog = (order) => {
+    setSelectedOrder(order);
+    setCashPaymentDialogOpen(true);
+  };
+
+  // Function xử lý xác nhận thanh toán tiền mặt
+  const handleConfirmCashPayment = async () => {
+    if (!selectedOrder) {
+      showNotification("Không tìm thấy thông tin đơn hàng!", "error");
+      return;
+    }
+
+    setConfirmingPayment(true);
+    try {
+      await dispatch(
+        castPaidThunk({
+          orderId: selectedOrder.id,
+          paymentType: "REMAINING_CONSTRUCTION",
+        })
+      ).unwrap();
+
+      setCashPaymentDialogOpen(false);
+      setSelectedOrder(null);
+
+      // Reload dữ liệu
+      loadOverviewStatsWithApi();
+      loadOrdersByTab(currentTab);
+
+      showNotification("Xác nhận thanh toán tiền mặt thành công! 💰", "success");
+    } catch (error) {
+      console.error("Error confirming cash payment:", error);
+      showNotification("Có lỗi xảy ra khi xác nhận thanh toán: " + error, "error");
+    } finally {
+      setConfirmingPayment(false);
+    }
   };
 
   const openDeliveryUploadDialog = (order) => {
@@ -210,12 +264,24 @@ const OrderManager = () => {
   useEffect(() => {
     // Thử dùng API trực tiếp trước
     loadOverviewStatsWithApi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     // Load đơn hàng khi thay đổi tab, page, pageSize
     loadOrdersByTab(currentTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab, page, pageSize]);
+
+  // Xử lý kết quả thanh toán
+  useEffect(() => {
+    if (paymentSuccess) {
+      showNotification("Xác nhận thanh toán thành công!", "success");
+    }
+    if (paymentError) {
+      showNotification(`Lỗi thanh toán: ${paymentError}`, "error");
+    }
+  }, [paymentSuccess, paymentError]);
 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
@@ -818,6 +884,19 @@ const OrderManager = () => {
                           </Tooltip>
                         )}
 
+                        {/* Nút xác nhận thanh toán tiền mặt cho đơn hàng đã lắp đặt */}
+                        {order.status === "INSTALLED" && (
+                          <Tooltip title="Xác nhận thanh toán tiền mặt">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => openCashPaymentDialog(order)}
+                            >
+                              <AttachMoneyIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+
                         <Tooltip title="Cập nhật trạng thái">
                           <IconButton size="small">
                             <EditIcon />
@@ -1392,6 +1471,77 @@ const OrderManager = () => {
           </Box>
         )}
       </Paper>
+
+      {/* Dialog xác nhận thanh toán tiền mặt */}
+      <Dialog
+        open={cashPaymentDialogOpen}
+        onClose={() => setCashPaymentDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AttachMoneyIcon color="primary" />
+            Xác nhận thanh toán tiền mặt
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Khách hàng: {selectedOrder?.users?.fullName || "N/A"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Số tiền thi công còn lại: {selectedOrder?.remainingConstructionAmount?.toLocaleString("vi-VN") || "0"} VNĐ
+            </Typography>
+          </Box>
+
+          {/* Thông tin số tiền cần thanh toán */}
+          <Box sx={{ mb: 2, p: 2, bgcolor: "primary.main", borderRadius: 1 }}>
+            <Typography variant="h6" sx={{ color: "white", textAlign: "center" }}>
+              Số tiền cần thanh toán: {selectedOrder?.remainingConstructionAmount?.toLocaleString("vi-VN") || "0"} VNĐ
+            </Typography>
+          </Box>
+
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Xác nhận thanh toán tiền mặt</strong>
+            </Typography>
+            <Typography variant="body2">
+              Bạn đang xác nhận rằng khách hàng đã thanh toán số tiền còn lại của phần thi công bằng tiền mặt.
+              Hành động này không thể hoàn tác.
+            </Typography>
+          </Alert>
+
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setCashPaymentDialogOpen(false)}
+            disabled={confirmingPayment}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleConfirmCashPayment}
+            disabled={confirmingPayment}
+            startIcon={
+              confirmingPayment ? (
+                <CircularProgress size={16} />
+              ) : (
+                <AttachMoneyIcon />
+              )
+            }
+          >
+            {confirmingPayment
+              ? "Đang xác nhận..."
+              : "Xác nhận thanh toán"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog chi tiết đơn hàng */}
       <Dialog
