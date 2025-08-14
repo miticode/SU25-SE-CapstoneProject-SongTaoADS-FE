@@ -73,6 +73,8 @@ const DesignTemplateManager = () => {
   const productTypes = useSelector(selectAllProductTypes);
   const productTypeStatus = useSelector(selectProductTypeStatus);
   const s3Images = useSelector((state) => state.s3.images);
+  // Lấy pagination từ Redux state
+  const reduxPagination = useSelector((state) => state.designTemplate.suggestionsPagination);
 
   // State local
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("all");
@@ -90,7 +92,16 @@ const DesignTemplateManager = () => {
   });
   const [formError, setFormError] = useState("");
   const [imageFile, setImageFile] = useState(null);
-  const [pagination, setPagination] = useState({ page: 0, rowsPerPage: 10 });
+  // Thay đổi pagination state để sử dụng API pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  // Thêm state cho API pagination
+  const [apiPagination, setApiPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0
+  });
 
   // Lấy danh sách loại sản phẩm khi mount
   useEffect(() => {
@@ -99,8 +110,60 @@ const DesignTemplateManager = () => {
 
   // Lấy danh sách design template khi mount
   useEffect(() => {
-    dispatch(fetchAllDesignTemplates());
-  }, [dispatch]);
+    loadDesignTemplates(1, pageSize);
+  }, [dispatch, pageSize]);
+
+  // Lấy danh sách design template với pagination
+  const loadDesignTemplates = async (page = 1, size = 10) => {
+    try {
+      const response = await dispatch(fetchAllDesignTemplates({ page, size }));
+      if (response.meta.requestStatus === "fulfilled") {
+        const { currentPage, totalPages, pageSize: size, totalElements } = response.payload.pagination;
+        setApiPagination({
+          currentPage,
+          totalPages,
+          pageSize: size,
+          totalElements
+        });
+        setCurrentPage(currentPage);
+      }
+    } catch (error) {
+      console.error("Lỗi khi load design templates:", error);
+    }
+  };
+
+  // Cập nhật apiPagination từ Redux state khi component mount hoặc state thay đổi
+  useEffect(() => {
+    if (reduxPagination) {
+      setApiPagination({
+        currentPage: reduxPagination.currentPage,
+        totalPages: reduxPagination.totalPages,
+        pageSize: reduxPagination.pageSize,
+        totalElements: reduxPagination.totalElements
+      });
+      setCurrentPage(reduxPagination.currentPage);
+    }
+  }, [reduxPagination]);
+
+  // Xử lý thay đổi trang
+  const handlePageChange = (event, newPage) => {
+    setCurrentPage(newPage + 1); // MUI TablePagination sử dụng 0-based index
+    loadDesignTemplates(newPage + 1, pageSize);
+  };
+
+  // Xử lý thay đổi số items per page
+  const handlePageSizeChange = (event) => {
+    const newPageSize = parseInt(event.target.value, 10);
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset về trang đầu
+    loadDesignTemplates(1, newPageSize);
+  };
+
+  // Load lại dữ liệu từ đầu (reset)
+  const reloadDesignTemplates = () => {
+    setCurrentPage(1);
+    loadDesignTemplates(1, pageSize);
+  };
 
   // Preload S3 images cho danh sách
   useEffect(() => {
@@ -127,15 +190,8 @@ const DesignTemplateManager = () => {
   // Handler cho filter aspect ratio
   const handleAspectRatioFilter = (ratio) => {
     setSelectedAspectRatio(ratio);
-    setPagination({ ...pagination, page: 0 });
-  };
-
-  // Xử lý phân trang
-  const handleChangePage = (event, newPage) => {
-    setPagination((prev) => ({ ...prev, page: newPage }));
-  };
-  const handleChangeRowsPerPage = (event) => {
-    setPagination({ page: 0, rowsPerPage: parseInt(event.target.value, 10) });
+    setCurrentPage(1); // Reset về trang đầu khi thay đổi bộ lọc
+    // Không cần gọi API vì filter được thực hiện trên client
   };
 
   // Mở modal tạo mới
@@ -229,7 +285,7 @@ const DesignTemplateManager = () => {
       if (res.meta.requestStatus === "fulfilled") {
         setOpenForm(false);
         // Refresh danh sách để hiển thị template mới
-        dispatch(fetchAllDesignTemplates());
+        reloadDesignTemplates();
       } else {
         setFormError(res.payload || "Tạo mẫu thất bại");
       }
@@ -258,7 +314,7 @@ const DesignTemplateManager = () => {
         }
         setOpenForm(false);
         // Refresh danh sách
-        dispatch(fetchAllDesignTemplates());
+        reloadDesignTemplates();
       } else {
         setFormError(updateRes.payload || "Cập nhật thất bại");
       }
@@ -276,7 +332,7 @@ const DesignTemplateManager = () => {
     const res = await dispatch(deleteDesignTemplateById(templateId));
     if (res.meta.requestStatus === "rejected") {
       // Nếu xóa thất bại, refresh lại danh sách để khôi phục
-      dispatch(fetchAllDesignTemplates());
+      reloadDesignTemplates();
     }
   };
 
@@ -349,8 +405,9 @@ const DesignTemplateManager = () => {
         </Box>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="body2" color="text.secondary">
-            Hiển thị {filteredDesignTemplates.length} / {designTemplates.length}{" "}
+            Hiển thị {designTemplates.length} / {apiPagination.totalElements || reduxPagination?.totalElements || 0}{" "}
             mẫu thiết kế
+            {apiPagination.totalPages > 1 && ` (Trang ${apiPagination.currentPage} / ${apiPagination.totalPages})`}
           </Typography>
           <Button
             variant="contained"
@@ -394,7 +451,8 @@ const DesignTemplateManager = () => {
             variant="outlined"
             onClick={() => {
               setSelectedAspectRatio("all");
-              setPagination({ ...pagination, page: 0 });
+              setCurrentPage(1);
+              loadDesignTemplates(1, pageSize);
             }}
             sx={{ mt: 1 }}
           >
@@ -403,113 +461,120 @@ const DesignTemplateManager = () => {
         </Box>
       ) : (
         <Grid container spacing={5} justifyContent="flex-start" width="100%">
-          {filteredDesignTemplates
-            .slice(
-              pagination.page * pagination.rowsPerPage,
-              pagination.page * pagination.rowsPerPage + pagination.rowsPerPage
-            )
-            .map((template) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={template.id}>
-                <Card
+          {filteredDesignTemplates.map((template) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={template.id}>
+              <Card
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  boxShadow: 2,
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  image={
+                    template.image
+                      ? s3Images[template.image] || ""
+                      : ""
+                  }
+                  alt={template.name}
                   sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    boxShadow: 2,
+                    width: "100%",
+                    maxHeight: 220,
+                    aspectRatio: "4/3",
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    background: "#f5f5f5",
                   }}
-                >
-                  <CardMedia
-                    component="img"
-                    image={
-                      template.image
-                        ? s3Images[template.image] || ""
-                        : ""
-                    }
-                    alt={template.name}
-                    sx={{
-                      width: "100%",
-                      maxHeight: 220,
-                      aspectRatio: "4/3",
-                      objectFit: "cover",
-                      borderRadius: 2,
-                      background: "#f5f5f5",
-                    }}
-                  />
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      gutterBottom
-                      noWrap
-                    >
-                      {template.name}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                      noWrap
-                    >
-                      {template.productTypes?.name}
-                    </Typography>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      mt={1}
-                    >
-                      <Chip
-                        label={template.isAvailable ? "Hiển thị" : "Ẩn"}
-                        color={template.isAvailable ? "success" : "default"}
-                        size="small"
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {template.aspectRatio || "SQUARE"}
-                      </Typography>
-                    </Stack>
-                  </CardContent>
-                  <CardActions
-                    sx={{ justifyContent: "space-between", px: 2, pb: 2 }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    gutterBottom
+                    noWrap
                   >
-                    <Tooltip title="Xem chi tiết">
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleOpenDetail(template)}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Sửa">
-                      <IconButton
-                        color="info"
-                        onClick={() => handleOpenEdit(template)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Xóa">
-                      <IconButton
-                        color="error"
-                        onClick={() => handleOpenDelete(template)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
+                    {template.name}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                    noWrap
+                  >
+                    {template.productTypes?.name}
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    mt={1}
+                  >
+                    <Chip
+                      label={template.isAvailable ? "Hiển thị" : "Ẩn"}
+                      color={template.isAvailable ? "success" : "default"}
+                      size="small"
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {template.aspectRatio || "SQUARE"}
+                    </Typography>
+                  </Stack>
+                </CardContent>
+                <CardActions
+                  sx={{ justifyContent: "space-between", px: 2, pb: 2 }}
+                >
+                  <Tooltip title="Xem chi tiết">
+                    <IconButton
+                      color="primary"
+                      onClick={() => handleOpenDetail(template)}
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Sửa">
+                    <IconButton
+                      color="info"
+                      onClick={() => handleOpenEdit(template)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Xóa">
+                    <IconButton
+                      color="error"
+                      onClick={() => handleOpenDelete(template)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
         </Grid>
       )}
       <Box mt={3} display="flex" justifyContent="center">
         <TablePagination
           component="div"
-          count={filteredDesignTemplates.length}
-          page={pagination.page}
-          onPageChange={handleChangePage}
-          rowsPerPage={pagination.rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 20]}
+          count={apiPagination.totalElements || reduxPagination?.totalElements || 0}
+          page={currentPage - 1}
+          onPageChange={handlePageChange}
+          rowsPerPage={pageSize}
+          onRowsPerPageChange={handlePageSizeChange}
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          labelDisplayedRows={({ from, to, count }) => 
+            `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+          }
+          labelRowsPerPage="Hiển thị:"
+          sx={{
+            '& .MuiTablePagination-selectLabel': {
+              margin: 0,
+            },
+            '& .MuiTablePagination-displayedRows': {
+              margin: 0,
+            }
+          }}
         />
       </Box>
 
