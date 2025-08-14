@@ -7,7 +7,8 @@ import {
   payDesignRemaining,
   payDesignDeposit,
   getUserPayments,
-  getOrderPayments
+  getOrderPayments,
+  castPaid
 } from '../../../api/paymentService';
 
 // ================== PAYMENT THUNKS ==================
@@ -146,6 +147,25 @@ export const getOrderPaymentsThunk = createAsyncThunk(
   }
 );
 
+// 9. Cast paid - Đánh dấu đã thanh toán
+export const castPaidThunk = createAsyncThunk(
+  'payment/castPaid',
+  async ({ orderId, paymentType }, { rejectWithValue }) => {
+    try {
+      const response = await castPaid(orderId, paymentType);
+      console.log("CastPaid response:", response); // Debug log
+
+      if (response.success) {
+        return response;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      console.error("CastPaidThunk error:", error);
+      return rejectWithValue(error.message || 'Không thể đánh dấu đã thanh toán');
+    }
+  }
+);
+
 const initialState = {
   loading: false,
   error: null,
@@ -156,6 +176,7 @@ const initialState = {
   orderDepositResult: null,
   designRemainingResult: null,
   designDepositResult: null,
+  castPaidResult: null,
   // User payments
   userPayments: [],
   userPaymentsPagination: {
@@ -190,6 +211,7 @@ const paymentSlice = createSlice({
       state.orderDepositResult = null;
       state.designRemainingResult = null;
       state.designDepositResult = null;
+      state.castPaidResult = null;
       state.userPayments = [];
       state.userPaymentsPagination = {
         currentPage: 1,
@@ -347,6 +369,22 @@ const paymentSlice = createSlice({
           pageSize: 10,
           totalElements: 0
         };
+      })
+      // Cast Paid
+      .addCase(castPaidThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = null;
+      })
+      .addCase(castPaidThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.castPaidResult = action.payload;
+      })
+      .addCase(castPaidThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.success = false;
       });
   },
 });
@@ -363,6 +401,7 @@ export const selectOrderRemainingResult = (state) => state.payment.orderRemainin
 export const selectOrderDepositResult = (state) => state.payment.orderDepositResult;
 export const selectDesignRemainingResult = (state) => state.payment.designRemainingResult;
 export const selectDesignDepositResult = (state) => state.payment.designDepositResult;
+export const selectCastPaidResult = (state) => state.payment.castPaidResult;
 export const selectUserPayments = (state) => state.payment.userPayments;
 export const selectUserPaymentsPagination = (state) => state.payment.userPaymentsPagination;
 export const selectUserPaymentsLoading = (state) => state.payment.userPaymentsLoading;

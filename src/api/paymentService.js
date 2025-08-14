@@ -293,3 +293,37 @@ export const getOrderPayments = async (orderId, page = 1, size = 10) => {
     };
   }
 };
+
+// 9. Cast paid - Đánh dấu đã thanh toán
+export const castPaid = async (orderId, paymentType) => {
+  try {
+    const response = await paymentService.post(`/api/orders/${orderId}/cast-paid`, null, {
+      params: {
+        paymentType
+      }
+    });
+
+    // Xử lý response theo cấu trúc API trả về
+    const { success, result, message, timestamp } = response.data;
+
+    if (success) {
+      return {
+        success: true,
+        data: result,
+        message: message,
+        timestamp: timestamp
+      };
+    }
+
+    return {
+      success: false,
+      error: message || 'Không thể đánh dấu đã thanh toán',
+    };
+  } catch (error) {
+    console.error("Error in castPaid:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể đánh dấu đã thanh toán',
+    };
+  }
+};
