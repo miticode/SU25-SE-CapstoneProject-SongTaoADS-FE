@@ -29,11 +29,10 @@ import {
 import { selectIsAuthenticated } from "../store/features/auth/authSlice";
 
 const FAQS = [
-  "Song Tạo có bảo hành biển quảng cáo không?",
-  "Biển hiệu hiện đại là gì?",
-  "Bên bạn có những dịch vụ gì nổi bật ?",
-  "Cửa hàng địa chỉ ở đâu ?",
-];
+  "Tôi muốn thiết kế biển quảng cáo",
+  "Tôi muốn hỏi về dịch vụ",
+  "Tôi muốn đặt biển quảng cáo",
+  ];
 
 const TypingIndicator = () => (
   <Box
