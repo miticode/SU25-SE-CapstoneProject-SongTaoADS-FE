@@ -230,7 +230,7 @@ const AIChatbot = () => {
               onClick={() => setOpen(true)}
             >
               <Avatar
-                src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                 alt="AI Bot"
                 sx={{ width: 60, height: 60, bgcolor: "transparent" }}
               />
@@ -292,7 +292,7 @@ const AIChatbot = () => {
               >
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Avatar
-                    src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                    src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                     alt="AI Bot"
                     sx={{ width: 32, height: 32 }}
                   />
@@ -420,7 +420,7 @@ const AIChatbot = () => {
                           }}
                           src={
                             msg.from === "bot"
-                              ? "https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                              ? "https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                               : undefined
                           }
                         >
@@ -463,7 +463,7 @@ const AIChatbot = () => {
                             width: 32,
                             height: 32,
                           }}
-                          src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                          src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                         />
                         <Box
                           sx={{

@@ -318,7 +318,7 @@ const AdvancedChat = () => {
               transition={{ duration: 0.6, ease: "easeInOut" }}
             >
               <Avatar
-                src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                 alt="AI Bot"
                 sx={{ 
                   width: 36, 
@@ -657,7 +657,7 @@ const AdvancedChat = () => {
                       }}
                     >
                       <Avatar
-                        src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                        src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                         sx={{ 
                           width: 120, 
                           height: 120, 
@@ -827,7 +827,7 @@ const AdvancedChat = () => {
                                 }}
                                 src={
                                   msg.from === "bot"
-                                    ? "https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                                    ? "https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                                     : undefined
                                 }
                               >
@@ -884,7 +884,7 @@ const AdvancedChat = () => {
                             height: 44,
                             border: "2px solid rgba(99, 102, 241, 0.3)",
                           }}
-                          src="https://i.pinimg.com/originals/2f/d0/0b/2fd00b440146251022ea7bdf0466f88c.gif"
+                          src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                         />
                         <Paper
                           elevation={0}
