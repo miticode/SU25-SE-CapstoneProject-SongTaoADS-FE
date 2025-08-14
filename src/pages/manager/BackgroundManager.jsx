@@ -27,6 +27,8 @@ import {
   InputLabel,
   TablePagination,
   IconButton,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -83,27 +85,34 @@ const BackgroundManager = () => {
   const [filterProductType, setFilterProductType] = useState("");
   const [filterAttribute, setFilterAttribute] = useState("");
   const [filterAttributeValue, setFilterAttributeValue] = useState("");
-  
+
   // State cho filter attributes
   const [filterAttributes, setFilterAttributes] = useState([]);
   const [filterAttributeValues, setFilterAttributeValues] = useState([]);
-  const [isLoadingFilterAttributes, setIsLoadingFilterAttributes] = useState(false);
-  const [isLoadingFilterAttributeValues, setIsLoadingFilterAttributeValues] = useState(false);
+  const [isLoadingFilterAttributes, setIsLoadingFilterAttributes] =
+    useState(false);
+  const [isLoadingFilterAttributeValues, setIsLoadingFilterAttributeValues] =
+    useState(false);
 
   // State cho product types trong form
   const allProductTypes = useSelector(selectAllProductTypes) || [];
   const productTypeStatus = useSelector(selectProductTypeStatus);
-  
+
   // Filter chỉ lấy product types có isAiGenerated = false
-  const productTypes = allProductTypes.filter(pt => pt.isAiGenerated === false);
+  const productTypes = allProductTypes.filter(
+    (pt) => pt.isAiGenerated === false
+  );
 
   // State cho attributes trong form
   const attributes = useSelector(selectAllAttributes) || [];
   const attributeStatus = useSelector(selectAttributeStatus);
 
   // State cho attribute values trong form
-  const attributeValues = useSelector((state) => state.attributeValue.attributeValues) || [];
-  const attributeValueStatus = useSelector((state) => state.attributeValue.isLoading);
+  const attributeValues =
+    useSelector((state) => state.attributeValue.attributeValues) || [];
+  const attributeValueStatus = useSelector(
+    (state) => state.attributeValue.isLoading
+  );
 
   // Modal/Form state
   const [openForm, setOpenForm] = useState(false);
@@ -205,7 +214,7 @@ const BackgroundManager = () => {
     const initializeData = async () => {
       // Lấy product types
       dispatch(fetchProductTypes({ page: 1, size: 100 })); // Lấy nhiều product types
-      
+
       // Tự động hiển thị tất cả backgrounds khi vào trang
       setShowAll(true);
       setFilterProductType("");
@@ -217,7 +226,7 @@ const BackgroundManager = () => {
       const backgroundsRes = await dispatch(fetchAllBackgrounds());
       if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
     };
-    
+
     initializeData();
   }, [dispatch]);
 
@@ -251,7 +260,7 @@ const BackgroundManager = () => {
       attributeId: "", // Reset attribute khi đổi product type
       attributeValueId: "", // Reset attribute value khi đổi product type
     });
-    
+
     // Clear attributes cũ và fetch attributes mới
     dispatch(clearAttributes());
     dispatch(resetAttributeValue()); // Reset attribute values
@@ -267,15 +276,17 @@ const BackgroundManager = () => {
       attributeId,
       attributeValueId: "", // Reset attribute value khi đổi attribute
     });
-    
+
     // Reset và fetch attribute values mới
     dispatch(resetAttributeValue());
     if (attributeId) {
-      dispatch(getAttributeValuesByAttributeId({ 
-        attributeId, 
-        page: 1, 
-        size: 100 
-      }));
+      dispatch(
+        getAttributeValuesByAttributeId({
+          attributeId,
+          page: 1,
+          size: 100,
+        })
+      );
     }
   };
 
@@ -287,17 +298,19 @@ const BackgroundManager = () => {
     setFilterAttributes([]);
     setFilterAttributeValues([]);
     setShowAll(false);
-    
+
     if (productTypeId) {
       setIsLoadingFilterAttributes(true);
       try {
         // Fetch attributes cho product type được chọn
-        const attributesRes = await dispatch(fetchAttributesByProductTypeId(productTypeId));
+        const attributesRes = await dispatch(
+          fetchAttributesByProductTypeId(productTypeId)
+        );
         if (attributesRes.payload) {
           setFilterAttributes(attributesRes.payload);
         }
       } catch (error) {
-        console.error('Error fetching attributes:', error);
+        console.error("Error fetching attributes:", error);
       } finally {
         setIsLoadingFilterAttributes(false);
       }
@@ -310,25 +323,30 @@ const BackgroundManager = () => {
     setFilterAttributeValue("");
     setFilterAttributeValues([]);
     setShowAll(false);
-    
+
     if (attributeId) {
       setIsLoadingFilterAttributeValues(true);
       try {
         // Fetch attribute values cho attribute được chọn
-        const attributeValuesRes = await dispatch(getAttributeValuesByAttributeId({ 
-          attributeId, 
-          page: 1, 
-          size: 100 
-        }));
-        
+        const attributeValuesRes = await dispatch(
+          getAttributeValuesByAttributeId({
+            attributeId,
+            page: 1,
+            size: 100,
+          })
+        );
+
         if (attributeValuesRes.payload?.attributeValues) {
           setFilterAttributeValues(attributeValuesRes.payload.attributeValues);
-        } else if (attributeValuesRes.payload && Array.isArray(attributeValuesRes.payload)) {
+        } else if (
+          attributeValuesRes.payload &&
+          Array.isArray(attributeValuesRes.payload)
+        ) {
           // Fallback nếu cấu trúc khác
           setFilterAttributeValues(attributeValuesRes.payload);
         }
       } catch (error) {
-        console.error('Error fetching attribute values:', error);
+        console.error("Error fetching attribute values:", error);
       } finally {
         setIsLoadingFilterAttributeValues(false);
       }
@@ -341,7 +359,7 @@ const BackgroundManager = () => {
     setShowAll(false);
     setFilterAttributeValue(selectedValue);
     setPagination({ ...pagination, page: 0 });
-    
+
     // Tự động fetch backgrounds theo attribute value được chọn
     if (selectedValue) {
       dispatch(fetchBackgroundsByAttributeValueId(selectedValue));
@@ -382,24 +400,26 @@ const BackgroundManager = () => {
     });
     setImageFile(null);
     setFormError("");
-    
-    // Load attributes cho product type này khi edit
+
+    // Load attributes và attribute values để hiển thị thông tin (chỉ để hiển thị, không để edit)
     dispatch(clearAttributes());
-    dispatch(resetAttributeValue()); // Reset attribute values
+    dispatch(resetAttributeValue());
     if (productTypeId) {
       dispatch(fetchAttributesByProductTypeId(productTypeId));
     }
-    
+
     // Load attribute values nếu có attributeId
     const attributeId = bg.attributeValues?.attributes?.id;
     if (attributeId) {
-      dispatch(getAttributeValuesByAttributeId({ 
-        attributeId, 
-        page: 1, 
-        size: 100 
-      }));
+      dispatch(
+        getAttributeValuesByAttributeId({
+          attributeId,
+          page: 1,
+          size: 100,
+        })
+      );
     }
-    
+
     setOpenForm(true);
   };
   // Mở modal chi tiết
@@ -429,10 +449,28 @@ const BackgroundManager = () => {
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     setFormError("");
-    if (!formData.name || !formData.productTypeId || !formData.attributeId || !formData.attributeValueId) {
-      setFormError("Vui lòng nhập tên và chọn đầy đủ loại sản phẩm, thuộc tính, giá trị thuộc tính.");
-      return;
+
+    // Validation khác nhau giữa create và edit mode
+    if (formMode === "create") {
+      if (
+        !formData.name ||
+        !formData.productTypeId ||
+        !formData.attributeId ||
+        !formData.attributeValueId
+      ) {
+        setFormError(
+          "Vui lòng nhập tên và chọn đầy đủ loại sản phẩm, thuộc tính, giá trị thuộc tính."
+        );
+        return;
+      }
+    } else {
+      // Edit mode chỉ validate tên
+      if (!formData.name) {
+        setFormError("Vui lòng nhập tên nền.");
+        return;
+      }
     }
+
     if (formMode === "create") {
       // Tạo mới
       const res = await dispatch(
@@ -553,39 +591,40 @@ const BackgroundManager = () => {
         </Typography>
         {/* Filter thân thiện với người dùng - cascade selection */}
         <Box>
-          <Stack 
-            direction={{ xs: "column", sm: "row" }} 
-            spacing={2} 
-            alignItems={{ xs: "stretch", sm: "center" }} 
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems={{ xs: "stretch", sm: "center" }}
             flexWrap="wrap"
           >
             <Button
               variant={showAll ? "contained" : "outlined"}
               color="secondary"
               onClick={handleShowAll}
-              sx={{ 
-                height: 56, 
+              sx={{
+                height: 56,
                 minWidth: { xs: "100%", sm: 100 },
-                maxWidth: { xs: "100%", sm: "auto" }
+                maxWidth: { xs: "100%", sm: "auto" },
               }}
             >
               TẤT CẢ
             </Button>
-            
+
             <FormControl sx={{ minWidth: { xs: "100%", sm: 200 } }}>
               <InputLabel>Loại sản phẩm</InputLabel>
               <Select
                 value={filterProductType}
                 label="Loại sản phẩm"
                 onChange={(e) => handleFilterProductTypeChange(e.target.value)}
-                disabled={productTypes.length === 0 || productTypeStatus === 'loading'}
+                disabled={
+                  productTypes.length === 0 || productTypeStatus === "loading"
+                }
               >
                 <MenuItem value="">
                   <em>
-                    {productTypeStatus === 'loading' 
-                      ? "Đang tải..." 
-                      : "Chọn loại sản phẩm"
-                    }
+                    {productTypeStatus === "loading"
+                      ? "Đang tải..."
+                      : "Chọn loại sản phẩm"}
                   </em>
                 </MenuItem>
                 {productTypes.map((pt) => (
@@ -602,18 +641,21 @@ const BackgroundManager = () => {
                 value={filterAttribute}
                 label="Thuộc tính"
                 onChange={(e) => handleFilterAttributeChange(e.target.value)}
-                disabled={!filterProductType || filterAttributes.length === 0 || isLoadingFilterAttributes}
+                disabled={
+                  !filterProductType ||
+                  filterAttributes.length === 0 ||
+                  isLoadingFilterAttributes
+                }
               >
                 <MenuItem value="">
                   <em>
-                    {!filterProductType 
-                      ? "Chọn loại sản phẩm trước" 
+                    {!filterProductType
+                      ? "Chọn loại sản phẩm trước"
                       : isLoadingFilterAttributes
-                        ? "Đang tải..."
-                        : filterAttributes.length === 0 
-                          ? "Không có thuộc tính"
-                          : "Chọn thuộc tính"
-                    }
+                      ? "Đang tải..."
+                      : filterAttributes.length === 0
+                      ? "Không có thuộc tính"
+                      : "Chọn thuộc tính"}
                   </em>
                 </MenuItem>
                 {filterAttributes.map((attr) => (
@@ -630,18 +672,21 @@ const BackgroundManager = () => {
                 value={filterAttributeValue}
                 label="Giá trị thuộc tính"
                 onChange={handleAttributeValueChange}
-                disabled={!filterAttribute || filterAttributeValues.length === 0 || isLoadingFilterAttributeValues}
+                disabled={
+                  !filterAttribute ||
+                  filterAttributeValues.length === 0 ||
+                  isLoadingFilterAttributeValues
+                }
               >
                 <MenuItem value="">
                   <em>
-                    {!filterAttribute 
-                      ? "Chọn thuộc tính trước" 
+                    {!filterAttribute
+                      ? "Chọn thuộc tính trước"
                       : isLoadingFilterAttributeValues
-                        ? "Đang tải..."
-                        : filterAttributeValues.length === 0 
-                          ? "Không có giá trị"
-                          : "Chọn giá trị thuộc tính"
-                    }
+                      ? "Đang tải..."
+                      : filterAttributeValues.length === 0
+                      ? "Không có giá trị"
+                      : "Chọn giá trị thuộc tính"}
                   </em>
                 </MenuItem>
                 {filterAttributeValues.map((attrValue) => (
@@ -655,13 +700,13 @@ const BackgroundManager = () => {
             {/* Nút Clear Filter nếu có filter được áp dụng */}
             {(filterProductType || filterAttribute || filterAttributeValue) && (
               <Tooltip title="Xóa bộ lọc">
-                <IconButton 
-                  color="secondary" 
+                <IconButton
+                  color="secondary"
                   onClick={handleShowAll}
-                  sx={{ 
-                    bgcolor: 'grey.100',
-                    '&:hover': { bgcolor: 'grey.200' },
-                    alignSelf: { xs: "center", sm: "auto" }
+                  sx={{
+                    bgcolor: "grey.100",
+                    "&:hover": { bgcolor: "grey.200" },
+                    alignSelf: { xs: "center", sm: "auto" },
                   }}
                 >
                   <ClearIcon />
@@ -676,12 +721,19 @@ const BackgroundManager = () => {
           {/* Breadcrumb hiển thị path filter hiện tại */}
           {(filterProductType || filterAttribute || filterAttributeValue) && (
             <Box>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Đang lọc: 
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+              >
+                Đang lọc:
                 {filterProductType && (
-                  <Chip 
-                    label={productTypes.find(pt => pt.id === filterProductType)?.name || ''} 
-                    size="small" 
+                  <Chip
+                    label={
+                      productTypes.find((pt) => pt.id === filterProductType)
+                        ?.name || ""
+                    }
+                    size="small"
                     sx={{ ml: 1, mr: 0.5 }}
                     color="primary"
                     variant="outlined"
@@ -689,10 +741,14 @@ const BackgroundManager = () => {
                 )}
                 {filterAttribute && (
                   <>
-                    <span style={{ margin: '0 4px' }}>→</span>
-                    <Chip 
-                      label={filterAttributes.find(attr => attr.id === filterAttribute)?.name || ''} 
-                      size="small" 
+                    <span style={{ margin: "0 4px" }}>→</span>
+                    <Chip
+                      label={
+                        filterAttributes.find(
+                          (attr) => attr.id === filterAttribute
+                        )?.name || ""
+                      }
+                      size="small"
                       sx={{ mr: 0.5 }}
                       color="secondary"
                       variant="outlined"
@@ -701,9 +757,13 @@ const BackgroundManager = () => {
                 )}
                 {filterAttributeValue && (
                   <>
-                    <span style={{ margin: '0 4px' }}>→</span>
-                    <Chip 
-                      label={filterAttributeValues.find(av => av.id === filterAttributeValue)?.name || ''} 
+                    <span style={{ margin: "0 4px" }}>→</span>
+                    <Chip
+                      label={
+                        filterAttributeValues.find(
+                          (av) => av.id === filterAttributeValue
+                        )?.name || ""
+                      }
                       size="small"
                       color="success"
                       variant="outlined"
@@ -713,15 +773,18 @@ const BackgroundManager = () => {
               </Typography>
             </Box>
           )}
-          
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
             <Typography variant="body2" color="text.secondary">
-              {showAll 
+              {showAll
                 ? `Hiển thị tất cả: ${filteredBackgrounds.length} nền mẫu`
                 : filterAttributeValue
-                  ? `Kết quả tìm kiếm: ${filteredBackgrounds.length} nền mẫu`
-                  : `${filteredBackgrounds.length} nền mẫu`
-              }
+                ? `Kết quả tìm kiếm: ${filteredBackgrounds.length} nền mẫu`
+                : `${filteredBackgrounds.length} nền mẫu`}
             </Typography>
             <Button
               variant="contained"
@@ -845,190 +908,579 @@ const BackgroundManager = () => {
           rowsPerPageOptions={[5, 10, 20]}
         />
       </Box>
-      {/* Modal chi tiết */}
+      {/* Modal chi tiết với Tailwind CSS */}
       <Dialog
         open={openDetail}
         onClose={handleCloseDetail}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
+        PaperProps={{
+          className: "rounded-2xl shadow-2xl",
+        }}
       >
-        <DialogTitle>Chi tiết Nền</DialogTitle>
-        <DialogContent>
+        <DialogTitle className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <VisibilityIcon />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Chi tiết Nền Mẫu</h2>
+              <p className="text-indigo-100 text-sm">
+                Xem thông tin chi tiết nền mẫu
+              </p>
+            </div>
+          </div>
+        </DialogTitle>
+
+        <DialogContent className="p-6 bg-gray-50">
           {selectedBackground ? (
-            <Box>
-              <Typography variant="h6">{selectedBackground.name}</Typography>
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {selectedBackground.description}
-              </Typography>
-              <Box mb={2}>
-                <BackgroundImage background={selectedBackground} size="small" />
-              </Box>
-              <Typography>
-                Giá trị thuộc tính:{" "}
-                {selectedBackground.attributeValues?.name || ""}
-              </Typography>
-              <Typography>
-                Trạng thái: {selectedBackground.isAvailable ? "Hiển thị" : "Ẩn"}
-              </Typography>
-            </Box>
+            <div className="space-y-6">
+              {/* Header Info */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-6">
+                  {/* Image */}
+                  <div className="flex-shrink-0 mb-4 lg:mb-0">
+                    <div className="w-full lg:w-48">
+                      <BackgroundImage
+                        background={selectedBackground}
+                        size="small"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Basic Info */}
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <Typography
+                        variant="h5"
+                        className="font-bold text-gray-800 mb-2"
+                      >
+                        {selectedBackground.name}
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        className="text-gray-600 leading-relaxed"
+                      >
+                        {selectedBackground.description || "Không có mô tả"}
+                      </Typography>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Chip
+                        label={
+                          selectedBackground.isAvailable
+                            ? "Đang hiển thị"
+                            : "Đã ẩn"
+                        }
+                        color={
+                          selectedBackground.isAvailable ? "success" : "default"
+                        }
+                        className="font-medium"
+                        icon={
+                          selectedBackground.isAvailable ? (
+                            <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          ) : (
+                            <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Information */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                  Thông tin phân loại
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-sm font-medium text-blue-600 mb-1">
+                      Loại sản phẩm
+                    </p>
+                    <p className="text-blue-800 font-semibold">
+                      {selectedBackground.attributeValues?.productType?.name ||
+                        "Không xác định"}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                    <p className="text-sm font-medium text-green-600 mb-1">
+                      Thuộc tính
+                    </p>
+                    <p className="text-green-800 font-semibold">
+                      {selectedBackground.attributeValues?.attributes?.name ||
+                        "Không xác định"}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <p className="text-sm font-medium text-purple-600 mb-1">
+                      Giá trị thuộc tính
+                    </p>
+                    <p className="text-purple-800 font-semibold">
+                      {selectedBackground.attributeValues?.name ||
+                        "Không xác định"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Info */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+                  Thông tin bổ sung
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-600">
+                      ID Nền mẫu
+                    </p>
+                    <p className="text-gray-800 font-mono bg-gray-100 px-3 py-1 rounded">
+                      {selectedBackground.id}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-600">
+                      Trạng thái
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`w-3 h-3 rounded-full ${
+                          selectedBackground.isAvailable
+                            ? "bg-green-500"
+                            : "bg-gray-400"
+                        }`}
+                      ></span>
+                      <span className="text-gray-800 font-medium">
+                        {selectedBackground.isAvailable
+                          ? "Hiển thị công khai"
+                          : "Đã bị ẩn"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
-            <CircularProgress />
+            <div className="flex items-center justify-center py-12">
+              <CircularProgress className="text-blue-500" />
+            </div>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDetail}>Đóng</Button>
+
+        <DialogActions className="bg-white p-6 border-t border-gray-200">
+          <Button
+            onClick={handleCloseDetail}
+            variant="contained"
+            className="w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white rounded-lg px-6 py-2 shadow-md hover:shadow-lg transition-all duration-300"
+          >
+            Đóng
+          </Button>
         </DialogActions>
       </Dialog>
-      {/* Modal tạo/sửa */}
-      <Dialog open={openForm} onClose={handleCloseForm} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {formMode === "create" ? "Tạo Nền" : "Sửa Nền"}
+      {/* Modal tạo/sửa với Tailwind CSS */}
+      <Dialog
+        open={openForm}
+        onClose={handleCloseForm}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          className: "rounded-2xl shadow-2xl",
+        }}
+      >
+        {/* Header với gradient */}
+        <DialogTitle className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              {formMode === "create" ? <AddIcon /> : <EditIcon />}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">
+                {formMode === "create"
+                  ? "Tạo Nền Mẫu Mới"
+                  : "Chỉnh Sửa Nền Mẫu"}
+              </h2>
+              <p className="text-blue-100 text-sm">
+                {formMode === "create"
+                  ? "Tạo nền mẫu cho quảng cáo của bạn"
+                  : "Cập nhật thông tin nền mẫu"}
+              </p>
+            </div>
+          </div>
         </DialogTitle>
+
         <form onSubmit={handleSubmitForm}>
-          <DialogContent>
-            {formError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {formError}
-              </Alert>
-            )}
-            <TextField
-              label="Tên nền"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              fullWidth
-              required
-              margin="normal"
-            />
-            <TextField
-              label="Mô tả"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              fullWidth
-              margin="normal"
-            />
-            <FormControl
-              fullWidth
-              margin="normal"
-              disabled={productTypes.length === 0 || productTypeStatus === 'loading'}
-            >
-              <InputLabel>Loại sản phẩm</InputLabel>
-              <Select
-                value={formData.productTypeId}
-                label="Loại sản phẩm"
-                onChange={(e) => handleProductTypeChange(e.target.value)}
-                required
-              >
-                <MenuItem value="">
-                  {productTypeStatus === 'loading' ? "Đang tải..." : "Chọn loại sản phẩm"}
-                </MenuItem>
-                {productTypes.map((pt) => (
-                  <MenuItem key={pt.id} value={pt.id}>
-                    {pt.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl
-              fullWidth
-              margin="normal"
-              disabled={!formData.productTypeId || attributes.length === 0}
-            >
-              <InputLabel>Thuộc tính</InputLabel>
-              <Select
-                value={formData.attributeId}
-                label="Thuộc tính"
-                onChange={(e) => handleAttributeChange(e.target.value)}
-                required
-              >
-                <MenuItem value="">
-                  {!formData.productTypeId 
-                    ? "Chọn loại sản phẩm trước" 
-                    : attributeStatus === 'loading' 
-                      ? "Đang tải..."
-                      : attributes.length === 0 
-                        ? "Không có thuộc tính" 
-                        : "Chọn thuộc tính"
-                  }
-                </MenuItem>
-                {attributes.map((attr) => (
-                  <MenuItem key={attr.id} value={attr.id}>
-                    {attr.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl
-              fullWidth
-              margin="normal"
-              disabled={!formData.attributeId || attributeValues.length === 0}
-            >
-              <InputLabel>Giá trị thuộc tính</InputLabel>
-              <Select
-                value={formData.attributeValueId}
-                label="Giá trị thuộc tính"
-                onChange={(e) =>
-                  setFormData({ ...formData, attributeValueId: e.target.value })
-                }
-                required
-              >
-                <MenuItem value="">
-                  {!formData.attributeId 
-                    ? "Chọn thuộc tính trước" 
-                    : attributeValueStatus 
-                      ? "Đang tải..."
-                      : attributeValues.length === 0 
-                        ? "Không có giá trị thuộc tính" 
-                        : "Chọn giá trị thuộc tính"
-                  }
-                </MenuItem>
-                {attributeValues.map((attrValue) => (
-                  <MenuItem key={attrValue.id} value={attrValue.id}>
-                    {attrValue.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Box mt={2}>
-              <Button variant="contained" component="label">
-                {formMode === "create" ? "Upload ảnh" : "Đổi ảnh"}
-                <input
-                  type="file"
-                  hidden
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-              </Button>
-              {imageFile && <Typography ml={2}>{imageFile.name}</Typography>}
-            </Box>
+          <DialogContent className="p-6 bg-gray-50">
+            <div className="space-y-6">
+              {/* Error Alert */}
+              {formError && (
+                <Alert severity="error" className="rounded-lg shadow-sm">
+                  {formError}
+                </Alert>
+              )}
+
+              {/* Basic Information Section */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                  Thông tin cơ bản
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <TextField
+                      label="Tên nền mẫu"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      fullWidth
+                      required
+                      variant="outlined"
+                      className="bg-white"
+                      InputProps={{
+                        className: "rounded-lg",
+                      }}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <TextField
+                      label="Mô tả"
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
+                      fullWidth
+                      multiline
+                      rows={3}
+                      variant="outlined"
+                      className="bg-white"
+                      InputProps={{
+                        className: "rounded-lg",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Create Mode - Category Selection */}
+              {formMode === "create" && (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
+                    Phân loại sản phẩm
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Product Type */}
+                    <div className="space-y-2">
+                      <FormControl
+                        fullWidth
+                        variant="outlined"
+                        disabled={
+                          productTypes.length === 0 ||
+                          productTypeStatus === "loading"
+                        }
+                      >
+                        <InputLabel className="text-gray-600">
+                          Loại sản phẩm
+                        </InputLabel>
+                        <Select
+                          value={formData.productTypeId}
+                          label="Loại sản phẩm"
+                          onChange={(e) =>
+                            handleProductTypeChange(e.target.value)
+                          }
+                          required
+                          className="bg-white rounded-lg"
+                        >
+                          <MenuItem value="">
+                            <em className="text-gray-500">
+                              {productTypeStatus === "loading"
+                                ? "Đang tải..."
+                                : "Chọn loại sản phẩm"}
+                            </em>
+                          </MenuItem>
+                          {productTypes.map((pt) => (
+                            <MenuItem key={pt.id} value={pt.id}>
+                              <div className="flex items-center space-x-2">
+                                <span className="w-3 h-3 bg-blue-400 rounded-full"></span>
+                                <span>{pt.name}</span>
+                              </div>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </div>
+
+                    {/* Attribute */}
+                    <div className="space-y-2">
+                      <FormControl
+                        fullWidth
+                        variant="outlined"
+                        disabled={
+                          !formData.productTypeId || attributes.length === 0
+                        }
+                      >
+                        <InputLabel className="text-gray-600">
+                          Thuộc tính
+                        </InputLabel>
+                        <Select
+                          value={formData.attributeId}
+                          label="Thuộc tính"
+                          onChange={(e) =>
+                            handleAttributeChange(e.target.value)
+                          }
+                          required
+                          className="bg-white rounded-lg"
+                        >
+                          <MenuItem value="">
+                            <em className="text-gray-500">
+                              {!formData.productTypeId
+                                ? "Chọn loại sản phẩm trước"
+                                : attributeStatus === "loading"
+                                ? "Đang tải..."
+                                : attributes.length === 0
+                                ? "Không có thuộc tính"
+                                : "Chọn thuộc tính"}
+                            </em>
+                          </MenuItem>
+                          {attributes.map((attr) => (
+                            <MenuItem key={attr.id} value={attr.id}>
+                              <div className="flex items-center space-x-2">
+                                <span className="w-3 h-3 bg-green-400 rounded-full"></span>
+                                <span>{attr.name}</span>
+                              </div>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </div>
+
+                    {/* Attribute Value */}
+                    <div className="space-y-2">
+                      <FormControl
+                        fullWidth
+                        variant="outlined"
+                        disabled={
+                          !formData.attributeId || attributeValues.length === 0
+                        }
+                      >
+                        <InputLabel className="text-gray-600">
+                          Giá trị thuộc tính
+                        </InputLabel>
+                        <Select
+                          value={formData.attributeValueId}
+                          label="Giá trị thuộc tính"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              attributeValueId: e.target.value,
+                            })
+                          }
+                          required
+                          className="bg-white rounded-lg"
+                        >
+                          <MenuItem value="">
+                            <em className="text-gray-500">
+                              {!formData.attributeId
+                                ? "Chọn thuộc tính trước"
+                                : attributeValueStatus
+                                ? "Đang tải..."
+                                : attributeValues.length === 0
+                                ? "Không có giá trị thuộc tính"
+                                : "Chọn giá trị thuộc tính"}
+                            </em>
+                          </MenuItem>
+                          {attributeValues.map((attrValue) => (
+                            <MenuItem key={attrValue.id} value={attrValue.id}>
+                              <div className="flex items-center space-x-2">
+                                <span className="w-3 h-3 bg-purple-400 rounded-full"></span>
+                                <span>{attrValue.name}</span>
+                              </div>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Settings Section */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Availability Toggle - Only in Edit Mode */}
+                  {formMode === "edit" && (
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          Trạng thái hiển thị
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {formData.isAvailable
+                            ? "Nền mẫu đang được hiển thị"
+                            : "Nền mẫu đang bị ẩn"}
+                        </p>
+                      </div>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.isAvailable}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                isAvailable: e.target.checked,
+                              })
+                            }
+                            color="primary"
+                            size="medium"
+                          />
+                        }
+                        label=""
+                        className="ml-4"
+                      />
+                    </div>
+                  )}
+
+                  {/* Image Upload */}
+                  <div className="space-y-3">
+                    <p className="font-medium text-gray-800">
+                      {formMode === "create"
+                        ? "Upload hình ảnh nền"
+                        : "Thay đổi hình ảnh"}
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                      <Button
+                        variant="contained"
+                        component="label"
+                        startIcon={<ImageIcon />}
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-lg px-6 py-2 shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        {formMode === "create" ? "Chọn ảnh" : "Thay đổi ảnh"}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={handleImageChange}
+                        />
+                      </Button>
+
+                      {imageFile && (
+                        <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <ImageIcon
+                            className="text-green-600"
+                            fontSize="small"
+                          />
+                          <Typography className="text-green-700 font-medium text-sm">
+                            {imageFile.name}
+                          </Typography>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-gray-500">
+                      Hỗ trợ: JPG, PNG, GIF. Kích thước tối đa: 10MB
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseForm}>Hủy</Button>
-            <Button type="submit" variant="contained" color="primary">
-              {formMode === "create" ? "Tạo mới" : "Lưu thay đổi"}
-            </Button>
+
+          {/* Footer Actions */}
+          <DialogActions className="bg-white p-6 border-t border-gray-200">
+            <div className="gap-3.5 flex flex-col sm:flex-row w-full space-y-3 sm:space-y-0 sm:space-x-3 sm:justify-end">
+              <Button
+                onClick={handleCloseForm}
+                variant="outlined"
+                className="w-full sm:w-auto border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-6 py-2"
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-lg px-8 py-2 shadow-md hover:shadow-lg transition-all duration-300"
+                startIcon={formMode === "create" ? <AddIcon /> : <EditIcon />}
+              >
+                {formMode === "create" ? "Tạo nền mẫu" : "Lưu thay đổi"}
+              </Button>
+            </div>
           </DialogActions>
         </form>
       </Dialog>
-      {/* Modal xác nhận xóa */}
+      {/* Modal xác nhận xóa với Tailwind CSS */}
       <Dialog
         open={openDelete}
         onClose={handleCloseDelete}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          className: "rounded-2xl shadow-2xl",
+        }}
       >
-        <DialogTitle>Xác nhận xóa</DialogTitle>
-        <DialogContent>
-          <Typography>Bạn có chắc chắn muốn xóa nền này?</Typography>
+        <DialogTitle className="bg-gradient-to-r from-red-500 to-pink-500 text-white">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <DeleteIcon />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Xác nhận xóa</h2>
+              <p className="text-red-100 text-sm">
+                Hành động này không thể hoàn tác
+              </p>
+            </div>
+          </div>
+        </DialogTitle>
+
+        <DialogContent className="p-6 bg-white">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+              <DeleteIcon className="text-red-500" sx={{ fontSize: 32 }} />
+            </div>
+
+            <div className="space-y-2">
+              <Typography className="text-lg font-semibold text-gray-800">
+                Bạn có chắc chắn muốn xóa nền mẫu này?
+              </Typography>
+              <Typography className="text-sm text-gray-600">
+                Nền mẫu sẽ bị xóa vĩnh viễn và không thể khôi phục lại.
+              </Typography>
+            </div>
+          </div>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDelete}>Hủy</Button>
-          <Button onClick={handleDelete} color="error" variant="contained">
-            Xóa
-          </Button>
+
+        <DialogActions className="bg-gray-50 p-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row w-full space-y-3 sm:space-y-0 sm:space-x-3">
+            <Button
+              onClick={handleCloseDelete}
+              variant="outlined"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleDelete}
+              variant="contained"
+              className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300"
+              startIcon={<DeleteIcon />}
+            >
+              Xóa nền mẫu
+            </Button>
+          </div>
         </DialogActions>
       </Dialog>
     </Box>
