@@ -3207,14 +3207,27 @@ const AIDesign = () => {
       });
     };
   }, []); // Empty dependency array = only run on unmount
-  // Effect để clear customerDetail khi quay về step 2 để đảm bảo logic create/update chính xác
+  // Effect để clear và fetch lại customerDetail khi ở step 2
   useEffect(() => {
     if (currentStep === 2) {
       // Clear customerDetail từ Redux để buộc fetch lại từ server
       dispatch(clearCustomerDetail());
       console.log("🔄 Cleared customerDetail from Redux at step 2");
+      
+      // Fetch lại customerDetail nếu có user.id
+      if (user?.id) {
+        console.log("🔄 Fetching customerDetail at step 2 for user:", user.id);
+        dispatch(fetchCustomerDetailByUserId(user.id))
+          .unwrap()
+          .then((customerData) => {
+            console.log("✅ Successfully fetched customerDetail at step 2:", customerData);
+          })
+          .catch((error) => {
+            console.log("ℹ️ No existing customerDetail found at step 2:", error);
+          });
+      }
     }
-  }, [currentStep, dispatch]);
+  }, [currentStep, user?.id, dispatch]);
 
   // Use ref to track previous step to avoid infinite loops
   const prevStepRef = useRef(currentStep);
@@ -5211,16 +5224,18 @@ const AIDesign = () => {
   }, [dispatch]);
   useEffect(() => {
     if (customerDetail) {
+      console.log("📋 Populating businessInfo from customerDetail:", customerDetail);
       setBusinessInfo({
         companyName: customerDetail.companyName || "",
         address: customerDetail.address || "",
         contactInfo: customerDetail.contactInfo || "",
         customerDetailLogo: null, // Can't set file directly
-        logoPreview: null, // Không đặt logoPreview ở đây nữa
+        logoPreview: null, // Will be set via processedLogoUrl when S3 image loads
       });
 
       // Nếu có logoUrl, gọi fetchImageFromS3
       if (customerDetail.logoUrl) {
+        console.log("🖼️ Fetching existing logo from S3:", customerDetail.logoUrl);
         dispatch(fetchImageFromS3(customerDetail.logoUrl));
       }
     }
@@ -5232,13 +5247,27 @@ const AIDesign = () => {
   );
   useEffect(() => {
     if (s3CustomerLogo) {
+      console.log("✅ S3 customer logo loaded:", s3CustomerLogo);
       setProcessedLogoUrl(s3CustomerLogo);
+      
+      // Cập nhật logoPreview trong businessInfo để hiển thị logo hiện tại
+      setBusinessInfo((prev) => ({
+        ...prev,
+        logoPreview: s3CustomerLogo,
+      }));
     } else if (customerDetail?.logoUrl) {
       // Fallback: Tạo URL từ API endpoint nếu không có trong state
       const apiUrl = `https://songtaoads.online/api/s3/image?key=${encodeURIComponent(
         customerDetail.logoUrl
       )}`;
+      console.log("📐 Using fallback logo URL:", apiUrl);
       setProcessedLogoUrl(apiUrl);
+      
+      // Cập nhật logoPreview với fallback URL
+      setBusinessInfo((prev) => ({
+        ...prev,
+        logoPreview: apiUrl,
+      }));
     }
   }, [s3CustomerLogo, customerDetail?.logoUrl]);
   const handleInputChange = (e) => {
@@ -6563,9 +6592,11 @@ const AIDesign = () => {
             onLogoChange={async (event) => {
               if (event?.target?.files?.length > 0) {
                 const file = event.target.files[0];
+                console.log("📂 Logo file selected:", file.name);
 
                 // Nếu đã có customerDetail, cập nhật logo ngay lập tức qua API
                 if (customerDetail?.id) {
+                  console.log("🔄 Updating existing customerDetail logo, ID:", customerDetail.id);
                   try {
                     setSnackbar({
                       open: true,
@@ -6587,6 +6618,8 @@ const AIDesign = () => {
                       })
                     ).unwrap();
 
+                    console.log("✅ Logo update result:", result);
+
                     // Cập nhật preview trong state local
                     const reader = new FileReader();
                     reader.onloadend = () => {
@@ -6600,6 +6633,7 @@ const AIDesign = () => {
 
                     // Fetch lại customer detail để lấy logoUrl mới
                     if (result?.logoUrl) {
+                      console.log("🖼️ Fetching new logo from S3:", result.logoUrl);
                       dispatch(fetchImageFromS3(result.logoUrl));
                     }
 
@@ -6612,7 +6646,7 @@ const AIDesign = () => {
                     // Reset input file để cho phép chọn lại cùng file
                     event.target.value = "";
                   } catch (error) {
-                    console.error("Error updating logo:", error);
+                    console.error("❌ Error updating logo:", error);
                     setSnackbar({
                       open: true,
                       message:
@@ -6623,10 +6657,12 @@ const AIDesign = () => {
                     event.target.value = "";
                   }
                 } else {
+                  console.log("📋 No existing customerDetail, handling as new logo preview");
                   // Nếu chưa có customerDetail, chỉ xử lý preview như bình thường
                   handleInputChange(event);
                 }
               } else {
+                console.log("🗑️ Resetting logo");
                 // Nếu là reset logo
                 setBusinessInfo((prev) => ({
                   ...prev,
