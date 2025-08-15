@@ -289,4 +289,208 @@ export const markNotificationAsRead = async (notificationId) => {
   }
 };
 
+// Hàm gửi thông báo cho user cụ thể
+export const sendNotificationToUser = async (userId, message) => {
+  try {
+    console.log("Gọi API gửi thông báo cho user với params:", { userId, message });
+
+    // Kiểm tra userId
+    if (!userId) {
+      return {
+        success: false,
+        error: "ID người dùng không hợp lệ.",
+      };
+    }
+
+    // Kiểm tra message
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return {
+        success: false,
+        error: "Nội dung thông báo không hợp lệ.",
+      };
+    }
+
+    // Kiểm tra token trước khi gọi API
+    const accessToken = localStorage.getItem("accessToken");
+    console.log("Access Token:", accessToken ? "Có token" : "Không có token");
+
+    if (!accessToken) {
+      return {
+        success: false,
+        error: "Không tìm thấy token xác thực. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    const response = await notificationService.post(
+      `/api/notifications/users/${userId}`,
+      message.trim(), // Send as string in request body
+      {
+        headers: {
+          'Content-Type': 'text/plain', // Set content type as text/plain since we're sending a string
+        },
+      }
+    );
+
+    const { success, message: responseMessage, result, timestamp } = response.data;
+
+    if (success) {
+      return {
+        success: true,
+        data: {
+          result,
+          timestamp,
+          message: responseMessage,
+        },
+      };
+    }
+
+    return { success: false, error: responseMessage || "Không thể gửi thông báo" };
+  } catch (error) {
+    console.error("Error sending notification to user:", error.response?.data || error);
+    
+    // Xử lý lỗi cụ thể
+    if (error.code === "ERR_NETWORK") {
+      return {
+        success: false,
+        error: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.",
+      };
+    }
+
+    if (error.response?.status === 401) {
+      return {
+        success: false,
+        error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    if (error.response?.status === 403) {
+      return {
+        success: false,
+        error: "Bạn không có quyền gửi thông báo.",
+      };
+    }
+
+    if (error.response?.status === 404) {
+      return {
+        success: false,
+        error: "Không tìm thấy người dùng.",
+      };
+    }
+
+    if (error.response?.status === 400) {
+      return {
+        success: false,
+        error: "Dữ liệu gửi không hợp lệ.",
+      };
+    }
+
+    return {
+      success: false,
+      error: error.response?.data?.message || "Không thể gửi thông báo. Vui lòng thử lại.",
+    };
+  }
+};
+
+// Hàm gửi thông báo cho role cụ thể
+export const sendNotificationToRole = async (role, message) => {
+  try {
+    console.log("Gọi API gửi thông báo cho role với params:", { role, message });
+
+    // Kiểm tra role
+    if (!role) {
+      return {
+        success: false,
+        error: "Role không hợp lệ.",
+      };
+    }
+
+    // Kiểm tra message
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return {
+        success: false,
+        error: "Nội dung thông báo không hợp lệ.",
+      };
+    }
+
+    // Kiểm tra token trước khi gọi API
+    const accessToken = localStorage.getItem("accessToken");
+    console.log("Access Token:", accessToken ? "Có token" : "Không có token");
+
+    if (!accessToken) {
+      return {
+        success: false,
+        error: "Không tìm thấy token xác thực. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    const response = await notificationService.post(
+      `/api/notifications/roles/${role}`,
+      message.trim(), // Send as string in request body
+      {
+        headers: {
+          'Content-Type': 'text/plain', // Set content type as text/plain since we're sending a string
+        },
+      }
+    );
+
+    const { success, message: responseMessage, result, timestamp } = response.data;
+
+    if (success) {
+      return {
+        success: true,
+        data: {
+          result,
+          timestamp,
+          message: responseMessage,
+        },
+      };
+    }
+
+    return { success: false, error: responseMessage || "Không thể gửi thông báo" };
+  } catch (error) {
+    console.error("Error sending notification to role:", error.response?.data || error);
+    
+    // Xử lý lỗi cụ thể
+    if (error.code === "ERR_NETWORK") {
+      return {
+        success: false,
+        error: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.",
+      };
+    }
+
+    if (error.response?.status === 401) {
+      return {
+        success: false,
+        error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    if (error.response?.status === 403) {
+      return {
+        success: false,
+        error: "Bạn không có quyền gửi thông báo.",
+      };
+    }
+
+    if (error.response?.status === 404) {
+      return {
+        success: false,
+        error: "Không tìm thấy role.",
+      };
+    }
+
+    if (error.response?.status === 400) {
+      return {
+        success: false,
+        error: "Dữ liệu gửi không hợp lệ.",
+      };
+    }
+
+    return {
+      success: false,
+      error: error.response?.data?.message || "Không thể gửi thông báo cho role. Vui lòng thử lại.",
+    };
+  }
+};
+
 export default notificationService;
