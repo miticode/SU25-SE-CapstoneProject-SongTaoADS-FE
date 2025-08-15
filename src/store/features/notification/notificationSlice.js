@@ -3,6 +3,8 @@ import {
   getNotificationsApi,
   getRoleNotificationsApi,
   markNotificationAsRead,
+  sendNotificationToUser,
+  sendNotificationToRole,
 } from "../../../api/notificationService";
 
 // Định nghĩa mapping loại thông báo
@@ -68,17 +70,55 @@ export const markNotificationRead = createAsyncThunk(
   }
 );
 
+export const sendNotificationToUserThunk = createAsyncThunk(
+  "notification/sendNotificationToUser",
+  async ({ userId, message }, { rejectWithValue }) => {
+    try {
+      const response = await sendNotificationToUser(userId, message);
+      
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Failed to send notification to user");
+    }
+  }
+);
+
+export const sendNotificationToRoleThunk = createAsyncThunk(
+  "notification/sendNotificationToRole",
+  async ({ role, message }, { rejectWithValue }) => {
+    try {
+      const response = await sendNotificationToRole(role, message);
+      
+      if (response.success) {
+        return response.data;
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Failed to send notification to role");
+    }
+  }
+);
+
 const initialState = {
   notifications: [], // User notifications
   roleNotifications: [], // Role-based notifications
   loading: false,
   roleLoading: false, // Loading state for role notifications
   markingAsRead: false, // Loading state for marking notification as read
+  sendingNotification: false, // Loading state for sending notification
+  sendingRoleNotification: false, // Loading state for sending notification to role
   error: null,
   roleError: null, // Error state for role notifications
   markReadError: null, // Error state for marking notification as read
+  sendNotificationError: null, // Error state for sending notification
+  sendRoleNotificationError: null, // Error state for sending notification to role
   lastUpdated: null, // Timestamp của lần cập nhật cuối
   lastMessage: null, // Message từ API response
+  sendNotificationMessage: null, // Message from send notification API
+  sendRoleNotificationMessage: null, // Message from send role notification API
   unreadCount: 0, // Số lượng thông báo user chưa đọc
   roleUnreadCount: 0, // Số lượng thông báo role chưa đọc
   pagination: {
@@ -103,9 +143,17 @@ const notificationSlice = createSlice({
       state.error = null;
       state.roleError = null;
       state.markReadError = null;
+      state.sendNotificationError = null;
+      state.sendRoleNotificationError = null;
     },
     clearLastMessage: (state) => {
       state.lastMessage = null;
+    },
+    clearSendNotificationMessage: (state) => {
+      state.sendNotificationMessage = null;
+    },
+    clearSendRoleNotificationMessage: (state) => {
+      state.sendRoleNotificationMessage = null;
     },
     updateUnreadCount: (state) => {
       state.unreadCount = state.notifications.filter(
@@ -200,13 +248,47 @@ const notificationSlice = createSlice({
       .addCase(markNotificationRead.rejected, (state, action) => {
         state.markingAsRead = false;
         state.markReadError = action.payload;
+      })
+
+      // Send notification to user
+      .addCase(sendNotificationToUserThunk.pending, (state) => {
+        state.sendingNotification = true;
+        state.sendNotificationError = null;
+        state.sendNotificationMessage = null;
+      })
+      .addCase(sendNotificationToUserThunk.fulfilled, (state, action) => {
+        state.sendingNotification = false;
+        state.sendNotificationMessage = action.payload.message;
+        state.lastUpdated = action.payload.timestamp;
+      })
+      .addCase(sendNotificationToUserThunk.rejected, (state, action) => {
+        state.sendingNotification = false;
+        state.sendNotificationError = action.payload;
+      })
+
+      // Send notification to role
+      .addCase(sendNotificationToRoleThunk.pending, (state) => {
+        state.sendingRoleNotification = true;
+        state.sendRoleNotificationError = null;
+        state.sendRoleNotificationMessage = null;
+      })
+      .addCase(sendNotificationToRoleThunk.fulfilled, (state, action) => {
+        state.sendingRoleNotification = false;
+        state.sendRoleNotificationMessage = action.payload.message;
+        state.lastUpdated = action.payload.timestamp;
+      })
+      .addCase(sendNotificationToRoleThunk.rejected, (state, action) => {
+        state.sendingRoleNotification = false;
+        state.sendRoleNotificationError = action.payload;
       });
   },
 });
 
 export const { 
   clearError, 
-  clearLastMessage, 
+  clearLastMessage,
+  clearSendNotificationMessage,
+  clearSendRoleNotificationMessage,
   updateUnreadCount, 
   addNotificationRealtime,
   addRoleNotificationRealtime
@@ -220,9 +302,13 @@ export const selectRoleNotifications = (state) => state.notification.roleNotific
 export const selectNotificationLoading = (state) => state.notification.loading;
 export const selectRoleNotificationLoading = (state) => state.notification.roleLoading;
 export const selectMarkingAsRead = (state) => state.notification.markingAsRead;
+export const selectSendingNotification = (state) => state.notification.sendingNotification;
+export const selectSendingRoleNotification = (state) => state.notification.sendingRoleNotification;
 export const selectNotificationError = (state) => state.notification.error;
 export const selectRoleNotificationError = (state) => state.notification.roleError;
 export const selectMarkReadError = (state) => state.notification.markReadError;
+export const selectSendNotificationError = (state) => state.notification.sendNotificationError;
+export const selectSendRoleNotificationError = (state) => state.notification.sendRoleNotificationError;
 export const selectNotificationPagination = (state) => state.notification.pagination;
 export const selectRoleNotificationPagination = (state) => state.notification.rolePagination;
 export const selectUnreadCount = (state) => state.notification.unreadCount;
@@ -231,6 +317,8 @@ export const selectTotalUnreadCount = (state) =>
   state.notification.unreadCount + state.notification.roleUnreadCount;
 export const selectLastUpdated = (state) => state.notification.lastUpdated;
 export const selectLastMessage = (state) => state.notification.lastMessage;
+export const selectSendNotificationMessage = (state) => state.notification.sendNotificationMessage;
+export const selectSendRoleNotificationMessage = (state) => state.notification.sendRoleNotificationMessage;
 
 // Selector để lấy thông báo chưa đọc
 export const selectUnreadNotifications = (state) => 

@@ -7,6 +7,14 @@ import {
   banUser,
 } from "../../store/features/user/userSlice";
 import {
+  sendNotificationToUserThunk,
+  sendNotificationToRoleThunk,
+  selectSendingNotification,
+  selectSendingRoleNotification,
+  selectSendRoleNotificationError,
+  selectSendRoleNotificationMessage,
+} from "../../store/features/notification/notificationSlice";
+import {
   Box,
   Paper,
   Typography,
@@ -56,6 +64,9 @@ import {
   PersonAdd as PersonAddIcon,
   HighlightOff as HighlightOffIcon,
   Close as CloseIcon,
+  Send as SendIcon,
+  Notifications as NotificationsIcon,
+  Group as GroupIcon,
 } from "@mui/icons-material";
 import {
   MagnifyingGlassIcon,
@@ -84,27 +95,155 @@ const UserManager = () => {
   // Create User Dialog State
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [createUserForm, setCreateUserForm] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    password: '',
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
     isActive: true,
-    roleName: 'STAFF'
+    roleName: "STAFF",
   });
   const [createUserErrors, setCreateUserErrors] = useState({});
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: '',
-    severity: 'success'
+    message: "",
+    severity: "success",
   });
 
   // Ban/Unban Confirm Dialog State
   const [banConfirmDialog, setBanConfirmDialog] = useState({
     open: false,
     userId: null,
-    userName: '',
-    currentBanStatus: false
+    userName: "",
+    currentBanStatus: false,
   });
+
+  // Send Notification Dialog State
+  const [notificationDialog, setNotificationDialog] = useState({
+    open: false,
+    userId: null,
+    userName: "",
+    userEmail: "",
+  });
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationErrors, setNotificationErrors] = useState({});
+
+  // Send Role Notification Dialog State
+  const [roleNotificationDialog, setRoleNotificationDialog] = useState({
+    open: false,
+    role: "",
+  });
+  const [roleNotificationMessage, setRoleNotificationMessage] = useState("");
+  const [roleNotificationErrors, setRoleNotificationErrors] = useState({});
+
+  // Notification handlers
+  const handleOpenNotificationDialog = (userId, userName) => {
+    setNotificationDialog({
+      open: true,
+      userId,
+      userName,
+      userEmail: "",
+    });
+    setNotificationMessage("");
+    setNotificationErrors({});
+  };
+
+  const handleCloseNotificationDialog = () => {
+    setNotificationDialog({
+      open: false,
+      userId: null,
+      userName: "",
+      userEmail: "",
+    });
+    setNotificationMessage("");
+    setNotificationErrors({});
+  };
+
+  const handleSendNotification = async () => {
+    // Clear previous errors
+    setNotificationErrors({});
+
+    // Validate message
+    if (!notificationMessage.trim()) {
+      setNotificationErrors({ message: "Vui lòng nhập nội dung thông báo" });
+      return;
+    }
+
+    try {
+      await dispatch(
+        sendNotificationToUserThunk({
+          userId: notificationDialog.userId,
+          message: notificationMessage.trim(),
+        })
+      ).unwrap();
+
+      // Success - close dialog and show success message
+      handleCloseNotificationDialog();
+      // You can add a success notification here if you have a notification system
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      setNotificationErrors({
+        general: error.message || "Có lỗi xảy ra khi gửi thông báo",
+      });
+    }
+  };
+
+  // Role notification handlers
+  const handleOpenRoleNotificationDialog = () => {
+    setRoleNotificationDialog({
+      open: true,
+      role: "STAFF", // Default role
+    });
+    setRoleNotificationMessage("");
+    setRoleNotificationErrors({});
+  };
+
+  const handleCloseRoleNotificationDialog = () => {
+    setRoleNotificationDialog({
+      open: false,
+      role: "",
+    });
+    setRoleNotificationMessage("");
+    setRoleNotificationErrors({});
+  };
+
+  const handleSendRoleNotification = async () => {
+    // Clear previous errors
+    setRoleNotificationErrors({});
+
+    // Validate role
+    if (!roleNotificationDialog.role) {
+      setRoleNotificationErrors({ role: "Vui lòng chọn role" });
+      return;
+    }
+
+    // Validate message
+    if (!roleNotificationMessage.trim()) {
+      setRoleNotificationErrors({ message: "Vui lòng nhập nội dung thông báo" });
+      return;
+    }
+
+    try {
+      await dispatch(
+        sendNotificationToRoleThunk({
+          role: roleNotificationDialog.role,
+          message: roleNotificationMessage.trim(),
+        })
+      ).unwrap();
+
+      // Success - close dialog and show success message
+      handleCloseRoleNotificationDialog();
+      setSnackbar({
+        open: true,
+        message: `Đã gửi thông báo đến tất cả ${getRoleLabel(roleNotificationDialog.role)} thành công!`,
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error sending role notification:", error);
+      setRoleNotificationErrors({
+        general: error.message || "Có lỗi xảy ra khi gửi thông báo",
+      });
+    }
+  };
 
   // Password validation state
   const [passwordValidation, setPasswordValidation] = useState({
@@ -117,13 +256,13 @@ const UserManager = () => {
   // Email validation state
   const [emailValidation, setEmailValidation] = useState({
     isValid: false,
-    error: ""
+    error: "",
   });
 
   // Phone validation state
   const [phoneValidation, setPhoneValidation] = useState({
     isValid: false,
-    error: ""
+    error: "",
   });
 
   // Password visibility state
@@ -138,18 +277,24 @@ const UserManager = () => {
     pageSize,
   } = useSelector((state) => state.users);
 
+  // Notification Redux state
+  const sendingNotification = useSelector(selectSendingNotification);
+  const sendingRoleNotification = useSelector(selectSendingRoleNotification);
+  const roleNotificationError = useSelector(selectSendRoleNotificationError);
+  const sendRoleNotificationSuccess = useSelector(selectSendRoleNotificationMessage);
+
   // Available roles
   const availableRoles = [
-    { value: 'ADMIN', label: 'Quản trị viên' },
-    { value: 'DESIGNER', label: 'Thiết kế viên' },
-    { value: 'SALE', label: 'Nhân viên bán hàng' },
-    { value: 'STAFF', label: 'Nhân viên' },
-    { value: 'CUSTOMER', label: 'Khách hàng' }
+    { value: "ADMIN", label: "Quản trị viên" },
+    { value: "DESIGNER", label: "Thiết kế viên" },
+    { value: "SALE", label: "Nhân viên bán hàng" },
+    { value: "STAFF", label: "Nhân viên" },
+    { value: "CUSTOMER", label: "Khách hàng" },
   ];
 
   // Function to get role label
   const getRoleLabel = (roleName) => {
-    const role = availableRoles.find(role => role.value === roleName);
+    const role = availableRoles.find((role) => role.value === roleName);
     return role ? role.label : roleName;
   };
 
@@ -158,9 +303,9 @@ const UserManager = () => {
     const params = {
       page: page + 1, // Convert 0-based (UI) to 1-based (API)
       size: rowsPerPage,
-      search: searchTerm.trim()
+      search: searchTerm.trim(),
     };
-    
+
     dispatch(fetchUsers(params));
   };
 
@@ -169,9 +314,9 @@ const UserManager = () => {
     const params = {
       page: 1,
       size: 1000, // Large number to get all users
-      search: searchTerm.trim()
+      search: searchTerm.trim(),
     };
-    
+
     dispatch(fetchUsers(params));
     setPage(0); // Reset to first page
   };
@@ -185,15 +330,15 @@ const UserManager = () => {
 
   useEffect(() => {
     // Only load paginated data when no filters are active and not searching
-    if (roleFilter === 'all' && statusFilter === 'all' && !searchTerm.trim()) {
+    if (roleFilter === "all" && statusFilter === "all" && !searchTerm.trim()) {
       // Add a small delay to debounce search queries for normal pagination
       const timeoutId = setTimeout(() => {
         const params = {
           page: page + 1, // Convert 0-based (UI) to 1-based (API)
           size: rowsPerPage,
-          search: searchTerm.trim()
+          search: searchTerm.trim(),
         };
-        
+
         dispatch(fetchUsers(params));
       }, 300); // 300ms debounce
 
@@ -209,12 +354,12 @@ const UserManager = () => {
   const handleCloseCreateDialog = () => {
     setOpenCreateDialog(false);
     setCreateUserForm({
-      fullName: '',
-      email: '',
-      phone: '',
-      password: '',
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
       isActive: true,
-      roleName: 'STAFF'
+      roleName: "STAFF",
     });
     setCreateUserErrors({});
     setPasswordValidation({
@@ -225,11 +370,11 @@ const UserManager = () => {
     });
     setEmailValidation({
       isValid: false,
-      error: ""
+      error: "",
     });
     setPhoneValidation({
       isValid: false,
-      error: ""
+      error: "",
     });
     setShowPassword(false);
   };
@@ -239,7 +384,7 @@ const UserManager = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isValid = emailRegex.test(email);
     let error = "";
-    
+
     if (!email) {
       error = "";
     } else if (email.length < 3) {
@@ -249,7 +394,7 @@ const UserManager = () => {
     } else if (email.length > 254) {
       error = "Email quá dài";
     }
-    
+
     return { isValid, error };
   };
 
@@ -265,7 +410,7 @@ const UserManager = () => {
     const phoneRegex = /^[0-9]{10,11}$/;
     const isValid = phoneRegex.test(phone);
     let error = "";
-    
+
     if (!phone) {
       error = "";
     } else if (phone.length < 10) {
@@ -277,7 +422,7 @@ const UserManager = () => {
     } else if (!phoneRegex.test(phone)) {
       error = "Số điện thoại không hợp lệ (10-11 chữ số)";
     }
-    
+
     return { isValid, error };
   };
 
@@ -290,7 +435,8 @@ const UserManager = () => {
 
   // Password validation function
   const validatePassword = (password) => {
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{7,}$/;
+    const passwordRegex =
+      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{7,}$/;
     return passwordRegex.test(password);
   };
 
@@ -307,70 +453,71 @@ const UserManager = () => {
   };
 
   const handleCreateUserFormChange = (field, value) => {
-    setCreateUserForm(prev => ({
+    setCreateUserForm((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
-    
+
     // Real-time password validation
-    if (field === 'password') {
+    if (field === "password") {
       checkPasswordStrength(value);
     }
-    
+
     // Real-time email validation
-    if (field === 'email') {
+    if (field === "email") {
       checkEmailValidity(value);
     }
-    
+
     // Real-time phone validation
-    if (field === 'phone') {
+    if (field === "phone") {
       checkPhoneValidity(value);
     }
-    
+
     // Clear error khi user đã nhập lại
     if (createUserErrors[field]) {
-      setCreateUserErrors(prev => ({
+      setCreateUserErrors((prev) => ({
         ...prev,
-        [field]: ''
+        [field]: "",
       }));
     }
   };
 
   const validateCreateUserForm = () => {
     const errors = {};
-    
+
     if (!createUserForm.fullName.trim()) {
-      errors.fullName = 'Họ tên là bắt buộc';
+      errors.fullName = "Họ tên là bắt buộc";
     }
-    
+
     if (!createUserForm.email.trim()) {
-      errors.email = 'Email là bắt buộc';
+      errors.email = "Email là bắt buộc";
     } else {
       const emailValidationResult = validateEmail(createUserForm.email);
       if (!emailValidationResult.isValid) {
         errors.email = emailValidationResult.error;
       }
     }
-    
+
     if (!createUserForm.phone.trim()) {
-      errors.phone = 'Số điện thoại là bắt buộc';
+      errors.phone = "Số điện thoại là bắt buộc";
     } else {
       const phoneValidationResult = validatePhone(createUserForm.phone);
       if (!phoneValidationResult.isValid) {
         errors.phone = phoneValidationResult.error;
       }
     }
-    
+
     if (!createUserForm.password.trim()) {
-      errors.password = 'Mật khẩu là bắt buộc';
+      errors.password = "Mật khẩu là bắt buộc";
     } else if (!validatePassword(createUserForm.password)) {
-      errors.password = 'Mật khẩu phải có ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt (@$!%*#?&)';
+      errors.password =
+        "Mật khẩu phải có ít nhất 7 ký tự, bao gồm chữ, số và ký tự đặc biệt (@$!%*#?&)";
     }
-    
+
     if (!createUserForm.roleName) {
-      errors.roleName = 'Vai trò là bắt buộc';
+      errors.roleName = "Vai trò là bắt buộc";
     }
-    
+
     setCreateUserErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -384,17 +531,17 @@ const UserManager = () => {
       await dispatch(createUser(createUserForm)).unwrap();
       setSnackbar({
         open: true,
-        message: 'Tạo người dùng thành công!',
-        severity: 'success'
+        message: "Tạo người dùng thành công!",
+        severity: "success",
       });
       handleCloseCreateDialog();
       loadUsers(); // Refresh users list
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error("Error creating user:", error);
       setSnackbar({
         open: true,
-        message: error.message || 'Có lỗi xảy ra khi tạo người dùng',
-        severity: 'error'
+        message: error.message || "Có lỗi xảy ra khi tạo người dùng",
+        severity: "error",
       });
     }
   };
@@ -402,7 +549,7 @@ const UserManager = () => {
   const handleCloseSnackbar = () => {
     setSnackbar({
       ...snackbar,
-      open: false
+      open: false,
     });
   };
 
@@ -410,7 +557,7 @@ const UserManager = () => {
     const newSearchTerm = event.target.value;
     setSearchTerm(newSearchTerm);
     setPage(0); // Reset to first page when searching
-    
+
     // Auto-search as user types (debounced via useEffect)
     if (newSearchTerm.trim()) {
       // Load all users for comprehensive search
@@ -420,7 +567,7 @@ const UserManager = () => {
     } else {
       // If search is cleared, go back to normal pagination
       setTimeout(() => {
-        if (roleFilter === 'all' && statusFilter === 'all') {
+        if (roleFilter === "all" && statusFilter === "all") {
           loadUsers();
         }
       }, 300);
@@ -465,7 +612,7 @@ const UserManager = () => {
       open: true,
       userId,
       userName,
-      currentBanStatus
+      currentBanStatus,
     });
   };
 
@@ -473,30 +620,34 @@ const UserManager = () => {
     setBanConfirmDialog({
       open: false,
       userId: null,
-      userName: '',
-      currentBanStatus: false
+      userName: "",
+      currentBanStatus: false,
     });
   };
 
   const handleConfirmBanUser = async () => {
     try {
-      await dispatch(banUser({ 
-        userId: banConfirmDialog.userId, 
-        isBanned: !banConfirmDialog.currentBanStatus 
-      })).unwrap();
+      await dispatch(
+        banUser({
+          userId: banConfirmDialog.userId,
+          isBanned: !banConfirmDialog.currentBanStatus,
+        })
+      ).unwrap();
       setSnackbar({
         open: true,
-        message: !banConfirmDialog.currentBanStatus ? 'Người dùng đã bị cấm!' : 'Người dùng đã được bỏ cấm!',
-        severity: 'success'
+        message: !banConfirmDialog.currentBanStatus
+          ? "Người dùng đã bị cấm!"
+          : "Người dùng đã được bỏ cấm!",
+        severity: "success",
       });
       loadUsers(); // Refresh users list
       handleCloseBanConfirm();
     } catch (error) {
-      console.error('Error updating ban status:', error);
+      console.error("Error updating ban status:", error);
       setSnackbar({
         open: true,
-        message: error.message || 'Có lỗi xảy ra khi cập nhật trạng thái cấm',
-        severity: 'error'
+        message: error.message || "Có lỗi xảy ra khi cập nhật trạng thái cấm",
+        severity: "error",
       });
       handleCloseBanConfirm();
     }
@@ -505,83 +656,90 @@ const UserManager = () => {
   // Function to highlight search term in text
   const highlightSearchTerm = (text, searchTerm) => {
     if (!searchTerm.trim() || !text) return text;
-    
-    const regex = new RegExp(`(${searchTerm.trim()})`, 'gi');
+
+    const regex = new RegExp(`(${searchTerm.trim()})`, "gi");
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
-        <Box 
+        <Box
           key={index}
           component="span"
-          sx={{ 
-            backgroundColor: 'primary.light',
-            color: 'primary.contrastText',
+          sx={{
+            backgroundColor: "primary.light",
+            color: "primary.contrastText",
             px: 0.5,
             py: 0.2,
             borderRadius: 0.5,
-            fontSize: 'inherit',
-            fontWeight: 600
+            fontSize: "inherit",
+            fontWeight: 600,
           }}
         >
           {part}
         </Box>
-      ) : part
+      ) : (
+        part
+      )
     );
   };
 
   // Use only real API data with filtering and client-side pagination
-  const displayUsers = (users || []).filter(user => {
+  const displayUsers = (users || []).filter((user) => {
     // Search filter - search in name, email, phone
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
-      const fullName = (user.fullName || '').toLowerCase();
-      const email = (user.email || '').toLowerCase();
-      const phone = (user.phone || '').toLowerCase();
-      
-      const matchesSearch = fullName.includes(searchLower) || 
-                           email.includes(searchLower) || 
-                           phone.includes(searchLower);
-      
+      const fullName = (user.fullName || "").toLowerCase();
+      const email = (user.email || "").toLowerCase();
+      const phone = (user.phone || "").toLowerCase();
+
+      const matchesSearch =
+        fullName.includes(searchLower) ||
+        email.includes(searchLower) ||
+        phone.includes(searchLower);
+
       if (!matchesSearch) {
         return false;
       }
     }
-    
+
     // Role filter
-    if (roleFilter !== 'all' && user.roles?.name !== roleFilter) {
+    if (roleFilter !== "all" && user.roles?.name !== roleFilter) {
       return false;
     }
-    
+
     // Status filter
-    if (statusFilter === 'active' && !user.isActive) {
+    if (statusFilter === "active" && !user.isActive) {
       return false;
     }
-    if (statusFilter === 'inactive' && user.isActive) {
+    if (statusFilter === "inactive" && user.isActive) {
       return false;
     }
-    
+
     return true;
   });
 
   // Client-side pagination for filtered results
   const startIndex = page * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
-  const paginatedUsers = (roleFilter !== 'all' || statusFilter !== 'all' || searchTerm.trim()) 
-    ? displayUsers.slice(startIndex, endIndex) 
-    : displayUsers;
+  const paginatedUsers =
+    roleFilter !== "all" || statusFilter !== "all" || searchTerm.trim()
+      ? displayUsers.slice(startIndex, endIndex)
+      : displayUsers;
 
   // Total count for pagination
-  const totalCount = (roleFilter !== 'all' || statusFilter !== 'all' || searchTerm.trim()) 
-    ? displayUsers.length 
-    : (totalElements || displayUsers.length);
+  const totalCount =
+    roleFilter !== "all" || statusFilter !== "all" || searchTerm.trim()
+      ? displayUsers.length
+      : totalElements || displayUsers.length;
 
   return (
-    <Box sx={{ 
-      p: { xs: 1, sm: 2, md: 3 },
-      maxWidth: '100%',
-      overflow: 'hidden'
-    }}>
+    <Box
+      sx={{
+        p: { xs: 1, sm: 2, md: 3 },
+        maxWidth: "100%",
+        overflow: "hidden",
+      }}
+    >
       <Box
         mb={{ xs: 2, sm: 3 }}
         display="flex"
@@ -590,45 +748,67 @@ const UserManager = () => {
         alignItems={{ xs: "flex-start", sm: "center" }}
         gap={{ xs: 2, sm: 0 }}
       >
-        <Typography 
-          variant={{ xs: "h6", sm: "h5", md: "h4" }} 
+        <Typography
+          variant={{ xs: "h6", sm: "h5", md: "h4" }}
           fontWeight="bold"
           sx={{
-            fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
-            lineHeight: { xs: 1.2, sm: 1.3 }
+            fontSize: { xs: "1.25rem", sm: "1.5rem", md: "2rem" },
+            lineHeight: { xs: 1.2, sm: 1.3 },
           }}
         >
           Quản Lý Người Dùng
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-          onClick={handleOpenCreateDialog}
-          fullWidth={isMobile}
-          sx={{ 
-            borderRadius: { xs: 1.5, sm: 2 },
-            px: { xs: 2, sm: 3 },
-            py: { xs: 1, sm: 1.25 },
-            fontSize: { xs: '0.875rem', sm: '1rem' },
-            fontWeight: 600,
-            boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
-            '&:hover': {
-              boxShadow: "0 6px 16px rgba(25, 118, 210, 0.4)",
-            }
-          }}
-        >
-          {isMobile ? "Thêm" : "Thêm Người Dùng"}
-        </Button>
+        <Box display="flex" gap={2} flexDirection={isMobile ? "column" : "row"}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+            onClick={handleOpenCreateDialog}
+            fullWidth={isMobile}
+            sx={{
+              borderRadius: { xs: 1.5, sm: 2 },
+              px: { xs: 2, sm: 3 },
+              py: { xs: 1, sm: 1.25 },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+              fontWeight: 600,
+              boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
+              "&:hover": {
+                boxShadow: "0 6px 16px rgba(25, 118, 210, 0.4)",
+              },
+            }}
+          >
+            {isMobile ? "Thêm" : "Thêm Người Dùng"}
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<GroupIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+            onClick={handleOpenRoleNotificationDialog}
+            fullWidth={isMobile}
+            sx={{
+              borderRadius: { xs: 1.5, sm: 2 },
+              px: { xs: 2, sm: 3 },
+              py: { xs: 1, sm: 1.25 },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+              fontWeight: 600,
+              boxShadow: "0 4px 12px rgba(156, 39, 176, 0.3)",
+              "&:hover": {
+                boxShadow: "0 6px 16px rgba(156, 39, 176, 0.4)",
+              },
+            }}
+          >
+            {isMobile ? "Gửi TB" : "Gửi Thông Báo Role"}
+          </Button>
+        </Box>
       </Box>
 
       {usersError && (
-        <Alert 
-          severity="error" 
-          sx={{ 
+        <Alert
+          severity="error"
+          sx={{
             mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '0.875rem', sm: '1rem' },
-            borderRadius: { xs: 1.5, sm: 2 }
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            borderRadius: { xs: 1.5, sm: 2 },
           }}
         >
           {usersError ||
@@ -640,20 +820,20 @@ const UserManager = () => {
         elevation={0}
         sx={{
           borderRadius: { xs: 2, sm: 3 },
-          boxShadow: { 
-            xs: "0 2px 8px rgba(0,0,0,0.1)", 
-            sm: "0 2px 10px rgba(0,0,0,0.08)" 
+          boxShadow: {
+            xs: "0 2px 8px rgba(0,0,0,0.1)",
+            sm: "0 2px 10px rgba(0,0,0,0.08)",
           },
           overflow: "hidden",
-          bgcolor: 'background.paper'
+          bgcolor: "background.paper",
         }}
       >
         <Box
           p={{ xs: 2.5, sm: 3, md: 4 }}
           sx={{
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
+            background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+            borderBottom: "1px solid",
+            borderColor: "divider",
           }}
         >
           {/* Search Bar Section */}
@@ -665,18 +845,18 @@ const UserManager = () => {
             mb={{ xs: 2.5, sm: 3 }}
           >
             <Box flexGrow={1}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
+              <Typography
+                variant="body2"
+                sx={{
                   mb: 1,
                   fontWeight: 600,
-                  color: 'text.secondary',
-                  fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                  color: "text.secondary",
+                  fontSize: { xs: "0.8rem", sm: "0.875rem" },
                 }}
               >
-                 Tìm kiếm người dùng
+                Tìm kiếm người dùng
               </Typography>
-             
+
               <TextField
                 variant="outlined"
                 placeholder="Tìm theo tên, email hoặc số điện thoại..."
@@ -685,22 +865,22 @@ const UserManager = () => {
                 onChange={handleSearchChange}
                 InputProps={{
                   startAdornment: (
-                    <SearchIcon 
-                      sx={{ 
-                        mr: 1.5, 
+                    <SearchIcon
+                      sx={{
+                        mr: 1.5,
                         fontSize: { xs: 20, sm: 22 },
-                        color: searchTerm ? 'primary.main' : 'action.active'
-                      }} 
+                        color: searchTerm ? "primary.main" : "action.active",
+                      }}
                     />
                   ),
                   endAdornment: searchTerm && (
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: 'text.secondary',
-                          fontSize: { xs: '0.65rem', sm: '0.7rem' },
-                          display: { xs: 'none', sm: 'block' }
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                          display: { xs: "none", sm: "block" },
                         }}
                       >
                         {displayUsers.length} kết quả
@@ -709,19 +889,21 @@ const UserManager = () => {
                         variant="contained"
                         size="small"
                         onClick={handleSearch}
-                        sx={{ 
+                        sx={{
                           minWidth: { xs: 60, sm: 80 },
                           px: { xs: 2, sm: 3 },
                           py: { xs: 0.75, sm: 1 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          fontSize: { xs: "0.75rem", sm: "0.875rem" },
                           fontWeight: 600,
                           borderRadius: 2,
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                          }
+                          background:
+                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          boxShadow: "0 2px 8px rgba(102, 126, 234, 0.3)",
+                          "&:hover": {
+                            background:
+                              "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
+                            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
+                          },
                         }}
                       >
                         {isMobile ? "Tìm" : "Tìm kiếm"}
@@ -729,27 +911,31 @@ const UserManager = () => {
                     </Box>
                   ),
                 }}
-                sx={{ 
-                  width: '100%',
-                  '& .MuiOutlinedInput-root': {
-                    fontSize: { xs: '0.9rem', sm: '1rem' },
+                sx={{
+                  width: "100%",
+                  "& .MuiOutlinedInput-root": {
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
                     borderRadius: 3,
-                    bgcolor: 'background.paper',
-                    boxShadow: searchTerm ? '0 4px 16px rgba(102, 126, 234, 0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
-                    border: searchTerm ? '1.5px solid #667eea' : '1.5px solid transparent',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      border: '1.5px solid rgba(102, 126, 234, 0.3)',
+                    bgcolor: "background.paper",
+                    boxShadow: searchTerm
+                      ? "0 4px 16px rgba(102, 126, 234, 0.2)"
+                      : "0 2px 8px rgba(0,0,0,0.05)",
+                    border: searchTerm
+                      ? "1.5px solid #667eea"
+                      : "1.5px solid transparent",
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      border: "1.5px solid rgba(102, 126, 234, 0.3)",
                     },
-                    '&.Mui-focused': {
-                      boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)',
-                      border: '1.5px solid #667eea',
-                    }
+                    "&.Mui-focused": {
+                      boxShadow: "0 4px 16px rgba(102, 126, 234, 0.2)",
+                      border: "1.5px solid #667eea",
+                    },
                   },
-                  '& .MuiInputBase-input': {
+                  "& .MuiInputBase-input": {
                     py: { xs: 1.5, sm: 1.75 },
-                  }
+                  },
                 }}
               />
             </Box>
@@ -757,16 +943,16 @@ const UserManager = () => {
 
           {/* Filters Section */}
           <Box>
-            <Typography 
-              variant="body2" 
-              sx={{ 
+            <Typography
+              variant="body2"
+              sx={{
                 mb: 2,
                 fontWeight: 600,
-                color: 'text.secondary',
-                fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                color: "text.secondary",
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
               }}
             >
-               Bộ lọc nâng cao
+              Bộ lọc nâng cao
             </Typography>
             <Box
               display="flex"
@@ -774,19 +960,19 @@ const UserManager = () => {
               gap={{ xs: 2, sm: 2.5 }}
               alignItems={{ xs: "stretch", sm: "flex-start" }}
             >
-              <FormControl 
-                variant="outlined" 
+              <FormControl
+                variant="outlined"
                 size="medium"
-                sx={{ 
+                sx={{
                   minWidth: { xs: "100%", sm: 160 },
-                  flexGrow: { xs: 1, sm: 0 }
+                  flexGrow: { xs: 1, sm: 0 },
                 }}
               >
-                <InputLabel 
-                  sx={{ 
-                    fontSize: { xs: '0.9rem', sm: '1rem' },
+                <InputLabel
+                  sx={{
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
                     fontWeight: 500,
-                    color: 'text.secondary'
+                    color: "text.secondary",
                   }}
                 >
                   Vai trò
@@ -797,96 +983,121 @@ const UserManager = () => {
                   onChange={handleRoleFilterChange}
                   sx={{
                     borderRadius: 2.5,
-                    bgcolor: 'background.paper',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    border: '1.5px solid transparent',
-                    transition: 'all 0.3s ease',
-                    '& .MuiSelect-select': {
-                      fontSize: { xs: '0.9rem', sm: '1rem' },
+                    bgcolor: "background.paper",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                    border: "1.5px solid transparent",
+                    transition: "all 0.3s ease",
+                    "& .MuiSelect-select": {
+                      fontSize: { xs: "0.9rem", sm: "1rem" },
                       py: { xs: 1.5, sm: 1.75 },
-                      fontWeight: 500
+                      fontWeight: 500,
                     },
-                    '&:hover': {
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      border: '1.5px solid rgba(102, 126, 234, 0.3)',
+                    "&:hover": {
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      border: "1.5px solid rgba(102, 126, 234, 0.3)",
                     },
-                    '&.Mui-focused': {
-                      boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)',
-                      border: '1.5px solid #667eea',
-                    }
+                    "&.Mui-focused": {
+                      boxShadow: "0 4px 16px rgba(102, 126, 234, 0.2)",
+                      border: "1.5px solid #667eea",
+                    },
                   }}
                 >
-                  <MenuItem value="all" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="all"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'grey.400' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "grey.400",
+                        }}
+                      />
                       Tất cả vai trò
                     </Box>
                   </MenuItem>
-                  <MenuItem value="ADMIN" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="ADMIN"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'error.main' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "error.main",
+                        }}
+                      />
                       Quản trị viên
                     </Box>
                   </MenuItem>
-                  <MenuItem value="DESIGNER" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="DESIGNER"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'warning.main' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "warning.main",
+                        }}
+                      />
                       Thiết kế viên
                     </Box>
                   </MenuItem>
-                  <MenuItem value="STAFF" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="STAFF"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'info.main' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "info.main",
+                        }}
+                      />
                       Nhân viên
                     </Box>
                   </MenuItem>
-                  <MenuItem value="CUSTOMER" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="CUSTOMER"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'success.main' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "success.main",
+                        }}
+                      />
                       Khách hàng
                     </Box>
                   </MenuItem>
                 </Select>
               </FormControl>
 
-              <FormControl 
-                variant="outlined" 
+              <FormControl
+                variant="outlined"
                 size="medium"
-                sx={{ 
+                sx={{
                   minWidth: { xs: "100%", sm: 160 },
-                  flexGrow: { xs: 1, sm: 0 }
+                  flexGrow: { xs: 1, sm: 0 },
                 }}
               >
-                <InputLabel 
-                  sx={{ 
-                    fontSize: { xs: '0.9rem', sm: '1rem' },
+                <InputLabel
+                  sx={{
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
                     fontWeight: 500,
-                    color: 'text.secondary'
+                    color: "text.secondary",
                   }}
                 >
                   Trạng thái
@@ -897,55 +1108,70 @@ const UserManager = () => {
                   onChange={handleStatusFilterChange}
                   sx={{
                     borderRadius: 2.5,
-                    bgcolor: 'background.paper',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    border: '1.5px solid transparent',
-                    transition: 'all 0.3s ease',
-                    '& .MuiSelect-select': {
-                      fontSize: { xs: '0.9rem', sm: '1rem' },
+                    bgcolor: "background.paper",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                    border: "1.5px solid transparent",
+                    transition: "all 0.3s ease",
+                    "& .MuiSelect-select": {
+                      fontSize: { xs: "0.9rem", sm: "1rem" },
                       py: { xs: 1.5, sm: 1.75 },
-                      fontWeight: 500
+                      fontWeight: 500,
                     },
-                    '&:hover': {
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      border: '1.5px solid rgba(102, 126, 234, 0.3)',
+                    "&:hover": {
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      border: "1.5px solid rgba(102, 126, 234, 0.3)",
                     },
-                    '&.Mui-focused': {
-                      boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)',
-                      border: '1.5px solid #667eea',
-                    }
+                    "&.Mui-focused": {
+                      boxShadow: "0 4px 16px rgba(102, 126, 234, 0.2)",
+                      border: "1.5px solid #667eea",
+                    },
                   }}
                 >
-                  <MenuItem value="all" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="all"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'grey.400' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "grey.400",
+                        }}
+                      />
                       Tất cả trạng thái
                     </Box>
                   </MenuItem>
-                  <MenuItem value="active" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="active"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'success.main' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "success.main",
+                        }}
+                      />
                       Hoạt động
                     </Box>
                   </MenuItem>
-                  <MenuItem value="inactive" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                  <MenuItem
+                    value="inactive"
+                    sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: 'error.main' 
-                      }} />
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "error.main",
+                        }}
+                      />
                       Không hoạt động
                     </Box>
                   </MenuItem>
@@ -953,33 +1179,35 @@ const UserManager = () => {
               </FormControl>
 
               {/* Clear Filters Button */}
-              {(roleFilter !== 'all' || statusFilter !== 'all' || searchTerm) && (
+              {(roleFilter !== "all" ||
+                statusFilter !== "all" ||
+                searchTerm) && (
                 <Button
                   variant="outlined"
                   onClick={() => {
-                    setRoleFilter('all');
-                    setStatusFilter('all');
-                    setSearchTerm('');
+                    setRoleFilter("all");
+                    setStatusFilter("all");
+                    setSearchTerm("");
                     setPage(0);
                     // Load normal paginated data when clearing filters
                     loadUsers();
                   }}
                   sx={{
-                    minWidth: { xs: '100%', sm: 120 },
+                    minWidth: { xs: "100%", sm: 120 },
                     px: { xs: 2, sm: 3 },
                     py: { xs: 1.25, sm: 1.5 },
-                    fontSize: { xs: '0.875rem', sm: '0.9rem' },
+                    fontSize: { xs: "0.875rem", sm: "0.9rem" },
                     fontWeight: 600,
                     borderRadius: 2.5,
-                    borderColor: 'warning.main',
-                    color: 'warning.main',
-                    bgcolor: 'background.paper',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    '&:hover': {
-                      borderColor: 'warning.dark',
-                      bgcolor: 'warning.50',
-                      boxShadow: '0 4px 12px rgba(237, 108, 2, 0.2)',
-                    }
+                    borderColor: "warning.main",
+                    color: "warning.main",
+                    bgcolor: "background.paper",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                    "&:hover": {
+                      borderColor: "warning.dark",
+                      bgcolor: "warning.50",
+                      boxShadow: "0 4px 12px rgba(237, 108, 2, 0.2)",
+                    },
                   }}
                 >
                   🗑️ Xóa bộ lọc
@@ -995,19 +1223,39 @@ const UserManager = () => {
             <Table sx={{ minWidth: 650 }} aria-label="users table">
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Tên</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Số Điện Thoại</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Vai Trò</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Trạng Thái</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Đã Tạo Vào</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Hành Động</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Tên
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Email
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Số Điện Thoại
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Vai Trò
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Trạng Thái
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Đã Tạo Vào
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                    Thông Báo
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 600, fontSize: "0.9rem" }}
+                  >
+                    Hành Động
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {usersStatus === "loading" ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
                       <CircularProgress size={40} />
                       <Typography variant="body2" sx={{ mt: 2 }}>
                         Đang tải người dùng...
@@ -1016,7 +1264,7 @@ const UserManager = () => {
                   </TableRow>
                 ) : paginatedUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
                       <Typography variant="body1" color="text.secondary">
                         Không tìm thấy người dùng nào
                       </Typography>
@@ -1024,89 +1272,121 @@ const UserManager = () => {
                   </TableRow>
                 ) : (
                   paginatedUsers.map((user) => (
-                      <TableRow key={user.id} hover>
-                        <TableCell>
-                          <Box display="flex" alignItems="center">
-                            <Avatar
-                              src={user.avatar}
-                              sx={{
-                                mr: 2,
-                                width: 36,
-                                height: 36,
-                                bgcolor: `hsl(${user.id.charCodeAt(0) * 10}, 70%, 75%)`,
-                              }}
-                            >
-                              {user.fullName?.charAt(0) || "U"}
-                            </Avatar>
-                            <Typography variant="body2" fontWeight="medium">
-                              {highlightSearchTerm(user.fullName, searchTerm)}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontSize: '0.875rem' }}>
-                          {highlightSearchTerm(user.email, searchTerm)}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: '0.875rem' }}>
-                          {highlightSearchTerm(user.phone || "Không có", searchTerm)}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: '0.875rem' }}>
-                          <Chip
-                            label={getRoleLabel(user.roles?.name || 'STAFF')}
-                            size="small"
+                    <TableRow key={user.id} hover>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <Avatar
+                            src={user.avatar}
                             sx={{
-                              backgroundColor: "rgba(63, 81, 181, 0.1)",
-                              color: "#3f51b5",
-                              fontSize: '0.75rem',
-                              height: 24
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={user.isActive ? "Hoạt Động" : "Không Hoạt Động"}
-                            size="small"
-                            sx={{
-                              backgroundColor: user.isActive
-                                ? "rgba(76, 175, 80, 0.1)"
-                                : "rgba(244, 67, 54, 0.1)",
-                              color: user.isActive
-                                ? "#4caf50"
-                                : "#f44336",
-                              cursor: "pointer",
-                              fontSize: '0.75rem',
-                              height: 24
-                            }}
-                            onClick={() =>
-                              handleToggleUserStatus(user.id, user.isActive)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell sx={{ fontSize: '0.875rem' }}>
-                          {new Date(user.createdAt || Date.now()).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Button 
-                            size="small" 
-                            variant="contained"
-                            color={user.isBanned ? "success" : "error"}
-                            onClick={() => handleOpenBanConfirm(user.id, user.fullName, user.isBanned)}
-                            sx={{ 
-                              minWidth: 80,
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              borderRadius: 1.5,
-                              textTransform: 'none',
-                              '&:hover': { 
-                                transform: 'scale(1.05)'
-                              },
-                              transition: 'all 0.2s ease'
+                              mr: 2,
+                              width: 36,
+                              height: 36,
+                              bgcolor: `hsl(${
+                                user.id.charCodeAt(0) * 10
+                              }, 70%, 75%)`,
                             }}
                           >
-                            {user.isBanned ? 'Unban' : 'Ban'}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                            {user.fullName?.charAt(0) || "U"}
+                          </Avatar>
+                          <Typography variant="body2" fontWeight="medium">
+                            {highlightSearchTerm(user.fullName, searchTerm)}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.875rem" }}>
+                        {highlightSearchTerm(user.email, searchTerm)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.875rem" }}>
+                        {highlightSearchTerm(
+                          user.phone || "Không có",
+                          searchTerm
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.875rem" }}>
+                        <Chip
+                          label={getRoleLabel(user.roles?.name || "STAFF")}
+                          size="small"
+                          sx={{
+                            backgroundColor: "rgba(63, 81, 181, 0.1)",
+                            color: "#3f51b5",
+                            fontSize: "0.75rem",
+                            height: 24,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={
+                            user.isActive ? "Hoạt Động" : "Không Hoạt Động"
+                          }
+                          size="small"
+                          sx={{
+                            backgroundColor: user.isActive
+                              ? "rgba(76, 175, 80, 0.1)"
+                              : "rgba(244, 67, 54, 0.1)",
+                            color: user.isActive ? "#4caf50" : "#f44336",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            height: 24,
+                          }}
+                          onClick={() =>
+                            handleToggleUserStatus(user.id, user.isActive)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.875rem" }}>
+                        {new Date(
+                          user.createdAt || Date.now()
+                        ).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            handleOpenNotificationDialog(user.id, user.fullName)
+                          }
+                          sx={{
+                            color: "primary.main",
+                            "&:hover": {
+                              backgroundColor: "primary.50",
+                              color: "primary.dark",
+                            },
+                          }}
+                          title={`Gửi thông báo đến ${user.fullName}`}
+                        >
+                          <SendIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                      <TableCell align="center">
+                        {" "}
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color={user.isBanned ? "success" : "error"}
+                          onClick={() =>
+                            handleOpenBanConfirm(
+                              user.id,
+                              user.fullName,
+                              user.isBanned
+                            )
+                          }
+                          sx={{
+                            minWidth: 80,
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            borderRadius: 1.5,
+                            textTransform: "none",
+                            "&:hover": {
+                              transform: "scale(1.05)",
+                            },
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          {user.isBanned ? "Unban" : "Ban"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
@@ -1117,14 +1397,24 @@ const UserManager = () => {
         {isMobile && (
           <Box sx={{ px: 2, pb: 2 }}>
             {usersStatus === "loading" ? (
-              <Box display="flex" flexDirection="column" alignItems="center" py={5}>
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                py={5}
+              >
                 <CircularProgress size={40} />
                 <Typography variant="body2" sx={{ mt: 2 }}>
                   Đang tải người dùng...
                 </Typography>
               </Box>
             ) : paginatedUsers.length === 0 ? (
-              <Box display="flex" flexDirection="column" alignItems="center" py={5}>
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                py={5}
+              >
                 <Typography variant="body1" color="text.secondary">
                   Không tìm thấy người dùng nào
                 </Typography>
@@ -1132,129 +1422,191 @@ const UserManager = () => {
             ) : (
               <Box display="flex" flexDirection="column" gap={2}>
                 {paginatedUsers.map((user) => (
-                    <Paper
-                      key={user.id}
-                      elevation={1}
-                      sx={{
-                        p: 3,
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        '&:hover': {
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                        }
-                      }}
-                    >
-                      <Box display="flex" alignItems="flex-start" mb={2}>
-                        <Avatar
-                          src={user.avatar}
-                          sx={{
-                            mr: 2,
-                            width: 48,
-                            height: 48,
-                            bgcolor: `hsl(${user.id.charCodeAt(0) * 10}, 70%, 75%)`,
-                          }}
+                  <Paper
+                    key={user.id}
+                    elevation={1}
+                    sx={{
+                      p: 3,
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      "&:hover": {
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      },
+                    }}
+                  >
+                    <Box display="flex" alignItems="flex-start" mb={2}>
+                      <Avatar
+                        src={user.avatar}
+                        sx={{
+                          mr: 2,
+                          width: 48,
+                          height: 48,
+                          bgcolor: `hsl(${
+                            user.id.charCodeAt(0) * 10
+                          }, 70%, 75%)`,
+                        }}
+                      >
+                        {user.fullName?.charAt(0) || "U"}
+                      </Avatar>
+                      <Box flexGrow={1}>
+                        <Typography
+                          variant="h6"
+                          fontWeight="600"
+                          sx={{ fontSize: "1.1rem", mb: 0.5 }}
                         >
-                          {user.fullName?.charAt(0) || "U"}
-                        </Avatar>
-                        <Box flexGrow={1}>
-                          <Typography variant="h6" fontWeight="600" sx={{ fontSize: '1.1rem', mb: 0.5 }}>
-                            {highlightSearchTerm(user.fullName, searchTerm)}
-                          </Typography>
-                          <Box display="flex" alignItems="center" mb={1}>
-                            <Chip
-                              label={user.isActive ? "Hoạt Động" : "Không Hoạt Động"}
-                              size="small"
-                              sx={{
-                                backgroundColor: user.isActive
-                                  ? "rgba(76, 175, 80, 0.1)"
-                                  : "rgba(244, 67, 54, 0.1)",
-                                color: user.isActive
-                                  ? "#4caf50"
-                                  : "#f44336",
-                                cursor: "pointer",
-                                fontSize: '0.75rem',
-                                height: 24
-                              }}
-                              onClick={() =>
-                                handleToggleUserStatus(user.id, user.isActive)
-                              }
-                            />
-                          </Box>
-                        </Box>
-                      </Box>
-                      
-                      <Box display="flex" flexDirection="column" gap={1.5}>
-                        <Box display="flex" alignItems="center">
-                          <EmailIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1.5 }} />
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                            {highlightSearchTerm(user.email, searchTerm)}
-                          </Typography>
-                        </Box>
-                        <Box display="flex" alignItems="center">
-                          <PhoneIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1.5 }} />
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                            {highlightSearchTerm(user.phone || "Không có", searchTerm)}
-                          </Typography>
-                        </Box>
-                        <Box display="flex" alignItems="center">
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
-                            sx={{ fontSize: '0.875rem', minWidth: 100 }}
-                          >
-                            Vai trò:
-                          </Typography>
+                          {highlightSearchTerm(user.fullName, searchTerm)}
+                        </Typography>
+                        <Box display="flex" alignItems="center" mb={1}>
                           <Chip
-                            label={getRoleLabel(user.roles?.name || 'STAFF')}
+                            label={
+                              user.isActive ? "Hoạt Động" : "Không Hoạt Động"
+                            }
                             size="small"
                             sx={{
-                              backgroundColor: "rgba(63, 81, 181, 0.1)",
-                              color: "#3f51b5",
-                              fontSize: '0.75rem',
-                              height: 20,
-                              ml: 1
+                              backgroundColor: user.isActive
+                                ? "rgba(76, 175, 80, 0.1)"
+                                : "rgba(244, 67, 54, 0.1)",
+                              color: user.isActive ? "#4caf50" : "#f44336",
+                              cursor: "pointer",
+                              fontSize: "0.75rem",
+                              height: 24,
                             }}
+                            onClick={() =>
+                              handleToggleUserStatus(user.id, user.isActive)
+                            }
                           />
                         </Box>
-                        <Box display="flex" alignItems="center">
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
-                            sx={{ fontSize: '0.875rem', minWidth: 100 }}
-                          >
-                            Tham gia:
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem', ml: 1 }}>
-                            {new Date(user.createdAt || Date.now()).toLocaleDateString()}
-                          </Typography>
-                        </Box>
                       </Box>
-                      
-                      <Box display="flex" justifyContent="flex-end" mt={2} gap={1}>
-                        <Button 
-                          size="small" 
-                          variant="contained"
-                          color={user.isBanned ? "success" : "error"}
-                          onClick={() => handleOpenBanConfirm(user.id, user.fullName, user.isBanned)}
-                          sx={{ 
-                            minWidth: 80,
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            borderRadius: 1.5,
-                            textTransform: 'none',
-                            px: 2,
-                            '&:hover': { 
-                              transform: 'scale(1.05)'
-                            },
-                            transition: 'all 0.2s ease'
+                    </Box>
+
+                    <Box display="flex" flexDirection="column" gap={1.5}>
+                      <Box display="flex" alignItems="center">
+                        <EmailIcon
+                          sx={{
+                            fontSize: 18,
+                            color: "text.secondary",
+                            mr: 1.5,
                           }}
+                        />
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.875rem" }}
                         >
-                          {user.isBanned ? 'Unban' : 'Ban'}
-                        </Button>
+                          {highlightSearchTerm(user.email, searchTerm)}
+                        </Typography>
                       </Box>
-                    </Paper>
-                  ))}
+                      <Box display="flex" alignItems="center">
+                        <PhoneIcon
+                          sx={{
+                            fontSize: 18,
+                            color: "text.secondary",
+                            mr: 1.5,
+                          }}
+                        />
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
+                          {highlightSearchTerm(
+                            user.phone || "Không có",
+                            searchTerm
+                          )}
+                        </Typography>
+                      </Box>
+                      <Box display="flex" alignItems="center">
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.875rem", minWidth: 100 }}
+                        >
+                          Vai trò:
+                        </Typography>
+                        <Chip
+                          label={getRoleLabel(user.roles?.name || "STAFF")}
+                          size="small"
+                          sx={{
+                            backgroundColor: "rgba(63, 81, 181, 0.1)",
+                            color: "#3f51b5",
+                            fontSize: "0.75rem",
+                            height: 20,
+                            ml: 1,
+                          }}
+                        />
+                      </Box>
+                      <Box display="flex" alignItems="center">
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.875rem", minWidth: 100 }}
+                        >
+                          Tham gia:
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: "0.875rem", ml: 1 }}
+                        >
+                          {new Date(
+                            user.createdAt || Date.now()
+                          ).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box
+                      display="flex"
+                      justifyContent="flex-end"
+                      mt={2}
+                      gap={1}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          handleOpenNotificationDialog(user.id, user.fullName)
+                        }
+                        sx={{
+                          color: "primary.main",
+                          backgroundColor: "primary.50",
+                          "&:hover": {
+                            backgroundColor: "primary.100",
+                            color: "primary.dark",
+                          },
+                        }}
+                        title={`Gửi thông báo đến ${user.fullName}`}
+                      >
+                        <SendIcon fontSize="small" />
+                      </IconButton>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color={user.isBanned ? "success" : "error"}
+                        onClick={() =>
+                          handleOpenBanConfirm(
+                            user.id,
+                            user.fullName,
+                            user.isBanned
+                          )
+                        }
+                        sx={{
+                          minWidth: 80,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          borderRadius: 1.5,
+                          textTransform: "none",
+                          px: 2,
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                          },
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {user.isBanned ? "Unban" : "Ban"}
+                      </Button>
+                    </Box>
+                  </Paper>
+                ))}
               </Box>
             )}
           </Box>
@@ -1269,27 +1621,28 @@ const UserManager = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            '& .MuiTablePagination-toolbar': {
+            borderTop: "1px solid",
+            borderColor: "divider",
+            "& .MuiTablePagination-toolbar": {
               px: { xs: 1, sm: 2 },
               minHeight: { xs: 52, sm: 52 },
-              justifyContent: 'center', // Center the pagination toolbar
-              flexWrap: 'wrap',
-              gap: { xs: 1, sm: 2 }
+              justifyContent: "center", // Center the pagination toolbar
+              flexWrap: "wrap",
+              gap: { xs: 1, sm: 2 },
             },
-            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontSize: { xs: '0.875rem', sm: '1rem' }
+            "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
+              {
+                fontSize: { xs: "0.875rem", sm: "1rem" },
+              },
+            "& .MuiTablePagination-select": {
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             },
-            '& .MuiTablePagination-select': {
-              fontSize: { xs: '0.875rem', sm: '1rem' }
+            "& .MuiTablePagination-spacer": {
+              display: "none", // Hide the spacer that pushes content to the right
             },
-            '& .MuiTablePagination-spacer': {
-              display: 'none' // Hide the spacer that pushes content to the right
+            "& .MuiTablePagination-actions": {
+              ml: 0, // Remove left margin from pagination actions
             },
-            '& .MuiTablePagination-actions': {
-              ml: 0 // Remove left margin from pagination actions
-            }
           }}
         />
       </Paper>
@@ -1300,9 +1653,11 @@ const UserManager = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="bg-gradient-to-br from-blue-600 to-purple-600 text-white px-6 py-4 rounded-t-xl">
-              <h2 className="text-xl font-bold text-center">Tạo Người Dùng Mới</h2>
+              <h2 className="text-xl font-bold text-center">
+                Tạo Người Dùng Mới
+              </h2>
             </div>
-            
+
             {/* Modal Content */}
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1314,14 +1669,20 @@ const UserManager = () => {
                   <input
                     type="text"
                     value={createUserForm.fullName}
-                    onChange={(e) => handleCreateUserFormChange('fullName', e.target.value)}
+                    onChange={(e) =>
+                      handleCreateUserFormChange("fullName", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                      createUserErrors.fullName ? 'border-red-500' : 'border-gray-300'
+                      createUserErrors.fullName
+                        ? "border-red-500"
+                        : "border-gray-300"
                     }`}
                     placeholder="Nhập họ tên"
                   />
                   {createUserErrors.fullName && (
-                    <p className="text-red-500 text-sm mt-1">{createUserErrors.fullName}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {createUserErrors.fullName}
+                    </p>
                   )}
                 </div>
 
@@ -1335,9 +1696,14 @@ const UserManager = () => {
                     <input
                       type="email"
                       value={createUserForm.email}
-                      onChange={(e) => handleCreateUserFormChange('email', e.target.value)}
+                      onChange={(e) =>
+                        handleCreateUserFormChange("email", e.target.value)
+                      }
                       className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                        createUserErrors.email || (createUserForm.email && !emailValidation.isValid) ? 'border-red-500' : 'border-gray-300'
+                        createUserErrors.email ||
+                        (createUserForm.email && !emailValidation.isValid)
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                       placeholder="Nhập email"
                     />
@@ -1351,18 +1717,33 @@ const UserManager = () => {
                       </div>
                     )}
                   </div>
-                  {(createUserErrors.email || (createUserForm.email && emailValidation.error)) && (
+                  {(createUserErrors.email ||
+                    (createUserForm.email && emailValidation.error)) && (
                     <p className="text-red-500 text-sm mt-1">
                       {createUserErrors.email || emailValidation.error}
                     </p>
                   )}
-                  
+
                   {/* Email validation indicator */}
                   {createUserForm.email && (
                     <div className="mt-2 flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${emailValidation.isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                      <span className={`text-xs ${emailValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                        {emailValidation.isValid ? 'Email hợp lệ' : emailValidation.error}
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          emailValidation.isValid
+                            ? "bg-green-500"
+                            : "bg-red-500"
+                        }`}
+                      ></div>
+                      <span
+                        className={`text-xs ${
+                          emailValidation.isValid
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {emailValidation.isValid
+                          ? "Email hợp lệ"
+                          : emailValidation.error}
                       </span>
                     </div>
                   )}
@@ -1378,9 +1759,14 @@ const UserManager = () => {
                     <input
                       type="tel"
                       value={createUserForm.phone}
-                      onChange={(e) => handleCreateUserFormChange('phone', e.target.value)}
+                      onChange={(e) =>
+                        handleCreateUserFormChange("phone", e.target.value)
+                      }
                       className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                        createUserErrors.phone || (createUserForm.phone && !phoneValidation.isValid) ? 'border-red-500' : 'border-gray-300'
+                        createUserErrors.phone ||
+                        (createUserForm.phone && !phoneValidation.isValid)
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                       placeholder="Nhập số điện thoại"
                     />
@@ -1394,18 +1780,33 @@ const UserManager = () => {
                       </div>
                     )}
                   </div>
-                  {(createUserErrors.phone || (createUserForm.phone && phoneValidation.error)) && (
+                  {(createUserErrors.phone ||
+                    (createUserForm.phone && phoneValidation.error)) && (
                     <p className="text-red-500 text-sm mt-1">
                       {createUserErrors.phone || phoneValidation.error}
                     </p>
                   )}
-                  
+
                   {/* Phone validation indicator */}
                   {createUserForm.phone && (
                     <div className="mt-2 flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${phoneValidation.isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                      <span className={`text-xs ${phoneValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                        {phoneValidation.isValid ? 'Số điện thoại hợp lệ' : phoneValidation.error}
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          phoneValidation.isValid
+                            ? "bg-green-500"
+                            : "bg-red-500"
+                        }`}
+                      ></div>
+                      <span
+                        className={`text-xs ${
+                          phoneValidation.isValid
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {phoneValidation.isValid
+                          ? "Số điện thoại hợp lệ"
+                          : phoneValidation.error}
                       </span>
                     </div>
                   )}
@@ -1420,9 +1821,13 @@ const UserManager = () => {
                     <input
                       type={showPassword ? "text" : "password"}
                       value={createUserForm.password}
-                      onChange={(e) => handleCreateUserFormChange('password', e.target.value)}
+                      onChange={(e) =>
+                        handleCreateUserFormChange("password", e.target.value)
+                      }
                       className={`w-full pr-10 py-2 px-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                        createUserErrors.password ? 'border-red-500' : 'border-gray-300'
+                        createUserErrors.password
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                       placeholder="Nhập mật khẩu"
                     />
@@ -1439,29 +1844,60 @@ const UserManager = () => {
                     </button>
                   </div>
                   {createUserErrors.password && (
-                    <p className="text-red-500 text-sm mt-1">{createUserErrors.password}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {createUserErrors.password}
+                    </p>
                   )}
-                  
+
                   {/* Password validation indicators */}
                   {createUserForm.password && (
                     <div className="mt-3 p-4 bg-gray-50 rounded-lg border">
-                      <p className="text-sm font-medium text-gray-700 mb-3">🔒 Yêu cầu mật khẩu:</p>
+                      <p className="text-sm font-medium text-gray-700 mb-3">
+                        🔒 Yêu cầu mật khẩu:
+                      </p>
                       <div className="space-y-2">
                         {[
-                          { key: 'length', label: 'Ít nhất 7 ký tự', valid: passwordValidation.length },
-                          { key: 'hasLetter', label: 'Có chữ cái (A-Z, a-z)', valid: passwordValidation.hasLetter },
-                          { key: 'hasNumber', label: 'Có số (0-9)', valid: passwordValidation.hasNumber },
-                          { key: 'hasSpecial', label: 'Có ký tự đặc biệt (@$!%*#?&)', valid: passwordValidation.hasSpecial }
+                          {
+                            key: "length",
+                            label: "Ít nhất 7 ký tự",
+                            valid: passwordValidation.length,
+                          },
+                          {
+                            key: "hasLetter",
+                            label: "Có chữ cái (A-Z, a-z)",
+                            valid: passwordValidation.hasLetter,
+                          },
+                          {
+                            key: "hasNumber",
+                            label: "Có số (0-9)",
+                            valid: passwordValidation.hasNumber,
+                          },
+                          {
+                            key: "hasSpecial",
+                            label: "Có ký tự đặc biệt (@$!%*#?&)",
+                            valid: passwordValidation.hasSpecial,
+                          },
                         ].map((requirement) => (
-                          <div key={requirement.key} className="flex items-center gap-3">
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                              requirement.valid ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
-                            }`}>
-                              {requirement.valid ? '✓' : '○'}
+                          <div
+                            key={requirement.key}
+                            className="flex items-center gap-3"
+                          >
+                            <div
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                                requirement.valid
+                                  ? "bg-green-500 text-white"
+                                  : "bg-gray-300 text-gray-600"
+                              }`}
+                            >
+                              {requirement.valid ? "✓" : "○"}
                             </div>
-                            <span className={`text-sm transition-all ${
-                              requirement.valid ? 'text-green-600 font-medium' : 'text-gray-500'
-                            }`}>
+                            <span
+                              className={`text-sm transition-all ${
+                                requirement.valid
+                                  ? "text-green-600 font-medium"
+                                  : "text-gray-500"
+                              }`}
+                            >
                               {requirement.label}
                             </span>
                           </div>
@@ -1478,9 +1914,13 @@ const UserManager = () => {
                   </label>
                   <select
                     value={createUserForm.roleName}
-                    onChange={(e) => handleCreateUserFormChange('roleName', e.target.value)}
+                    onChange={(e) =>
+                      handleCreateUserFormChange("roleName", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
-                      createUserErrors.roleName ? 'border-red-500' : 'border-gray-300'
+                      createUserErrors.roleName
+                        ? "border-red-500"
+                        : "border-gray-300"
                     }`}
                   >
                     {availableRoles.map((role) => (
@@ -1490,7 +1930,9 @@ const UserManager = () => {
                     ))}
                   </select>
                   {createUserErrors.roleName && (
-                    <p className="text-red-500 text-sm mt-1">{createUserErrors.roleName}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {createUserErrors.roleName}
+                    </p>
                   )}
                 </div>
 
@@ -1503,10 +1945,14 @@ const UserManager = () => {
                     <input
                       type="checkbox"
                       checked={createUserForm.isActive}
-                      onChange={(e) => handleCreateUserFormChange('isActive', e.target.checked)}
+                      onChange={(e) =>
+                        handleCreateUserFormChange("isActive", e.target.checked)
+                      }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Tài khoản hoạt động</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      Tài khoản hoạt động
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1522,10 +1968,10 @@ const UserManager = () => {
               </button>
               <button
                 onClick={handleCreateUser}
-                disabled={usersStatus === 'loading'}
+                disabled={usersStatus === "loading"}
                 className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
-                {usersStatus === 'loading' ? (
+                {usersStatus === "loading" ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     Đang tạo...
@@ -1563,46 +2009,318 @@ const UserManager = () => {
             fontSize: "1.3rem",
             fontWeight: "600",
             textAlign: "center",
-            color: banConfirmDialog.currentBanStatus ? '#4caf50' : '#f44336'
+            color: banConfirmDialog.currentBanStatus ? "#4caf50" : "#f44336",
           }}
         >
-          {banConfirmDialog.currentBanStatus ? '🔓 Xác nhận bỏ cấm' : '🚫 Xác nhận cấm người dùng'}
+          {banConfirmDialog.currentBanStatus
+            ? "🔓 Xác nhận bỏ cấm"
+            : "🚫 Xác nhận cấm người dùng"}
         </DialogTitle>
         <DialogContent sx={{ px: 3, py: 2 }}>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              textAlign: 'center',
-              fontSize: '1rem',
-              color: 'text.primary',
-              lineHeight: 1.6
+          <Typography
+            variant="body1"
+            sx={{
+              textAlign: "center",
+              fontSize: "1rem",
+              color: "text.primary",
+              lineHeight: 1.6,
             }}
           >
-            Bạn có chắc chắn muốn{' '}
-            <strong style={{ color: banConfirmDialog.currentBanStatus ? '#4caf50' : '#f44336' }}>
-              {banConfirmDialog.currentBanStatus ? 'bỏ cấm' : 'cấm'}
-            </strong>{' '}
-            người dùng{' '}
-            <strong>"{banConfirmDialog.userName}"</strong>?
+            Bạn có chắc chắn muốn{" "}
+            <strong
+              style={{
+                color: banConfirmDialog.currentBanStatus
+                  ? "#4caf50"
+                  : "#f44336",
+              }}
+            >
+              {banConfirmDialog.currentBanStatus ? "bỏ cấm" : "cấm"}
+            </strong>{" "}
+            người dùng <strong>"{banConfirmDialog.userName}"</strong>?
           </Typography>
           {!banConfirmDialog.currentBanStatus && (
-            <Alert 
-              severity="warning" 
-              sx={{ 
-                mt: 2, 
+            <Alert
+              severity="warning"
+              sx={{
+                mt: 2,
                 borderRadius: 2,
-                '& .MuiAlert-message': {
-                  fontSize: '0.875rem'
-                }
+                "& .MuiAlert-message": {
+                  fontSize: "0.875rem",
+                },
               }}
             >
               Người dùng sẽ không thể đăng nhập vào hệ thống khi bị cấm.
             </Alert>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 3, gap: 2, justifyContent: 'center' }}>
+        <DialogActions sx={{ px: 3, py: 3, gap: 2, justifyContent: "center" }}>
           <Button
             onClick={handleCloseBanConfirm}
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              borderColor: "#ddd",
+              color: "#666",
+              "&:hover": {
+                borderColor: "#bbb",
+                backgroundColor: "#f5f5f5",
+              },
+            }}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={handleConfirmBanUser}
+            variant="contained"
+            color={banConfirmDialog.currentBanStatus ? "success" : "error"}
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+              boxShadow: `0 4px 15px ${
+                banConfirmDialog.currentBanStatus
+                  ? "rgba(76, 175, 80, 0.3)"
+                  : "rgba(244, 67, 54, 0.3)"
+              }`,
+              "&:hover": {
+                boxShadow: `0 6px 20px ${
+                  banConfirmDialog.currentBanStatus
+                    ? "rgba(76, 175, 80, 0.4)"
+                    : "rgba(244, 67, 54, 0.4)"
+                }`,
+              },
+            }}
+          >
+            {banConfirmDialog.currentBanStatus ? "Bỏ cấm" : "Cấm người dùng"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Send Notification Dialog */}
+      <Dialog
+        open={notificationDialog.open}
+        onClose={handleCloseNotificationDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pb: 2,
+            pt: 3,
+            px: 3,
+            fontSize: "1.3rem",
+            fontWeight: "600",
+            textAlign: "center",
+            color: "primary.main",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+          }}
+        >
+          <NotificationsIcon />
+          Gửi thông báo đến {notificationDialog.userName}
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 2 }}>
+          {notificationErrors.general && (
+            <Alert
+              severity="error"
+              sx={{
+                mb: 2,
+                borderRadius: 2,
+                "& .MuiAlert-message": {
+                  fontSize: "0.875rem",
+                },
+              }}
+            >
+              {notificationErrors.general}
+            </Alert>
+          )}
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nội dung thông báo"
+            fullWidth
+            multiline
+            rows={4}
+            variant="outlined"
+            value={notificationMessage}
+            onChange={(e) => setNotificationMessage(e.target.value)}
+            error={!!notificationErrors.message}
+            helperText={notificationErrors.message}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 3, gap: 2, justifyContent: "center" }}>
+          <Button
+            onClick={handleCloseNotificationDialog}
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              borderColor: "#ddd",
+              color: "#666",
+              "&:hover": {
+                borderColor: "#bbb",
+                backgroundColor: "#f5f5f5",
+              },
+            }}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSendNotification}
+            variant="contained"
+            disabled={sendingNotification}
+            startIcon={
+              sendingNotification ? (
+                <CircularProgress size={16} />
+              ) : (
+                <SendIcon />
+              )
+            }
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+              boxShadow: "0 4px 15px rgba(25, 118, 210, 0.3)",
+              "&:hover": {
+                boxShadow: "0 6px 20px rgba(25, 118, 210, 0.4)",
+              },
+            }}
+          >
+            {sendingNotification ? "Đang gửi..." : "Gửi thông báo"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Role Notification Dialog */}
+      <Dialog
+        open={roleNotificationDialog.open}
+        onClose={handleCloseRoleNotificationDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pb: 2,
+            pt: 3,
+            px: 3,
+            fontSize: "1.3rem",
+            fontWeight: "600",
+            textAlign: "center",
+            color: 'secondary.main',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1
+          }}
+        >
+          <GroupIcon />
+          Gửi Thông Báo Đến Role
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 2 }}>
+          <Box display="flex " flexDirection="column" gap={3}>
+            {/* Role Selection */}
+            <FormControl fullWidth>
+              <InputLabel>Chọn Role</InputLabel>
+              <Select
+                value={roleNotificationDialog.role}
+                label="Chọn Role"
+                onChange={(e) => setRoleNotificationDialog(prev => ({
+                  ...prev,
+                  role: e.target.value
+                }))}
+                error={!!roleNotificationErrors.role}
+              >
+                {availableRoles
+                  .filter(role => role.value !== 'ADMIN') // Ẩn Quản trị viên
+                  .map((role) => (
+                  <MenuItem key={role.value} value={role.value}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Box sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        bgcolor: role.value === 'ADMIN' ? 'error.main' : 
+                                 role.value === 'DESIGNER' ? 'warning.main' :
+                                 role.value === 'SALE' ? 'info.main' : 
+                                 role.value === 'STAFF' ? 'primary.main' : 'success.main'
+                      }} />
+                      {role.label}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+              {roleNotificationErrors.role && (
+                <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                  {roleNotificationErrors.role}
+                </Typography>
+              )}
+            </FormControl>
+
+            {/* Message Input */}
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="Nội dung thông báo"
+              value={roleNotificationMessage}
+              onChange={(e) => setRoleNotificationMessage(e.target.value)}
+              error={!!roleNotificationErrors.message}
+              helperText={roleNotificationErrors.message}
+              placeholder="Nhập nội dung thông báo bạn muốn gửi đến tất cả người dùng thuộc role này..."
+              InputProps={{
+                sx: {
+                  fontSize: '1rem',
+                  lineHeight: 1.5
+                }
+              }}
+            />
+
+            {/* General Error */}
+            {roleNotificationErrors.general && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {roleNotificationErrors.general}
+              </Alert>
+            )}
+
+            {/* Success Message */}
+            {sendRoleNotificationSuccess && (
+              <Alert severity="success" sx={{ mt: 2 }}>
+                {sendRoleNotificationSuccess}
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 3, gap: 2, justifyContent: 'center' }}>
+          <Button
+            onClick={handleCloseRoleNotificationDialog}
             variant="outlined"
             sx={{
               borderRadius: 2,
@@ -1620,22 +2338,24 @@ const UserManager = () => {
             Hủy
           </Button>
           <Button
-            onClick={handleConfirmBanUser}
+            onClick={handleSendRoleNotification}
             variant="contained"
-            color={banConfirmDialog.currentBanStatus ? "success" : "error"}
+            color="secondary"
+            disabled={sendingRoleNotification}
+            startIcon={sendingRoleNotification ? <CircularProgress size={20} /> : <GroupIcon />}
             sx={{
               borderRadius: 2,
               px: 4,
               py: 1.5,
               fontSize: '1rem',
               fontWeight: 600,
-              boxShadow: `0 4px 15px ${banConfirmDialog.currentBanStatus ? 'rgba(76, 175, 80, 0.3)' : 'rgba(244, 67, 54, 0.3)'}`,
+              boxShadow: '0 4px 15px rgba(156, 39, 176, 0.3)',
               '&:hover': {
-                boxShadow: `0 6px 20px ${banConfirmDialog.currentBanStatus ? 'rgba(76, 175, 80, 0.4)' : 'rgba(244, 67, 54, 0.4)'}`,
+                boxShadow: '0 6px 20px rgba(156, 39, 176, 0.4)',
               }
             }}
           >
-            {banConfirmDialog.currentBanStatus ? 'Bỏ cấm' : 'Cấm người dùng'}
+            {sendingRoleNotification ? 'Đang gửi...' : 'Gửi Thông Báo'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1645,25 +2365,30 @@ const UserManager = () => {
         open={snackbar.open}
         autoHideDuration={4000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ 
-          vertical: isMobile ? 'bottom' : 'top', 
-          horizontal: isMobile ? 'center' : 'right' 
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "right",
         }}
         sx={{
-          '& .MuiSnackbarContent-root': {
-            fontSize: { xs: '0.875rem', sm: '1rem' }
-          }
+          zIndex: 99999, // Much higher z-index to appear above Material-UI AppBar
+          mt: 10, // Add top margin to avoid AppBar overlap (70px toolbar + some padding)
+          "& .MuiSnackbarContent-root": {
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+          },
         }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ 
-            width: '100%',
-            maxWidth: { xs: '90vw', sm: '400px' },
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          sx={{
+            width: "100%",
+            maxWidth: { xs: "90vw", sm: "400px" },
+            boxShadow: "0 8px 25px rgba(0,0,0,0.25)",
             borderRadius: { xs: 1.5, sm: 2 },
-            fontSize: { xs: '0.875rem', sm: '1rem' }
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            zIndex: 99999, // Much higher z-index for the Alert component
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(10px)",
           }}
         >
           {snackbar.message}
