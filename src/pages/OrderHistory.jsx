@@ -98,6 +98,7 @@ import {
   selectCustomDesignRequestSubImages,
 } from "../store/features/demo/demoSlice";
 import { fetchUserDetail } from "../store/features/user/userSlice";
+import { getContractorById } from "../api/contractorService";
 import { unwrapResult } from "@reduxjs/toolkit";
 
 import {
@@ -574,6 +575,191 @@ const FeedbackImage = ({ feedbackImageKey, altText = "Ảnh feedback" }) => {
         e.target.style.display = "none";
       }}
     />
+  );
+};
+
+// Component để hiển thị thông tin đơn vị thi công
+const ContractorInfo = ({ order, contractorInfo, loading }) => {
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [logoLoading, setLogoLoading] = useState(false);
+
+  // Fetch contractor logo từ S3 nếu có
+  useEffect(() => {
+    const fetchLogo = async () => {
+      if (!contractorInfo?.logo) return;
+      
+      try {
+        setLogoLoading(true);
+        console.log("Fetching contractor logo with key:", contractorInfo.logo);
+        
+        // Sử dụng getPresignedUrl thay vì fetch trực tiếp
+        const result = await getPresignedUrl(contractorInfo.logo, 30);
+        
+        if (result.success && result.url) {
+          setLogoUrl(result.url);
+          console.log("Successfully got contractor logo presigned URL:", result.url);
+        } else {
+          console.error("Failed to get contractor logo presigned URL:", result.message);
+        }
+      } catch (error) {
+        console.error("Error fetching contractor logo:", error);
+      } finally {
+        setLogoLoading(false);
+      }
+    };
+
+    fetchLogo();
+
+    // Cleanup - không cần cleanup với presigned URL
+    return () => {
+      // Presigned URL sẽ tự hết hạn, không cần manual cleanup
+    };
+  }, [contractorInfo?.logo]);
+
+  // Chỉ hiển thị contractor info nếu có ngày giao dự kiến hoặc ngày giao
+  if (!order.estimatedDeliveryDate && !order.deliveryDate) {
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          p: 2,
+          backgroundColor: "rgba(243, 244, 246, 0.8)",
+          borderRadius: 3,
+          border: "1px solid rgba(209, 213, 219, 0.3)",
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        <CircularProgress size={16} />
+        <Typography variant="body2" color="text.secondary">
+          Đang tải thông tin đơn vị thi công...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!contractorInfo) {
+    return null;
+  }
+
+  return (
+    <Box
+      sx={{
+        p: 2,
+        backgroundColor: contractorInfo.isInternal 
+          ? "rgba(219, 234, 254, 0.8)" 
+          : "rgba(240, 253, 244, 0.8)",
+        borderRadius: 3,
+        border: contractorInfo.isInternal 
+          ? "1px solid rgba(59, 130, 246, 0.2)" 
+          : "1px solid rgba(34, 197, 94, 0.2)",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+        {/* Logo đơn vị thi công - luôn hiển thị */}
+        <Box sx={{ flexShrink: 0 }}>
+          {logoLoading ? (
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 1,
+                backgroundColor: "grey.100",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress size={20} />
+            </Box>
+          ) : logoUrl ? (
+            <Box
+              component="img"
+              src={logoUrl}
+              alt={`${contractorInfo.name} logo`}
+              sx={{
+                width: 40,
+                height: 40,
+                objectFit: "cover",
+                borderRadius: 1,
+                border: "1px solid rgba(0,0,0,0.1)",
+              }}
+              onError={() => {
+                console.error("Failed to load contractor logo image");
+                setLogoUrl(null); // Reset để hiển thị fallback icon
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 1,
+                backgroundColor: contractorInfo.isInternal ? "#dbeafe" : "#dcfce7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.2rem",
+                border: `1px solid ${contractorInfo.isInternal ? "#3b82f6" : "#22c55e"}`,
+              }}
+            >
+              🏗️
+            </Box>
+          )}
+        </Box>
+        
+        {/* Tên và loại đơn vị */}
+        <Box sx={{ flex: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+            <Typography
+              variant="subtitle2"
+              fontWeight={600}
+              sx={{ 
+                color: contractorInfo.isInternal ? "#1d4ed8" : "#059669",
+              }}
+            >
+              Đơn vị thi công: {contractorInfo.name}
+            </Typography>
+            <Chip
+              label={contractorInfo.isInternal ? "Nội bộ" : "Bên ngoài"}
+              size="small"
+              sx={{
+                fontSize: "0.7rem",
+                height: 20,
+                backgroundColor: contractorInfo.isInternal 
+                  ? "rgba(59, 130, 246, 0.1)" 
+                  : "rgba(34, 197, 94, 0.1)",
+                color: contractorInfo.isInternal ? "#1d4ed8" : "#059669",
+                border: `1px solid ${contractorInfo.isInternal ? "#3b82f6" : "#22c55e"}`,
+              }}
+            />
+          </Box>
+          
+          {/* Thông tin liên hệ */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.3 }}>
+            {contractorInfo.address && (
+              <Typography variant="caption" color="text.secondary">
+                📍: {contractorInfo.address}
+              </Typography>
+            )}
+            {contractorInfo.phone && (
+              <Typography variant="caption" color="text.secondary">
+                📞: {contractorInfo.phone}
+              </Typography>
+            )}
+            {contractorInfo.email && (
+              <Typography variant="caption" color="text.secondary">
+                📧: {contractorInfo.email}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
@@ -1257,6 +1443,10 @@ const OrderHistory = () => {
   // Feedback history expand state
   const [feedbackHistoryExpanded, setFeedbackHistoryExpanded] = useState({}); // { orderId: boolean }
 
+  // Contractor info states
+  const [contractorInfoMap, setContractorInfoMap] = useState({}); // { contractorId: contractorInfo }
+  const [loadingContractorInfo, setLoadingContractorInfo] = useState({}); // { contractorId: boolean }
+
   const getOrderImpressions = (orderId) => {
     return allImpressionsByOrder[orderId] || [];
   };
@@ -1303,6 +1493,43 @@ const OrderHistory = () => {
   const isFeedbackHistoryExpanded = (orderId) => {
     return feedbackHistoryExpanded[orderId] || false;
   };
+
+  // Contractor helper functions
+  const getContractorInfo = (contractorId) => {
+    return contractorInfoMap[contractorId] || null;
+  };
+
+  const isLoadingContractorInfo = (contractorId) => {
+    return loadingContractorInfo[contractorId] || false;
+  };
+
+  // Function to fetch contractor info
+  const fetchContractorInfo = useCallback(
+    async (contractorId) => {
+      if (contractorInfoMap[contractorId] || loadingContractorInfo[contractorId]) {
+        return; // Already fetched or currently fetching
+      }
+
+      try {
+        setLoadingContractorInfo(prev => ({ ...prev, [contractorId]: true }));
+        const response = await getContractorById(contractorId);
+        
+        if (response.success) {
+          setContractorInfoMap(prev => ({ 
+            ...prev, 
+            [contractorId]: response.data 
+          }));
+        } else {
+          console.error("Failed to fetch contractor info:", response.error);
+        }
+      } catch (error) {
+        console.error("Error fetching contractor info:", error);
+      } finally {
+        setLoadingContractorInfo(prev => ({ ...prev, [contractorId]: false }));
+      }
+    },
+    [contractorInfoMap, loadingContractorInfo]
+  );
 
   // Fetch payment history for an order
   const fetchPaymentHistoryForOrder = useCallback(
@@ -3006,6 +3233,25 @@ const OrderHistory = () => {
     }
   }, [orders, dispatch, fetchedImpressionsOrders]);
 
+  // useEffect để fetch contractor info cho orders có contractor và có ngày giao dự kiến
+  useEffect(() => {
+    if (tab === 0 && orders.length > 0) {
+      const ordersWithContractors = orders.filter(
+        (order) =>
+          order.contractors?.id &&
+          (order.estimatedDeliveryDate || order.deliveryDate)
+      );
+
+      ordersWithContractors.forEach((order) => {
+        const contractorId = order.contractors.id;
+        if (contractorId && !contractorInfoMap[contractorId] && !loadingContractorInfo[contractorId]) {
+          console.log(`Fetching contractor info for contractor ID: ${contractorId}`);
+          fetchContractorInfo(contractorId);
+        }
+      });
+    }
+  }, [tab, orders, contractorInfoMap, loadingContractorInfo, fetchContractorInfo]);
+
   // useEffect để fetch order details cho tất cả đơn hàng ở tab 0 (Lịch sử đơn hàng)
   useEffect(() => {
     if (tab === 0 && orders.length > 0) {
@@ -4663,6 +4909,15 @@ const OrderHistory = () => {
                                     order.deliveryDate
                                   ).toLocaleDateString("vi-VN")}
                                 </Typography>
+                              )}
+
+                              {/* Thông tin đơn vị thi công */}
+                              {order.contractors?.id && (order.estimatedDeliveryDate || order.deliveryDate) && (
+                                <ContractorInfo 
+                                  order={order}
+                                  contractorInfo={getContractorInfo(order.contractors.id)}
+                                  loading={isLoadingContractorInfo(order.contractors.id)}
+                                />
                               )}
 
                               {/* Hiển thị Order Details */}
