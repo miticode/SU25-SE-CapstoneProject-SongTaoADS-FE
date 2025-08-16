@@ -3584,6 +3584,340 @@ const AIDesign = () => {
       console.log("Text added to canvas:", type);
     }
   };
+
+  // ✅ Layout 1: Thông tin ở góc trái trên
+  const applyLayout1 = () => {
+    if (!fabricCanvas) {
+      console.log("Canvas not available");
+      return;
+    }
+
+    // Clear existing business info objects
+    clearBusinessInfo();
+
+    const canvasWidth = fabricCanvas.width;
+    const canvasHeight = fabricCanvas.height;
+    const canvasSize = Math.max(canvasWidth, canvasHeight);
+    const baseScaleFactor = canvasSize / 1000;
+
+    // Calculate sizes
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(28 * baseScaleFactor * fontScaleFactor, 18), canvasSize * 0.08);
+    const addressSize = Math.min(Math.max(18 * baseScaleFactor * fontScaleFactor, 14), canvasSize * 0.05);
+    const contactSize = Math.min(Math.max(16 * baseScaleFactor * fontScaleFactor, 12), canvasSize * 0.04);
+    const logoSize = Math.min(Math.max(120 * baseScaleFactor * fontScaleFactor, 80), canvasSize * 0.25);
+
+    const margin = canvasWidth * 0.05;
+    let currentY = canvasHeight * 0.05;
+
+    // Add logo first (top-left)
+    if (businessPresets.logoUrl) {
+      addLogoAtPosition(margin, currentY, logoSize, "layout1-logo");
+      currentY += logoSize + 20;
+    }
+
+    // Add company name
+    if (businessPresets.companyName) {
+      const companyText = new fabric.Text(businessPresets.companyName, {
+        left: margin,
+        top: currentY,
+        fontFamily: "Arial",
+        fontSize: Math.round(companyNameSize),
+        fill: "#000000",
+        fontWeight: "bold",
+        name: "layout1-companyName",
+      });
+      fabricCanvas.add(companyText);
+      currentY += companyNameSize * 1.5;
+    }
+
+    // Add address
+    if (businessPresets.address) {
+      const addressText = new fabric.Text(businessPresets.address, {
+        left: margin,
+        top: currentY,
+        fontFamily: "Arial",
+        fontSize: Math.round(addressSize),
+        fill: "#666666",
+        fontStyle: "italic",
+        name: "layout1-address",
+      });
+      fabricCanvas.add(addressText);
+      currentY += addressSize * 1.5;
+    }
+
+    // Add contact info
+    if (businessPresets.contactInfo) {
+      const contactText = new fabric.Text(businessPresets.contactInfo, {
+        left: margin,
+        top: currentY,
+        fontFamily: "Arial",
+        fontSize: Math.round(contactSize),
+        fill: "#333333",
+        name: "layout1-contactInfo",
+      });
+      fabricCanvas.add(contactText);
+    }
+
+    fabricCanvas.renderAll();
+    console.log("Applied Layout 1: Top-left arrangement");
+  };
+
+  // ✅ Layout 2: Thông tin ở góc phải dưới
+  const applyLayout2 = () => {
+    if (!fabricCanvas) {
+      console.log("Canvas not available");
+      return;
+    }
+
+    // Clear existing business info objects
+    clearBusinessInfo();
+
+    const canvasWidth = fabricCanvas.width;
+    const canvasHeight = fabricCanvas.height;
+    const canvasSize = Math.max(canvasWidth, canvasHeight);
+    const baseScaleFactor = canvasSize / 1000;
+
+    // Calculate sizes
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(28 * baseScaleFactor * fontScaleFactor, 18), canvasSize * 0.08);
+    const addressSize = Math.min(Math.max(18 * baseScaleFactor * fontScaleFactor, 14), canvasSize * 0.05);
+    const contactSize = Math.min(Math.max(16 * baseScaleFactor * fontScaleFactor, 12), canvasSize * 0.04);
+    const logoSize = Math.min(Math.max(120 * baseScaleFactor * fontScaleFactor, 80), canvasSize * 0.25);
+
+    const margin = canvasWidth * 0.05;
+    let currentY = canvasHeight - margin;
+
+    // Add contact info first (bottom-right)
+    if (businessPresets.contactInfo) {
+      const contactText = new fabric.Text(businessPresets.contactInfo, {
+        left: canvasWidth - margin,
+        top: currentY - contactSize,
+        fontFamily: "Arial",
+        fontSize: Math.round(contactSize),
+        fill: "#333333",
+        originX: "right",
+        name: "layout2-contactInfo",
+      });
+      fabricCanvas.add(contactText);
+      currentY -= contactSize * 1.5;
+    }
+
+    // Add address
+    if (businessPresets.address) {
+      const addressText = new fabric.Text(businessPresets.address, {
+        left: canvasWidth - margin,
+        top: currentY - addressSize,
+        fontFamily: "Arial",
+        fontSize: Math.round(addressSize),
+        fill: "#666666",
+        fontStyle: "italic",
+        originX: "right",
+        name: "layout2-address",
+      });
+      fabricCanvas.add(addressText);
+      currentY -= addressSize * 1.5;
+    }
+
+    // Add company name
+    if (businessPresets.companyName) {
+      const companyText = new fabric.Text(businessPresets.companyName, {
+        left: canvasWidth - margin,
+        top: currentY - companyNameSize,
+        fontFamily: "Arial",
+        fontSize: Math.round(companyNameSize),
+        fill: "#000000",
+        fontWeight: "bold",
+        originX: "right",
+        name: "layout2-companyName",
+      });
+      fabricCanvas.add(companyText);
+      currentY -= companyNameSize + 20;
+    }
+
+    // Add logo last (bottom-right)
+    if (businessPresets.logoUrl) {
+      addLogoAtPosition(canvasWidth - margin - logoSize, currentY - logoSize, logoSize, "layout2-logo");
+    }
+
+    fabricCanvas.renderAll();
+    console.log("Applied Layout 2: Bottom-right arrangement");
+  };
+
+  // ✅ Layout 3: Thông tin ở giữa dưới (footer style)
+  const applyLayout3 = () => {
+    if (!fabricCanvas) {
+      console.log("Canvas not available");
+      return;
+    }
+
+    // Clear existing business info objects
+    clearBusinessInfo();
+
+    const canvasWidth = fabricCanvas.width;
+    const canvasHeight = fabricCanvas.height;
+    const canvasSize = Math.max(canvasWidth, canvasHeight);
+    const baseScaleFactor = canvasSize / 1000;
+
+    // Calculate sizes
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(32 * baseScaleFactor * fontScaleFactor, 20), canvasSize * 0.08);
+    const addressSize = Math.min(Math.max(20 * baseScaleFactor * fontScaleFactor, 16), canvasSize * 0.05);
+    const contactSize = Math.min(Math.max(18 * baseScaleFactor * fontScaleFactor, 14), canvasSize * 0.04);
+    const logoSize = Math.min(Math.max(100 * baseScaleFactor * fontScaleFactor, 70), canvasSize * 0.2);
+
+    const centerX = canvasWidth / 2;
+    const bottomMargin = canvasHeight * 0.05;
+    let currentY = canvasHeight - bottomMargin;
+
+    // Add contact info first (bottom center)
+    if (businessPresets.contactInfo) {
+      const contactText = new fabric.Text(businessPresets.contactInfo, {
+        left: centerX,
+        top: currentY - contactSize,
+        fontFamily: "Arial",
+        fontSize: Math.round(contactSize),
+        fill: "#333333",
+        originX: "center",
+        textAlign: "center",
+        name: "layout3-contactInfo",
+      });
+      fabricCanvas.add(contactText);
+      currentY -= contactSize * 1.5;
+    }
+
+    // Add address
+    if (businessPresets.address) {
+      const addressText = new fabric.Text(businessPresets.address, {
+        left: centerX,
+        top: currentY - addressSize,
+        fontFamily: "Arial",
+        fontSize: Math.round(addressSize),
+        fill: "#666666",
+        fontStyle: "italic",
+        originX: "center",
+        textAlign: "center",
+        name: "layout3-address",
+      });
+      fabricCanvas.add(addressText);
+      currentY -= addressSize * 1.5;
+    }
+
+    // Add company name (larger, center)
+    if (businessPresets.companyName) {
+      const companyText = new fabric.Text(businessPresets.companyName, {
+        left: centerX,
+        top: currentY - companyNameSize,
+        fontFamily: "Arial",
+        fontSize: Math.round(companyNameSize),
+        fill: "#000000",
+        fontWeight: "bold",
+        originX: "center",
+        textAlign: "center",
+        name: "layout3-companyName",
+      });
+      fabricCanvas.add(companyText);
+      currentY -= companyNameSize + 20;
+    }
+
+    // Add logo at center (above text)
+    if (businessPresets.logoUrl) {
+      addLogoAtPosition(centerX - logoSize/2, currentY - logoSize, logoSize, "layout3-logo");
+    }
+
+    fabricCanvas.renderAll();
+    console.log("Applied Layout 3: Center-bottom arrangement");
+  };
+
+  // ✅ Helper function to clear existing business info objects
+  const clearBusinessInfo = () => {
+    if (!fabricCanvas) return;
+    
+    const objectsToRemove = fabricCanvas.getObjects().filter(obj => 
+      obj.name && (
+        obj.name.includes('companyName') || 
+        obj.name.includes('address') || 
+        obj.name.includes('contactInfo') || 
+        obj.name.includes('logo') ||
+        obj.name.includes('logoPlaceholder') ||
+        obj.name.includes('logoPlaceholderText') ||
+        obj.name.includes('logoErrorText')
+      )
+    );
+    
+    objectsToRemove.forEach(obj => fabricCanvas.remove(obj));
+  };
+
+  // ✅ Helper function to add logo at specific position
+  const addLogoAtPosition = (left, top, size, name) => {
+    const logoSource = s3Logo || businessPresets.logoUrl;
+    
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = function () {
+      try {
+        const fabricImg = new fabric.Image(img, {
+          left: left,
+          top: top,
+          name: name,
+        });
+
+        const scale = Math.min(size / img.width, size / img.height);
+        fabricImg.set({
+          scaleX: scale,
+          scaleY: scale,
+        });
+
+        fabricCanvas.add(fabricImg);
+        fabricCanvas.renderAll();
+      } catch (error) {
+        console.error("Error creating fabric image:", error);
+        // Add placeholder if logo fails
+        addLogoPlaceholder(left, top, size, name);
+      }
+    };
+
+    img.onerror = function (error) {
+      console.error("Failed to load logo image:", logoSource, error);
+      addLogoPlaceholder(left, top, size, name);
+    };
+
+    img.src = logoSource;
+  };
+
+  // ✅ Helper function to add logo placeholder
+  const addLogoPlaceholder = (left, top, size, name) => {
+    const placeholder = new fabric.Rect({
+      left: left,
+      top: top,
+      width: size,
+      height: size * 0.67,
+      fill: "#f0f0f0",
+      stroke: "#ddd",
+      strokeWidth: 2,
+      rx: 10,
+      ry: 10,
+      name: name + "-placeholder",
+    });
+
+    const placeholderText = new fabric.Text("LOGO", {
+      left: left + size / 2,
+      top: top + (size * 0.67) / 2,
+      fontSize: Math.max(size * 0.15, 12),
+      fill: "#666",
+      fontWeight: "bold",
+      textAlign: "center",
+      originX: "center",
+      originY: "center",
+      name: name + "-text",
+    });
+
+    fabricCanvas.add(placeholder);
+    fabricCanvas.add(placeholderText);
+    fabricCanvas.renderAll();
+  };
+
   // Điều chỉnh cài đặt canvas để có chất lượng tốt hơn
   useEffect(() => {
     // ✅ Chỉ khởi tạo canvas cho step 7
@@ -3919,6 +4253,10 @@ const AIDesign = () => {
 
                 canvas.add(fabricImg);
 
+                // 🎯 Clear canvas background color để ảnh có thể hiển thị
+                canvas.backgroundColor = null;
+                console.log("🎯 [CANVAS] Canvas background color cleared for image visibility");
+
                 // 🎯 IMPROVED: Safe sendToBack with better fallback methods
                 try {
                   if (typeof canvas.sendToBack === "function") {
@@ -4033,10 +4371,80 @@ const AIDesign = () => {
                   `🎯 [CANVAS] ${imageSource.toUpperCase()} IMAGE ADDED TO CANVAS SUCCESSFULLY`
                 );
 
+                // 🎯 BACKUP METHOD: Set image as canvas background để đảm bảo hiển thị
+                try {
+                  console.log("🎯 [CANVAS] Setting image as canvas background for better visibility...");
+                  
+                  // Create a pattern from the image để làm background
+                  const pattern = new fabric.Pattern({
+                    source: fabricImg.getElement(),
+                    repeat: 'no-repeat'
+                  });
+                  
+                  canvas.setBackgroundColor(pattern, canvas.renderAll.bind(canvas));
+                  console.log("🎯 [CANVAS] ✅ Image set as canvas background pattern");
+                } catch (patternError) {
+                  console.warn("🎯 [CANVAS] Pattern background failed, trying setBackgroundImage:", patternError);
+                  
+                  try {
+                    // Fallback: Use setBackgroundImage
+                    canvas.setBackgroundImage(fabricImg, canvas.renderAll.bind(canvas), {
+                      originX: 'left',
+                      originY: 'top',
+                      left: 0,
+                      top: 0,
+                      scaleX: fabricImg.scaleX,
+                      scaleY: fabricImg.scaleY
+                    });
+                    console.log("🎯 [CANVAS] ✅ Image set as background image");
+                  } catch (bgImageError) {
+                    console.warn("🎯 [CANVAS] setBackgroundImage also failed:", bgImageError);
+                  }
+                }
+
                 // Force refresh canvas với delay và kiểm tra hiển thị
                 setTimeout(() => {
                   canvas.renderAll();
                   console.log("🎯 [CANVAS] Force refresh canvas completed");
+
+                  // 🎯 ENHANCED DEBUG: Kiểm tra toàn bộ trạng thái canvas
+                  console.log("🎯 [CANVAS] === COMPLETE CANVAS DEBUG ===");
+                  console.log("🎯 [CANVAS] Canvas size:", canvas.getWidth(), "x", canvas.getHeight());
+                  console.log("🎯 [CANVAS] Canvas background color:", canvas.backgroundColor);
+                  console.log("🎯 [CANVAS] Canvas background image:", canvas.backgroundImage);
+                  console.log("🎯 [CANVAS] Total objects:", canvas.getObjects().length);
+                  
+                  // List all objects với chi tiết
+                  canvas.getObjects().forEach((obj, index) => {
+                    console.log(`🎯 [CANVAS] Object ${index}:`, {
+                      type: obj.type || 'unknown',
+                      name: obj.name || 'unnamed',
+                      visible: obj.visible,
+                      opacity: obj.opacity,
+                      left: obj.left,
+                      top: obj.top,
+                      width: obj.width,
+                      height: obj.height,
+                      scaleX: obj.scaleX,
+                      scaleY: obj.scaleY,
+                      angle: obj.angle,
+                      fill: obj.fill,
+                      stroke: obj.stroke
+                    });
+                  });
+
+                  // Check canvas element
+                  const canvasElement = canvas.getElement();
+                  console.log("🎯 [CANVAS] Canvas element:", {
+                    width: canvasElement.width,
+                    height: canvasElement.height,
+                    styleWidth: canvasElement.style.width,
+                    styleHeight: canvasElement.style.height,
+                    display: window.getComputedStyle(canvasElement).display,
+                    visibility: window.getComputedStyle(canvasElement).visibility,
+                    opacity: window.getComputedStyle(canvasElement).opacity,
+                    zIndex: window.getComputedStyle(canvasElement).zIndex
+                  });
 
                   // Double check image is still there and visible
                   const objects = canvas.getObjects();
@@ -4065,12 +4473,64 @@ const AIDesign = () => {
 
                     // 🎯 Force another render nếu ảnh vẫn không hiển thị
                     if (backgroundImg.visible && backgroundImg.opacity > 0) {
-                      backgroundImg.bringToFront();
+                      try {
+                        // Sử dụng canvas.bringToFront thay vì object.bringToFront
+                        if (typeof canvas.bringToFront === "function") {
+                          canvas.bringToFront(backgroundImg);
+                          console.log("🎯 [CANVAS] Used canvas.bringToFront successfully");
+                        } else if (typeof backgroundImg.bringForward === "function") {
+                          backgroundImg.bringForward();
+                          console.log("🎯 [CANVAS] Used bringForward successfully");
+                        } else {
+                          // Fallback: move to front manually
+                          canvas.remove(backgroundImg);
+                          canvas.add(backgroundImg);
+                          console.log("🎯 [CANVAS] Manually moved to front");
+                        }
+                      } catch (bringError) {
+                        console.warn("🎯 [CANVAS] All bring methods failed:", bringError);
+                      }
                       canvas.renderAll();
                       console.log(
-                        "🎯 [CANVAS] Brought image to front as backup"
+                        "🎯 [CANVAS] Force render completed for visible image"
                       );
                     }
+
+                    // 🎯 EMERGENCY FALLBACK: Recreate image if still not visible
+                    setTimeout(() => {
+                      const canvasData = canvas.toDataURL();
+                      if (canvasData === 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' ||
+                          canvasData.length < 1000) {
+                        console.warn("🎯 [CANVAS] Canvas appears empty, trying emergency reconstruction...");
+                        
+                        try {
+                          // Clear và recreate
+                          canvas.clear();
+                          canvas.backgroundColor = null;
+                          
+                          // Recreate the fabric image
+                          const emergencyImg = new fabric.Image(img, {
+                            left: 0,
+                            top: 0,
+                            scaleX: fabricImg.scaleX,
+                            scaleY: fabricImg.scaleY,
+                            selectable: false,
+                            evented: false,
+                            name: `emergency-backgroundImage-${imageSource}`,
+                            opacity: 1,
+                            visible: true,
+                          });
+                          
+                          canvas.add(emergencyImg);
+                          canvas.renderAll();
+                          console.log("🎯 [CANVAS] ✅ Emergency image reconstruction completed");
+                        } catch (emergencyError) {
+                          console.error("🎯 [CANVAS] Emergency reconstruction failed:", emergencyError);
+                        }
+                      } else {
+                        console.log("🎯 [CANVAS] ✅ Canvas contains image data, should be visible now");
+                      }
+                    }, 500);
                   } else {
                     console.error(
                       "🎯 [CANVAS] ❌ Background image missing from canvas!"
@@ -6770,6 +7230,9 @@ const AIDesign = () => {
             businessPresets={businessPresets}
             s3Logo={s3Logo}
             addBusinessInfoToCanvas={addBusinessInfoToCanvas}
+            applyLayout1={applyLayout1}
+            applyLayout2={applyLayout2}
+            applyLayout3={applyLayout3}
             addText={addText}
             setShowIconPicker={setShowIconPicker}
             icons={icons}
