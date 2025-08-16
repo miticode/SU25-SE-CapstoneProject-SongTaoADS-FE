@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { CircularProgress } from "@mui/material";
+import { CircularProgress, Chip, Tooltip } from "@mui/material";
 import {
   FaFont,
   FaPalette,
@@ -10,13 +10,68 @@ import {
   FaItalic,
   FaUnderline,
   FaCheck,
+  FaImage,
+  FaMagic,
+  FaEdit,
+  FaInfo,
+  FaDownload,
+  FaShoppingCart,
+  FaTimes,
+  FaSave,
+  FaCog,
+  FaExpandArrowsAlt,
 } from "react-icons/fa";
+
+// Mark motion as used for linters that don't detect JSX member usage
+void motion;
+
+// CSS cho slider và hiệu ứng
+const sliderStyles = `
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #10b981;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 2px solid white;
+  }
+
+  .slider::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #10b981;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 2px solid white;
+  }
+
+  .slider:focus {
+    outline: none;
+  }
+
+  .slider:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = sliderStyles;
+  document.head.appendChild(styleSheet);
+}
 
 const DesignEditor = ({
   selectedBackgroundForCanvas,
   businessPresets,
   s3Logo,
   addBusinessInfoToCanvas,
+  applyLayout1,
+  applyLayout2,
+  applyLayout3,
   addText,
   setShowIconPicker,
   icons,
@@ -37,7 +92,6 @@ const DesignEditor = ({
   exportDesign,
   isExporting,
   handleConfirm,
-  currentAIDesign,
   isOrdering,
   containerVariants,
   itemVariants,
@@ -293,33 +347,98 @@ const DesignEditor = ({
 
   return (
     <motion.div
-      className="max-w-7xl mx-auto"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <motion.h2
-        className="text-3xl font-bold text-custom-dark mb-8 text-center"
+      {/* Header với breadcrumb và trạng thái */}
+      <motion.div 
+        className="mb-8"
         variants={itemVariants}
       >
-        {selectedBackgroundForCanvas
-          ? "Chỉnh sửa thiết kế với Background"
-          : "Chỉnh sửa thiết kế AI"}
-      </motion.h2>
+        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <span>Bước 7</span>
+              <span>•</span>
+              <Chip 
+                label="Chỉnh sửa thiết kế" 
+                color="primary" 
+                size="small"
+                icon={<FaEdit />}
+              />
+            </div>
+            <div className="h-6 w-px bg-gray-300"></div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {selectedBackgroundForCanvas ? (
+                <div className="flex items-center space-x-2">
+                  <FaImage className="text-purple-500" />
+                  <span>Chỉnh sửa thiết kế với Background</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <FaMagic className="text-blue-500" />
+                  <span>Chỉnh sửa thiết kế AI</span>
+                </div>
+              )}
+            </h1>
+          </div>
+          
+          {/* Quick info panel */}
+          <div className="flex items-center space-x-4">
+            {pixelValueData && pixelValueData.width && pixelValueData.height && (
+              <Tooltip title="Kích thước thiết kế gốc">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  <div className="flex items-center space-x-2">
+                    <FaExpandArrowsAlt className="text-blue-600 text-sm" />
+                    <span className="text-sm font-semibold text-blue-800">
+                      {pixelValueData.width} × {pixelValueData.height}px
+                    </span>
+                  </div>
+                </div>
+              </Tooltip>
+            )}
+            
+            <Tooltip title="Trạng thái thiết kế">
+              <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-green-800">Đang chỉnh sửa</span>
+                </div>
+              </div>
+            </Tooltip>
+          </div>
+        </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Business Info Panel - Bên trái - giảm xuống còn 2 cột */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-lg p-4">
-            <h3 className="text-xl font-semibold mb-4">
-              Thông tin doanh nghiệp
-            </h3>
+      {/* Main content area */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        
+        {/* Business Info Panel - Enhanced design */}
+        <motion.div 
+          className="xl:col-span-3"
+          variants={itemVariants}
+        >
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+            {/* Panel header */}
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center">
+                <FaPalette className="mr-2" />
+                Thông tin doanh nghiệp
+              </h3>
+              <p className="text-indigo-100 text-sm mt-1">
+                Nhấp để thêm vào thiết kế
+              </p>
+            </div>
 
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
               {/* Company Name */}
               {businessPresets.companyName && (
-                <div
-                  className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all"
                   onClick={() =>
                     addBusinessInfoToCanvas(
                       "companyName",
@@ -327,48 +446,58 @@ const DesignEditor = ({
                     )
                   }
                 >
-                  <div className="flex items-center mb-1">
-                    <FaFont className="text-blue-500 mr-2" />
-                    <span className="text-sm font-medium text-gray-600">
-                      Tên công ty
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1.5 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                        <FaFont className="text-blue-600 text-sm" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Tên công ty</span>
+                    </div>
+                    <FaPlus className="text-gray-400 group-hover:text-blue-500 transition-colors text-sm" />
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 truncate">
+                  <p className="text-sm font-semibold text-gray-800 truncate mb-1">
                     {businessPresets.companyName}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     Nhấn để thêm vào thiết kế
                   </p>
-                </div>
+                </motion.div>
               )}
 
               {/* Address */}
               {businessPresets.address && (
-                <div
-                  className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-green-50 hover:border-green-300 transition-all"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-green-300 hover:bg-green-50 transition-all"
                   onClick={() =>
                     addBusinessInfoToCanvas("address", businessPresets.address)
                   }
                 >
-                  <div className="flex items-center mb-1">
-                    <FaFont className="text-green-500 mr-2" />
-                    <span className="text-sm font-medium text-gray-600">
-                      Address
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1.5 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                        <FaFont className="text-green-600 text-sm" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Địa chỉ</span>
+                    </div>
+                    <FaPlus className="text-gray-400 group-hover:text-green-500 transition-colors text-sm" />
                   </div>
-                  <p className="text-sm text-gray-800 truncate">
+                  <p className="text-sm font-medium text-gray-800 truncate mb-1">
                     {businessPresets.address}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     Nhấn để thêm vào thiết kế
                   </p>
-                </div>
+                </motion.div>
               )}
 
               {/* Contact Info */}
               {businessPresets.contactInfo && (
-                <div
-                  className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-all"
                   onClick={() =>
                     addBusinessInfoToCanvas(
                       "contactInfo",
@@ -376,25 +505,30 @@ const DesignEditor = ({
                     )
                   }
                 >
-                  <div className="flex items-center mb-1">
-                    <FaFont className="text-orange-500 mr-2" />
-                    <span className="text-sm font-medium text-gray-600">
-                      Liên hệ
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1.5 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
+                        <FaFont className="text-orange-600 text-sm" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Liên hệ</span>
+                    </div>
+                    <FaPlus className="text-gray-400 group-hover:text-orange-500 transition-colors text-sm" />
                   </div>
-                  <p className="text-sm text-gray-800 truncate">
+                  <p className="text-sm font-medium text-gray-800 truncate mb-1">
                     {businessPresets.contactInfo}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     Nhấn để thêm vào thiết kế
                   </p>
-                </div>
+                </motion.div>
               )}
 
               {/* Logo */}
               {businessPresets.logoUrl && (
-                <div
-                  className="p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition-all"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition-all"
                   onClick={() =>
                     addBusinessInfoToCanvas(
                       "logoUrl",
@@ -402,348 +536,432 @@ const DesignEditor = ({
                     )
                   }
                 >
-                  <div className="flex items-center mb-1">
-                    <FaPalette className="text-purple-500 mr-2" />
-                    <span className="text-sm font-medium text-gray-600">
-                      Logo
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1.5 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                        <FaImage className="text-purple-600 text-sm" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Logo</span>
+                    </div>
+                    <FaPlus className="text-gray-400 group-hover:text-purple-500 transition-colors text-sm" />
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3 mb-2">
                     <img
                       src={s3Logo || businessPresets.logoUrl}
                       alt="Logo preview"
-                      className="w-6 h-6 object-cover rounded"
+                      className="w-10 h-10 object-cover rounded-lg border border-gray-200"
                       onError={(e) => {
                         e.target.style.display = "none";
                       }}
                     />
-                    <span className="text-xs text-gray-800">Logo công ty</span>
+                    <span className="text-sm font-medium text-gray-800">Logo công ty</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     Nhấn để thêm vào thiết kế
                   </p>
-                </div>
+                </motion.div>
               )}
 
-              {/* Nếu không có thông tin */}
+              {/* Empty state */}
               {!businessPresets.companyName &&
                 !businessPresets.address &&
                 !businessPresets.contactInfo &&
                 !businessPresets.logoUrl && (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 text-sm">
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-3">📋</div>
+                    <p className="text-gray-500 font-medium">
                       Không có thông tin doanh nghiệp
                     </p>
-                    <p className="text-gray-400 text-xs mt-1">
+                    <p className="text-gray-400 text-sm mt-1">
                       Hãy cập nhật thông tin ở bước 2
                     </p>
                   </div>
                 )}
             </div>
-          </div>
-        </div>
 
-        {/* Canvas Area - Giảm xuống 7 cột để text controls có nhiều chỗ hơn */}
-        <div className="lg:col-span-7">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-xl font-semibold">Thiết kế</h3>
-                {/* Hiển thị thông tin kích thước pixel */}
-                {pixelValueData && pixelValueData.width && pixelValueData.height && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Kích thước gốc: {pixelValueData.width} × {pixelValueData.height} pixel
-                  </p>
-                )}
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={addText}
-                  className="px-3 py-2 bg-custom-secondary text-white rounded-lg hover:bg-custom-secondary/90 flex items-center text-sm"
-                >
-                  <FaPlus className="mr-1" />
-                  Thêm text
-                </button>
-
-                {/* NÚT THÊM ICON MỚI */}
-                <button
-                  onClick={() => {
-                    setShowIconPicker(true);
-                    if (icons.length === 0) {
-                      loadIcons(1);
-                    }
-                  }}
-                  className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center text-sm"
-                >
-                  <FaPalette className="mr-1" />
-                  Thêm icon
-                </button>
-
-                <label className="px-3 py-2 bg-custom-primary text-white rounded-lg hover:bg-custom-primary/90 flex items-center text-sm cursor-pointer">
-                  <FaPlus className="mr-1" />
-                  Thêm ảnh
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
-                </label>
-                <button
-                  onClick={deleteSelectedObject}
-                  disabled={!hasActiveObject}
-                  className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 flex items-center text-sm"
-                >
-                  <FaTrash className="mr-1" />
-                  Xóa
-                </button>
-              </div>
-            </div>
-
-            <div
-              className="border-2 border-gray-200 rounded-lg canvas-container"
-              style={{
-                position: "relative",
-                width: "100%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center", // Center canvas vertically
-                minHeight: "200px",
-                backgroundColor: "#f8f9fa",
-                overflow: "visible", // Changed from auto to visible
-                padding: "10px",
-                zIndex: 1, // Ensure canvas is visible
-              }}
-            >
-              <canvas
-                ref={canvasRef}
-                style={{ 
-                  display: "block",
-                  maxWidth: "none", // Allow canvas to be its actual size
-                  height: "auto",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  backgroundColor: "transparent", // Changed to transparent to see background images
-                  zIndex: 2, // Higher z-index
-                  imageRendering: "auto", // Ensure good image rendering
-                }}
-              />
-             
-            
-            </div>
-          </div>
-        </div>
-
-        {/* Text Controls - Bên phải - tăng lên 3 cột cho đủ chỗ màu chữ */}
-        <div className="lg:col-span-3">
-          <div className="bg-white rounded-xl shadow-lg p-4">
-            <h3 className="text-lg font-semibold mb-3">Tùy chỉnh text</h3>
-
-            {selectedText ? (
-              <div className="space-y-3">
-                {/* Text Content */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Nội dung
-                  </label>
-                  <textarea
-                    value={textSettings.text}
-                    onChange={(e) => {
-                      updateTextProperty("text", e.target.value);
-                    }}
-                    className="w-full p-2 border border-gray-300 rounded-lg resize-none text-sm"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Font Family */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Font chữ
-                  </label>
-                  <select
-                    value={textSettings.fontFamily}
-                    onChange={(e) =>
-                      updateTextProperty("fontFamily", e.target.value)
-                    }
-                    className="w-full p-1.5 border border-gray-300 rounded-lg text-sm"
+            {/* Quick Layout Section */}
+            {(businessPresets.companyName || 
+              businessPresets.address || 
+              businessPresets.contactInfo || 
+              businessPresets.logoUrl) && (
+              <div className="border-t border-gray-100 bg-gray-50 p-6">
+                <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center">
+                  <FaCog className="text-indigo-500 mr-2" />
+                  Layout tự động
+                </h4>
+                <div className="space-y-3">
+                  {/* Layout 1 Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={applyLayout1}
+                    className="w-full p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all text-sm font-medium flex items-center justify-between group"
                   >
-                    {fonts.map((font) => (
-                      <option
-                        key={font}
-                        value={font}
-                        style={{ fontFamily: font }}
-                      >
-                        {font}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {/* Font Size */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Kích thước: {textSettings.fontSize}px
-                  </label>
-                  <input
-                    type="range"
-                    min="12"
-                    max="100"
-                    value={textSettings.fontSize}
-                    onChange={(e) =>
-                      updateTextProperty("fontSize", parseInt(e.target.value))
-                    }
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Text Color */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Màu chữ
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={textSettings.fill}
-                        onChange={(e) =>
-                          updateTextProperty("fill", e.target.value)
-                        }
-                        className="w-10 h-10 rounded-lg border-2 border-gray-300 cursor-pointer"
-                        title="Chọn màu"
-                      />
+                    <div className="flex items-center">
+                      <span className="mr-3 text-lg">📋</span>
+                      <div className="text-left">
+                        <div className="font-semibold">Layout 1</div>
+                        <div className="text-xs text-blue-100">Góc trái trên</div>
+                      </div>
                     </div>
-                    <input
-                      type="text"
-                      value={textSettings.fill}
-                      onChange={(e) =>
-                        updateTextProperty("fill", e.target.value)
-                      }
-                      placeholder="#000000"
-                      className="flex-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                    />
-                  </div>
+                    <FaPlus className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.button>
+
+                  {/* Layout 2 Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={applyLayout2}
+                    className="w-full p-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all text-sm font-medium flex items-center justify-between group"
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-3 text-lg">📌</span>
+                      <div className="text-left">
+                        <div className="font-semibold">Layout 2</div>
+                        <div className="text-xs text-green-100">Góc phải dưới</div>
+                      </div>
+                    </div>
+                    <FaPlus className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.button>
+
+                  {/* Layout 3 Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={applyLayout3}
+                    className="w-full p-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all text-sm font-medium flex items-center justify-between group"
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-3 text-lg">📊</span>
+                      <div className="text-left">
+                        <div className="font-semibold">Layout 3</div>
+                        <div className="text-xs text-purple-100">Giữa dưới</div>
+                      </div>
+                    </div>
+                    <FaPlus className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.button>
                 </div>
 
-                {/* Text Style Controls */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Kiểu chữ
-                  </label>
-                  <div className="flex space-x-1">
-                    <button
-                      onClick={() =>
-                        updateTextProperty(
-                          "fontWeight",
-                          textSettings.fontWeight === "bold" ? "normal" : "bold"
-                        )
-                      }
-                      className={`p-1.5 rounded border ${
-                        textSettings.fontWeight === "bold"
-                          ? "bg-custom-secondary text-white"
-                          : "bg-gray-100"
-                      }`}
-                    >
-                      <FaBold />
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        updateTextProperty(
-                          "fontStyle",
-                          textSettings.fontStyle === "italic"
-                            ? "normal"
-                            : "italic"
-                        )
-                      }
-                      className={`p-1.5 rounded border ${
-                        textSettings.fontStyle === "italic"
-                          ? "bg-custom-secondary text-white"
-                          : "bg-gray-100"
-                      }`}
-                    >
-                      <FaItalic />
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        updateTextProperty("underline", !textSettings.underline)
-                      }
-                      className={`p-1.5 rounded border ${
-                        textSettings.underline
-                          ? "bg-custom-secondary text-white"
-                          : "bg-gray-100"
-                      }`}
-                    >
-                      <FaUnderline />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Common Colors */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Màu phổ biến
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      "#000000",
-                      "#ffffff", 
-                      "#ff0000",
-                      "#00ff00",
-                      "#0000ff",
-                      "#ffff00",
-                      "#ff00ff",
-                      "#00ffff",
-                      "#ffa500",
-                      "#800080",
-                      "#ffc0cb",
-                      "#a52a2a",
-                    ].map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => updateTextProperty("fill", color)}
-                        className={`w-10 h-10 rounded border-2 hover:scale-105 transition-transform duration-150 ${
-                          textSettings.fill === color 
-                            ? "border-custom-secondary shadow-lg" 
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700 text-center font-medium">
+                    💡 Layout tự động sắp xếp toàn bộ thông tin doanh nghiệp
+                  </p>
                 </div>
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-6 text-sm">
-                Chọn một text để chỉnh sửa hoặc thêm text mới
-              </p>
             )}
           </div>
-        </div>
+        </motion.div>
+
+        {/* Canvas Area - Expanded like Canva (right side) */}
+        <motion.div 
+          className="xl:col-span-9"
+          variants={itemVariants}
+        >
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+            {/* Canvas header with compact top toolbar (like Canva) */}
+            <div className="bg-gradient-to-r from-slate-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+              {/* Row 1: title + quick info */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <FaEdit className="mr-2 text-indigo-500" />
+                  <h3 className="text-base sm:text-lg font-bold text-gray-800">Khu vực thiết kế</h3>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {pixelValueData && pixelValueData.width && pixelValueData.height && (
+                    <Tooltip title="Kích thước thiết kế gốc">
+                      <div className="hidden sm:block bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
+                        <div className="flex items-center space-x-1">
+                          <FaExpandArrowsAlt className="text-blue-600 text-xs" />
+                          <span className="text-xs font-semibold text-blue-800">
+                            {pixelValueData.width}×{pixelValueData.height}px
+                          </span>
+                        </div>
+                      </div>
+                    </Tooltip>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: toolbar - text controls if a text is selected, else quick add actions */}
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedText ? (
+                  <>
+                    {/* Text content */}
+                    <input
+                      type="text"
+                      value={textSettings.text}
+                      onChange={(e) => updateTextProperty("text", e.target.value)}
+                      placeholder="Nội dung..."
+                      className="w-48 sm:w-72 md:w-96 p-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    />
+
+                    {/* Font family */}
+                    <select
+                      value={textSettings.fontFamily}
+                      onChange={(e) => updateTextProperty("fontFamily", e.target.value)}
+                      className="w-40 p-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    >
+                      {fonts.map((font) => (
+                        <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
+                      ))}
+                    </select>
+
+                    {/* Font size */}
+                    <div className="flex items-center space-x-1">
+                      <input
+                        type="number"
+                        min={12}
+                        max={200}
+                        value={textSettings.fontSize}
+                        onChange={(e) => updateTextProperty("fontSize", parseInt(e.target.value) || 0)}
+                        className="w-20 p-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none"
+                        title="Kích thước"
+                      />
+                      <span className="text-xs text-gray-500">px</span>
+                    </div>
+
+                    {/* Text color */}
+                    <input
+                      type="color"
+                      value={textSettings.fill}
+                      onChange={(e) => updateTextProperty("fill", e.target.value)}
+                      className="w-10 h-10 p-1 bg-white border border-gray-300 rounded-md"
+                      title="Màu chữ"
+                    />
+
+                    {/* Style toggles */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => updateTextProperty("fontWeight", textSettings.fontWeight === "bold" ? "normal" : "bold")}
+                      className={`p-2 rounded-md border text-sm ${textSettings.fontWeight === "bold" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white border-gray-300"}`}
+                      title="Đậm"
+                    >
+                      <FaBold />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => updateTextProperty("fontStyle", textSettings.fontStyle === "italic" ? "normal" : "italic")}
+                      className={`p-2 rounded-md border text-sm ${textSettings.fontStyle === "italic" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white border-gray-300"}`}
+                      title="Nghiêng"
+                    >
+                      <FaItalic />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => updateTextProperty("underline", !textSettings.underline)}
+                      className={`p-2 rounded-md border text-sm ${textSettings.underline ? "bg-emerald-500 text-white border-emerald-500" : "bg-white border-gray-300"}`}
+                      title="Gạch chân"
+                    >
+                      <FaUnderline />
+                    </motion.button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Tooltip title="Thêm văn bản">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={addText}
+                        className="p-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-all shadow-sm"
+                      >
+                        <FaFont className="text-sm" />
+                      </motion.button>
+                    </Tooltip>
+
+                    <Tooltip title="Thêm biểu tượng">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          setShowIconPicker(true);
+                          if (icons.length === 0) {
+                            loadIcons(1);
+                          }
+                        }}
+                        className="p-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all shadow-sm"
+                      >
+                        <FaPalette className="text-sm" />
+                      </motion.button>
+                    </Tooltip>
+
+                    <Tooltip title="Thêm hình ảnh">
+                      <label className="p-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all cursor-pointer shadow-sm block">
+                        <FaImage className="text-sm" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                    </Tooltip>
+                  </div>
+                )}
+
+                {/* Right-aligned delete button for any selected object */}
+                <div className="ml-auto">
+                  <Tooltip title="Xóa đối tượng đã chọn">
+                    <motion.button
+                      whileHover={{ scale: hasActiveObject ? 1.05 : 1 }}
+                      whileTap={{ scale: hasActiveObject ? 0.95 : 1 }}
+                      onClick={deleteSelectedObject}
+                      disabled={!hasActiveObject}
+                      className={`p-2 rounded-md ${hasActiveObject ? "bg-red-500 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    >
+                      <FaTrash />
+                    </motion.button>
+                  </Tooltip>
+                </div>
+              </div>
+            </div>
+
+            {/* Canvas container với guidelines */}
+            <div className="p-6">
+              <div
+                className="relative bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden"
+                style={{
+                  minHeight: "400px",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                {/* Background pattern */}
+                <div 
+                  className="absolute inset-0 opacity-5"
+                  style={{
+                    backgroundImage: `
+                      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.15) 1px, transparent 0)
+                    `,
+                    backgroundSize: '20px 20px'
+                  }}
+                ></div>
+                
+                <canvas
+                  ref={canvasRef}
+                  className="relative z-10 max-w-full h-auto border border-gray-300 rounded-lg shadow-lg"
+                  style={{ 
+                    imageRendering: "auto",
+                    backgroundColor: "transparent"
+                  }}
+                />
+                
+                {/* Guidelines/hints */}
+                {!fabricCanvas && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center p-8">
+                      <div className="text-6xl mb-4">🎨</div>
+                      <p className="text-gray-500 font-medium">Đang tải canvas...</p>
+                      <p className="text-gray-400 text-sm mt-2">Vui lòng chờ trong giây lát</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Canvas tips */}
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start space-x-2">
+                  <FaInfo className="text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800 mb-1">Mẹo sử dụng</p>
+                    <ul className="text-xs text-blue-700 space-y-1">
+                      <li>• Nhấp để chọn đối tượng, kéo để di chuyển</li>
+                      <li>• Kéo góc để thay đổi kích thước</li>
+                      <li>• Nhấp đúp để chỉnh sửa văn bản</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+  {/* No right text panel: controls moved to top toolbar to maximize canvas space */}
       </div>
-      <div className="mt-8 max-w-3xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-semibold mb-4">Ghi chú đơn hàng</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nhập ghi chú hoặc yêu cầu đặc biệt
-              </label>
-              <textarea
-                value={customerNote}
-                onChange={(e) => setCustomerNote(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-custom-primary focus:border-custom-primary transition-all"
-                rows={4}
-                placeholder="Nhập yêu cầu đặc biệt hoặc ghi chú cho đơn hàng của bạn..."
-              />
+
+      {/* Customer Notes Section - Enhanced */}
+      <motion.div 
+        className="mt-8"
+        variants={itemVariants}
+      >
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          {/* Notes header */}
+          <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4">
+            <h3 className="text-lg font-bold text-white flex items-center">
+              <FaEdit className="mr-2" />
+              Ghi chú đơn hàng
+            </h3>
+            <p className="text-amber-100 text-sm mt-1">
+              Thêm yêu cầu đặc biệt hoặc ghi chú cho đơn hàng
+            </p>
+          </div>
+
+          <div className="p-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Ghi chú chi tiết (tùy chọn)
+                </label>
+                <textarea
+                  value={customerNote}
+                  onChange={(e) => setCustomerNote(e.target.value)}
+                  className="w-full p-4 border-2 border-gray-200 rounded-lg resize-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all"
+                  rows={4}
+                  placeholder="VD: Muốn sử dụng màu xanh làm chủ đạo, font chữ to hơn, hoặc thay đổi vị trí logo..."
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    Ghi chú sẽ giúp đội ngũ thiết kế hiểu rõ yêu cầu của bạn
+                  </p>
+                  <span className="text-xs text-gray-400">
+                    {customerNote.length}/500 ký tự
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick note suggestions */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">Gợi ý ghi chú:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Thay đổi màu sắc chủ đạo",
+                    "Điều chỉnh kích thước font",
+                    "Thay đổi vị trí logo",
+                    "Thêm viền cho văn bản",
+                    "Sử dụng màu nền khác"
+                  ].map((suggestion) => (
+                    <motion.button
+                      key={suggestion}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        if (!customerNote.includes(suggestion)) {
+                          setCustomerNote(prev => 
+                            prev ? `${prev}\n• ${suggestion}` : `• ${suggestion}`
+                          );
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-amber-700"
+                    >
+                      + {suggestion}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      {/* Action Buttons */}
-      <div className="flex justify-center space-x-6 mt-8">
+      </motion.div>
+
+      {/* Action Buttons - Professional design */}
+      <motion.div 
+        className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 mt-8"
+        variants={itemVariants}
+      >
+        {/* Back Button */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -775,32 +993,38 @@ const DesignEditor = ({
               setCurrentStep(5);
             }
           }}
-          className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all"
+          className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all shadow-lg flex items-center"
         >
-          Quay lại
+          <FaTimes className="mr-2" />
+          Quay lại bước trước
         </motion.button>
 
+        {/* Export Button */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={exportDesign}
           disabled={isExporting}
-          className="px-8 py-3 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all flex items-center"
+          className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-green-700 transition-all shadow-lg flex items-center min-w-[200px] justify-center"
         >
           {isExporting ? (
             <>
               <CircularProgress size={20} color="inherit" className="mr-2" />
-              Đang xử lý...
+              <span>Đang xuất thiết kế...</span>
             </>
           ) : (
             <>
-              {selectedBackgroundForCanvas
-                ? "Xuất thiết kế Background"
-                : "Xuất thiết kế AI"}
+              <FaDownload className="mr-2" />
+              <span>
+                {selectedBackgroundForCanvas
+                  ? "Xuất thiết kế Background"
+                  : "Xuất thiết kế AI"}
+              </span>
             </>
           )}
         </motion.button>
 
+        {/* Order Button */}
         <motion.button
           whileHover={{
             scale: hasExportedInCurrentSession && !isOrdering ? 1.05 : 1,
@@ -808,32 +1032,53 @@ const DesignEditor = ({
           whileTap={{ scale: hasExportedInCurrentSession && !isOrdering ? 0.95 : 1 }}
           onClick={handleConfirm}
           disabled={!hasExportedInCurrentSession || isOrdering}
-          className={`order-button px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+          className={`px-8 py-4 font-semibold rounded-lg transition-all shadow-lg flex items-center min-w-[200px] justify-center ${
             hasExportedInCurrentSession && !isOrdering
-              ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700"
+              : "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500 cursor-not-allowed"
           }`}
         >
           {isOrdering ? (
             <>
               <CircularProgress size={20} color="inherit" className="mr-2" />
-              Đang xử lý...
+              <span>Đang xử lý đơn hàng...</span>
             </>
           ) : !hasExportedInCurrentSession ? (
-            <>
-              <FaCheck className="mr-2" />
-              {selectedBackgroundForCanvas
-                ? "Xuất thiết kế Background trước khi đặt hàng"
-                : "Xuất thiết kế AI trước khi đặt hàng"}
-            </>
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-1">
+                <FaSave className="mr-2" />
+                <span>Cần xuất thiết kế trước</span>
+              </div>
+              <div className="text-xs opacity-75">
+                {selectedBackgroundForCanvas
+                  ? "Xuất Background để tiếp tục"
+                  : "Xuất AI để tiếp tục"}
+              </div>
+            </div>
           ) : (
             <>
-              <FaCheck className="mr-2" />
-              Đặt hàng
+              <FaShoppingCart className="mr-2" />
+              <span>Đặt hàng ngay</span>
             </>
           )}
         </motion.button>
-      </div>
+      </motion.div>
+
+      {/* Export status indicator */}
+      {hasExportedInCurrentSession && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 flex justify-center"
+        >
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 flex items-center">
+            <FaCheck className="text-green-500 mr-2" />
+            <span className="text-sm font-medium text-green-700">
+              Thiết kế đã được xuất thành công! Bạn có thể đặt hàng ngay.
+            </span>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 };
