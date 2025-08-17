@@ -11,9 +11,9 @@ import {
   sendNotificationToRoleThunk,
   selectSendingNotification,
   selectSendingRoleNotification,
-  selectSendRoleNotificationError,
   selectSendRoleNotificationMessage,
 } from "../../store/features/notification/notificationSlice";
+import { selectAuthUser } from "../../store/features/auth/authSlice";
 import {
   Box,
   Paper,
@@ -276,11 +276,11 @@ const UserManager = () => {
     totalElements,
     pageSize,
   } = useSelector((state) => state.users);
+  const currentUser = useSelector(selectAuthUser);
 
   // Notification Redux state
   const sendingNotification = useSelector(selectSendingNotification);
   const sendingRoleNotification = useSelector(selectSendingRoleNotification);
-  const roleNotificationError = useSelector(selectSendRoleNotificationError);
   const sendRoleNotificationSuccess = useSelector(selectSendRoleNotificationMessage);
 
   // Available roles
@@ -685,6 +685,10 @@ const UserManager = () => {
 
   // Use only real API data with filtering and client-side pagination
   const displayUsers = (users || []).filter((user) => {
+    // Hide the currently logged-in user
+    if (currentUser && (user.id === currentUser.id || user.email === currentUser.email)) {
+      return false;
+    }
     // Search filter - search in name, email, phone
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
@@ -730,7 +734,10 @@ const UserManager = () => {
   const totalCount =
     roleFilter !== "all" || statusFilter !== "all" || searchTerm.trim()
       ? displayUsers.length
-      : totalElements || displayUsers.length;
+      : Math.max(
+          0,
+          (totalElements ?? displayUsers.length) - (currentUser ? 1 : 0)
+        );
 
   return (
     <Box
