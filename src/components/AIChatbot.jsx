@@ -10,6 +10,11 @@ import {
   Badge,
   Button,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  MenuItem,
 } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import CloseIcon from "@mui/icons-material/Close";
@@ -17,6 +22,7 @@ import SendIcon from "@mui/icons-material/Send";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import TuneIcon from "@mui/icons-material/Tune";
 import SettingsSuggestIcon from "@mui/icons-material/SettingsSuggest"; // Import SettingsSuggestIcon
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -27,6 +33,7 @@ import {
   selectChatStatus,
 } from "../store/features/chat/chatSlice";
 import { selectIsAuthenticated } from "../store/features/auth/authSlice";
+import { setCurrentThread } from "../store/features/chat/chatSlice";
 
 const FAQS = [
   "Tôi muốn thiết kế biển quảng cáo",
@@ -48,7 +55,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#6366f1",
+        bgcolor: "#ffffff",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0s",
       }}
@@ -58,7 +65,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#6366f1",
+        bgcolor: "#ffffff",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0.2s",
       }}
@@ -68,7 +75,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#6366f1",
+        bgcolor: "#ffffff",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0.4s",
       }}
@@ -105,13 +112,27 @@ const AIChatbot = () => {
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
+  const isBusy = status === "loading";
+
+  // Ensure thread is basic when not in advanced route
+  useEffect(() => {
+    if (location.pathname !== "/advanced-chat") {
+      dispatch(setCurrentThread('basic'));
+    }
+  }, [location.pathname, dispatch]);
+
+  // Only render messages for basic thread
+  const chatMessages = React.useMemo(
+    () => (messages || []).filter((m) => (m.thread || 'basic') === 'basic'),
+    [messages]
+  );
 
   // Auto scroll to bottom
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, open]);
+  }, [chatMessages, open]);
 
   // Save messages to localStorage
   useEffect(() => {
@@ -151,22 +172,22 @@ const AIChatbot = () => {
 
   // Unread badge logic
   useEffect(() => {
-    if (!open && messages.length > 0) {
-      const last = messages[messages.length - 1];
+    if (!open && chatMessages.length > 0) {
+      const last = chatMessages[chatMessages.length - 1];
       if (last.from === "bot") setUnreadCount((c) => c + 1);
     }
     if (open) setUnreadCount(0);
-  }, [messages, open]);
+  }, [chatMessages, open]);
 
   // Hiển thị thông báo đăng nhập khi mở chatbot lần đầu và chưa đăng nhập
   useEffect(() => {
-    if (open && !isAuthenticated && messages.length === 0) {
+    if (open && !isAuthenticated && chatMessages.length === 0) {
       dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
     }
-  }, [open, isAuthenticated, messages.length, dispatch]);
+  }, [open, isAuthenticated, chatMessages.length, dispatch]);
 
   const handleSend = async (msg) => {
-    if ((!input.trim() && !msg) || status === "loading") return;
+    if ((!input.trim() && !msg) || isBusy) return;
 
     // Kiểm tra trạng thái đăng nhập
     if (!isAuthenticated) {
@@ -177,6 +198,7 @@ const AIChatbot = () => {
     const userMessage = msg || input.trim();
     setInput("");
 
+    // Mặc định gửi sang chatbot
     dispatch(addUserMessage(userMessage));
     try {
       await dispatch(sendChatMessage(userMessage)).unwrap();
@@ -186,11 +208,16 @@ const AIChatbot = () => {
   };
 
   const handleAdvancedToggle = () => {
+    dispatch(setCurrentThread('advanced'));
     navigate("/advanced-chat");
   };
 
+  // Tracking is only available in Advanced Chat
+
   // Ẩn chatbot khi đang ở trang advanced-chat
   if (location.pathname === "/advanced-chat") {
+    // đảm bảo khi ở màn nâng cao, thread là advanced
+    dispatch(setCurrentThread('advanced'));
     return null;
   }
 
@@ -206,7 +233,7 @@ const AIChatbot = () => {
             position: "fixed",
             bottom: 32,
             right: 32,
-            zIndex: 9999,
+            zIndex: 1400,
           }}
         >
           <motion.div
@@ -216,14 +243,14 @@ const AIChatbot = () => {
           >
             <IconButton
               sx={{
-                bgcolor: "#6366f1",
+                bgcolor: "#ffffff",
                 color: "#fff",
                 width: 68,
                 height: 68,
-                boxShadow: "0 8px 25px rgba(99, 102, 241, 0.3)",
+                boxShadow: "0 8px 25px rgba(255, 255, 255, 0.3)",
                 "&:hover": {
-                  bgcolor: "#4f46e5",
-                  boxShadow: "0 12px 35px rgba(99, 102, 241, 0.4)",
+                  bgcolor: "#f3f4f6",
+                  boxShadow: "0 12px 35px rgba(255, 255, 255, 0.4)",
                 },
               }}
               onClick={() => setOpen(true)}
@@ -257,7 +284,7 @@ const AIChatbot = () => {
               position: "fixed",
               bottom: 32,
               right: 32,
-              zIndex: 9999,
+              zIndex: 1400,
               width: 390,
               height: 600,
               display: "flex",
@@ -268,21 +295,28 @@ const AIChatbot = () => {
           >
             <Paper
               elevation={3}
-              sx={{
+                            sx={{  
                 width: "100%",
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
                 borderRadius: 3,
                 overflow: "hidden",
-                bgcolor: "#fff",
+                background: "rgba(22, 22, 24, 0.25)",
+                backdropFilter: "blur(40px) saturate(200%)",
+                border: "1px solid rgba(255, 255, 255, 0.18)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+
               }}
             >
               {/* Header */}
               <Box
                 sx={{
                   p: 2,
-                  bgcolor: "#6366f1",
+                  background: "rgba(22, 22, 24, 0.25)",
+                  backdropFilter: "blur(40px) saturate(200%)",
+                  border: "1px solid rgba(255, 255, 255, 0.18)",
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
                   color: "#fff",
                   display: "flex",
                   justifyContent: "space-between",
@@ -293,9 +327,14 @@ const AIChatbot = () => {
                   <Avatar
                     src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                     alt="AI Bot"
-                    sx={{ width: 32, height: 32 }}
+                    sx={{ 
+                      width: 32, 
+                      height: 32,
+                      border: "2px solid rgba(255, 255, 255, 0.3)",
+                      boxShadow: "0 4px 20px rgba(255, 255, 255, 0.3)",
+                    }}
                   />
-                  <Typography variant="h6" fontWeight={600}>
+                  <Typography variant="h6" fontWeight={600} sx={{ color: "white" }}>
                     Song Tạo AI Pro
                   </Typography>
                 </Stack>
@@ -332,41 +371,82 @@ const AIChatbot = () => {
                     background: "transparent",
                   },
                   "&::-webkit-scrollbar-thumb": {
-                    background: "rgba(99, 102, 241, 0.3)",
+                    background: "rgba(255, 255, 255, 0.3)",
                     borderRadius: 8,
                     "&:hover": {
-                      background: "rgba(99, 102, 241, 0.5)",
+                      background: "rgba(255, 255, 255, 0.5)",
                     },
                   },
                   "&::-webkit-scrollbar-track": {
-                    background: "rgba(17, 24, 39, 0.1)",
+                    background: "rgba(22, 22, 24, 0.1)",
                   },
                 }}
               >
                 {/* FAQ Quick Replies */}
-                <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: "#fff" }}>
+                <Box sx={{ 
+                  px: 2, 
+                  pt: 2, 
+                  pb: 1, 
+                  background: "rgba(22, 22, 24, 0.2)",
+                  backdropFilter: "blur(20px) saturate(180%)",
+                  borderBottom: "1px solid rgba(255, 255, 255, 0.15)"
+                }}>
                   <Typography
                     variant="subtitle2"
-                    sx={{ mb: 2, color: "#6366f1", fontWeight: 600 }}
+                    sx={{ mb: 2, color: "#f8fafc", fontWeight: 600 }}
                   >
                     Câu hỏi thường gặp:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Tooltip
+                      title={<Typography variant="caption">Theo dõi đơn hàng hiện có ở Chế độ nâng cao</Typography>}
+                      PopperProps={{ sx: { zIndex: 20000 } }}
+                    >
+                      {/* <span>
+                        <Button
+                          key="track-order"
+                          size="small"
+                          variant="contained"
+                                                  sx={{
+                          bgcolor: "rgba(255, 255, 255, 0.9)",
+                          color: "#fff",
+                          textTransform: "none",
+                          fontSize: 12,
+                          borderRadius: 2,
+                          mb: 1,
+                          boxShadow: "0 4px 15px rgba(255, 255, 255, 0.3)",
+                          '&:hover': { 
+                            bgcolor: "rgba(255, 255, 255, 1)",
+                            boxShadow: "0 6px 20px rgba(255, 255, 255, 0.4)"
+                          },
+                        }}
+                          onClick={handleAdvancedToggle}
+                          disabled={isBusy || !isAuthenticated}
+                        >
+                          Theo dõi đơn hàng
+                        </Button>
+                      </span> */}
+                    </Tooltip>
                     {FAQS.map((faq, idx) => (
                       <Button
                         key={idx}
                         size="small"
                         variant="outlined"
                         sx={{
-                          borderColor: "#6366f1",
-                          color: "#6366f1",
+                          borderColor: "rgba(255, 255, 255, 0.7)",
+                          color: "#f8fafc",
                           textTransform: "none",
                           fontSize: 12,
                           borderRadius: 2,
                           mb: 1,
+                          backdropFilter: "blur(8px)",
+                          '&:hover': {
+                            borderColor: "rgba(255, 255, 255, 0.9)",
+                            bgcolor: "rgba(255, 255, 255, 0.15)"
+                          }
                         }}
                         onClick={() => handleSend(faq)}
-                        disabled={status === "loading"}
+                        disabled={isBusy}
                       >
                         {faq}
                       </Button>
@@ -376,7 +456,7 @@ const AIChatbot = () => {
                     <Typography
                       variant="caption"
                       sx={{
-                        color: "#ef4444",
+                        color: "rgba(239, 68, 68, 0.8)",
                         fontStyle: "italic",
                         display: "block",
                         mt: 1,
@@ -392,13 +472,14 @@ const AIChatbot = () => {
                   sx={{
                     flex: 1,
                     p: 2,
-                    bgcolor: "#fff",
+                    background: "rgba(22, 22, 24, 0.15)",
+                    backdropFilter: "blur(30px) saturate(150%)",
                     display: "flex",
                     flexDirection: "column",
                   }}
                 >
                   <Stack spacing={2}>
-                    {messages.map((msg, idx) => (
+                    {chatMessages.map((msg, idx) => (
                       <Box
                         key={idx}
                         sx={{
@@ -412,10 +493,13 @@ const AIChatbot = () => {
                         <Avatar
                           sx={{
                             bgcolor:
-                              msg.from === "user" ? "#6366f1" : "#f1f5f9",
-                            color: msg.from === "user" ? "#fff" : "#6366f1",
+                              msg.from === "user" ? "rgba(99, 102, 241, 0.9)" : "rgba(22, 22, 24, 0.3)",
+                            color: msg.from === "user" ? "#ffffff" : "#ffffff",
                             width: 32,
                             height: 32,
+                            border: msg.from === "user" ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid rgba(255, 255, 255, 0.3)",
+                            backdropFilter: "blur(15px)",
+                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                           src={
                             msg.from === "bot"
@@ -430,15 +514,16 @@ const AIChatbot = () => {
                         <Box
                           sx={{
                             bgcolor:
-                              msg.from === "user" ? "#6366f1" : "#f8fafc",
-                            color: msg.from === "user" ? "#fff" : "#1e293b",
+                              msg.from === "user" ? "rgba(99, 102, 241, 0.8)" : "rgba(22, 22, 24, 0.25)",
+                            color: msg.from === "user" ? "#ffffff" : "#f8fafc",
                             px: 2,
                             py: 1,
                             borderRadius: 2,
                             maxWidth: "70%",
                             fontSize: 14,
-                            border:
-                              msg.from === "bot" ? "1px solid #e2e8f0" : "none",
+                            border: "1px solid rgba(255, 255, 255, 0.18)",
+                            backdropFilter: "blur(25px) saturate(180%)",
+                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                         >
                           {msg.text}
@@ -446,7 +531,9 @@ const AIChatbot = () => {
                       </Box>
                     ))}
 
-                    {status === "loading" && (
+                    {/* Tracking form is only available in Advanced Chat */}
+
+                    {isBusy && (
                       <Box
                         sx={{
                           display: "flex",
@@ -457,21 +544,26 @@ const AIChatbot = () => {
                       >
                         <Avatar
                           sx={{
-                            bgcolor: "#f1f5f9",
-                            color: "#6366f1",
+                            bgcolor: "rgba(22, 22, 24, 0.3)",
+                            color: "#ffffff",
                             width: 32,
                             height: 32,
+                            border: "1px solid rgba(255, 255, 255, 0.3)",
+                            backdropFilter: "blur(15px)",
+                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                           src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                         />
                         <Box
                           sx={{
-                            bgcolor: "#f8fafc",
-                            color: "#1e293b",
+                            bgcolor: "rgba(22, 22, 24, 0.25)",
+                            color: "#f8fafc",
                             px: 2,
                             py: 1,
                             borderRadius: 2,
-                            border: "1px solid #e2e8f0",
+                            border: "1px solid rgba(255, 255, 255, 0.18)",
+                            backdropFilter: "blur(25px) saturate(180%)",
+                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                         >
                           <TypingIndicator />
@@ -483,14 +575,17 @@ const AIChatbot = () => {
                 </Box>
               </Box>
 
+              {/* Tracking removed in basic chat */}
+
               {/* Input Area */}
               <Box
                 sx={{
                   p: 2,
-                  borderTop: "1px solid #e2e8f0",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.3)",
                   display: "flex",
                   gap: 1,
-                  bgcolor: "#fff",
+                  background: "rgba(22, 22, 24, 0.2)",
+                  backdropFilter: "blur(40px) saturate(200%)",
                   alignItems: "center",
                 }}
               >
@@ -499,7 +594,7 @@ const AIChatbot = () => {
                   fullWidth
                   placeholder={
                     isAuthenticated
-                      ? "Bạn cần hỗ trợ gì?..."
+                      ? "Nhập thông tin bạn cần tư vấn"
                       : "Vui lòng đăng nhập để được hỗ trợ..."
                   }
                   value={input}
@@ -508,26 +603,58 @@ const AIChatbot = () => {
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   sx={{
                     "& .MuiOutlinedInput-root": {
-                      "& fieldset": { borderColor: "#e2e8f0" },
-                      "&:hover fieldset": { borderColor: "#6366f1" },
-                      "&.Mui-focused fieldset": { borderColor: "#6366f1" },
+                      borderRadius: 2,
+                      background: "rgba(22, 22, 24, 0.2)",
+                      backdropFilter: "blur(25px) saturate(180%)",
+                      "& fieldset": { borderColor: "rgba(255, 255, 255, 0.18)" },
+                      "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.5)" },
+                      "&.Mui-focused fieldset": { borderColor: "rgba(255, 255, 255, 0.7)" },
+                      "& input": { color: "#f8fafc" },
+                      "& .MuiInputBase-input::placeholder": { color: "rgba(203, 213, 225, 0.7)" },
                     },
                   }}
-                  disabled={status === "loading" || !isAuthenticated}
+                  disabled={isBusy || !isAuthenticated}
                 />
+                <Tooltip
+                  title={<Typography variant="caption">Gợi ý: Bạn có thể hỏi về dịch vụ, quy trình, báo giá...</Typography>}
+                  PopperProps={{ sx: { zIndex: 20000 } }}
+                >
+                  <span>
+                    <IconButton
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(255, 255, 255, 0.15)",
+                        color: "#ffffff",
+                        backdropFilter: "blur(15px) saturate(180%)",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        "&:hover": { 
+                          bgcolor: "rgba(255, 255, 255, 0.25)",
+                          boxShadow: "0 4px 15px rgba(255, 255, 255, 0.2)"
+                        },
+                      }}
+                      disabled={!isAuthenticated}
+                    >
+                      <HelpOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
                 <IconButton
                   onClick={() => handleSend()}
                   disabled={
-                    status === "loading" || !input.trim() || !isAuthenticated
+                    isBusy || !input.trim() || !isAuthenticated
                   }
                   sx={{
-                    bgcolor: "#6366f1",
-                    color: "#fff",
+                    background: "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
+                    color: "#1f2937",
+                    boxShadow: "0 4px 15px rgba(255, 255, 255, 0.3)",
                     "&:hover": {
-                      bgcolor: "#4f46e5",
+                      background: "linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)",
+                      boxShadow: "0 6px 20px rgba(255, 255, 255, 0.4)",
                     },
                     "&:disabled": {
-                      bgcolor: "#cbd5e1",
+                      background: "rgba(156, 163, 175, 0.3)",
+                      color: "rgba(156, 163, 175, 0.5)",
+                      boxShadow: "none",
                     },
                   }}
                 >

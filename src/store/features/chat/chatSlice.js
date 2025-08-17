@@ -1,11 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi, requestTraditionalPricingApi, getOpenAiModelsApi, getFineTuneFileContentApi } from '../../../api/chatService';
+import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi, requestTraditionalPricingApi, getOpenAiModelsApi, getFineTuneFileContentApi, trackOrderApi } from '../../../api/chatService';
 
 const initialState = {
   messages: [
     {
       from: 'bot',
       text: 'Xin chào quý khách! Song Tạo có thể giúp gì cho bạn?',
+      thread: 'basic',
     },
   ],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -38,6 +39,10 @@ const initialState = {
   modelChatFineTunedModelsStatus: 'idle',
   fineTuneFileContent: null,
   fineTuneFileContentStatus: 'idle',
+  trackingOrderStatus: 'idle',
+  trackingOrderResult: null,
+  lastTrackedOrderCode: null,
+  currentThread: 'basic',
 };
 
 export const sendChatMessage = createAsyncThunk(
@@ -48,6 +53,16 @@ export const sendChatMessage = createAsyncThunk(
     return response.result;
   }
 );
+// Theo dõi đơn hàng (tracking order)
+export const trackOrder = createAsyncThunk(
+  'chat/trackOrder',
+  async (prompt, { rejectWithValue }) => {
+    const response = await trackOrderApi(prompt);
+    if (!response.success) return rejectWithValue(response.error || 'Lỗi khi theo dõi đơn hàng');
+    return response.result;
+  }
+);
+
 
 export const uploadFileFineTune = createAsyncThunk(
   'chat/uploadFileFineTune',
@@ -242,13 +257,35 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     addUserMessage: (state, action) => {
-      state.messages.push({ from: 'user', text: action.payload });
+      const payload = action.payload;
+      const isString = typeof payload === 'string';
+      const text = isString ? payload : payload?.text;
+      const thread = isString ? state.currentThread || 'basic' : (payload?.thread || state.currentThread || 'basic');
+      if (text) {
+        state.messages.push({ from: 'user', text, thread });
+      }
+    },
+    addBotMessage: (state, action) => {
+      const payload = action.payload;
+      const isString = typeof payload === 'string';
+      const text = isString ? payload : payload?.text;
+      const thread = isString ? state.currentThread || 'basic' : (payload?.thread || state.currentThread || 'basic');
+      if (text) {
+        state.messages.push({ from: 'bot', text, thread });
+      }
+    },
+    setCurrentThread: (state, action) => {
+      state.currentThread = action.payload === 'advanced' ? 'advanced' : 'basic';
+    },
+    setLastTrackedOrderCode: (state, action) => {
+      state.lastTrackedOrderCode = action.payload || null;
     },
     resetChat: (state) => {
       state.messages = [
         {
           from: 'bot',
           text: 'Xin chào quý khách! Song Tạo có thể giúp gì cho bạn?',
+          thread: 'basic',
         },
       ];
       state.status = 'idle';
@@ -273,12 +310,12 @@ const chatSlice = createSlice({
       })
       .addCase(sendChatMessage.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.messages.push({ from: 'bot', text: action.payload });
+        state.messages.push({ from: 'bot', text: action.payload, thread: state.currentThread || 'basic' });
         state.error = null;
       })
       .addCase(sendChatMessage.rejected, (state, action) => {
         state.status = 'failed';
-        state.messages.push({ from: 'bot', text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.' });
+        state.messages.push({ from: 'bot', text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.', thread: state.currentThread || 'basic' });
         state.error = action.payload;
       })
       // Upload file reducers
@@ -470,12 +507,12 @@ const chatSlice = createSlice({
       })
       .addCase(testChat.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.messages.push({ from: 'bot', text: action.payload });
+        state.messages.push({ from: 'bot', text: action.payload, thread: state.currentThread || 'basic' });
         state.error = null;
       })
       .addCase(testChat.rejected, (state, action) => {
         state.status = 'failed';
-        state.messages.push({ from: 'bot', text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.' });
+        state.messages.push({ from: 'bot', text: 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.', thread: state.currentThread || 'basic' });
         state.error = action.payload;
       })
       // Request traditional pricing reducers
@@ -501,6 +538,21 @@ const chatSlice = createSlice({
       .addCase(fetchOpenAiModels.rejected, (state, action) => {
         state.openAiModelsStatus = 'failed';
         state.error = action.payload;
+      })
+      // Theo dõi đơn hàng
+      .addCase(trackOrder.pending, (state) => {
+        state.trackingOrderStatus = 'loading';
+      })
+      .addCase(trackOrder.fulfilled, (state, action) => {
+        state.trackingOrderStatus = 'succeeded';
+        state.trackingOrderResult = action.payload;
+        // Đẩy phản hồi vào luồng chat như bot nhắn lại
+        state.messages.push({ from: 'bot', text: action.payload, thread: state.currentThread || 'basic' });
+      })
+      .addCase(trackOrder.rejected, (state, action) => {
+        state.trackingOrderStatus = 'failed';
+        state.error = action.payload;
+        state.messages.push({ from: 'bot', text: 'Xin lỗi, không thể lấy thông tin đơn hàng lúc này.', thread: state.currentThread || 'basic' });
       })
       // Kiểm tra trạng thái của job fine-tune đang chạy
       .addCase(checkFineTuneJobStatus.pending, (state) => {
@@ -529,6 +581,9 @@ const chatSlice = createSlice({
 
 export const {
   addUserMessage,
+  addBotMessage,
+  setCurrentThread,
+  setLastTrackedOrderCode,
   resetChat,
   loadMessagesFromStorage,
   resetFineTuneStatus
@@ -567,5 +622,8 @@ export const selectModelChatFineTunedModelsStatus = (state) => state.chat.modelC
 export const selectFineTuneFileContent = (state) => state.chat.fineTuneFileContent;
 export const selectFineTuneFileContentStatus = (state) => state.chat.fineTuneFileContentStatus;
 export const selectCurrentJobStatus = (state) => state.chat.currentJobStatus;
+export const selectTrackingOrderStatus = (state) => state.chat.trackingOrderStatus;
+export const selectTrackingOrderResult = (state) => state.chat.trackingOrderResult;
+export const selectLastTrackedOrderCode = (state) => state.chat.lastTrackedOrderCode;
 
 export default chatSlice.reducer;
