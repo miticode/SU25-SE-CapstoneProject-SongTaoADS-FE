@@ -175,4 +175,40 @@ export const fetchCustomDesignRequestsStatsApi = async (startDate, endDate) => {
   }
 };
 
+// API to fetch payments statistics by date range
+export const fetchPaymentsStatsApi = async (startDate, endDate) => {
+  try {
+    const requestBody = {
+      start: startDate,
+      end: endDate
+    };
+
+    console.log('Payments API call:', {
+      url: '/api/dashboard/payments',
+      requestBody,
+      startDate,
+      endDate
+    });
+
+    const response = await dashboardService.post('/api/dashboard/payments', requestBody);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      console.log('Payments API success:', result);
+      return { success: true, data: result };
+    }
+
+    console.log('Payments API failed:', message);
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching payments stats:', error);
+    console.error('Error response:', error.response?.data);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch payments statistics'
+    };
+  }
+};
+
 export default dashboardService;

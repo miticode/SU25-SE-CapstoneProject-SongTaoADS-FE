@@ -5,7 +5,8 @@ import {
   fetchSaleDashboardApi, 
   fetchStaffOrdersStatsApi,
   fetchSaleOrdersStatsApi,
-  fetchCustomDesignRequestsStatsApi
+  fetchCustomDesignRequestsStatsApi,
+  fetchPaymentsStatsApi
 } from '../../../api/dashboardService';
 
 // Initial state
@@ -41,11 +42,27 @@ const initialState = {
     totalCastPayment: 0
   },
   adminDashboard: {
-    totalOrders: 0,
     totalUsers: 0,
-    totalRevenue: 0,
-    completedOrders: 0,
-    activeContracts: 0
+    totalBannedUsers: 0,
+    totalCustomer: 0,
+    totalSale: 0,
+    totalStaff: 0,
+    totalDesigner: 0,
+    totalAdmin: 0,
+    totalPaymentTransactionCreated: 0,
+    totalPaymentSuccess: 0,
+    totalPaymentFailure: 0,
+    totalPaymentCancelled: 0,
+    totalPaymentSuccessAmount: 0,
+    totalPaymentFailureAmount: 0,
+    totalPaymentCancelledAmount: 0,
+    totalPayOSSuccessAmount: 0,
+    totalPayOSFailureAmount: 0,
+    totalPayOSCancelledAmount: 0,
+    totalCastAmount: 0,
+    totalImage: 0,
+    totalNotification: 0,
+    totalChatBotUsed: 0
   },
   saleDashboard: {
     totalOrders: 0,
@@ -115,18 +132,28 @@ const initialState = {
     completed: 0,
     cancelled: 0
   },
+  paymentsStats: {
+    revenue: 0,
+    payOSRevenue: 0,
+    castRevenue: 0,
+    designRevenue: 0,
+    constructionRevenue: 0
+  },
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   ordersStatsStatus: 'idle', // separate status for orders stats
   saleOrdersStatsStatus: 'idle', // separate status for sale orders stats
   customDesignRequestsStatsStatus: 'idle', // separate status for custom design requests stats
+  paymentsStatsStatus: 'idle', // separate status for payments stats
   error: null,
   ordersStatsError: null,
   saleOrdersStatsError: null,
   customDesignRequestsStatsError: null,
+  paymentsStatsError: null,
   lastUpdated: null,
   ordersStatsLastUpdated: null,
   saleOrdersStatsLastUpdated: null,
-  customDesignRequestsStatsLastUpdated: null
+  customDesignRequestsStatsLastUpdated: null,
+  paymentsStatsLastUpdated: null
 };
 
 // Async thunk for fetching staff dashboard data
@@ -237,6 +264,24 @@ export const fetchCustomDesignRequestsStats = createAsyncThunk(
   }
 );
 
+// Async thunk for fetching payments statistics
+export const fetchPaymentsStats = createAsyncThunk(
+  'dashboard/fetchPaymentsStats',
+  async ({ startDate, endDate }, { rejectWithValue }) => {
+    try {
+      const response = await fetchPaymentsStatsApi(startDate, endDate);
+
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to fetch payments statistics');
+      }
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Something went wrong');
+    }
+  }
+);
+
 // Dashboard slice
 const dashboardSlice = createSlice({
   name: 'dashboard',
@@ -261,6 +306,11 @@ const dashboardSlice = createSlice({
     resetCustomDesignRequestsStatsStatus: (state) => {
       state.customDesignRequestsStatsStatus = 'idle';
       state.customDesignRequestsStatsError = null;
+    },
+    // Reset payments stats status
+    resetPaymentsStatsStatus: (state) => {
+      state.paymentsStatsStatus = 'idle';
+      state.paymentsStatsError = null;
     },
     // Clear dashboard data
     clearDashboardData: (state) => {
@@ -295,11 +345,27 @@ const dashboardSlice = createSlice({
         totalCastPayment: 0
       };
       state.adminDashboard = {
-        totalOrders: 0,
         totalUsers: 0,
-        totalRevenue: 0,
-        completedOrders: 0,
-        activeContracts: 0
+        totalBannedUsers: 0,
+        totalCustomer: 0,
+        totalSale: 0,
+        totalStaff: 0,
+        totalDesigner: 0,
+        totalAdmin: 0,
+        totalPaymentTransactionCreated: 0,
+        totalPaymentSuccess: 0,
+        totalPaymentFailure: 0,
+        totalPaymentCancelled: 0,
+        totalPaymentSuccessAmount: 0,
+        totalPaymentFailureAmount: 0,
+        totalPaymentCancelledAmount: 0,
+        totalPayOSSuccessAmount: 0,
+        totalPayOSFailureAmount: 0,
+        totalPayOSCancelledAmount: 0,
+        totalCastAmount: 0,
+        totalImage: 0,
+        totalNotification: 0,
+        totalChatBotUsed: 0
       };
       state.saleDashboard = {
         totalOrders: 0,
@@ -369,10 +435,18 @@ const dashboardSlice = createSlice({
         completed: 0,
         cancelled: 0
       };
+      state.paymentsStats = {
+        revenue: 0,
+        payOSRevenue: 0,
+        castRevenue: 0,
+        designRevenue: 0,
+        constructionRevenue: 0
+      };
       state.lastUpdated = null;
       state.ordersStatsLastUpdated = null;
       state.saleOrdersStatsLastUpdated = null;
       state.customDesignRequestsStatsLastUpdated = null;
+      state.paymentsStatsLastUpdated = null;
     }
   },
   extraReducers: (builder) => {
@@ -466,6 +540,21 @@ const dashboardSlice = createSlice({
       .addCase(fetchCustomDesignRequestsStats.rejected, (state, action) => {
         state.customDesignRequestsStatsStatus = 'failed';
         state.customDesignRequestsStatsError = action.payload;
+      })
+      // Fetch payments stats
+      .addCase(fetchPaymentsStats.pending, (state) => {
+        state.paymentsStatsStatus = 'loading';
+        state.paymentsStatsError = null;
+      })
+      .addCase(fetchPaymentsStats.fulfilled, (state, action) => {
+        state.paymentsStatsStatus = 'succeeded';
+        state.paymentsStats = action.payload;
+        state.paymentsStatsLastUpdated = new Date().toISOString();
+        state.paymentsStatsError = null;
+      })
+      .addCase(fetchPaymentsStats.rejected, (state, action) => {
+        state.paymentsStatsStatus = 'failed';
+        state.paymentsStatsError = action.payload;
       });
   }
 });
@@ -476,6 +565,7 @@ export const {
   resetOrdersStatsStatus,
   resetSaleOrdersStatsStatus,
   resetCustomDesignRequestsStatsStatus,
+  resetPaymentsStatsStatus,
   clearDashboardData
 } = dashboardSlice.actions;
 
@@ -486,18 +576,22 @@ export const selectSaleDashboard = (state) => state.dashboard.saleDashboard;
 export const selectOrdersStats = (state) => state.dashboard.ordersStats;
 export const selectSaleOrdersStats = (state) => state.dashboard.saleOrdersStats;
 export const selectCustomDesignRequestsStats = (state) => state.dashboard.customDesignRequestsStats;
+export const selectPaymentsStats = (state) => state.dashboard.paymentsStats;
 export const selectDashboardStatus = (state) => state.dashboard.status;
 export const selectOrdersStatsStatus = (state) => state.dashboard.ordersStatsStatus;
 export const selectSaleOrdersStatsStatus = (state) => state.dashboard.saleOrdersStatsStatus;
 export const selectCustomDesignRequestsStatsStatus = (state) => state.dashboard.customDesignRequestsStatsStatus;
+export const selectPaymentsStatsStatus = (state) => state.dashboard.paymentsStatsStatus;
 export const selectDashboardError = (state) => state.dashboard.error;
 export const selectOrdersStatsError = (state) => state.dashboard.ordersStatsError;
 export const selectSaleOrdersStatsError = (state) => state.dashboard.saleOrdersStatsError;
 export const selectCustomDesignRequestsStatsError = (state) => state.dashboard.customDesignRequestsStatsError;
+export const selectPaymentsStatsError = (state) => state.dashboard.paymentsStatsError;
 export const selectDashboardLastUpdated = (state) => state.dashboard.lastUpdated;
 export const selectOrdersStatsLastUpdated = (state) => state.dashboard.ordersStatsLastUpdated;
 export const selectSaleOrdersStatsLastUpdated = (state) => state.dashboard.saleOrdersStatsLastUpdated;
 export const selectCustomDesignRequestsStatsLastUpdated = (state) => state.dashboard.customDesignRequestsStatsLastUpdated;
+export const selectPaymentsStatsLastUpdated = (state) => state.dashboard.paymentsStatsLastUpdated;
 
 // Selector for specific staff dashboard metrics
 export const selectTotalOrder = (state) => state.dashboard.staffDashboard.totalOrder;
@@ -539,11 +633,27 @@ export const selectOrdersStatsCompleted = (state) => state.dashboard.ordersStats
 export const selectOrdersStatsCancelled = (state) => state.dashboard.ordersStats.cancelled;
 
 // Selector for specific admin dashboard metrics
-export const selectTotalOrders = (state) => state.dashboard.adminDashboard.totalOrders;
-export const selectTotalUsers = (state) => state.dashboard.adminDashboard.totalUsers;
-export const selectTotalRevenue = (state) => state.dashboard.adminDashboard.totalRevenue;
-export const selectAdminCompletedOrders = (state) => state.dashboard.adminDashboard.completedOrders;
-export const selectActiveContracts = (state) => state.dashboard.adminDashboard.activeContracts;
+export const selectAdminTotalUsers = (state) => state.dashboard.adminDashboard.totalUsers;
+export const selectAdminTotalBannedUsers = (state) => state.dashboard.adminDashboard.totalBannedUsers;
+export const selectAdminTotalCustomer = (state) => state.dashboard.adminDashboard.totalCustomer;
+export const selectAdminTotalSale = (state) => state.dashboard.adminDashboard.totalSale;
+export const selectAdminTotalStaff = (state) => state.dashboard.adminDashboard.totalStaff;
+export const selectAdminTotalDesigner = (state) => state.dashboard.adminDashboard.totalDesigner;
+export const selectAdminTotalAdmin = (state) => state.dashboard.adminDashboard.totalAdmin;
+export const selectAdminTotalPaymentTransactionCreated = (state) => state.dashboard.adminDashboard.totalPaymentTransactionCreated;
+export const selectAdminTotalPaymentSuccess = (state) => state.dashboard.adminDashboard.totalPaymentSuccess;
+export const selectAdminTotalPaymentFailure = (state) => state.dashboard.adminDashboard.totalPaymentFailure;
+export const selectAdminTotalPaymentCancelled = (state) => state.dashboard.adminDashboard.totalPaymentCancelled;
+export const selectAdminTotalPaymentSuccessAmount = (state) => state.dashboard.adminDashboard.totalPaymentSuccessAmount;
+export const selectAdminTotalPaymentFailureAmount = (state) => state.dashboard.adminDashboard.totalPaymentFailureAmount;
+export const selectAdminTotalPaymentCancelledAmount = (state) => state.dashboard.adminDashboard.totalPaymentCancelledAmount;
+export const selectAdminTotalPayOSSuccessAmount = (state) => state.dashboard.adminDashboard.totalPayOSSuccessAmount;
+export const selectAdminTotalPayOSFailureAmount = (state) => state.dashboard.adminDashboard.totalPayOSFailureAmount;
+export const selectAdminTotalPayOSCancelledAmount = (state) => state.dashboard.adminDashboard.totalPayOSCancelledAmount;
+export const selectAdminTotalCastAmount = (state) => state.dashboard.adminDashboard.totalCastAmount;
+export const selectAdminTotalImage = (state) => state.dashboard.adminDashboard.totalImage;
+export const selectAdminTotalNotification = (state) => state.dashboard.adminDashboard.totalNotification;
+export const selectAdminTotalChatBotUsed = (state) => state.dashboard.adminDashboard.totalChatBotUsed;
 
 // Selectors for sale dashboard metrics
 export const selectSaleTotalOrders = (state) => state.dashboard.saleDashboard.totalOrders;
@@ -603,5 +713,12 @@ export const selectCustomDesignRequestsStatsWaitingFullPayment = (state) => stat
 export const selectCustomDesignRequestsStatsFullyPaid = (state) => state.dashboard.customDesignRequestsStats.fullyPaid;
 export const selectCustomDesignRequestsStatsCompleted = (state) => state.dashboard.customDesignRequestsStats.completed;
 export const selectCustomDesignRequestsStatsCancelled = (state) => state.dashboard.customDesignRequestsStats.cancelled;
+
+// Selectors for payments statistics
+export const selectPaymentsStatsRevenue = (state) => state.dashboard.paymentsStats.revenue;
+export const selectPaymentsStatsPayOSRevenue = (state) => state.dashboard.paymentsStats.payOSRevenue;
+export const selectPaymentsStatsCastRevenue = (state) => state.dashboard.paymentsStats.castRevenue;
+export const selectPaymentsStatsDesignRevenue = (state) => state.dashboard.paymentsStats.designRevenue;
+export const selectPaymentsStatsConstructionRevenue = (state) => state.dashboard.paymentsStats.constructionRevenue;
 
 export default dashboardSlice.reducer;
