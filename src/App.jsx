@@ -37,6 +37,7 @@ import AIChatbot from "./components/AIChatbot";
 import CustomDesign from "./pages/CustomDesign";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManager from "./pages/admin/UserManager";
+import OrdersManager from "./pages/admin/OrdersManager";
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import ManagerLayout from "./layouts/ManagerLayout";
@@ -58,13 +59,7 @@ import Order from "./pages/Order";
 import Authenticate from "./pages/Authenticate";
 import PaymentHistory from "./pages/PaymentHistory";
 
-// Custom event để theo dõi đăng nhập thành công
-const loginSuccessEvent = new CustomEvent("loginSuccess");
-
-// Export hàm để component khác có thể gọi khi đăng nhập thành công
-export const notifyLoginSuccess = () => {
-  window.dispatchEvent(loginSuccessEvent);
-};
+// Lắng nghe sự kiện đăng nhập thành công (được bắn từ utils/loginEvents)
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isRefreshing } = useSelector((state) => state.auth);
@@ -124,7 +119,8 @@ const App = () => {
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const { isAuthenticated, user, status } = useSelector((state) => state.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+
   const showChatbot = isAuthenticated && user && user.role === ROLES.CUSTOMER;
   const authInitialized = useRef(false); // Thêm ref để track đã init hay chưa
 
@@ -182,7 +178,7 @@ const App = () => {
 
     // Chỉ init auth khi component mount lần đầu
     initAuth();
-  }, []); // Chỉ chạy một lần khi component mount
+  }, [dispatch]); // Chỉ chạy một lần khi component mount (đã có guard bằng ref)
 
   // Token refresh effect - tách riêng
   useEffect(() => {
@@ -328,6 +324,7 @@ const App = () => {
             >
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<UserManager />} />
+              <Route path="orders" element={<OrdersManager />} />
             </Route>
 
             {/* Manager routes - chỉ cho STAFF (MANAGER) */}

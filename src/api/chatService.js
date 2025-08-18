@@ -388,5 +388,23 @@ export const getFineTuneFileContentApi = async (fileId) => {
   } catch (error) {
     return { success: false, error: error.response?.data?.message || 'Không thể lấy nội dung file' };
   }
-}; 
+
+};
+
+// Theo dõi đơn hàng (tracking order) qua chatbot
+export const trackOrderApi = async (prompt) => {
+  try {
+    const response = await chatService.post('/api/chat-bot/tracking-order', { prompt });
+    const { success, result, message } = response.data;
+    if (success) {
+      return { success, result };
+    }
+    return { success: false, error: message || 'Lỗi khi theo dõi đơn hàng' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể theo dõi đơn hàng'
+    };
+  }
+};
 

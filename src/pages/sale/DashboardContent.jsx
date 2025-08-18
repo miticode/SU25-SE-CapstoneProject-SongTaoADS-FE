@@ -2044,7 +2044,7 @@ const OrderRow = memo(
 OrderRow.displayName = "OrderRow";
 
 const DashboardContent = ({
-  stats,
+  // stats, // Removed - dashboard cards have been removed
   orders = [],
   statusFilter,
   onStatusFilterChange,
@@ -2618,129 +2618,43 @@ const DashboardContent = ({
   ]);
 
   // Memoized stats formatting for better performance
-  const formattedStats = useMemo(
-    () => ({
-      totalOrders: stats?.totalOrders || 0,
-      pendingOrders: stats?.pendingOrders || 0,
-      confirmedOrders: stats?.confirmedOrders || 0,
-      totalRevenue: (stats?.totalRevenue || 0).toLocaleString("vi-VN"),
-    }),
-    [stats]
-  );
+  // Note: Stats cards have been removed, keeping this for potential future use
+  // const formattedStats = useMemo(
+  //   () => ({
+  //     totalOrders: stats?.totalOrders || 0,
+  //     pendingOrders: stats?.pendingOrders || 0,
+  //     confirmedOrders: stats?.confirmedOrders || 0,
+  //     totalRevenue: (stats?.totalRevenue || 0).toLocaleString("vi-VN"),
+  //   }),
+  //   [stats]
+  // );
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={2}
-        mb={4}
-        sx={{ 
-          flexWrap: "wrap",
-          "& .MuiCard-root": {
-            flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 8px)", md: "1 1 calc(25% - 12px)" }
-          }
-        }}
-      >
-        <Card
+      {/* Page Title */}
+      <Box sx={{ mb: 4 }}>
+        <Typography 
+          variant="h4" 
+          component="h1"
           sx={{
-            flex: 1,
-            minWidth: { xs: "100%", sm: 240 },
-            background: "var(--color-primary)",
-            color: "#fff",
-            borderRadius: 2,
-            boxShadow: 3,
+            fontWeight: 'bold',
+            color: 'primary.main',
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
           }}
         >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <OrderIcon sx={{ fontSize: { xs: 32, sm: 40 } }} />
-              <Box>
-                <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
-                  Tổng đơn AI Design
-                </Typography>
-                <Typography variant="h4" sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" } }}>
-                  {formattedStats.totalOrders}
-                </Typography>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
-
-        <Card
-          sx={{
-            flex: 1,
-            minWidth: { xs: "100%", sm: 240 },
-            background: "var(--color-primary)",
-            color: "#fff",
-            borderRadius: 2,
-            boxShadow: 3,
-          }}
+           Đơn hàng thiết kế AI
+        </Typography>
+        <Typography 
+          variant="body1" 
+          color="text.secondary"
+          sx={{ fontSize: '1.1rem' }}
         >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <PendingIcon sx={{ fontSize: { xs: 32, sm: 40 } }} />
-              <Box>
-                <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
-                  AI Chờ xác nhận
-                </Typography>
-                <Typography variant="h4" sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" } }}>
-                  {formattedStats.pendingOrders}
-                </Typography>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
-
-        <Card
-          sx={{
-            flex: 1,
-            minWidth: { xs: "100%", sm: 240 },
-            background: "var(--color-primary)",
-            color: "#fff",
-            borderRadius: 2,
-            boxShadow: 3,
-          }}
-        >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <ShippingIcon sx={{ fontSize: { xs: 32, sm: 40 } }} />
-              <Box>
-                <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
-                  AI Đã xác nhận
-                </Typography>
-                <Typography variant="h4" sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" } }}>
-                  {formattedStats.confirmedOrders}
-                </Typography>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
-
-        <Card
-          sx={{
-            flex: 1,
-            minWidth: { xs: "100%", sm: 240 },
-            background: "var(--color-primary)",
-            color: "#fff",
-            borderRadius: 2,
-            boxShadow: 3,
-          }}
-        >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <MoneyIcon sx={{ fontSize: { xs: 32, sm: 40 } }} />
-              <Box>
-                <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
-                  Doanh thu AI
-                </Typography>
-                <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
-                  {formattedStats.totalRevenue}₫
-                </Typography>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
-      </Stack>
+          Quản lý và theo dõi tất cả đơn hàng thiết kế AI của khách hàng
+        </Typography>
+      </Box>
 
       {/* Filter & Search */}
       <Card sx={{ mb: 3, p: { xs: 2, sm: 3 }, borderRadius: 2 }}>

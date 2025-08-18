@@ -18,6 +18,7 @@ import {
   Grid,
   Fade,
   Collapse,
+  MenuItem,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
@@ -50,6 +51,11 @@ import {
   addUserMessage,
   selectChatMessages,
   selectChatStatus,
+  trackOrder,
+  selectTrackingOrderStatus,
+  setLastTrackedOrderCode,
+  setCurrentThread,
+  addBotMessage,
 } from "../store/features/chat/chatSlice";
 import {
   fetchAllTopics,
@@ -69,7 +75,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#6366f1",
+        bgcolor: "#ffffff",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0s",
       }}
@@ -79,7 +85,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#6366f1",
+        bgcolor: "#ffffff",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0.2s",
       }}
@@ -89,7 +95,7 @@ const TypingIndicator = () => (
         width: 6,
         height: 6,
         borderRadius: "50%",
-        bgcolor: "#6366f1",
+        bgcolor: "#ffffff",
         animation: "bounce 1.4s infinite ease-in-out",
         animationDelay: "0.4s",
       }}
@@ -128,6 +134,32 @@ const AdvancedChat = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const [trackingCode, setTrackingCode] = useState("");
+  const [trackingType, setTrackingType] = useState("all");
+  const [trackingError, setTrackingError] = useState("");
+  const [inlineTrackingVisible, setInlineTrackingVisible] = useState(false);
+  const trackingStatus = useSelector(selectTrackingOrderStatus);
+  const isBusy = status === "loading" || trackingStatus === "loading";
+  const ORDER_CODE_RGX = /DH-[A-Z0-9]{10}/i;
+  const KEYWORDS = [
+    { keys: ["trạng thái"], type: "status" },
+    { keys: ["đơn vị thi công", "thi công"], type: "contractor" },
+    { keys: ["ngày giao", "giao dự kiến", "hoàn thành dự kiến"], type: "delivery" },
+    { keys: ["tổng tiền", "tổng đơn"], type: "total" },
+    { keys: ["loại đơn hàng"], type: "orderType" },
+  ];
+
+  // Guard to avoid duplicate welcome in StrictMode
+  const didWelcomeRef = useRef(false);
+
+  const detectTrackingIntent = (text) => {
+    const code = (text.match(ORDER_CODE_RGX) || [])[0];
+    if (!code) return null;
+    const lower = text.toLowerCase();
+    const found = KEYWORDS.find(k => k.keys.some(w => lower.includes(w)));
+    const type = found?.type || "all";
+    return { code, type };
+  };
 
   const getTopicIcon = (topic) => {
     const title = topic.title?.toLowerCase() || "";
@@ -174,7 +206,19 @@ const AdvancedChat = () => {
     if (isAuthenticated) {
       dispatch(fetchAllTopics());
     }
+    // đặt thread là advanced khi vào màn này
+    dispatch(setCurrentThread('advanced'));
   }, [dispatch, isAuthenticated]);
+
+  // Add a single welcome message for the advanced thread when empty
+  useEffect(() => {
+    if (didWelcomeRef.current) return;
+    const advancedMsgs = (messages || []).filter(m => (m.thread || 'basic') === 'advanced');
+    if (advancedMsgs.length === 0) {
+      didWelcomeRef.current = true;
+      dispatch(addBotMessage({ text: 'Xin chào quý khách! Song Tạo có thể giúp gì cho bạn?', thread: 'advanced' }));
+    }
+  }, [messages, dispatch]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -196,7 +240,7 @@ const AdvancedChat = () => {
   }, [isAuthenticated, messages.length, dispatch]);
 
   const handleSend = async (msg) => {
-    if ((!input.trim() && !msg) || status === "loading") return;
+    if ((!input.trim() && !msg) || isBusy) return;
     
     // Kiểm tra trạng thái đăng nhập
     if (!isAuthenticated) {
@@ -206,7 +250,24 @@ const AdvancedChat = () => {
     
     const userMessage = msg || input.trim();
     setInput("");
+    // Nếu đang mở form theo dõi thì ẩn đi để không "dính" form
+    if (inlineTrackingVisible) setInlineTrackingVisible(false);
     
+    // Nhận diện tracking theo mã đơn
+    const intent = detectTrackingIntent(userMessage);
+    if (intent) {
+      const prompt = buildTrackingPrompt(intent.code, intent.type);
+      dispatch(addUserMessage(prompt));
+      dispatch(setLastTrackedOrderCode(intent.code.toUpperCase()));
+      try {
+        await dispatch(trackOrder(prompt)).unwrap();
+      } catch {
+        // handled in slice
+      }
+      return;
+    }
+
+    // Mặc định gửi sang chatbot
     dispatch(addUserMessage(userMessage));
     try {
       await dispatch(sendChatMessage(userMessage)).unwrap();
@@ -243,6 +304,41 @@ const AdvancedChat = () => {
     handleSend(question.question);
   };
 
+  const buildTrackingPrompt = (code, type) => {
+    const c = (code || "").trim();
+    if (!c) return "";
+    if (type === "status") return `Tôi muốn xem trạng thái đơn hàng ${c}`;
+    if (type === "contractor") return `Tôi muốn xem đơn vị thi công đơn hàng ${c}`;
+    if (type === "delivery") return `Tôi muốn xem ngày giao dự kiến đơn hàng ${c}`;
+    if (type === "total") return `Tôi muốn xem tổng tiền đơn hàng ${c}`;
+    if (type === "orderType") return `Tôi muốn xem loại đơn hàng ${c}`;
+    return `Tôi muốn xem thông tin đơn hàng ${c}`;
+  };
+
+  const handleTrackSubmit = async () => {
+    const prompt = buildTrackingPrompt(trackingCode, trackingType);
+    if (!prompt) return;
+    const valid = ORDER_CODE_RGX.test((trackingCode || "").trim());
+    if (!valid) {
+      setTrackingError("Mã đơn không hợp lệ. Ví dụ đúng: DH-ABCDEF1234");
+      return;
+    }
+    if (!isAuthenticated) {
+      dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
+      return;
+    }
+    dispatch(addUserMessage(prompt));
+    setTrackingCode("");
+    setTrackingType("all");
+    setTrackingError("");
+    try {
+      dispatch(setLastTrackedOrderCode((trackingCode || "").toUpperCase()));
+      await dispatch(trackOrder(prompt)).unwrap();
+    } catch {
+      // handled in slice
+    }
+  };
+
   const sidebarWidth = 320;
 
   return (
@@ -252,26 +348,8 @@ const AdvancedChat = () => {
         display: "flex", 
         flexDirection: "column",
         overflow: "hidden",
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)",
+        background: "#161618",
         position: "relative",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(99, 102, 241, 0.1) 0%, transparent 50%)
-          `,
-          animation: "float 8s ease-in-out infinite",
-        },
-        "@keyframes float": {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-15px)" },
-        },
       }}
     >
       {/* Header */}
@@ -282,14 +360,14 @@ const AdvancedChat = () => {
       >
         <Box
           sx={{
-            background: "rgba(15, 23, 42, 0.8)",
-            backdropFilter: "blur(24px)",
-            border: "1px solid rgba(99, 102, 241, 0.2)",
+            background: "rgba(22, 22, 24, 0.25)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.18)",
             p: 2,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -305,7 +383,7 @@ const AdvancedChat = () => {
                   color: "white",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   "&:hover": {
-                    bgcolor: "rgba(99, 102, 241, 0.2)",
+                    bgcolor: "rgba(255, 255, 255, 0.2)",
                     transform: "scale(1.1)",
                   }
                 }}
@@ -323,12 +401,12 @@ const AdvancedChat = () => {
                 sx={{ 
                   width: 36, 
                   height: 36, 
-                  border: "2px solid rgba(99, 102, 241, 0.3)",
-                  boxShadow: "0 4px 20px rgba(99, 102, 241, 0.3)",
+                  border: "2px solid rgba(255, 255, 255, 0.3)",
+                  boxShadow: "0 4px 20px rgba(255, 255, 255, 0.3)",
                 }}
               />
             </motion.div>
-            <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 600 }}>
               Song Tạo AI Pro - Chế độ nâng cao
             </Typography>
           </Box>
@@ -345,7 +423,7 @@ const AdvancedChat = () => {
                   color: "white",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   "&:hover": {
-                    bgcolor: "rgba(99, 102, 241, 0.2)",
+                    bgcolor: "rgba(255, 255, 255, 0.2)",
                     transform: "scale(1.1)",
                   }
                 }}
@@ -394,15 +472,16 @@ const AdvancedChat = () => {
             sx={{
               width: sidebarWidth,
               height: "100%",
-              background: "rgba(15, 23, 42, 0.9)",
-              backdropFilter: "blur(24px)",
-              border: "1px solid rgba(99, 102, 241, 0.2)",
+              background: "rgba(22, 22, 24, 0.25)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.18)",
               display: "flex",
               flexDirection: "column",
+              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
             }}
           >
             {/* Fixed Header */}
-            <Box sx={{ p: 2.5, borderBottom: "1px solid rgba(99, 102, 241, 0.2)" }}>
+            <Box sx={{ p: 2.5, borderBottom: "1px solid rgba(255, 255, 255, 0.15)" }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -418,11 +497,13 @@ const AdvancedChat = () => {
                     gap: 1.5,
                   }}
                 >
-                  <CategoryIcon sx={{ color: "#6366f1" }} />
+                  <CategoryIcon sx={{ color: "#ffffff" }} />
                   Danh mục tư vấn
                 </Typography>
               </motion.div>
             </Box>
+            
+            {/* Tracking panel removed - inline in chat instead */}
             
                          {/* Scrollable Content */}
              {topicLoading ? (
@@ -447,14 +528,14 @@ const AdvancedChat = () => {
                     width: 8,
                   },
                   "&::-webkit-scrollbar-thumb": {
-                    bgcolor: "rgba(99, 102, 241, 0.4)",
+                    bgcolor: "rgba(255, 255, 255, 0.4)",
                     borderRadius: 4,
                     "&:hover": {
-                      bgcolor: "rgba(99, 102, 241, 0.6)",
+                      bgcolor: "rgba(255, 255, 255, 0.6)",
                     },
                   },
                   "&::-webkit-scrollbar-track": {
-                    bgcolor: "rgba(15, 23, 42, 0.3)",
+                    bgcolor: "rgba(22, 22, 24, 0.3)",
                   },
                 }}
               >
@@ -483,10 +564,10 @@ const AdvancedChat = () => {
                               sx={{
                                 borderRadius: 3,
                                 mb: 1,
-                                bgcolor: selectedTopic?.id === topic.id ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                                bgcolor: selectedTopic?.id === topic.id ? "rgba(255, 255, 255, 0.15)" : "transparent",
                                 transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                                 "&:hover": {
-                                  bgcolor: "rgba(99, 102, 241, 0.1)",
+                                  bgcolor: "rgba(255, 255, 255, 0.1)",
                                   transform: "translateX(8px)",
                                   boxShadow: "0 8px 25px rgba(0, 0, 0, 0.2)",
                                 },
@@ -516,7 +597,7 @@ const AdvancedChat = () => {
                                 transition={{ duration: 0.3 }}
                               >
                                 {expandedTopics[topic.id] ? 
-                                  <ExpandLessIcon sx={{ color: "#6366f1" }} /> : 
+                                  <ExpandLessIcon sx={{ color: "#ffffff" }} /> : 
                                   <ExpandMoreIcon sx={{ color: "rgba(156, 163, 175, 0.8)" }} />
                                 }
                               </motion.div>
@@ -554,13 +635,13 @@ const AdvancedChat = () => {
                                               transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                                               borderRadius: 2,
                                               "&:hover": {
-                                                bgcolor: "rgba(99, 102, 241, 0.1)",
+                                                bgcolor: "rgba(255, 255, 255, 0.1)",
                                                 color: "white",
                                                 transform: "translateX(4px)",
                                               },
                                             }}
                                           >
-                                            <HelpOutlineIcon sx={{ fontSize: 16, mr: 1, color: "#6366f1" }} />
+                                            <HelpOutlineIcon sx={{ fontSize: 16, mr: 1, color: "#ffffff" }} />
                                             {question.question}
                                           </Button>
                                         </motion.div>
@@ -599,8 +680,8 @@ const AdvancedChat = () => {
               display: "flex",
               flexDirection: "column",
               height: "100%",
-              background: "rgba(15, 23, 42, 0.6)",
-              backdropFilter: "blur(24px)",
+              background: "rgba(22, 22, 24, 0.15)",
+              backdropFilter: "blur(30px) saturate(150%)",
               transition: "margin-left 0.3s",
               marginLeft: sidebarOpen ? 0 : `-${sidebarWidth}px`,
               overflow: "hidden",
@@ -617,185 +698,23 @@ const AdvancedChat = () => {
                   width: 8,
                 },
                 "&::-webkit-scrollbar-thumb": {
-                  bgcolor: "rgba(99, 102, 241, 0.4)",
+                  bgcolor: "rgba(255, 255, 255, 0.4)",
                   borderRadius: 4,
                   "&:hover": {
-                    bgcolor: "rgba(99, 102, 241, 0.6)",
+                    bgcolor: "rgba(255, 255, 255, 0.6)",
                   },
                 },
                 "&::-webkit-scrollbar-track": {
-                  bgcolor: "rgba(15, 23, 42, 0.3)",
+                  bgcolor: "rgba(22, 22, 24, 0.3)",
                 },
               }}
             >
-              {messages.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      height: "100%",
-                      textAlign: "center",
-                      minHeight: "400px",
-                    }}
-                  >
-                    <motion.div
-                      animate={{ 
-                        y: [0, -10, 0],
-                        rotate: [0, 5, -5, 0]
-                      }}
-                      transition={{ 
-                        duration: 6,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    >
-                      <Avatar
-                        src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
-                        sx={{ 
-                          width: 120, 
-                          height: 120, 
-                          mb: 3,
-                          boxShadow: "0 0 40px rgba(99, 102, 241, 0.4)",
-                          border: "3px solid rgba(99, 102, 241, 0.3)",
-                        }}
-                      />
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.6 }}
-                    >
-                      <Typography variant="h4" sx={{ color: "white", mb: 1, fontWeight: 600, textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)" }}>
-                        Chào mừng đến với Song Tạo AI Pro
-                      </Typography>
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.8 }}
-                    >
-                      <Typography variant="h6" color="rgba(156, 163, 175, 0.9)" sx={{ mb: 4, maxWidth: 600 }}>
-                        Chọn chủ đề bên trái hoặc nhập câu hỏi để bắt đầu cuộc trò chuyện. 
-                        AI sẽ hỗ trợ bạn tư vấn chi tiết về biển quảng cáo.
-                      </Typography>
-                                             {!isAuthenticated && (
-                         <Typography 
-                           variant="body1" 
-                           color="#ef4444" 
-                           sx={{ 
-                             mb: 3, 
-                             maxWidth: 600,
-                             textAlign: "center",
-                             fontWeight: 500,
-                             bgcolor: "rgba(239, 68, 68, 0.1)",
-                             p: 2,
-                             borderRadius: 2,
-                             border: "1px solid rgba(239, 68, 68, 0.2)"
-                           }}
-                         >
-                           ⚠️ Vui lòng đăng nhập để được hỗ trợ chi tiết từ AI
-                         </Typography>
-                       )}
-                    </motion.div>
-                    
-                                         <Container maxWidth="md">
-                       <Grid container spacing={3}>
-                         {[
-                           { 
-                             icon: <DesignServicesIcon sx={{ fontSize: 40, color: "#6366f1" }} />, 
-                             title: "Tư vấn thiết kế", 
-                             desc: "Nhận tư vấn thiết kế phù hợp với nhu cầu", 
-                             msg: "Tôi muốn tư vấn thiết kế biển quảng cáo",
-                             requiresAuth: true
-                           },
-                           { 
-                             icon: <AttachMoneyIcon sx={{ fontSize: 40, color: "#6366f1" }} />, 
-                             title: "Báo giá nhanh", 
-                             desc: "Nhận báo giá chi tiết và chính xác", 
-                             msg: "Tôi muốn báo giá nhanh",
-                             requiresAuth: true
-                           },
-                           { 
-                             icon: <SupportAgentIcon sx={{ fontSize: 40, color: "#6366f1" }} />, 
-                             title: "Hướng dẫn đặt hàng", 
-                             desc: "Quy trình đặt hàng đơn giản", 
-                             msg: "Hướng dẫn tôi quy trình đặt hàng",
-                             requiresAuth: true
-                           },
-                           { 
-                             icon: <EngineeringIcon sx={{ fontSize: 40, color: "#6366f1" }} />, 
-                             title: "Hỗ trợ kỹ thuật", 
-                             desc: "Giải đáp mọi thắc mắc kỹ thuật", 
-                             msg: "Tôi cần hỗ trợ kỹ thuật",
-                             requiresAuth: true
-                           }
-                         ].map((item, index) => (
-                          <Grid item xs={12} sm={6} md={3} key={index}>
-                            <motion.div
-                              initial={{ opacity: 0, y: 50 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 1 + index * 0.1, duration: 0.5 }}
-                              whileHover={{ 
-                                y: -10,
-                                scale: 1.05,
-                                transition: { duration: 0.3 }
-                              }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <Card 
-                                sx={{ 
-                                  background: "rgba(15, 23, 42, 0.8)",
-                                  backdropFilter: "blur(24px)",
-                                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                                  cursor: "pointer",
-                                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                  "&:hover": {
-                                    background: "rgba(15, 23, 42, 0.9)",
-                                    boxShadow: "0 25px 50px rgba(0, 0, 0, 0.3)",
-                                    border: "1px solid rgba(99, 102, 241, 0.4)",
-                                  }
-                                                                 }} 
-                                 onClick={() => {
-                                   if (item.requiresAuth && !isAuthenticated) {
-                                     dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
-                                   } else {
-                                     handleSend(item.msg);
-                                   }
-                                 }}
-                               >
-                                <CardContent sx={{ p: 3, textAlign: "center" }}>
-                                  <motion.div
-                                    whileHover={{ scale: 1.2, rotate: 360 }}
-                                    transition={{ duration: 0.4 }}
-                                  >
-                                    {item.icon}
-                                  </motion.div>
-                                  <Typography variant="subtitle1" sx={{ color: "white", fontWeight: 600, mb: 1, mt: 2 }}>
-                                    {item.title}
-                                  </Typography>
-                                  <Typography variant="body2" color="rgba(156, 163, 175, 0.8)">
-                                    {item.desc}
-                                  </Typography>
-                                </CardContent>
-                              </Card>
-                            </motion.div>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Container>
-                  </Box>
-                </motion.div>
+              {messages.filter(m => (m.thread || 'basic') === 'advanced').length === 0 ? (
+                <></>
               ) : (
                 <Stack spacing={3}>
                   <AnimatePresence>
-                    {messages.map((msg, idx) => (
+                    {messages.filter(m => (m.thread || 'basic') === 'advanced').map((msg, idx) => (
                       <motion.div
                         key={idx}
                         initial={{ opacity: 0, y: 20 }}
@@ -818,11 +737,11 @@ const AdvancedChat = () => {
                             >
                               <Avatar
                                 sx={{
-                                  bgcolor: msg.from === "user" ? "rgba(99, 102, 241, 0.9)" : "rgba(15, 23, 42, 0.8)",
-                                  color: msg.from === "user" ? "#fff" : "#6366f1",
+                                  bgcolor: msg.from === "user" ? "rgba(99, 102, 241, 0.9)" : "rgba(22, 22, 24, 0.8)",
+                                  color: msg.from === "user" ? "#ffffff" : "#ffffff",
                                   width: 44,
                                   height: 44,
-                                  border: msg.from === "user" ? "none" : "2px solid rgba(99, 102, 241, 0.3)",
+                                  border: msg.from === "user" ? "none" : "2px solid rgba(255, 255, 255, 0.3)",
                                   boxShadow: "0 8px 25px rgba(0, 0, 0, 0.2)",
                                 }}
                                 src={
@@ -842,17 +761,17 @@ const AdvancedChat = () => {
                               <Paper
                                 elevation={0}
                                 sx={{
-                                  bgcolor: msg.from === "user" ? "rgba(99, 102, 241, 0.9)" : "rgba(15, 23, 42, 0.8)",
-                                  color: msg.from === "user" ? "#fff" : "#f3f4f6",
+                                  bgcolor: msg.from === "user" ? "rgba(99, 102, 241, 0.8)" : "rgba(22, 22, 24, 0.25)",
+                                  color: msg.from === "user" ? "#ffffff" : "#f8fafc",
                                   px: 3,
                                   py: 2.5,
                                   borderRadius: 3,
-                                  border: msg.from === "bot" ? "1px solid rgba(99, 102, 241, 0.2)" : "none",
+                                  border: "1px solid rgba(255, 255, 255, 0.18)",
                                   fontSize: "1rem",
                                   lineHeight: 1.6,
                                   whiteSpace: "pre-line",
-                                  backdropFilter: "blur(16px)",
-                                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                                  backdropFilter: "blur(25px) saturate(180%)",
+                                  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                                 }}
                               >
                                 {msg.text}
@@ -862,9 +781,133 @@ const AdvancedChat = () => {
                         </Fade>
                       </motion.div>
                     ))}
+                    {inlineTrackingVisible && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                          <Avatar
+                            sx={{
+                              bgcolor: 'rgba(22, 22, 24, 0.3)',
+                              width: 44,
+                              height: 44,
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              backdropFilter: 'blur(15px)',
+                              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                            }}
+                            src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
+                          />
+                          <Paper
+                            elevation={0}
+                            sx={{
+                              bgcolor: 'rgba(22, 22, 24, 0.25)',
+                              px: 2,
+                              py: 1.5,
+                              borderRadius: 3,
+                              border: '1px solid rgba(255, 255, 255, 0.18)',
+                              backdropFilter: 'blur(25px) saturate(180%)',
+                              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                              maxWidth: 360,
+                              width: '100%'
+                            }}
+                          >
+                            <Typography variant="subtitle2" sx={{ color: '#e2e8f0', mb: 1 }}>
+                              Theo dõi đơn hàng
+                            </Typography>
+                            <Stack spacing={1}>
+                              <TextField
+                                size="small"
+                                label="Mã đơn hàng"
+                                placeholder="VD: DH-WUUSCFZHRP"
+                                value={trackingCode}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setTrackingCode(v);
+                                  if (v && !ORDER_CODE_RGX.test(v.trim())) {
+                                    setTrackingError('Mã đơn không hợp lệ. Ví dụ đúng: DH-ABCDEF1234');
+                                  } else {
+                                    setTrackingError('');
+                                  }
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleTrackSubmit(); }}
+                                error={Boolean(trackingError)}
+                                helperText={trackingError || 'Bắt đầu bằng DH- và 10 ký tự chữ/số'}
+                                sx={{
+                                  '& .MuiInputLabel-root': { color: '#e2e8f0' },
+                                  '& .MuiInputLabel-root.Mui-focused': { color: '#ffffff' },
+                                  '& .MuiOutlinedInput-root': {
+                                    color: '#f8fafc',
+                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                    '&.Mui-focused fieldset': { borderColor: '#ffffff' },
+                                  },
+                                  '& .MuiFormHelperText-root': { color: '#cbd5e1' },
+                                  '& .MuiInputBase-input::placeholder': { color: 'rgba(203, 213, 225, 0.7)' }
+                                }}
+                              />
+                              <TextField
+                                size="small"
+                                select
+                                label="Thông tin cần xem"
+                                value={trackingType}
+                                onChange={(e) => setTrackingType(e.target.value)}
+                                sx={{
+                                  '& .MuiInputLabel-root': { color: '#e2e8f0' },
+                                  '& .MuiInputLabel-root.Mui-focused': { color: '#ffffff' },
+                                  '& .MuiOutlinedInput-root': {
+                                    color: '#f8fafc',
+                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                    '&.Mui-focused fieldset': { borderColor: '#ffffff' },
+                                  },
+                                  '& .MuiSelect-icon': { color: '#e2e8f0' }
+                                }}
+                              >
+                                <MenuItem value="all">Tất cả thông tin</MenuItem>
+                                <MenuItem value="status">Trạng thái</MenuItem>
+                                <MenuItem value="contractor">Đơn vị thi công</MenuItem>
+                                <MenuItem value="delivery">Ngày giao dự kiến</MenuItem>
+                                <MenuItem value="total">Tổng tiền</MenuItem>
+                                <MenuItem value="orderType">Loại đơn hàng</MenuItem>
+                              </TextField>
+                              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                <Button 
+                                  size="small" 
+                                  onClick={() => setInlineTrackingVisible(false)}
+                                  sx={{ color: '#e2e8f0' }}
+                                >
+                                  Hủy
+                                </Button>
+                                <Button 
+                                  size="small" 
+                                  variant="contained" 
+                                  onClick={handleTrackSubmit} 
+                                  disabled={!trackingCode.trim() || isBusy || !isAuthenticated}
+                                  sx={{
+                                    background: 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)',
+                                    color: '#1f2937',
+                                    '&:hover': {
+                                      background: 'linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)'
+                                    },
+                                    '&:disabled': {
+                                      background: 'rgba(156, 163, 175, 0.3)',
+                                      color: 'rgba(156, 163, 175, 0.7)'
+                                    }
+                                  }}
+                                >
+                                  Tra cứu
+                                </Button>
+                              </Stack>
+                            </Stack>
+                          </Paper>
+                        </Box>
+                      </motion.div>
+                    )}
                   </AnimatePresence>
                   
-                  {status === "loading" && (
+                  {isBusy && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -879,24 +922,27 @@ const AdvancedChat = () => {
                       >
                         <Avatar
                           sx={{
-                            bgcolor: "rgba(15, 23, 42, 0.8)",
+                            bgcolor: "rgba(22, 22, 24, 0.3)",
                             width: 44,
                             height: 44,
-                            border: "2px solid rgba(99, 102, 241, 0.3)",
+                            border: "1px solid rgba(255, 255, 255, 0.3)",
+                            backdropFilter: "blur(15px)",
+                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                           src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                         />
                         <Paper
                           elevation={0}
                           sx={{
-                            bgcolor: "rgba(15, 23, 42, 0.8)",
+                            bgcolor: "rgba(22, 22, 24, 0.25)",
                             px: 3,
                             py: 2.5,
                             borderRadius: 3,
-                            border: "1px solid rgba(99, 102, 241, 0.2)",
+                            border: "1px solid rgba(255, 255, 255, 0.18)",
                             display: "flex",
                             alignItems: "center",
-                            backdropFilter: "blur(16px)",
+                            backdropFilter: "blur(25px) saturate(180%)",
+                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                         >
                           <TypingIndicator />
@@ -909,6 +955,8 @@ const AdvancedChat = () => {
               )}
             </Box>
 
+            {/* Tracking inline form removed from footer; now shown as a small chat bubble above */}
+
             {/* Input Area */}
             <motion.div
               initial={{ y: 50, opacity: 0 }}
@@ -918,10 +966,11 @@ const AdvancedChat = () => {
               <Box
                 sx={{
                   p: 3,
-                  background: "rgba(15, 23, 42, 0.8)",
-                  backdropFilter: "blur(24px)",
-                  borderTop: "1px solid rgba(99, 102, 241, 0.2)",
+                  background: "rgba(22, 22, 24, 0.25)",
+                  backdropFilter: "blur(40px) saturate(200%)",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.18)",
                   flexShrink: 0,
+                  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
                 }}
               >
                 <Container maxWidth="lg">
@@ -936,7 +985,7 @@ const AdvancedChat = () => {
                       fullWidth
                       multiline
                       maxRows={4}
-                      placeholder={isAuthenticated ? "Nhập tin nhắn của bạn..." : "Vui lòng đăng nhập để được hỗ trợ..."}
+                      placeholder={isAuthenticated ? "Nhập thông tin bạn cần tư vấn" : "Vui lòng đăng nhập để được hỗ trợ..."}
                       value={input}
                       inputRef={inputRef}
                       onChange={(e) => setInput(e.target.value)}
@@ -950,22 +999,22 @@ const AdvancedChat = () => {
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           borderRadius: 3,
-                          background: "rgba(15, 23, 42, 0.6)",
-                          backdropFilter: "blur(16px)",
+                          background: "rgba(22, 22, 24, 0.25)",
+                          backdropFilter: "blur(25px) saturate(180%)",
                           "& fieldset": {
-                            borderColor: "rgba(99, 102, 241, 0.3)",
+                            borderColor: "rgba(255, 255, 255, 0.18)",
                           },
                           "&:hover fieldset": {
-                            borderColor: "rgba(99, 102, 241, 0.5)",
+                            borderColor: "rgba(255, 255, 255, 0.5)",
                           },
                           "&.Mui-focused fieldset": {
-                            borderColor: "rgba(99, 102, 241, 0.7)",
+                            borderColor: "rgba(255, 255, 255, 0.7)",
                           },
                           "& input, & textarea": {
-                            color: "white",
+                            color: "#f8fafc",
                           },
                           "& .MuiInputBase-input::placeholder": {
-                            color: "rgba(156, 163, 175, 0.7)",
+                            color: "rgba(203, 213, 225, 0.7)",
                           },
                         },
                       }}
@@ -977,18 +1026,18 @@ const AdvancedChat = () => {
                     >
                       <IconButton
                         onClick={() => handleSend()}
-                        disabled={status === "loading" || !input.trim() || !isAuthenticated}
+                        disabled={isBusy || !input.trim() || !isAuthenticated}
                         sx={{
-                          background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                          color: "#fff",
+                          background: "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
+                          color: "#1f2937",
                           width: 56,
                           height: 56,
                           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                          boxShadow: "0 8px 25px rgba(99, 102, 241, 0.3)",
+                          boxShadow: "0 8px 25px rgba(255, 255, 255, 0.3)",
                           "&:hover": {
-                            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                            background: "linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)",
                             transform: "rotate(15deg)",
-                            boxShadow: "0 12px 35px rgba(99, 102, 241, 0.4)",
+                            boxShadow: "0 12px 35px rgba(255, 255, 255, 0.4)",
                           },
                           "&:disabled": {
                             background: "rgba(156, 163, 175, 0.3)",
@@ -1000,6 +1049,23 @@ const AdvancedChat = () => {
                         <SendIcon />
                       </IconButton>
                     </motion.div>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setInlineTrackingVisible((v) => !v)}
+                      disabled={!isAuthenticated}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: 'rgba(255, 255, 255, 0.7)',
+                        color: '#e2e8f0',
+                        backdropFilter: 'blur(10px)',
+                        '&:hover': {
+                          borderColor: 'rgba(255, 255, 255, 0.9)',
+                          bgcolor: 'rgba(255, 255, 255, 0.1)'
+                        }
+                      }}
+                    >
+                      {inlineTrackingVisible ? 'Ẩn theo dõi' : 'Theo dõi đơn hàng'}
+                    </Button>
                   </Box>
                 </Container>
               </Box>

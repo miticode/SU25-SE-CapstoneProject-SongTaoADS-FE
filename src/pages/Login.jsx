@@ -8,7 +8,7 @@ import {
 } from "../store/features/auth/authSlice";
 import PageTransition from "../components/PageTransition";
 import CountdownTimer from "../components/CountdownTimer";
-import { notifyLoginSuccess } from "../App"; // Import hàm thông báo
+import { notifyLoginSuccess } from "../utils/loginEvents"; // Import hàm thông báo
 
 // MUI Components
 import Alert from "@mui/material/Alert";
@@ -37,7 +37,7 @@ const Login = () => {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { status, error, isAuthenticated, verificationStatus, verificationError } = useSelector((state) => state.auth);
+  const { status, error, isAuthenticated, verificationStatus } = useSelector((state) => state.auth);
 
   // Kiểm tra xem người dùng vừa đăng ký thành công hay không
   const [searchParams] = useSearchParams();
