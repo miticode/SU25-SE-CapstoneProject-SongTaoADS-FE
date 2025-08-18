@@ -76,6 +76,27 @@ export const fetchAdminDashboardApi = async () => {
   }
 };
 
+// API to fetch sale dashboard data
+export const fetchSaleDashboardApi = async () => {
+  try {
+    const response = await dashboardService.get('/api/dashboard/sale');
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching sale dashboard:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch sale dashboard'
+    };
+  }
+};
+
 // API to fetch staff orders statistics by date range
 export const fetchStaffOrdersStatsApi = async (startDate, endDate) => {
   try {
@@ -98,6 +119,58 @@ export const fetchStaffOrdersStatsApi = async (startDate, endDate) => {
     return {
       success: false,
       error: error.response?.data?.message || 'Failed to fetch staff orders statistics'
+    };
+  }
+};
+
+// API to fetch sale orders statistics by date range
+export const fetchSaleOrdersStatsApi = async (startDate, endDate) => {
+  try {
+    const requestBody = {
+      start: startDate,
+      end: endDate
+    };
+
+    const response = await dashboardService.post('/api/dashboard/orders/sale', requestBody);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching sale orders stats:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch sale orders statistics'
+    };
+  }
+};
+
+// API to fetch custom design requests statistics by date range
+export const fetchCustomDesignRequestsStatsApi = async (startDate, endDate) => {
+  try {
+    const requestBody = {
+      start: startDate,
+      end: endDate
+    };
+
+    const response = await dashboardService.post('/api/dashboard/custom-design-requests', requestBody);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching custom design requests stats:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch custom design requests statistics'
     };
   }
 };
