@@ -85,6 +85,7 @@ import {
 import CustomerRequests from "./CustomerRequests";
 import DesignerChat from "./DesignerChat";
 import DashboardContent from "./DashboardContent";
+import SalesDashboard from "./SalesDashboard";
 import FeedbackList from "../../components/Feedback/FeedbackList";
 import FeedbackDetailDialog from "../../components/Feedback/FeedbackDetailDialog";
 import FeedBack from "./FeedBack";
@@ -112,7 +113,7 @@ const SaleDashboard = () => {
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [alertNotifications, setAlertNotifications] = useState([]);
   
-  const [selectedMenu, setSelectedMenu] = useState("dashboard");
+  const [selectedMenu, setSelectedMenu] = useState("sales-dashboard");
   const [openDialog, setOpenDialog] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(null);
@@ -376,6 +377,13 @@ const SaleDashboard = () => {
 
   const menuItems = [
     { 
+      id: "sales-dashboard", 
+      label: "Dashboard", 
+      icon: <DashboardIcon />,
+      color: "#e91e63",
+      description: "Thống kê tổng quan bán hàng"
+    },
+    { 
       id: "dashboard", 
       label: "Đơn hàng thiết kế AI", 
       icon: <DashboardIcon />,
@@ -487,6 +495,12 @@ const SaleDashboard = () => {
 
   const renderContent = () => {
     switch (selectedMenu) {
+      case "sales-dashboard":
+        return (
+          <ErrorBoundary>
+            <SalesDashboard />
+          </ErrorBoundary>
+        );
       case "customers":
         return (
           <ErrorBoundary>
