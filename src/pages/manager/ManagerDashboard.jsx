@@ -1,29 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Typography,
-  Avatar,
   MenuItem,
   Select,
   FormControl,
   InputLabel,
-  TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   CircularProgress,
-  Alert,
-  Tabs,
-  Tab,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
+  TextField,
+  Button,
+  Box,
+  Popover,
 } from "@mui/material";
 import {
   MoreVert as MoreVertIcon,
@@ -31,16 +19,10 @@ import {
   People as PeopleIcon,
   Assignment as TasksIcon,
   Group as TeamIcon,
-  KeyboardArrowUp as ArrowUpIcon,
-  KeyboardArrowDown as ArrowDownIcon,
-  Search as SearchIcon,
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   Refresh as RefreshIcon,
   CheckCircle as CompletedIcon,
   LocalShipping as ShippingIcon,
-  Settings as TicketIcon,
+  CalendarToday as CalendarIcon,
 } from "@mui/icons-material";
 import {
   BarChart,
@@ -59,14 +41,19 @@ import {
 } from "recharts";
 import {
   fetchStaffDashboard,
+  fetchStaffOrdersStats,
   selectStaffDashboard,
+  selectOrdersStats,
   selectDashboardStatus,
+  selectOrdersStatsStatus,
   selectDashboardError,
-  selectDashboardLastUpdated
+  selectOrdersStatsError,
+  selectDashboardLastUpdated,
+  selectOrdersStatsLastUpdated
 } from "../../store/features/dashboard/dashboardSlice";
 import TicketManager from "./TicketManager";
 
-// Mock data for manager dashboard
+// Mock data for manager dashboard (keeping only what's still used)
 const teamPerformanceData = [
   { month: "Jan", completed: 85, inProgress: 15 },
   { month: "Feb", completed: 78, inProgress: 22 },
@@ -76,113 +63,174 @@ const teamPerformanceData = [
   { month: "Jun", completed: 90, inProgress: 10 },
 ];
 
-const taskStatusData = [
-  { name: "Completed", value: 65 },
-  { name: "In Progress", value: 25 },
-  { name: "Pending", value: 10 },
-];
-
-const COLORS = ["#4caf50", "#2196f3", "#ff9800"];
-
-const recentTasks = [
-  {
-    id: "TASK-001",
-    title: "Website Redesign",
-    assignee: "John Doe",
-    dueDate: "2024-03-28",
-    status: "In Progress",
-    priority: "High",
-  },
-  {
-    id: "TASK-002",
-    title: "Social Media Campaign",
-    assignee: "Jane Smith",
-    dueDate: "2024-03-27",
-    status: "Completed",
-    priority: "Medium",
-  },
-  {
-    id: "TASK-003",
-    title: "Client Meeting",
-    assignee: "Mike Johnson",
-    dueDate: "2024-03-26",
-    status: "Pending",
-    priority: "High",
-  },
-  {
-    id: "TASK-004",
-    title: "Content Creation",
-    assignee: "Sarah Wilson",
-    dueDate: "2024-03-25",
-    status: "In Progress",
-    priority: "Low",
-  },
-];
-
-const teamMembers = [
-  {
-    id: 1,
-    name: "John Doe",
-    role: "Senior Designer",
-    tasks: 5,
-    completed: 12,
-    avatar: null,
-  },
-  {
-    id: 2,
-    name: "Jane Smith",
-    role: "Content Writer",
-    tasks: 3,
-    completed: 8,
-    avatar: null,
-  },
-  {
-    id: 3,
-    name: "Mike Johnson",
-    role: "Developer",
-    tasks: 4,
-    completed: 15,
-    avatar: null,
-  },
-  {
-    id: 4,
-    name: "Sarah Wilson",
-    role: "Marketing Specialist",
-    tasks: 6,
-    completed: 10,
-    avatar: null,
-  },
-];
-
 const ManagerDashboard = () => {
   const { activeTab } = useOutletContext();
   const dispatch = useDispatch();
   
   // Redux selectors for dashboard data
   const dashboardData = useSelector(selectStaffDashboard);
+  const ordersStats = useSelector(selectOrdersStats);
   const dashboardStatus = useSelector(selectDashboardStatus);
+  const ordersStatsStatus = useSelector(selectOrdersStatsStatus);
   const dashboardError = useSelector(selectDashboardError);
+  const ordersStatsError = useSelector(selectOrdersStatsError);
   const lastUpdated = useSelector(selectDashboardLastUpdated);
+  const ordersStatsLastUpdated = useSelector(selectOrdersStatsLastUpdated);
   
   const [timeFilter, setTimeFilter] = useState("weekly");
-  const [tasksTabValue, setTasksTabValue] = useState(0);
+  const [dateRange, setDateRange] = useState({
+    start: new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [tempDateRange, setTempDateRange] = useState(dateRange);
+
+  // Helper function to calculate date range based on time filter
+  const getDateRangeForFilter = (filter) => {
+    const now = new Date();
+    const endDate = now.toISOString();
+    let startDate;
+
+    switch (filter) {
+      case 'daily':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        break;
+      case 'weekly':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      case 'monthly':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      case 'yearly':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    return { startDate, endDate };
+  };
+
+  // Function to fetch orders stats based on date range
+  const fetchOrdersStatsForDateRange = useCallback((start, end) => {
+    const startDate = new Date(start + 'T00:00:00.000Z').toISOString();
+    const endDate = new Date(end + 'T23:59:59.999Z').toISOString();
+    dispatch(fetchStaffOrdersStats({ startDate, endDate }));
+  }, [dispatch]);
+
+  // Function to fetch orders stats based on time filter
+  const fetchOrdersStatsForTimeFilter = useCallback((filter) => {
+    const { startDate, endDate } = getDateRangeForFilter(filter);
+    dispatch(fetchStaffOrdersStats({ startDate, endDate }));
+  }, [dispatch]);
+
+  // Handle date picker
+  const handleDatePickerOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+    setTempDateRange(dateRange);
+  };
+
+  const handleDatePickerClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleDateRangeApply = () => {
+    setDateRange(tempDateRange);
+    setTimeFilter('custom');
+    fetchOrdersStatsForDateRange(tempDateRange.start, tempDateRange.end);
+    setAnchorEl(null);
+  };
+
+  const handleQuickDateFilter = (filter) => {
+    setTimeFilter(filter);
+    const { startDate, endDate } = getDateRangeForFilter(filter);
+    const start = startDate.split('T')[0];
+    const end = endDate.split('T')[0];
+    setDateRange({ start, end });
+    fetchOrdersStatsForTimeFilter(filter);
+  };
 
   // Fetch dashboard data on component mount
   useEffect(() => {
     dispatch(fetchStaffDashboard());
-  }, [dispatch]);
+    // Fetch orders stats for initial time filter
+    fetchOrdersStatsForTimeFilter(timeFilter);
+  }, [dispatch, timeFilter, fetchOrdersStatsForTimeFilter]);
 
   // Handle refresh dashboard data
   const handleRefreshDashboard = () => {
     dispatch(fetchStaffDashboard());
+    fetchOrdersStatsForTimeFilter(timeFilter);
   };
 
   const handleTimeFilterChange = (event) => {
-    setTimeFilter(event.target.value);
+    const newFilter = event.target.value;
+    handleQuickDateFilter(newFilter);
   };
 
-  const handleTasksTabChange = (event, newValue) => {
-    setTasksTabValue(newValue);
+  // Transform orders stats data for charts
+  const getOrdersChartData = () => {
+    if (!ordersStats || ordersStatsStatus === 'loading') {
+      return [];
+    }
+
+    return [
+      {
+        name: "Đang sản xuất",
+        value: ordersStats.producing || 0,
+        color: "#f59e0b"
+      },
+      {
+        name: "Hoàn thành SX",
+        value: ordersStats.productionCompleted || 0,
+        color: "#3b82f6"
+      },
+      {
+        name: "Đang giao",
+        value: ordersStats.delivering || 0,
+        color: "#8b5cf6"
+      },
+      {
+        name: "Đã lắp đặt",
+        value: ordersStats.installed || 0,
+        color: "#10b981"
+      },
+      {
+        name: "Hoàn thành",
+        value: ordersStats.orderCompleted || 0,
+        color: "#06b6d4"
+      },
+      {
+        name: "Đã hủy",
+        value: ordersStats.cancelled || 0,
+        color: "#ef4444"
+      }
+    ];
+  };
+
+  // Get orders stats for bar chart
+  const getOrdersBarChartData = () => {
+    if (!ordersStats || ordersStatsStatus === 'loading') {
+      return [];
+    }
+
+    const timeLabel = timeFilter === 'daily' ? 'Hôm nay' : 
+                     timeFilter === 'weekly' ? '7 ngày qua' :
+                     timeFilter === 'monthly' ? '30 ngày qua' : 
+                     timeFilter === 'yearly' ? 'Năm qua' :
+                     timeFilter === 'custom' ? `${dateRange.start} - ${dateRange.end}` : '7 ngày qua';
+
+    return [
+      {
+        period: timeLabel,
+        producing: ordersStats.producing || 0,
+        productionCompleted: ordersStats.productionCompleted || 0,
+        delivering: ordersStats.delivering || 0,
+        installed: ordersStats.installed || 0,
+        completed: ordersStats.orderCompleted || 0,
+        cancelled: ordersStats.cancelled || 0
+      }
+    ];
   };
 
   // Dashboard Content
@@ -220,8 +268,20 @@ const ManagerDashboard = () => {
                   <MenuItem value="weekly">Hàng tuần</MenuItem>
                   <MenuItem value="monthly">Hàng tháng</MenuItem>
                   <MenuItem value="yearly">Hàng năm</MenuItem>
+                  <MenuItem value="custom">Tùy chọn</MenuItem>
                 </Select>
               </FormControl>
+              
+              <Button
+                variant="outlined"
+                startIcon={<CalendarIcon />}
+                onClick={handleDatePickerOpen}
+                className="!min-w-[140px] !rounded-xl !border-gray-300 !text-gray-700 hover:!border-blue-500 hover:!text-blue-600"
+                size="small"
+              >
+                {timeFilter === 'custom' ? 'Chọn ngày' : 'Lịch'}
+              </Button>
+              
               <button
                 onClick={handleRefreshDashboard}
                 disabled={dashboardStatus === 'loading'}
@@ -234,12 +294,156 @@ const ManagerDashboard = () => {
         </div>
 
         {/* Error Alert */}
-        {dashboardError && (
+        {(dashboardError || ordersStatsError) && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
-            <Typography className="!text-red-700">{dashboardError}</Typography>
+            {dashboardError && (
+              <Typography className="!text-red-700 !mb-2">Dashboard: {dashboardError}</Typography>
+            )}
+            {ordersStatsError && (
+              <Typography className="!text-red-700">Orders Stats: {ordersStatsError}</Typography>
+            )}
           </div>
         )}
       </div>
+
+      {/* Date Range Picker Popover */}
+      <Popover
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={handleDatePickerClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          className: '!rounded-2xl !shadow-xl !border !border-gray-200 !mt-2'
+        }}
+      >
+        <Box className="p-6 min-w-[320px]">
+          <Typography variant="h6" className="!font-semibold !text-gray-800 !mb-4">
+            🗓️ Chọn khoảng thời gian
+          </Typography>
+          
+          <div className="space-y-4 mb-6">
+            <div>
+              <Typography variant="body2" className="!text-gray-600 !mb-2 !font-medium">
+                Từ ngày
+              </Typography>
+              <TextField
+                type="date"
+                value={tempDateRange.start}
+                onChange={(e) => setTempDateRange(prev => ({ ...prev, start: e.target.value }))}
+                fullWidth
+                size="small"
+                className="!rounded-xl"
+                InputProps={{
+                  className: '!rounded-xl'
+                }}
+              />
+            </div>
+            
+            <div>
+              <Typography variant="body2" className="!text-gray-600 !mb-2 !font-medium">
+                Đến ngày
+              </Typography>
+              <TextField
+                type="date"
+                value={tempDateRange.end}
+                onChange={(e) => setTempDateRange(prev => ({ ...prev, end: e.target.value }))}
+                fullWidth
+                size="small"
+                className="!rounded-xl"
+                InputProps={{
+                  className: '!rounded-xl'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Quick Select Buttons */}
+          <div className="mb-6">
+            <Typography variant="body2" className="!text-gray-600 !mb-3 !font-medium">
+              Chọn nhanh
+            </Typography>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  const end = now.toISOString().split('T')[0];
+                  setTempDateRange({ start, end });
+                }}
+                className="!rounded-lg !border-gray-300 !text-gray-700 hover:!border-blue-500 hover:!text-blue-600"
+              >
+                Hôm qua
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  const end = now.toISOString().split('T')[0];
+                  setTempDateRange({ start, end });
+                }}
+                className="!rounded-lg !border-gray-300 !text-gray-700 hover:!border-blue-500 hover:!text-blue-600"
+              >
+                7 ngày
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  const end = now.toISOString().split('T')[0];
+                  setTempDateRange({ start, end });
+                }}
+                className="!rounded-lg !border-gray-300 !text-gray-700 hover:!border-blue-500 hover:!text-blue-600"
+              >
+                30 ngày
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  const end = now.toISOString().split('T')[0];
+                  setTempDateRange({ start, end });
+                }}
+                className="!rounded-lg !border-gray-300 !text-gray-700 hover:!border-blue-500 hover:!text-blue-600"
+              >
+                3 tháng
+              </Button>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button
+              variant="outlined"
+              onClick={handleDatePickerClose}
+              className="!flex-1 !rounded-xl !border-gray-300 !text-gray-700 hover:!border-red-500 hover:!text-red-600"
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleDateRangeApply}
+              className="!flex-1 !rounded-xl !bg-blue-600 hover:!bg-blue-700 !shadow-lg hover:!shadow-xl"
+            >
+              Áp dụng
+            </Button>
+          </div>
+        </Box>
+      </Popover>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
@@ -256,7 +460,7 @@ const ManagerDashboard = () => {
           </div>
           <div className="space-y-2">
             <Typography variant="h4" className="!font-bold !text-orange-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.productingOrders.toLocaleString()}
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalProducingOrder?.toLocaleString() || '0'}
             </Typography>
             <Typography variant="body2" className="!text-gray-600 !font-medium">
               Đơn hàng đang sản xuất
@@ -278,7 +482,7 @@ const ManagerDashboard = () => {
           </div>
           <div className="space-y-2">
             <Typography variant="h4" className="!font-bold !text-blue-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.productionCompletedOrders.toLocaleString()}
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalProductionCompletedOrder?.toLocaleString() || '0'}
             </Typography>
             <Typography variant="body2" className="!text-gray-600 !font-medium">
               Đơn hàng hoàn thành sản xuất
@@ -287,12 +491,12 @@ const ManagerDashboard = () => {
           <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-blue-50 rounded-full opacity-20"></div>
         </div>
 
-        {/* Tickets đang xử lý */}
+        {/* Đơn hàng đang giao */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <TicketIcon className="!text-purple-600" />
+              <ShippingIcon className="!text-purple-600" />
             </div>
             {dashboardStatus === 'loading' && (
               <CircularProgress size={20} className="!text-purple-600" />
@@ -300,16 +504,16 @@ const ManagerDashboard = () => {
           </div>
           <div className="space-y-2">
             <Typography variant="h4" className="!font-bold !text-purple-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.inprogressTickets.toLocaleString()}
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalDeliveringOrder?.toLocaleString() || '0'}
             </Typography>
             <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Tickets đang xử lý
+              Đơn hàng đang giao
             </Typography>
           </div>
           <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-purple-50 rounded-full opacity-20"></div>
         </div>
 
-        {/* Đơn hàng hoàn thành */}
+        {/* Đơn hàng đã lắp đặt */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
           <div className="flex items-center justify-between mb-4">
@@ -322,250 +526,368 @@ const ManagerDashboard = () => {
           </div>
           <div className="space-y-2">
             <Typography variant="h4" className="!font-bold !text-emerald-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.completedOrders.toLocaleString()}
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalInstalledOrder?.toLocaleString() || '0'}
             </Typography>
             <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Đơn hàng hoàn thành
+              Đơn hàng đã lắp đặt
             </Typography>
           </div>
           <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-emerald-50 rounded-full opacity-20"></div>
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-        {/* Team Performance Chart */}
-        <div className="lg:col-span-8">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-full">
-            <div className="flex items-center justify-between mb-6">
-              <Typography variant="h6" className="!font-semibold !text-gray-800">
-                📈 Team Performance Overview
-              </Typography>
-              <button className="w-8 h-8 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors duration-200">
-                <MoreVertIcon />
-              </button>
+      {/* Additional Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        {/* Tổng đơn hàng */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-blue-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+              <TasksIcon className="!text-indigo-600" />
             </div>
-            <div className="h-80 lg:h-96">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={teamPerformanceData}
-                  margin={{
-                    top: 10,
-                    right: 30,
-                    left: 0,
-                    bottom: 0,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 14 }} />
-                  <YAxis tick={{ fontSize: 14 }} width={40} />
-                  <Tooltip contentStyle={{ fontSize: 14, borderRadius: '12px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }} />
-                  <Legend wrapperStyle={{ fontSize: 14 }} />
-                  <Bar
-                    dataKey="completed"
-                    fill="#10b981"
-                    radius={[4, 4, 0, 0]}
-                    name="Completed Tasks"
-                  />
-                  <Bar
-                    dataKey="inProgress"
-                    fill="#3b82f6"
-                    radius={[4, 4, 0, 0]}
-                    name="In Progress"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-indigo-600" />
+            )}
           </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-indigo-600">
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalOrder?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
+              Tổng đơn hàng
+            </Typography>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-indigo-50 rounded-full opacity-20"></div>
         </div>
 
-        {/* Task Status Chart */}
-        <div className="lg:col-span-4">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-full">
-            <div className="flex items-center justify-between mb-6">
-              <Typography variant="h6" className="!font-semibold !text-gray-800">
-                📊 Task Status
-              </Typography>
-              <button className="w-8 h-8 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors duration-200">
-                <MoreVertIcon />
-              </button>
+        {/* Loại sản phẩm */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-rose-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
+              <PeopleIcon className="!text-pink-600" />
             </div>
-            <div className="h-64 flex justify-center items-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={taskStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                  >
-                    {taskStatusData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-pink-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-pink-600">
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalProductType?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
+              Loại sản phẩm
+            </Typography>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-pink-50 rounded-full opacity-20"></div>
+        </div>
+
+        {/* Nhà thầu */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-cyan-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+              <TeamIcon className="!text-teal-600" />
             </div>
-            <div className="mt-4">
-              <div className="grid grid-cols-3 gap-2">
-                {taskStatusData.map((item, index) => (
-                  <div key={index} className="flex flex-col items-center">
-                    <div
-                      className="w-3 h-3 rounded-full mb-1"
-                      style={{ backgroundColor: COLORS[index] }}
-                    />
-                    <Typography variant="body2" className="!text-center !text-xs !text-gray-600">
-                      {item.name}
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-teal-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-teal-600">
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalContractor?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
+              Tổng nhà thầu
+            </Typography>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-teal-50 rounded-full opacity-20"></div>
+        </div>
+
+        {/* Doanh thu */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+              <TrendingUpIcon className="!text-yellow-600" />
+            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-yellow-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-yellow-600">
+              {dashboardStatus === 'loading' ? '...' : (dashboardData.totalRevenue?.toLocaleString() || '0') + ' VNĐ'}
+            </Typography>
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
+              Tổng doanh thu
+            </Typography>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-yellow-50 rounded-full opacity-20"></div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
+        {/* Orders Status Overview Chart */}
+        <div className="xl:col-span-8">
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 h-full hover:shadow-2xl transition-all duration-500 relative overflow-hidden group">
+            {/* Background gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <span className="text-white text-xl">📊</span>
+                  </div>
+                  <div>
+                    <Typography variant="h5" className="!font-bold !text-gray-800 !mb-1">
+                      Orders Status Overview
                     </Typography>
-                    <Typography variant="body2" className="!text-center !text-xs !font-bold !text-gray-800">
-                      {item.value}%
+                    <Typography variant="body2" className="!text-gray-500">
+                      Tổng quan trạng thái đơn hàng theo thời gian
                     </Typography>
                   </div>
-                ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  {ordersStatsLastUpdated && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                      <Typography variant="body2" className="!text-gray-600 !text-xs !font-medium">
+                        Cập nhật: {new Date(ordersStatsLastUpdated).toLocaleString('vi-VN')}
+                      </Typography>
+                    </div>
+                  )}
+                  {ordersStatsStatus === 'loading' && (
+                    <div className="bg-blue-50 rounded-lg p-2">
+                      <CircularProgress size={16} className="!text-blue-600" />
+                    </div>
+                  )}
+                  <button className="w-10 h-10 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 flex items-center justify-center transition-all duration-200 hover:shadow-md">
+                    <MoreVertIcon />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="h-96 lg:h-[400px] relative">
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-50/50 to-transparent rounded-xl"></div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={getOrdersBarChartData()}
+                    margin={{
+                      top: 20,
+                      right: 40,
+                      left: 20,
+                      bottom: 20,
+                    }}
+                  >
+                    <defs>
+                      <linearGradient id="producingGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="completedGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="deliveringGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="installedGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="finishedGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="cancelledGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      vertical={false} 
+                      stroke="#e5e7eb" 
+                      strokeOpacity={0.5}
+                    />
+                    <XAxis 
+                      dataKey="period" 
+                      tick={{ fontSize: 13, fill: '#6b7280', fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 13, fill: '#6b7280', fontWeight: 500 }} 
+                      width={50}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        fontSize: 13, 
+                        borderRadius: '16px', 
+                        border: 'none', 
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        backgroundColor: '#ffffff',
+                        backdropFilter: 'blur(10px)'
+                      }}
+                      cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ 
+                        fontSize: 13, 
+                        fontWeight: 500,
+                        paddingTop: '20px'
+                      }} 
+                    />
+                    <Bar
+                      dataKey="producing"
+                      fill="url(#producingGradient)"
+                      radius={[6, 6, 0, 0]}
+                      name="Đang sản xuất"
+                    />
+                    <Bar
+                      dataKey="productionCompleted"
+                      fill="url(#completedGradient)"
+                      radius={[6, 6, 0, 0]}
+                      name="Hoàn thành SX"
+                    />
+                    <Bar
+                      dataKey="delivering"
+                      fill="url(#deliveringGradient)"
+                      radius={[6, 6, 0, 0]}
+                      name="Đang giao"
+                    />
+                    <Bar
+                      dataKey="installed"
+                      fill="url(#installedGradient)"
+                      radius={[6, 6, 0, 0]}
+                      name="Đã lắp đặt"
+                    />
+                    <Bar
+                      dataKey="completed"
+                      fill="url(#finishedGradient)"
+                      radius={[6, 6, 0, 0]}
+                      name="Hoàn thành"
+                    />
+                    <Bar
+                      dataKey="cancelled"
+                      fill="url(#cancelledGradient)"
+                      radius={[6, 6, 0, 0]}
+                      name="Đã hủy"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Recent Tasks */}
-        <div className="lg:col-span-8">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <Typography variant="h6" className="!font-semibold !text-gray-800">
-                📋 Recent Tasks
-              </Typography>
-              <button className="text-emerald-600 hover:text-emerald-700 font-medium text-sm px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors duration-200">
-                View All
-              </button>
-            </div>
+        {/* Orders Distribution Pie Chart */}
+        <div className="xl:col-span-4">
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 h-full hover:shadow-2xl transition-all duration-500 relative overflow-hidden group">
+            {/* Background gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-50/30 via-transparent to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             
-            <div className="border-b border-gray-100">
-              <Tabs
-                value={tasksTabValue}
-                onChange={handleTasksTabChange}
-                indicatorColor="primary"
-                textColor="primary"
-                className="px-6"
-                variant="scrollable"
-                scrollButtons="auto"
-              >
-                <Tab label="All" className="!text-sm !min-h-12" />
-                <Tab label="In Progress" className="!text-sm !min-h-12" />
-                <Tab label="Completed" className="!text-sm !min-h-12" />
-                <Tab label="Pending" className="!text-sm !min-h-12" />
-              </Tabs>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {recentTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="px-6 py-4 hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Typography variant="body1" className="!font-semibold !text-gray-800">
-                          {task.id}
-                        </Typography>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          task.status === "Completed"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : task.status === "In Progress"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-orange-100 text-orange-700"
-                        }`}>
-                          {task.status}
-                        </span>
-                      </div>
-                      <Typography variant="body2" className="!text-gray-600 !mb-2">
-                        {task.title}
-                      </Typography>
-                      <div className="flex items-center justify-between">
-                        <Typography variant="body2" className="!text-gray-500">
-                          {task.assignee}
-                        </Typography>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          task.priority === "High"
-                            ? "bg-red-100 text-red-700"
-                            : task.priority === "Medium"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-green-100 text-green-700"
-                        }`}>
-                          {task.priority}
-                        </span>
-                      </div>
-                    </div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <span className="text-white text-xl">🥧</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Team Members */}
-        <div className="lg:col-span-4">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden h-full">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <Typography variant="h6" className="!font-semibold !text-gray-800">
-                👥 Team Members
-              </Typography>
-              <button className="w-8 h-8 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors duration-200">
-                <MoreVertIcon />
-              </button>
-            </div>
-            
-            <div className="divide-y divide-gray-100">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center px-6 py-4 hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <div className="flex-shrink-0">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium text-white"
-                      style={{
-                        backgroundColor: `hsl(${member.id * 60}, 70%, 50%)`,
-                      }}
-                    >
-                      {member.name.charAt(0)}
-                    </div>
-                  </div>
-                  <div className="ml-4 flex-1">
-                    <div className="flex items-center justify-between">
-                      <Typography variant="body2" className="!font-semibold !text-gray-800">
-                        {member.name}
-                      </Typography>
-                      <div className="flex space-x-2">
-                        <button className="text-gray-400 hover:text-blue-600 transition-colors duration-200">
-                          <EditIcon className="!text-sm" />
-                        </button>
-                        <button className="text-gray-400 hover:text-red-600 transition-colors duration-200">
-                          <DeleteIcon className="!text-sm" />
-                        </button>
-                      </div>
-                    </div>
-                    <Typography variant="body2" className="!text-gray-500 !mt-1">
-                      {member.role}
+                  <div>
+                    <Typography variant="h6" className="!font-bold !text-gray-800 !mb-1">
+                      Orders Distribution
                     </Typography>
-                    <div className="flex justify-between mt-2 text-xs text-gray-500">
-                      <span>{member.tasks} active tasks</span>
-                      <span>{member.completed} completed</span>
-                    </div>
+                    <Typography variant="body2" className="!text-gray-500 !text-sm">
+                      Phân bổ đơn hàng
+                    </Typography>
                   </div>
                 </div>
-              ))}
+                <button className="w-10 h-10 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 flex items-center justify-center transition-all duration-200 hover:shadow-md">
+                  <MoreVertIcon />
+                </button>
+              </div>
+              
+              <div className="h-72 flex justify-center items-center relative">
+                {ordersStatsStatus === 'loading' ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <CircularProgress size={50} className="!text-purple-600" />
+                    <Typography variant="body2" className="!text-gray-500 !font-medium">
+                      Đang tải dữ liệu...
+                    </Typography>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <defs>
+                        {getOrdersChartData().map((entry, index) => (
+                          <linearGradient key={`gradient-${index}`} id={`pieGradient${index}`} x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stopColor={entry.color} stopOpacity={0.8}/>
+                            <stop offset="100%" stopColor={entry.color} stopOpacity={0.5}/>
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      <Pie
+                        data={getOrdersChartData()}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ percent, value }) => value > 0 ? `${(percent * 100).toFixed(0)}%` : ''}
+                        labelLine={false}
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                      >
+                        {getOrdersChartData().map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={`url(#pieGradient${index})`}
+                            className="hover:opacity-80 transition-opacity duration-200"
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: '#ffffff',
+                          border: 'none',
+                          borderRadius: '12px',
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                          fontSize: '13px',
+                          fontWeight: 500
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              
+              {/* Legend */}
+              <div className="mt-6">
+                <div className="grid grid-cols-2 gap-3">
+                  {getOrdersChartData().map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                      <div
+                        className="w-4 h-4 rounded-full shadow-sm flex-shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <Typography variant="body2" className="!text-xs !text-gray-700 !font-medium !truncate">
+                          {item.name}
+                        </Typography>
+                        <Typography variant="body2" className="!text-xs !font-bold !text-gray-900">
+                          {item.value.toLocaleString()}
+                        </Typography>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -585,97 +907,15 @@ const ManagerDashboard = () => {
             Quản lý thành viên trong nhóm
           </Typography>
         </div>
-        <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center gap-2">
-          <AddIcon />
-          Add Team Member
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <TextField
-              variant="outlined"
-              placeholder="Search team members..."
-              size="small"
-              className="flex-1 !w-full sm:!w-auto"
-              InputProps={{
-                startAdornment: <SearchIcon className="!text-gray-400 !mr-2" />,
-              }}
-            />
-            <FormControl variant="outlined" size="small" className="!min-w-[120px]">
-              <InputLabel>Role</InputLabel>
-              <Select label="Role" defaultValue="all">
-                <MenuItem value="all">All Roles</MenuItem>
-                <MenuItem value="designer">Designer</MenuItem>
-                <MenuItem value="developer">Developer</MenuItem>
-                <MenuItem value="marketing">Marketing</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHead>
-              <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
-                <TableCell className="!font-bold !text-gray-700">Name</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Role</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Active Tasks</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Completed</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Performance</TableCell>
-                <TableCell align="center" className="!font-bold !text-gray-700">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {teamMembers.map((member) => (
-                <TableRow key={member.id} className="hover:bg-gray-50">
-                  <TableCell>
-                    <div className="flex items-center">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium mr-3"
-                        style={{ backgroundColor: `hsl(${member.id * 60}, 70%, 50%)` }}
-                      >
-                        {member.name.charAt(0)}
-                      </div>
-                      <Typography variant="body2" className="!font-semibold !text-gray-800">
-                        {member.name}
-                      </Typography>
-                    </div>
-                  </TableCell>
-                  <TableCell className="!text-gray-600">{member.role}</TableCell>
-                  <TableCell className="!text-gray-600">{member.tasks}</TableCell>
-                  <TableCell className="!text-gray-600">{member.completed}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <div className="w-16 h-2 bg-gray-200 rounded-full mr-2">
-                        <div
-                          className="h-full bg-emerald-500 rounded-full"
-                          style={{
-                            width: `${(member.completed / (member.completed + member.tasks)) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <Typography variant="body2" className="!text-gray-600">
-                        {Math.round((member.completed / (member.completed + member.tasks)) * 100)}%
-                      </Typography>
-                    </div>
-                  </TableCell>
-                  <TableCell align="center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors duration-200">
-                        <EditIcon className="!text-sm" />
-                      </button>
-                      <button className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-colors duration-200">
-                        <DeleteIcon className="!text-sm" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <Typography variant="h6" className="!font-semibold !text-gray-800 !mb-2">
+          Team Management
+        </Typography>
+        <Typography variant="body2" className="!text-gray-600 !mb-6">
+          This feature is coming soon...
+        </Typography>
       </div>
     </div>
   );
@@ -692,108 +932,15 @@ const ManagerDashboard = () => {
             Quản lý và theo dõi các nhiệm vụ
           </Typography>
         </div>
-        <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center gap-2">
-          <AddIcon />
-          Create Task
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex flex-col lg:flex-row gap-4 items-center">
-            <TextField
-              variant="outlined"
-              placeholder="Search tasks..."
-              size="small"
-              className="flex-1 !w-full lg:!w-auto"
-              InputProps={{
-                startAdornment: <SearchIcon className="!text-gray-400 !mr-2" />,
-              }}
-            />
-            <div className="flex gap-2 w-full lg:w-auto">
-              <FormControl variant="outlined" size="small" className="!min-w-[120px] flex-1 lg:flex-none">
-                <InputLabel>Status</InputLabel>
-                <Select label="Status" defaultValue="all">
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
-                  <MenuItem value="in-progress">In Progress</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl variant="outlined" size="small" className="!min-w-[120px] flex-1 lg:flex-none">
-                <InputLabel>Priority</InputLabel>
-                <Select label="Priority" defaultValue="all">
-                  <MenuItem value="all">All Priority</MenuItem>
-                  <MenuItem value="high">High</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="low">Low</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHead>
-              <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
-                <TableCell className="!font-bold !text-gray-700">Task ID</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Title</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Assignee</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Due Date</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Status</TableCell>
-                <TableCell className="!font-bold !text-gray-700">Priority</TableCell>
-                <TableCell align="center" className="!font-bold !text-gray-700">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {recentTasks.map((task) => (
-                <TableRow key={task.id} className="hover:bg-gray-50">
-                  <TableCell>
-                    <Typography variant="body2" className="!font-semibold !text-gray-800">
-                      {task.id}
-                    </Typography>
-                  </TableCell>
-                  <TableCell className="!text-gray-600">{task.title}</TableCell>
-                  <TableCell className="!text-gray-600">{task.assignee}</TableCell>
-                  <TableCell className="!text-gray-600">{task.dueDate}</TableCell>
-                  <TableCell>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      task.status === "Completed"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : task.status === "In Progress"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-orange-100 text-orange-700"
-                    }`}>
-                      {task.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      task.priority === "High"
-                        ? "bg-red-100 text-red-700"
-                        : task.priority === "Medium"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-green-100 text-green-700"
-                    }`}>
-                      {task.priority}
-                    </span>
-                  </TableCell>
-                  <TableCell align="center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="w-8 h-8 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors duration-200">
-                        <EditIcon className="!text-sm" />
-                      </button>
-                      <button className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-colors duration-200">
-                        <DeleteIcon className="!text-sm" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <Typography variant="h6" className="!font-semibold !text-gray-800 !mb-2">
+          Task Management
+        </Typography>
+        <Typography variant="body2" className="!text-gray-600 !mb-6">
+          This feature is coming soon...
+        </Typography>
       </div>
     </div>
   );

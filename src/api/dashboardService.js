@@ -76,4 +76,30 @@ export const fetchAdminDashboardApi = async () => {
   }
 };
 
+// API to fetch staff orders statistics by date range
+export const fetchStaffOrdersStatsApi = async (startDate, endDate) => {
+  try {
+    const requestBody = {
+      start: startDate,
+      end: endDate
+    };
+
+    const response = await dashboardService.post('/api/dashboard/orders/staff', requestBody);
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching staff orders stats:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch staff orders statistics'
+    };
+  }
+};
+
 export default dashboardService;
