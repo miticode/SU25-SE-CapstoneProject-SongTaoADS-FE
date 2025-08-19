@@ -870,7 +870,7 @@ export default function Header() {
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setUserMenuOpen(false)}
                     >
-                      Hỗ trợ
+                      Lịch sử hỗ trợ
                     </Link>
                     <button
                       onClick={handleLogout}

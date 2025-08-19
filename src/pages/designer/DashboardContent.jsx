@@ -70,10 +70,11 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
   ].filter(item => item.value > 0);
 
   const workflowData = [
-    { name: 'Được giao', value: designerStats.totalCustomDesignRequestAssigned, fill: COLORS.primary },
-    { name: 'Demo gửi', value: designerStats.totalDemoSubmitted, fill: COLORS.warning },
-    { name: 'Demo duyệt', value: designerStats.totalDemoApproved, fill: COLORS.success },
-    { name: 'Hoàn thành', value: designerStats.totalFinalDesignSubmitted, fill: COLORS.purple }
+    { name: 'Thiết kế được giao', value: designerStats.totalCustomDesignRequestAssigned, fill: COLORS.primary },
+    { name: 'Demo đã gửi', value: designerStats.totalDemoSubmitted, fill: COLORS.warning },
+    { name: 'Demo được duyệt', value: designerStats.totalDemoApproved, fill: COLORS.success },
+    { name: 'Demo bị từ chối', value: designerStats.totalDemoRejected, fill: COLORS.error },
+    { name: 'Thiết kế hoàn thành', value: designerStats.totalFinalDesignSubmitted, fill: COLORS.purple }
   ];
 
   const performanceData = [
@@ -222,19 +223,19 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             <Box>
                                     <Typography variant="body2" sx={{ opacity: 0.8, mb: 1, fontWeight: 500, color: '#94a3b8' }}>
                     Demo đã gửi
-                  </Typography>
+              </Typography>
                   <Typography variant="h3" sx={{ fontWeight: 800, color: 'white' }}>
                     {designerStats.totalDemoSubmitted}
-                  </Typography>
-                </Box>
+              </Typography>
+            </Box>
                 <SendIcon sx={{ fontSize: 32, opacity: 0.6, color: '#64748b' }} />
               </Box>
         </CardContent>
       </Card>
 
-                    <Card sx={{ 
+          <Card sx={{ 
             flex: 1,
-            borderRadius: 3,
+            borderRadius: 3, 
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,
@@ -288,9 +289,9 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             </CardContent>
           </Card>
 
-                    <Card sx={{ 
+          <Card sx={{ 
             flex: 1,
-            borderRadius: 3,
+            borderRadius: 3, 
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,

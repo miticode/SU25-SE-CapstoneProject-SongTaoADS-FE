@@ -9771,78 +9771,151 @@ const OrderHistory = () => {
         <Dialog
           open={openTicketDialog}
           onClose={handleCloseTicketDialog}
-          maxWidth="sm"
+          maxWidth="md"
           fullWidth
           PaperProps={{
             sx: {
-              borderRadius: 4,
-              background: "rgba(255, 255, 255, 0.95)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              boxShadow: "0 25px 45px rgba(0, 0, 0, 0.15)",
+              borderRadius: 3,
+              background: "white",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
             },
           }}
         >
           <DialogTitle
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              background: "#1e293b",
+              color: "white",
               fontWeight: 700,
-              fontSize: "1.5rem",
+              fontSize: "1.4rem",
               textAlign: "center",
+              py: 3,
             }}
           >
-            🎫 Yêu cầu hỗ trợ cho đơn hàng
+            Yêu cầu hỗ trợ cho đơn hàng
           </DialogTitle>
-          <DialogContent sx={{ p: 3 }}>
+          <DialogContent sx={{ p: 4 }}>
+            {/* Hướng dẫn chung */}
+            <Box sx={{ 
+              mt: 2,
+              mb: 3, 
+              p: 3, 
+              bgcolor: '#f8fafc', 
+              borderRadius: 2, 
+              border: '1px solid #e2e8f0' 
+            }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b', mb: 2 }}>
+                Hướng dẫn gửi yêu cầu hỗ trợ
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                • Hãy mô tả rõ ràng vấn đề bạn đang gặp phải
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                • Đội ngũ hỗ trợ sẽ phản hồi trong vòng 24 giờ
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                • Bạn có thể theo dõi tiến độ xử lý trong mục "Lịch sử hỗ trợ"
+              </Typography>
+            </Box>
+
             <TextField
-              label="Tiêu đề"
+              label="Tiêu đề yêu cầu hỗ trợ"
               value={ticketTitle}
               onChange={(e) => setTicketTitle(e.target.value)}
               fullWidth
               margin="normal"
               required
+              placeholder="VD: Chính sách bảo hành, Chính sách thanh toán, Vấn đề về sản phẩm..."
+              helperText="Nhập tiêu đề ngắn gọn về vấn đề bạn cần hỗ trợ (Chính sách bảo hành, Thanh toán, Giao hàng, v.v.)"
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  background: "rgba(102, 126, 234, 0.04)",
+                  bgcolor: '#f8fafc',
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    background: "rgba(102, 126, 234, 0.08)",
+                    bgcolor: '#f1f5f9',
                   },
                   "&.Mui-focused": {
-                    background: "rgba(102, 126, 234, 0.08)",
-                    boxShadow: "0 4px 20px rgba(102, 126, 234, 0.2)",
+                    bgcolor: 'white',
+                    boxShadow: "0 0 0 2px rgba(30, 41, 59, 0.1)",
                   },
                 },
+                "& .MuiFormHelperText-root": {
+                  color: '#64748b',
+                  fontSize: '0.875rem'
+                }
               }}
             />
+            
             <TextField
-              label="Mô tả"
+              label="Mô tả chi tiết vấn đề"
               value={ticketDescription}
               onChange={(e) => setTicketDescription(e.target.value)}
               fullWidth
               margin="normal"
               multiline
-              minRows={4}
+              rows={6}
               required
+              placeholder="Mô tả cụ thể vấn đề bạn đang gặp phải, thời điểm xảy ra, và cách bạn mong muốn được hỗ trợ..."
+              helperText="Mô tả chi tiết vấn đề cần hỗ trợ: thời gian xảy ra, hiện tượng, tác động và mong muốn được giải quyết như thế nào"
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  background: "rgba(102, 126, 234, 0.04)",
+                  bgcolor: '#f8fafc',
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    background: "rgba(102, 126, 234, 0.08)",
+                    bgcolor: '#f1f5f9',
                   },
                   "&.Mui-focused": {
-                    background: "rgba(102, 126, 234, 0.08)",
-                    boxShadow: "0 4px 20px rgba(102, 126, 234, 0.2)",
+                    bgcolor: 'white',
+                    boxShadow: "0 0 0 2px rgba(30, 41, 59, 0.1)",
                   },
                 },
+                "& .MuiFormHelperText-root": {
+                  color: '#64748b',
+                  fontSize: '0.875rem'
+                }
               }}
             />
+
+            {/* Ví dụ mẫu */}
+            <Box sx={{ 
+              mt: 3, 
+              p: 3, 
+              bgcolor: '#eff6ff', 
+              borderRadius: 2, 
+              border: '1px solid #bfdbfe' 
+            }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e40af', mb: 2 }}>
+                Ví dụ các chủ đề hỗ trợ phổ biến:
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {[
+                  'Chính sách bảo hành',
+                  'Chính sách thanh toán', 
+                  'Thời gian giao hàng',
+                  'Chất lượng sản phẩm',
+                  'Thay đổi đơn hàng',
+                
+                ].map((topic, index) => (
+                  <Chip
+                    key={index}
+                    label={topic}
+                    size="small"
+                    onClick={() => setTicketTitle(topic)}
+                    sx={{
+                      bgcolor: 'white',
+                      color: '#1e40af',
+                      border: '1px solid #bfdbfe',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: '#dbeafe',
+                        transform: 'translateY(-1px)'
+                      }
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
             {createError && (
               <Alert
                 severity="error"
@@ -9874,19 +9947,25 @@ const OrderHistory = () => {
               </Alert>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 3 }}>
+          <DialogActions sx={{ p: 4, pt: 3, bgcolor: '#f8fafc', gap: 2 }}>
             <Button
               onClick={handleCloseTicketDialog}
+              variant="outlined"
+              disabled={createStatus === "loading"}
               sx={{
                 borderRadius: 2,
-                color: "#667eea",
+                borderColor: "#94a3b8",
+                color: "#64748b",
                 fontWeight: 600,
+                px: 3,
+                py: 1.5,
                 "&:hover": {
-                  background: "rgba(102, 126, 234, 0.08)",
+                  borderColor: "#64748b",
+                  bgcolor: "#f1f5f9",
                 },
               }}
             >
-              Hủy
+              Hủy bỏ
             </Button>
             <Button
               onClick={handleSubmitTicket}
@@ -9896,22 +9975,29 @@ const OrderHistory = () => {
               variant="contained"
               sx={{
                 borderRadius: 2,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                fontWeight: 600,
-                boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
+                bgcolor: "#1e293b",
+                fontWeight: 700,
+                px: 4,
+                py: 1.5,
+                boxShadow: "0 4px 12px rgba(30, 41, 59, 0.3)",
                 "&:hover": {
+                  bgcolor: "#334155",
                   transform: "translateY(-1px)",
-                  boxShadow: "0 6px 20px rgba(102, 126, 234, 0.4)",
+                  boxShadow: "0 6px 16px rgba(30, 41, 59, 0.4)",
                 },
+                "&:disabled": {
+                  bgcolor: "#94a3b8",
+                  color: "white"
+                }
               }}
             >
               {createStatus === "loading" ? (
                 <>
                   <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-                  Đang gửi...
+                  Đang gửi yêu cầu...
                 </>
               ) : (
-                "🚀 Gửi"
+                "Gửi yêu cầu hỗ trợ"
               )}
             </Button>
           </DialogActions>
