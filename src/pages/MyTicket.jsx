@@ -123,7 +123,7 @@ export default function MyTicket() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #0C1528 0%, #1a2332 100%)",
+        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
         py: 4,
         px: 2,
       }}
@@ -135,56 +135,93 @@ export default function MyTicket() {
           background: "rgba(255, 255, 255, 0.95)",
           borderRadius: 3,
           p: 4,
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-          backdropFilter: "blur(10px)",
+          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
         }}
       >
-        <Typography
-          variant="h4"
-          mb={3}
-          fontWeight={700}
-          sx={{
-            background: "linear-gradient(45deg, #0C1528, #1a2332)",
-            backgroundClip: "text",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            textAlign: "center",
-          }}
-        >
-          Danh sách yêu cầu hỗ trợ
-        </Typography>
-
-        <FormControl
-          sx={{
-            minWidth: 200,
-            mb: 3,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-              backgroundColor: "rgba(255, 255, 255, 0.8)",
-              "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-              },
-            },
-          }}
-          size="medium"
-        >
-          <InputLabel id="status-filter-label">Trạng Thái</InputLabel>
-          <Select
-            labelId="status-filter-label"
-            value={statusFilter}
-            label="Trạng Thái"
-            onChange={handleStatusFilterChange}
+        {/* Header Section */}
+        <Box sx={{ textAlign: "center", mb: 4 }}>
+          <Typography
+            variant="h4"
+            fontWeight={700}
+            sx={{
+              color: "#1e293b",
+              mb: 1,
+              letterSpacing: '-0.02em'
+            }}
           >
-            <MenuItem value="ALL">Tất cả</MenuItem>
-            <MenuItem value="OPEN">ĐÃ GỬI</MenuItem>
-            <MenuItem value="IN_PROGRESS">ĐANG XỬ LÍ</MenuItem>
-            <MenuItem value="CLOSED">ĐÃ XỬ LÍ</MenuItem>
-          </Select>
-        </FormControl>
+            Yêu cầu hỗ trợ
+          </Typography>
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            sx={{ fontSize: '1.1rem' }}
+          >
+            Theo dõi và quản lý các yêu cầu hỗ trợ của bạn
+          </Typography>
+        </Box>
+
+        {/* Filter Section */}
+        <Box sx={{ 
+          mb: 4, 
+          p: 3, 
+          bgcolor: '#f8fafc', 
+          borderRadius: 2, 
+          border: '1px solid #e2e8f0' 
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b', mb: 2 }}>
+            Bộ lọc
+          </Typography>
+          <FormControl
+            sx={{
+              minWidth: 250,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+                bgcolor: "white",
+                "&:hover": {
+                  bgcolor: "#f1f5f9",
+                },
+                "&.Mui-focused": {
+                  bgcolor: "white",
+                  boxShadow: "0 0 0 2px rgba(30, 41, 59, 0.1)",
+                },
+              },
+            }}
+            size="medium"
+          >
+            <InputLabel id="status-filter-label">Trạng thái</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              value={statusFilter}
+              label="Trạng thái"
+              onChange={handleStatusFilterChange}
+            >
+              <MenuItem value="ALL">Tất cả trạng thái</MenuItem>
+              <MenuItem value="OPEN">Đã gửi</MenuItem>
+              <MenuItem value="IN_PROGRESS">Đang xử lý</MenuItem>
+              <MenuItem value="CLOSED">Đã xử lý</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
 
         {status === "loading" && (
-          <Box display="flex" justifyContent="center" my={4}>
-            <CircularProgress size={60} sx={{ color: "#0C1528" }} />
+          <Box 
+            display="flex" 
+            flexDirection="column" 
+            alignItems="center" 
+            justifyContent="center" 
+            py={6}
+            sx={{
+              bgcolor: 'white',
+              borderRadius: 3,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+            }}
+          >
+            <CircularProgress size={50} sx={{ color: "#1e293b", mb: 2 }} />
+            <Typography variant="h6" color="#64748b">
+              Đang tải danh sách yêu cầu hỗ trợ...
+            </Typography>
           </Box>
         )}
 
@@ -192,10 +229,13 @@ export default function MyTicket() {
           <Alert
             severity="error"
             sx={{
-              mb: 2,
-              borderRadius: 2,
+              mb: 3,
+              borderRadius: 3,
+              bgcolor: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#991b1b',
               "& .MuiAlert-icon": {
-                color: "#d32f2f",
+                color: "#dc2626",
               },
             }}
           >
@@ -205,16 +245,21 @@ export default function MyTicket() {
 
         {tickets.length === 0 && status === "succeeded" && (
           <Box
-            textAlign="center"
-            py={6}
             sx={{
-              background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+              textAlign: "center",
+              py: 8,
+              bgcolor: 'white',
               borderRadius: 3,
-              border: "2px dashed #0C1528",
+              border: "2px dashed #cbd5e1",
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
             }}
           >
-            <Typography variant="h6" color="text.secondary">
-              Chưa có yêu cầu hỗ trợ nào.
+            <Box sx={{ fontSize: '4rem', mb: 2 }}>📋</Box>
+            <Typography variant="h6" color="#64748b" sx={{ mb: 1 }}>
+              Chưa có yêu cầu hỗ trợ nào
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Các yêu cầu hỗ trợ bạn gửi sẽ hiển thị tại đây
             </Typography>
           </Box>
         )}
@@ -223,11 +268,12 @@ export default function MyTicket() {
           <Paper
             sx={{
               width: "100%",
-              mb: 2,
+              mb: 3,
               borderRadius: 3,
               overflow: "hidden",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
-              border: "1px solid rgba(12, 21, 40, 0.1)",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+              border: "1px solid #e2e8f0",
+              bgcolor: 'white'
             }}
           >
             <TableContainer>
@@ -235,58 +281,58 @@ export default function MyTicket() {
                 <TableHead>
                   <TableRow
                     sx={{
-                      backgroundColor: "#0C1528",
+                      backgroundColor: "#1e293b",
                     }}
                   >
                     <TableCell
                       sx={{
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: "white",
-                        backgroundColor: "#0C1528",
-                        fontSize: "1rem",
+                        fontSize: "0.875rem",
+                        py: 2.5,
                       }}
                     >
-                      Tiêu đề
+                      Tiêu đề yêu cầu
                     </TableCell>
                     <TableCell
                       sx={{
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: "white",
-                        backgroundColor: "#0C1528",
-                        fontSize: "1rem",
+                        fontSize: "0.875rem",
+                        py: 2.5,
                       }}
                     >
-                      Mô tả
+                      Mô tả vấn đề
                     </TableCell>
                     <TableCell
                       sx={{
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: "white",
-                        backgroundColor: "#0C1528",
-                        fontSize: "1rem",
+                        fontSize: "0.875rem",
+                        py: 2.5,
                       }}
                     >
                       Trạng thái
                     </TableCell>
                     <TableCell
                       sx={{
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: "white",
-                        backgroundColor: "#0C1528",
-                        fontSize: "1rem",
+                        fontSize: "0.875rem",
+                        py: 2.5,
                       }}
                     >
-                      Ngày tạo
+                      Ngày gửi
                     </TableCell>
                     <TableCell
                       sx={{
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: "white",
-                        backgroundColor: "#0C1528",
-                        fontSize: "1rem",
+                        fontSize: "0.875rem",
+                        py: 2.5,
                       }}
                     >
-                      Hành động
+                      Thao tác
                     </TableCell>
                   </TableRow>
                 </TableHead>
@@ -295,65 +341,89 @@ export default function MyTicket() {
                     <TableRow
                       key={ticket.id}
                       sx={{
-                        backgroundColor:
-                          index % 2 === 0
-                            ? "rgba(12, 21, 40, 0.02)"
-                            : "rgba(255, 255, 255, 0.8)",
+                        "&:nth-of-type(even)": {
+                          backgroundColor: "#f8fafc",
+                        },
+                        "&:hover": {
+                          backgroundColor: "#f1f5f9",
+                          transition: "all 0.2s ease",
+                        },
                       }}
                     >
-                      <TableCell sx={{ fontWeight: 500, fontSize: "0.95rem" }}>
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        fontSize: "0.95rem",
+                        color: "#1e293b",
+                        py: 2
+                      }}>
                         {ticket.title}
                       </TableCell>
                       <TableCell
-                        sx={{ fontSize: "0.9rem", color: "text.secondary" }}
+                        sx={{ 
+                          fontSize: "0.875rem", 
+                          color: "#64748b",
+                          py: 2,
+                          maxWidth: '300px'
+                        }}
                       >
-                        {ticket.description?.length > 50
-                          ? ticket.description.slice(0, 50) + "..."
+                        {ticket.description?.length > 60
+                          ? ticket.description.slice(0, 60) + "..."
                           : ticket.description}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ py: 2 }}>
                         <Chip
                           label={getStatusDisplay(ticket.status)}
-                          color={getStatusColor(ticket.status)}
-                          size="medium"
+                          size="small"
                           sx={{
                             fontWeight: 600,
-                            fontSize: "0.85rem",
+                            fontSize: "0.75rem",
                             borderRadius: 2,
-                            "&.MuiChip-colorPrimary": {
-                              backgroundColor: "#1976d2",
+                            ...(ticket.status === "OPEN" && {
+                              bgcolor: "#3b82f6",
                               color: "white",
-                            },
-                            "&.MuiChip-colorWarning": {
-                              backgroundColor: "#ed6c02",
+                            }),
+                            ...(ticket.status === "IN_PROGRESS" && {
+                              bgcolor: "#f59e0b",
                               color: "white",
-                            },
-                            "&.MuiChip-colorSuccess": {
-                              backgroundColor: "#2e7d32",
+                            }),
+                            ...(ticket.status === "CLOSED" && {
+                              bgcolor: "#10b981",
                               color: "white",
-                            },
+                            }),
                           }}
                         />
                       </TableCell>
                       <TableCell
-                        sx={{ fontSize: "0.9rem", color: "text.secondary" }}
+                        sx={{ 
+                          fontSize: "0.875rem", 
+                          color: "#64748b",
+                          py: 2
+                        }}
                       >
-                        {new Date(ticket.createdAt).toLocaleString("vi-VN")}
+                        {new Date(ticket.createdAt).toLocaleDateString("vi-VN", {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ py: 2 }}>
                         <Button
                           variant="contained"
                           size="small"
                           onClick={() => handleOpenDetail(ticket)}
                           sx={{
-                            background: "#0C1528",
+                            bgcolor: "#1e293b",
                             borderRadius: 2,
                             textTransform: "none",
                             fontWeight: 600,
+                            px: 2,
+                            py: 1,
                             "&:hover": {
-                              background: "#1a2332",
+                              bgcolor: "#334155",
                               transform: "translateY(-1px)",
-                              boxShadow: "0 4px 12px rgba(12, 21, 40, 0.3)",
+                              boxShadow: "0 4px 12px rgba(30, 41, 59, 0.3)",
                             },
                           }}
                         >
@@ -373,12 +443,30 @@ export default function MyTicket() {
               rowsPerPage={rowsPerPage}
               onRowsPerPageChange={handleChangeRowsPerPage}
               labelRowsPerPage="Số dòng mỗi trang"
+              labelDisplayedRows={({ from, to, count }) => 
+                `${from}–${to} trong tổng số ${count !== -1 ? count : `hơn ${to}`}`
+              }
               sx={{
-                backgroundColor: "rgba(12, 21, 40, 0.05)",
-                "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
-                  {
-                    fontWeight: 500,
-                  },
+                backgroundColor: "#f8fafc",
+                borderTop: "1px solid #e2e8f0",
+                "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows": {
+                  fontWeight: 500,
+                  color: "#64748b"
+                },
+                "& .MuiTablePagination-select": {
+                  borderRadius: 1,
+                  "&:focus": {
+                    borderRadius: 1,
+                  }
+                },
+                "& .MuiTablePagination-actions": {
+                  "& .MuiIconButton-root": {
+                    color: "#64748b",
+                    "&:hover": {
+                      bgcolor: "#f1f5f9"
+                    }
+                  }
+                }
               }}
             />
           </Paper>
@@ -393,119 +481,184 @@ export default function MyTicket() {
           PaperProps={{
             sx: {
               borderRadius: 3,
-              background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+              background: "white",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
             },
           }}
         >
           <DialogTitle
             sx={{
-              background: "#0C1528",
+              background: "#1e293b",
               color: "white",
-              fontWeight: 600,
-              fontSize: "1.3rem",
+              fontWeight: 700,
+              fontSize: "1.4rem",
+              textAlign: "center",
+              py: 3,
             }}
           >
             Chi tiết yêu cầu hỗ trợ
           </DialogTitle>
-          <DialogContent sx={{ p: 3 }}>
+          <DialogContent sx={{ p: 4 }}>
             {selectedTicket && (
               <Box>
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                  sx={{
-                    background: "linear-gradient(45deg, #0C1528, #1a2332)",
-                    backgroundClip: "text",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    mb: 2,
-                  }}
-                >
-                  {selectedTicket.title}
-                </Typography>
-
-                <Box sx={{ mb: 2 }}>
+                {/* Tiêu đề ticket */}
+                <Box sx={{ 
+                  mb: 3, 
+                  p: 3, 
+                  bgcolor: '#f8fafc', 
+                  borderRadius: 2, 
+                  border: '1px solid #e2e8f0' 
+                }}>
                   <Typography
-                    variant="subtitle2"
+                    variant="body2"
+                    color="#64748b"
                     fontWeight={600}
-                    color="text.secondary"
+                    mb={1}
+                    sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
                   >
-                    Mô tả:
+                    Tiêu đề yêu cầu
                   </Typography>
-                  <Typography variant="body1" sx={{ mt: 0.5, lineHeight: 1.6 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={700}
+                    sx={{ color: "#1e293b" }}
+                  >
+                    {selectedTicket.title}
+                  </Typography>
+                </Box>
+
+                {/* Mô tả */}
+                <Box sx={{ 
+                  mb: 3, 
+                  p: 3, 
+                  bgcolor: '#f8fafc', 
+                  borderRadius: 2, 
+                  border: '1px solid #e2e8f0' 
+                }}>
+                  <Typography
+                    variant="body2"
+                    color="#64748b"
+                    fontWeight={600}
+                    mb={1}
+                    sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
+                  >
+                    Mô tả vấn đề
+                  </Typography>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      lineHeight: 1.6,
+                      color: "#374151",
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
                     {selectedTicket.description}
                   </Typography>
                 </Box>
 
-                <Box sx={{ mb: 2 }}>
-                  <Typography
-                    variant="subtitle2"
-                    fontWeight={600}
-                    color="text.secondary"
-                  >
-                    Trạng thái:
-                  </Typography>
-                  <Chip
-                    label={getStatusDisplay(selectedTicket.status)}
-                    color={getStatusColor(selectedTicket.status)}
-                    sx={{ mt: 0.5, fontWeight: 600 }}
-                  />
+                {/* Thông tin meta - Single Column */}
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ 
+                    p: 3, 
+                    bgcolor: '#f1f5f9', 
+                    borderRadius: 2, 
+                    border: '1px solid #ddd6fe' 
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="#64748b"
+                        fontWeight={600}
+                        sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
+                      >
+                        Trạng thái
+                      </Typography>
+                      <Chip
+                        label={getStatusDisplay(selectedTicket.status)}
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.75rem",
+                          borderRadius: 2,
+                          ...(selectedTicket.status === "OPEN" && {
+                            bgcolor: "#3b82f6",
+                            color: "white",
+                          }),
+                          ...(selectedTicket.status === "IN_PROGRESS" && {
+                            bgcolor: "#f59e0b",
+                            color: "white",
+                          }),
+                          ...(selectedTicket.status === "CLOSED" && {
+                            bgcolor: "#10b981",
+                            color: "white",
+                          }),
+                        }}
+                      />
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography
+                        variant="body2"
+                        color="#64748b"
+                        fontWeight={600}
+                        sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
+                      >
+                        Ngày gửi
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: "#374151", fontWeight: 500 }}>
+                        {new Date(selectedTicket.createdAt).toLocaleDateString("vi-VN")}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </Box>
 
-                <Box sx={{ mb: 2 }}>
-                  <Typography
-                    variant="subtitle2"
-                    fontWeight={600}
-                    color="text.secondary"
-                  >
-                    Ngày tạo:
-                  </Typography>
-                  <Typography variant="body1" sx={{ mt: 0.5 }}>
-                    {new Date(selectedTicket.createdAt).toLocaleString("vi-VN")}
-                  </Typography>
-                </Box>
-
+                {/* Phản hồi từ bộ phận hỗ trợ */}
                 {selectedTicket.solution && (
-                  <Alert
-                    severity="success"
-                    sx={{
-                      mt: 2,
-                      borderRadius: 2,
-                      "& .MuiAlert-icon": {
-                        color: "#2e7d32",
-                      },
-                    }}
-                  >
+                  <Box sx={{ 
+                    p: 3, 
+                    bgcolor: '#f0fdf4', 
+                    borderRadius: 2, 
+                    border: '1px solid #bbf7d0' 
+                  }}>
                     <Typography
-                      variant="subtitle2"
+                      variant="body2"
+                      color="#166534"
                       fontWeight={600}
-                      sx={{ mb: 1 }}
+                      mb={2}
+                      sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
                     >
-                      Phản hồi từ bộ phận hỗ trợ:
+                      Phản hồi từ bộ phận hỗ trợ
                     </Typography>
-                    <Typography variant="body1">
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        color: "#15803d",
+                        lineHeight: 1.6,
+                        whiteSpace: 'pre-wrap'
+                      }}
+                    >
                       {selectedTicket.solution}
                     </Typography>
-                  </Alert>
+                  </Box>
                 )}
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 3, pt: 0 }}>
+          <DialogActions sx={{ p: 4, pt: 3, bgcolor: '#f8fafc', justifyContent: 'center' }}>
             <Button
               onClick={handleCloseDetail}
               variant="contained"
               sx={{
-                background: "#0C1528",
+                bgcolor: "#1e293b",
                 borderRadius: 2,
                 textTransform: "none",
                 fontWeight: 600,
-                px: 3,
+                px: 4,
+                py: 1.5,
                 "&:hover": {
-                  background: "#1a2332",
+                  bgcolor: "#334155",
                   transform: "translateY(-1px)",
-                  boxShadow: "0 4px 12px rgba(12, 21, 40, 0.3)",
+                  boxShadow: "0 4px 12px rgba(30, 41, 59, 0.3)",
                 },
               }}
             >

@@ -92,6 +92,15 @@ const TypingIndicator = () => (
             opacity: 1;
           }
         }
+        
+        @keyframes pulse {
+          0%, 100% {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37), 0 0 0 0 rgba(255, 255, 255, 0.4);
+          }
+          50% {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 10px rgba(255, 255, 255, 0.1);
+          }
+        }
       `}
     </style>
   </Box>
@@ -109,6 +118,12 @@ const AIChatbot = () => {
   const [input, setInput] = useState("");
   const [isHover, setIsHover] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [position, setPosition] = useState(() => {
+    const saved = localStorage.getItem('chatbot_position');
+    return saved ? JSON.parse(saved) : { x: 32, y: 32 };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const messagesEndRef = useRef(null);
   const chatBoxRef = useRef(null);
   const inputRef = useRef(null);
@@ -179,6 +194,54 @@ const AIChatbot = () => {
     if (open) setUnreadCount(0);
   }, [chatMessages, open]);
 
+  // Save position to localStorage
+  useEffect(() => {
+    localStorage.setItem('chatbot_position', JSON.stringify(position));
+  }, [position]);
+
+  // Handle drag events
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    e.preventDefault();
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Keep button within viewport bounds
+    const maxX = (window.innerWidth || document.documentElement.clientWidth) - 72;
+    const maxY = (window.innerHeight || document.documentElement.clientHeight) - 72;
+    
+    setPosition({
+      x: Math.max(8, Math.min(newX, maxX - 8)),
+      y: Math.max(8, Math.min(newY, maxY - 8)),
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Global mouse events for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragStart]);
+
   // Hiển thị thông báo đăng nhập khi mở chatbot lần đầu và chưa đăng nhập
   useEffect(() => {
     if (open && !isAuthenticated && chatMessages.length === 0) {
@@ -231,9 +294,19 @@ const AIChatbot = () => {
           overlap="circular"
           sx={{
             position: "fixed",
-            bottom: 32,
-            right: 32,
+            bottom: `${(window.innerHeight || document.documentElement.clientHeight) - position.y - 72}px`,
+            right: `${(window.innerWidth || document.documentElement.clientWidth) - position.x - 72}px`,
             zIndex: 1400,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            "& .MuiBadge-badge": {
+              background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+              boxShadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              backdropFilter: "blur(10px)",
+              fontSize: 12,
+              fontWeight: 600,
+            }
           }}
         >
           <motion.div
@@ -243,22 +316,47 @@ const AIChatbot = () => {
           >
             <IconButton
               sx={{
-                bgcolor: "#ffffff",
+                background: isDragging ? "rgba(22, 22, 24, 0.4)" : "rgba(22, 22, 24, 0.25)",
+                backdropFilter: "blur(40px) saturate(200%)",
+                boxShadow: isDragging 
+                  ? "0 16px 50px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
+                  : "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
                 color: "#fff",
-                width: 68,
-                height: 68,
-                boxShadow: "0 8px 25px rgba(255, 255, 255, 0.3)",
+                width: 72,
+                height: 72,
+                cursor: isDragging ? 'grabbing' : 'grab',
                 "&:hover": {
-                  bgcolor: "#f3f4f6",
-                  boxShadow: "0 12px 35px rgba(255, 255, 255, 0.4)",
+                  background: "rgba(22, 22, 24, 0.35)",
+                  backdropFilter: "blur(50px) saturate(250%)",
+                  boxShadow: "0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+                  transform: isDragging ? "none" : "translateY(-2px)",
                 },
+                "&:active": {
+                  transform: "translateY(0px)",
+                },
+                transition: isDragging ? "none" : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                animation: unreadCount > 0 ? "pulse 2s infinite" : "none",
               }}
-              onClick={() => setOpen(true)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleMouseDown(e);
+              }}
+              onClick={(e) => {
+                if (!isDragging) {
+                  setOpen(true);
+                }
+              }}
             >
               <Avatar
                 src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                 alt="AI Bot"
-                sx={{ width: 60, height: 60, bgcolor: "transparent" }}
+                sx={{ 
+                  width: 58, 
+                  height: 58, 
+                  bgcolor: "transparent",
+                  border: "2px solid rgba(255, 255, 255, 0.2)",
+                  boxShadow: "0 4px 20px rgba(255, 255, 255, 0.2), inset 0 2px 10px rgba(255, 255, 255, 0.1)",
+                }}
               />
             </IconButton>
           </motion.div>
@@ -282,8 +380,8 @@ const AIChatbot = () => {
             }}
             style={{
               position: "fixed",
-              bottom: 32,
-              right: 32,
+              bottom: Math.max(32, (window.innerHeight || document.documentElement.clientHeight) - position.y - 600 - 80),
+              right: Math.max(32, (window.innerWidth || document.documentElement.clientWidth) - position.x - 390 - 80),
               zIndex: 1400,
               width: 390,
               height: 600,
@@ -335,7 +433,7 @@ const AIChatbot = () => {
                     }}
                   />
                   <Typography variant="h6" fontWeight={600} sx={{ color: "white" }}>
-                    Song Tạo AI Pro
+                    Song Tạo AI
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1}>
