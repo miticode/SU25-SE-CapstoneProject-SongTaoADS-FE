@@ -5841,6 +5841,30 @@ const OrderHistory = () => {
                         </Box>
                       )}
 
+                      {req.status === "ASSIGNED_DESIGNER" && (
+                        <Box
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            background:
+                              "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)",
+                            border: "1px solid rgba(59, 130, 246, 0.3)",
+                          }}
+                        >
+                          <Chip
+                            icon={<BrushIcon />}
+                            label="👨‍🎨 Đợi thiết kế từ designer"
+                            sx={{
+                              background:
+                                "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                              color: "white",
+                              fontWeight: 600,
+                              "& .MuiChip-icon": { color: "white" },
+                            }}
+                          />
+                        </Box>
+                      )}
+
                       {req.status === "DEPOSITED" && (
                         <Box
                           sx={{

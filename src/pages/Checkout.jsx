@@ -46,18 +46,6 @@ const steps = [
 
 const paymentMethods = [
   {
-    value: "vnpay",
-    label: "VNPay",
-    icon: (
-      <img
-        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTp1v7T287-ikP1m7dEUbs2n1SbbLEqkMd1ZA&s"
-        alt="VNPay"
-        width={32}
-        height={32}
-      />
-    ),
-  },
-  {
     value: "payos",
     label: "PAYOS",
     icon: (
@@ -97,7 +85,7 @@ const Checkout = () => {
     note: "",
   });
   const [agree, setAgree] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("vnpay");
+  const [paymentMethod, setPaymentMethod] = useState("payos");
   const [loading, setLoading] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState("");
   const [showPayOS, setShowPayOS] = useState(false);
@@ -177,62 +165,53 @@ const Checkout = () => {
     orderToUse
   );
 
-  if (paymentMethod === "payos") {
-    try {
-      // Dispatch Redux thunk để thanh toán
+  try {
+    // Dispatch Redux thunk để thanh toán
+    console.log(
+      "[Payment] Gọi payOrderDepositThunk với orderId:",
+      orderToUse.id
+    );
+    const result = await dispatch(payOrderDepositThunk(orderToUse.id));
+
+    if (payOrderDepositThunk.fulfilled.match(result)) {
+      // Thanh toán thành công
       console.log(
-        "[Payment] Gọi payOrderDepositThunk với orderId:",
-        orderToUse.id
+        "[Payment] Kết quả thanh toán thành công:",
+        result.payload
       );
-      const result = await dispatch(payOrderDepositThunk(orderToUse.id));
 
-      if (payOrderDepositThunk.fulfilled.match(result)) {
-        // Thanh toán thành công
-        console.log(
-          "[Payment] Kết quả thanh toán thành công:",
-          result.payload
-        );
-
-        // Cập nhật logic lấy checkout URL
-        let checkoutUrl = null;
-        
-        // Kiểm tra các vị trí có thể có checkoutUrl
-        if (result.payload?.checkoutUrl) {
-          checkoutUrl = result.payload.checkoutUrl;
-        } else if (result.payload?.data?.checkoutUrl) {
-          checkoutUrl = result.payload.data.checkoutUrl;
-        } else if (result.payload?.result?.checkoutUrl) {
-          checkoutUrl = result.payload.result.checkoutUrl;
-        }
-
-        console.log("[Payment] CheckoutUrl found:", checkoutUrl);
-
-        if (checkoutUrl) {
-          console.log("[Payment] Redirecting to:", checkoutUrl);
-          // Chuyển hướng đến PayOS
-          window.location.href = checkoutUrl;
-        } else {
-          console.error("[Payment] Response structure:", result.payload);
-          throw new Error("Không nhận được URL thanh toán từ PayOS");
-        }
-      } else {
-        // Thanh toán thất bại
-        const errorMessage =
-          result.payload || "Không thể tạo link thanh toán PayOS";
-        console.error("[Payment] Lỗi thanh toán:", errorMessage);
-        alert(errorMessage);
+      // Cập nhật logic lấy checkout URL
+      let checkoutUrl = null;
+      
+      // Kiểm tra các vị trí có thể có checkoutUrl
+      if (result.payload?.checkoutUrl) {
+        checkoutUrl = result.payload.checkoutUrl;
+      } else if (result.payload?.data?.checkoutUrl) {
+        checkoutUrl = result.payload.data.checkoutUrl;
+      } else if (result.payload?.result?.checkoutUrl) {
+        checkoutUrl = result.payload.result.checkoutUrl;
       }
-    } catch (err) {
-      console.error("[Payment] Lỗi chi tiết:", err);
-      alert(err.message || "Có lỗi xảy ra khi thanh toán");
+
+      console.log("[Payment] CheckoutUrl found:", checkoutUrl);
+
+      if (checkoutUrl) {
+        console.log("[Payment] Redirecting to:", checkoutUrl);
+        // Chuyển hướng đến PayOS
+        window.location.href = checkoutUrl;
+      } else {
+        console.error("[Payment] Response structure:", result.payload);
+        throw new Error("Không nhận được URL thanh toán từ PayOS");
+      }
+    } else {
+      // Thanh toán thất bại
+      const errorMessage =
+        result.payload || "Không thể tạo link thanh toán PayOS";
+      console.error("[Payment] Lỗi thanh toán:", errorMessage);
+      alert(errorMessage);
     }
-  } else if (paymentMethod === "vnpay") {
-    // Demo cho VNPay
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      alert("Thanh toán VNPay thành công (demo)");
-    }, 1500);
+  } catch (err) {
+    console.error("[Payment] Lỗi chi tiết:", err);
+    alert(err.message || "Có lỗi xảy ra khi thanh toán");
   }
 };
   useEffect(() => {
