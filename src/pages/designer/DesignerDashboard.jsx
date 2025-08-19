@@ -14,6 +14,12 @@ import {
   addRoleNotificationRealtime,
   markNotificationRead,
 } from "../../store/features/notification/notificationSlice";
+import {
+  fetchDesignerDashboard,
+  selectDesignerDashboard,
+  selectDashboardStatus,
+  selectDashboardError,
+} from "../../store/features/dashboard/dashboardSlice";
 import { io } from "socket.io-client";
 import {
   Logout as LogoutIcon,
@@ -41,6 +47,11 @@ const DesignerDashboard = () => {
   const notificationLoading = useSelector(selectNotificationLoading);
   const roleNotificationLoading = useSelector(selectRoleNotificationLoading);
   const unreadCount = useSelector(selectTotalUnreadCount);
+  
+  // Dashboard selectors
+  const designerDashboard = useSelector(selectDesignerDashboard);
+  const dashboardStatus = useSelector(selectDashboardStatus);
+  const dashboardError = useSelector(selectDashboardError);
   
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
@@ -97,11 +108,12 @@ const DesignerDashboard = () => {
     setAlertNotifications(prev => prev.filter(alert => alert.id !== alertId));
   };
 
-  // Fetch notifications when user is authenticated
+  // Fetch notifications and dashboard data when user is authenticated
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchNotifications({ page: 1, size: 10 }));
       dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
+      dispatch(fetchDesignerDashboard());
     }
   }, [dispatch, isAuthenticated]);
 
@@ -252,7 +264,13 @@ const DesignerDashboard = () => {
   const renderContent = () => {
     switch (selectedMenu) {
       case "dashboard":
-        return <DashboardContent stats={{}} orders={[]} />;
+        return (
+          <DashboardContent 
+            stats={designerDashboard} 
+            loading={dashboardStatus === 'loading'}
+            error={dashboardError}
+          />
+        );
       case "designs":
         return <DesignRequests />;
       case "chat":
@@ -260,7 +278,13 @@ const DesignerDashboard = () => {
       case "icons":
         return <IconManager />;
       default:
-        return <DashboardContent stats={{}} orders={[]} />;
+        return (
+          <DashboardContent 
+            stats={designerDashboard} 
+            loading={dashboardStatus === 'loading'}
+            error={dashboardError}
+          />
+        );
     }
   };
 

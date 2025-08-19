@@ -1,8 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { 
-  fetchStaffDashboardApi, 
-  fetchAdminDashboardApi, 
-  fetchSaleDashboardApi, 
+import {
+  fetchStaffDashboardApi,
+  fetchAdminDashboardApi,
+  fetchSaleDashboardApi,
+  fetchDesignerDashboardApi,
   fetchStaffOrdersStatsApi,
   fetchSaleOrdersStatsApi,
   fetchCustomDesignRequestsStatsApi,
@@ -87,6 +88,13 @@ const initialState = {
     totalTicketInProgress: 0,
     totalTicketClosed: 0,
     totalTicketDelivered: 0
+  },
+  designerDashboard: {
+    totalCustomDesignRequestAssigned: 0,
+    totalDemoSubmitted: 0,
+    totalDemoApproved: 0,
+    totalDemoRejected: 0,
+    totalFinalDesignSubmitted: 0
   },
   ordersStats: {
     total: 0,
@@ -209,6 +217,26 @@ export const fetchSaleDashboard = createAsyncThunk(
     }
   }
 );
+
+// Async thunk for fetching designer dashboard data
+export const fetchDesignerDashboard = createAsyncThunk(
+  'dashboard/fetchDesignerDashboard',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetchDesignerDashboardApi();
+
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to fetch designer dashboard');
+      }
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Something went wrong');
+    }
+  }
+);
+
+
 
 // Async thunk for fetching staff orders statistics
 export const fetchStaffOrdersStats = createAsyncThunk(
@@ -391,6 +419,13 @@ const dashboardSlice = createSlice({
         totalTicketClosed: 0,
         totalTicketDelivered: 0
       };
+      state.designerDashboard = {
+        totalCustomDesignRequestAssigned: 0,
+        totalDemoSubmitted: 0,
+        totalDemoApproved: 0,
+        totalDemoRejected: 0,
+        totalFinalDesignSubmitted: 0
+      };
       state.ordersStats = {
         total: 0,
         producing: 0,
@@ -496,6 +531,22 @@ const dashboardSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
+      // Fetch designer dashboard
+      .addCase(fetchDesignerDashboard.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchDesignerDashboard.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.designerDashboard = action.payload;
+        state.lastUpdated = new Date().toISOString();
+        state.error = null;
+      })
+      .addCase(fetchDesignerDashboard.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+
       // Fetch staff orders stats
       .addCase(fetchStaffOrdersStats.pending, (state) => {
         state.ordersStatsStatus = 'loading';
@@ -573,6 +624,7 @@ export const {
 export const selectStaffDashboard = (state) => state.dashboard.staffDashboard;
 export const selectAdminDashboard = (state) => state.dashboard.adminDashboard;
 export const selectSaleDashboard = (state) => state.dashboard.saleDashboard;
+export const selectDesignerDashboard = (state) => state.dashboard.designerDashboard;
 export const selectOrdersStats = (state) => state.dashboard.ordersStats;
 export const selectSaleOrdersStats = (state) => state.dashboard.saleOrdersStats;
 export const selectCustomDesignRequestsStats = (state) => state.dashboard.customDesignRequestsStats;
@@ -720,5 +772,12 @@ export const selectPaymentsStatsPayOSRevenue = (state) => state.dashboard.paymen
 export const selectPaymentsStatsCastRevenue = (state) => state.dashboard.paymentsStats.castRevenue;
 export const selectPaymentsStatsDesignRevenue = (state) => state.dashboard.paymentsStats.designRevenue;
 export const selectPaymentsStatsConstructionRevenue = (state) => state.dashboard.paymentsStats.constructionRevenue;
+
+// Selectors for designer dashboard metrics
+export const selectDesignerTotalCustomDesignRequestAssigned = (state) => state.dashboard.designerDashboard.totalCustomDesignRequestAssigned;
+export const selectDesignerTotalDemoSubmitted = (state) => state.dashboard.designerDashboard.totalDemoSubmitted;
+export const selectDesignerTotalDemoApproved = (state) => state.dashboard.designerDashboard.totalDemoApproved;
+export const selectDesignerTotalDemoRejected = (state) => state.dashboard.designerDashboard.totalDemoRejected;
+export const selectDesignerTotalFinalDesignSubmitted = (state) => state.dashboard.designerDashboard.totalFinalDesignSubmitted;
 
 export default dashboardSlice.reducer;
