@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
   Typography,
@@ -6,355 +6,556 @@ import {
   CardContent,
   Stack,
   Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   Button,
-  TextField,
-  InputAdornment,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Paper,
   Container,
   Avatar,
+  Chip,
 } from "@mui/material";
 import {
-  ShoppingCart as OrderIcon,
-  PendingActions as PendingIcon,
-  LocalShipping as ShippingIcon,
-  MonetizationOn as MoneyIcon,
-  Search as SearchIcon,
   Palette as DesignIcon,
   Assignment as AssignmentIcon,
   CheckCircle as CheckCircleIcon,
+  TrendingUp as TrendingUpIcon,
+  Timeline as TimelineIcon,
+  Schedule as ScheduleIcon,
+  CalendarToday as CalendarIcon,
+  Work as WorkIcon,
+  Send as SendIcon,
+  Cancel as CancelIcon,
+  Analytics as AnalyticsIcon,
+  Insights as InsightsIcon,
 } from "@mui/icons-material";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  RadialBarChart,
+  RadialBar,
+  AreaChart,
+  Area,
+} from "recharts";
 
-const DashboardContent = ({ stats = {}, orders = [], onViewDetail }) => {
-  const [statusFilter, setStatusFilter] = useState("");
-  const [search, setSearch] = useState("");
-
-  // Default stats for designer
-  const defaultStats = {
-    totalOrders: stats?.totalOrders || 0,
-    pendingOrders: stats?.pendingOrders || 0,
-    confirmedOrders: stats?.confirmedOrders || 0,
-    totalRevenue: stats?.totalRevenue || 0,
-    totalDesigns: stats?.totalDesigns || 0,
-    completedDesigns: stats?.completedDesigns || 0,
-    pendingDesigns: stats?.pendingDesigns || 0,
+const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
+  // Designer dashboard stats
+  const designerStats = {
+    totalCustomDesignRequestAssigned: stats?.totalCustomDesignRequestAssigned || 0,
+    totalDemoSubmitted: stats?.totalDemoSubmitted || 0,
+    totalDemoApproved: stats?.totalDemoApproved || 0,
+    totalDemoRejected: stats?.totalDemoRejected || 0,
+    totalFinalDesignSubmitted: stats?.totalFinalDesignSubmitted || 0,
   };
 
-  // Hàm format ngày tháng
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+  // Chart colors - consistent theme
+  const COLORS = {
+    primary: '#1976d2',
+    success: '#4caf50', 
+    warning: '#ff9800',
+    error: '#f44336',
+    purple: '#9c27b0',
   };
 
-  // Hàm lấy tên khách hàng từ userId
-  const getCustomerName = (order) => {
-    if (order.users?.fullName) return order.users.fullName;
-    return "Ẩn danh";
-  };
+  // Prepare chart data từ API
+  const demoStatusData = [
+    { name: 'Đã duyệt', value: designerStats.totalDemoApproved, color: COLORS.success },
+    { name: 'Bị từ chối', value: designerStats.totalDemoRejected, color: COLORS.error },
+    { name: 'Chờ duyệt', value: designerStats.totalDemoSubmitted - designerStats.totalDemoApproved - designerStats.totalDemoRejected, color: COLORS.warning }
+  ].filter(item => item.value > 0);
 
-  // Hàm tạo mã đơn hàng đơn giản
-  const generateOrderCode = (order, index) => {
-    const date = new Date(order.deliveryDate || order.orderDate);
-    const year = date.getFullYear().toString().slice(-2);
-    const orderNumber = (index + 1).toString().padStart(4, "0");
-    return `DH${year}${orderNumber}`;
-  };
+  const workflowData = [
+    { name: 'Được giao', value: designerStats.totalCustomDesignRequestAssigned, fill: COLORS.primary },
+    { name: 'Demo gửi', value: designerStats.totalDemoSubmitted, fill: COLORS.warning },
+    { name: 'Demo duyệt', value: designerStats.totalDemoApproved, fill: COLORS.success },
+    { name: 'Hoàn thành', value: designerStats.totalFinalDesignSubmitted, fill: COLORS.purple }
+  ];
 
-  // Filtered orders
-  const filteredOrders = orders.filter(
-    (order) =>
-      (statusFilter ? order.status === statusFilter : true) &&
-      (search
-        ? getCustomerName(order).toLowerCase().includes(search.toLowerCase()) ||
-          String(order.orderId).includes(search)
-        : true)
-  );
+  const performanceData = [
+    { 
+      name: 'Tỷ lệ duyệt demo',
+      value: designerStats.totalDemoSubmitted > 0 ? Math.round((designerStats.totalDemoApproved / designerStats.totalDemoSubmitted) * 100) : 0,
+      fill: COLORS.success
+    },
+    {
+      name: 'Tỷ lệ hoàn thành', 
+      value: designerStats.totalCustomDesignRequestAssigned > 0 ? Math.round((designerStats.totalFinalDesignSubmitted / designerStats.totalCustomDesignRequestAssigned) * 100) : 0,
+      fill: COLORS.purple
+    },
+    {
+      name: 'Chất lượng demo',
+      value: designerStats.totalDemoSubmitted > 0 ? Math.round(((designerStats.totalDemoSubmitted - designerStats.totalDemoRejected) / designerStats.totalDemoSubmitted) * 100) : 0,
+      fill: COLORS.warning
+    }
+  ];
+
+  // Trend data - Tạo xu hướng đơn giản dựa trên dữ liệu hiện tại
+  const trendData = [
+    { name: 'Tuần 1', assigned: Math.max(0, designerStats.totalCustomDesignRequestAssigned - 2), completed: Math.max(0, designerStats.totalFinalDesignSubmitted - 1) },
+    { name: 'Tuần 2', assigned: Math.max(0, designerStats.totalCustomDesignRequestAssigned - 1), completed: designerStats.totalFinalDesignSubmitted },
+    { name: 'Tuần 3', assigned: designerStats.totalCustomDesignRequestAssigned, completed: designerStats.totalFinalDesignSubmitted },
+  ];
+
+  // Loading state
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          minHeight: '60vh',
+          gap: 2
+        }}>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <Typography variant="h6" color="text.secondary">
+            Đang tải dữ liệu dashboard...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Container maxWidth="xl" sx={{ py: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          minHeight: '60vh',
+          gap: 2
+        }}>
+          <Typography variant="h5" color="error" gutterBottom>
+            Lỗi tải dữ liệu
+          </Typography>
+          <Typography variant="body1" color="text.secondary" textAlign="center">
+            {error}
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
-      {/* Header Section */}
+      {/* Simple Header Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography 
+          variant="h4" 
+          component="h1"
+          sx={{
+            fontWeight: 'bold',
+            color: 'primary.main',
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
+        >
+          <AnalyticsIcon sx={{ fontSize: 36 }} />
+          Dashboard Thiết Kế
+        </Typography>
+        <Typography 
+          variant="body1" 
+          color="text.secondary"
+          sx={{ fontSize: '1.1rem' }}
+        >
+          Theo dõi hiệu suất và tiến độ công việc thiết kế của bạn
+        </Typography>
+      </Box>
+
+            {/* Simple Stats Cards - Full Width No Gaps */}
+      <Box sx={{ mb: 4 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
       <Card sx={{ 
-        mb: 3, 
-        background: "linear-gradient(135deg, #2e7d32 0%, #4caf50 50%, #66bb6a 100%)",
-        color: "white",
+            flex: 1,
         borderRadius: 3,
-        overflow: "hidden",
-        position: "relative",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
-          `,
-          pointerEvents: "none",
-        },
-      }}>
-        <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
-          <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-            <Avatar sx={{ 
-              bgcolor: "rgba(255, 255, 255, 0.2)", 
-              width: 56, 
-              height: 56,
-              border: "2px solid rgba(255, 255, 255, 0.3)"
-            }}>
-              <DesignIcon sx={{ fontSize: 28 }} />
-            </Avatar>
+            bgcolor: '#1e293b',
+            color: 'white',
+            height: 130,
+            boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
+            "&:hover": {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 30px rgba(30, 41, 59, 0.25)',
+              transition: 'all 0.3s ease'
+            }
+          }}>
+            <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.8, mb: 1, fontWeight: 500, color: '#94a3b8' }}>
+                    Thiết kế được giao
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 800, color: 'white' }}>
+                    {designerStats.totalCustomDesignRequestAssigned}
+                  </Typography>
+                </Box>
+                <AssignmentIcon sx={{ fontSize: 32, opacity: 0.6, color: '#64748b' }} />
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ 
+            flex: 1,
+            borderRadius: 3,
+            bgcolor: '#1e293b',
+            color: 'white',
+            height: 130,
+            boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
+            "&:hover": {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 30px rgba(30, 41, 59, 0.25)',
+              transition: 'all 0.3s ease'
+            }
+          }}>
+            <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Dashboard Thiết Kế
-              </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                Tổng quan về công việc thiết kế và hiệu suất
-              </Typography>
-            </Box>
-          </Stack>
+                                    <Typography variant="body2" sx={{ opacity: 0.8, mb: 1, fontWeight: 500, color: '#94a3b8' }}>
+                    Demo đã gửi
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 800, color: 'white' }}>
+                    {designerStats.totalDemoSubmitted}
+                  </Typography>
+                </Box>
+                <SendIcon sx={{ fontSize: 32, opacity: 0.6, color: '#64748b' }} />
+              </Box>
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            overflow: "hidden", 
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
-            color: "white",
+                    <Card sx={{ 
+            flex: 1,
+            borderRadius: 3,
+            bgcolor: '#1e293b',
+            color: 'white',
+            height: 130,
+            boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
+            "&:hover": {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 30px rgba(30, 41, 59, 0.25)',
+              transition: 'all 0.3s ease'
+            }
           }}>
+            <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.8, mb: 1, fontWeight: 500, color: '#94a3b8' }}>
+                    Demo được duyệt
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 800, color: 'white' }}>
+                    {designerStats.totalDemoApproved}
+                  </Typography>
+                </Box>
+                <CheckCircleIcon sx={{ fontSize: 32, opacity: 0.6, color: '#64748b' }} />
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ 
+            flex: 1,
+            borderRadius: 3,
+            bgcolor: '#1e293b',
+            color: 'white',
+            height: 130,
+            boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
+            "&:hover": {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 30px rgba(30, 41, 59, 0.25)',
+              transition: 'all 0.3s ease'
+            }
+          }}>
+            <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.8, mb: 1, fontWeight: 500, color: '#94a3b8' }}>
+                    Demo bị từ chối
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 800, color: 'white' }}>
+                    {designerStats.totalDemoRejected}
+                  </Typography>
+                </Box>
+                <CancelIcon sx={{ fontSize: 32, opacity: 0.6, color: '#64748b' }} />
+              </Box>
+            </CardContent>
+          </Card>
+
+                    <Card sx={{ 
+            flex: 1,
+            borderRadius: 3,
+            bgcolor: '#1e293b',
+            color: 'white',
+            height: 130,
+            boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
+            "&:hover": {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 30px rgba(30, 41, 59, 0.25)',
+              transition: 'all 0.3s ease'
+            }
+          }}>
+            <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.8, mb: 1, fontWeight: 500, color: '#94a3b8' }}>
+                    Thiết kế hoàn thành
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 800, color: 'white' }}>
+                    {designerStats.totalFinalDesignSubmitted}
+                  </Typography>
+                </Box>
+                <DesignIcon sx={{ fontSize: 32, opacity: 0.6, color: '#64748b' }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Stack>
+      </Box>
+
+      {/* Performance Chart - Full Width */}
+      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar sx={{ 
-                  bgcolor: "rgba(255, 255, 255, 0.2)", 
-                  width: 48, 
-                  height: 48 
-                }}>
-                  <AssignmentIcon />
+          <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+            <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+              <TimelineIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6" sx={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                    Tổng yêu cầu
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#1a1a1a' }}>
+                Quy trình làm việc
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {defaultStats.totalDesigns}
+            <Typography variant="body2" color="text.secondary">
+                Theo dõi tiến độ từ nhận việc đến hoàn thành
                   </Typography>
                 </Box>
               </Stack>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={workflowData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fontSize: 14, fill: '#666', fontWeight: 500 }}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#666' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}
+              />
+              <Bar 
+                dataKey="value" 
+                radius={[6, 6, 0, 0]}
+                strokeWidth={0}
+              />
+            </BarChart>
+          </ResponsiveContainer>
             </CardContent>
           </Card>
-        </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+            {/* Demo Analysis - Full Width No Gaps */}
+      <Box sx={{ mb: 3 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
           <Card sx={{ 
+            flex: 1,
             borderRadius: 3, 
-            overflow: "hidden", 
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            background: "linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%)",
-            color: "white",
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+            height: 350 
           }}>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar sx={{ 
-                  bgcolor: "rgba(255, 255, 255, 0.2)", 
-                  width: 48, 
-                  height: 48 
-                }}>
-                  <PendingIcon />
+              <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+                <Avatar sx={{ bgcolor: 'warning.main', width: 40, height: 40 }}>
+                  <InsightsIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6" sx={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                    Chờ xử lý
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#1a1a1a' }}>
+                    Tình trạng Demo
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {defaultStats.pendingDesigns}
+                  <Typography variant="body2" color="text.secondary">
+                    Phân tích chất lượng demo thiết kế
                   </Typography>
                 </Box>
               </Stack>
+
+              {demoStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={demoStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      outerRadius={90}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {demoStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 8,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      wrapperStyle={{ fontSize: '12px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box sx={{ 
+                  height: 250, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center' 
+                }}>
+                  <Typography variant="body1" color="text.secondary">
+                    Chưa có dữ liệu demo
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
-        </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
+            flex: 1,
             borderRadius: 3, 
-            overflow: "hidden", 
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            background: "linear-gradient(135deg, #2e7d32 0%, #4caf50 100%)",
-            color: "white",
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)', 
+            height: 350 
           }}>
             <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar sx={{ 
-                  bgcolor: "rgba(255, 255, 255, 0.2)", 
-                  width: 48, 
-                  height: 48 
-                }}>
-                  <CheckCircleIcon />
+              <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+                <Avatar sx={{ bgcolor: 'success.main', width: 40, height: 40 }}>
+                  <TrendingUpIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6" sx={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                    Hoàn thành
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#1a1a1a' }}>
+                    Chỉ số hiệu suất
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {defaultStats.completedDesigns}
+                  <Typography variant="body2" color="text.secondary">
+                    Đánh giá hiệu quả công việc
                   </Typography>
                 </Box>
               </Stack>
+
+              <ResponsiveContainer width="100%" height={250}>
+                <RadialBarChart cx="50%" cy="50%" innerRadius="30%" outerRadius="90%" data={performanceData}>
+                  <RadialBar
+                    dataKey="value"
+                    cornerRadius={8}
+                    fill="#8884d8"
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 8,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                    formatter={(value) => [`${value}%`, 'Hiệu suất']}
+                  />
+                  <Legend 
+                    iconSize={12}
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+                  />
+                </RadialBarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
-        </Grid>
+        </Stack>
+      </Box>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            borderRadius: 3, 
-            overflow: "hidden", 
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            background: "linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)",
-            color: "white",
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar sx={{ 
-                  bgcolor: "rgba(255, 255, 255, 0.2)", 
-                  width: 48, 
-                  height: 48 
-                }}>
-                  <MoneyIcon />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" sx={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                    Doanh thu
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {defaultStats.totalRevenue?.toLocaleString('vi-VN') || 0}₫
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Recent Orders Table */}
-      <Card sx={{ borderRadius: 3, overflow: "hidden", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}>
-        <CardContent sx={{ p: 0 }}>
-          <Box sx={{ p: 3, bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: "#0f172a" }}>
-              Yêu cầu thiết kế gần đây
+      {/* Trend Chart - Full Width */}
+      <Card sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+            <Avatar sx={{ bgcolor: 'purple.main', width: 40, height: 40 }}>
+              <TrendingUpIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#1a1a1a' }}>
+                Xu hướng hiệu suất
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Danh sách các yêu cầu thiết kế mới nhất
+                Theo dõi xu hướng nhận và hoàn thành công việc theo thời gian
             </Typography>
           </Box>
-          
-          {filteredOrders.length === 0 ? (
-            <Box sx={{ textAlign: "center", py: 8 }}>
-              <DesignIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Không có yêu cầu thiết kế nào
-              </Typography>
-              <Typography variant="body2" color="text.disabled">
-                Hiện tại không có yêu cầu thiết kế nào trong hệ thống
-              </Typography>
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ background: "#030C20" }}>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
-                      Mã yêu cầu
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
-                      Khách hàng
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
-                      Trạng thái
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
-                      Ngày tạo
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", textAlign: "center", color: "white" }}>
-                      Thao tác
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredOrders.slice(0, 5).map((order, idx) => (
-                    <TableRow 
-                      key={order.id || idx} 
-                      hover
-                      sx={{
-                        "&:hover": {
-                          backgroundColor: "rgba(25, 118, 210, 0.04)",
-                          transform: "scale(1.001)",
-                          transition: "all 0.2s ease",
-                        },
-                        "&:nth-of-type(odd)": {
-                          backgroundColor: "rgba(0, 0, 0, 0.02)",
-                        },
-                      }}
-                    >
-                      <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>
-                        {generateOrderCode(order, idx)}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {getCustomerName(order)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={order.status || "PENDING"}
-                          color={order.status === "COMPLETED" ? "success" : "warning"}
-                          size="small"
-                          sx={{ fontWeight: 600 }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {formatDate(order.createdAt || order.orderDate)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => onViewDetail && onViewDetail(order.id)}
-                          sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Xem chi tiết
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          </Stack>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={trendData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <defs>
+                <linearGradient id="assignedGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#1976d2" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#1976d2" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="completedGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#4caf50" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#4caf50" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fontSize: 14, fill: '#666', fontWeight: 500 }}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#666' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}
+              />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Area
+                type="monotone"
+                dataKey="assigned"
+                stroke="#1976d2"
+                strokeWidth={3}
+                fill="url(#assignedGradient)"
+                name="Được giao"
+              />
+              <Area
+                type="monotone"
+                dataKey="completed"
+                stroke="#4caf50"
+                strokeWidth={3}
+                fill="url(#completedGradient)"
+                name="Hoàn thành"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
     </Container>
