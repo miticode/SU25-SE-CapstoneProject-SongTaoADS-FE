@@ -97,6 +97,27 @@ export const fetchSaleDashboardApi = async () => {
   }
 };
 
+// API to fetch designer dashboard data
+export const fetchDesignerDashboardApi = async () => {
+  try {
+    const response = await dashboardService.get('/api/dashboard/designer');
+
+    const { success, result, message } = response.data;
+
+    if (success) {
+      return { success: true, data: result };
+    }
+
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    console.error('Error fetching designer dashboard:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch designer dashboard'
+    };
+  }
+};
+
 // API to fetch staff orders statistics by date range
 export const fetchStaffOrdersStatsApi = async (startDate, endDate) => {
   try {
@@ -210,5 +231,6 @@ export const fetchPaymentsStatsApi = async (startDate, endDate) => {
     };
   }
 };
+
 
 export default dashboardService;
