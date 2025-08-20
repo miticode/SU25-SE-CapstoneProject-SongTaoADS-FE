@@ -3162,139 +3162,192 @@ const CustomerRequests = () => {
                           },
                         }}
                       >
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={1}
-                          sx={{ mb: 1.5 }}
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight="600"
+                          sx={{ fontSize: "1rem", mb: 2, color: "primary.main" }}
                         >
-                          <PersonAddIcon color="primary" fontSize="small" />
-                          <Typography
-                            variant="subtitle1"
-                            fontWeight="600"
-                            sx={{ fontSize: "0.95rem" }}
-                          >
-                            Giao task thiết kế
-                          </Typography>
-                        </Stack>
+                          Giao task thiết kế
+                        </Typography>
 
-                        <Grid container spacing={1.5} alignItems="end">
-                          <Grid item xs={12} md={8}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel sx={{ fontSize: "0.85rem" }}>
-                                Chọn designer thực hiện
-                              </InputLabel>
-                              <Select
-                                value={selectedDesigner || ""}
-                                onChange={(e) =>
-                                  setSelectedDesigner(e.target.value)
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mb: 2, fontSize: "0.9rem" }}
+                          >
+                            Chọn designer để giao task thiết kế:
+                          </Typography>
+                          
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} sm={7}>
+                              {loadingDesigners ? (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    py: 3,
+                                    bgcolor: "grey.50",
+                                    borderRadius: 2,
+                                  }}
+                                >
+                                  <CircularProgress size={24} sx={{ mr: 2 }} />
+                                  <Typography>Đang tải danh sách designers...</Typography>
+                                </Box>
+                              ) : (
+                                <FormControl fullWidth>
+                                  <Select
+                                    value={selectedDesigner || ""}
+                                    onChange={(e) => setSelectedDesigner(e.target.value)}
+                                    size="medium"
+                                    sx={{
+                                      height: "64px",
+                                      "& .MuiSelect-select": {
+                                        py: 2,
+                                        px: 2,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 1.5,
+                                        height: "64px",
+                                        fontSize: "1rem",
+                                      },
+                                      "& .MuiOutlinedInput-root": {
+                                        borderRadius: 2,
+                                        height: "64px",
+                                      },
+                                      "& .MuiOutlinedInput-notchedOutline": {
+                                        borderColor: "grey.300",
+                                      },
+                                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                                        borderColor: "primary.main",
+                                      },
+                                    }}
+                                    displayEmpty
+                                    renderValue={(value) => {
+                                      const designer = designers.find(d => d.id === value);
+                                      if (!designer) {
+                                        return (
+                                          <Typography 
+                                            color="text.secondary" 
+                                            sx={{ fontSize: "1rem" }}
+                                          >
+                                            Chọn designer...
+                                          </Typography>
+                                        );
+                                      }
+                                      return (
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                                          <Avatar
+                                            src={designer.avatar}
+                                            sx={{ width: 36, height: 36 }}
+                                          >
+                                            {designer.fullName?.charAt(0)?.toUpperCase()}
+                                          </Avatar>
+                                          <Box>
+                                            <Typography variant="body1" sx={{ fontSize: "1rem", fontWeight: "500" }}>
+                                              {designer.fullName}
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+                                      );
+                                    }}
+                                  >
+                                    {designers.length === 0 ? (
+                                      <MenuItem disabled>
+                                        <Typography color="text.secondary">
+                                          Không có designer nào
+                                        </Typography>
+                                      </MenuItem>
+                                    ) : (
+                                      designers.map((designer) => (
+                                        <MenuItem 
+                                          key={designer.id} 
+                                          value={designer.id}
+                                          sx={{
+                                            py: 2,
+                                            px: 2,
+                                            "&:hover": {
+                                              bgcolor: "primary.50",
+                                            },
+                                          }}
+                                        >
+                                          <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
+                                            <Avatar
+                                              src={designer.avatar}
+                                              sx={{ width: 42, height: 42 }}
+                                            >
+                                              {designer.fullName?.charAt(0)?.toUpperCase()}
+                                            </Avatar>
+                                            <Box sx={{ flex: 1 }}>
+                                              <Typography
+                                                variant="body1"
+                                                sx={{
+                                                  fontSize: "1rem",
+                                                  fontWeight: "500",
+                                                  lineHeight: 1.3,
+                                                }}
+                                              >
+                                                {designer.fullName}
+                                              </Typography>
+                                              <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                  fontSize: "0.85rem",
+                                                  lineHeight: 1.2,
+                                                }}
+                                              >
+                                                {designer.email}
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        </MenuItem>
+                                      ))
+                                    )}
+                                  </Select>
+                                </FormControl>
+                              )}
+                            </Grid>
+                            
+                            <Grid item xs={12} sm={5}>
+                              <Button
+                                variant="contained"
+                                color="success"
+                                size="large"
+                                disabled={
+                                  !selectedDesigner ||
+                                  assigningDesigner ||
+                                  loadingDesigners
                                 }
-                                label="Chọn designer thực hiện"
-                                disabled={loadingDesigners}
+                                onClick={async () => {
+                                  await handleAssignDesigner();
+                                  handleCloseDetails();
+                                }}
+                                fullWidth
                                 sx={{
-                                  "& .MuiSelect-select": {
-                                    py: 1,
-                                    fontSize: "0.85rem",
+                                  height: "64px",
+                                  fontSize: "1rem",
+                                  fontWeight: "600",
+                                  borderRadius: 2,
+                                  textTransform: "none",
+                                  transition: "all 0.2s ease",
+                                  "&:hover": { 
+                                    transform: "translateY(-1px)",
                                   },
-                                  "&:hover": { borderColor: "primary.main" },
+                                  "&:disabled": {
+                                    opacity: 0.6,
+                                  }
                                 }}
                               >
-                                {loadingDesigners ? (
-                                  <MenuItem disabled>
-                                    <Stack
-                                      direction="row"
-                                      alignItems="center"
-                                      spacing={1}
-                                    >
-                                      <CircularProgress size={16} />
-                                      <Typography sx={{ fontSize: "0.85rem" }}>
-                                        Đang tải...
-                                      </Typography>
-                                    </Stack>
-                                  </MenuItem>
-                                ) : (
-                                  designers.map((designer) => (
-                                    <MenuItem
-                                      key={designer.id}
-                                      value={designer.id}
-                                      sx={{
-                                        py: 1,
-                                        "&:hover": {
-                                          bgcolor: "primary.50",
-                                        },
-                                      }}
-                                    >
-                                      <Stack
-                                        direction="row"
-                                        alignItems="center"
-                                        spacing={1}
-                                      >
-                                        <Avatar
-                                          src={designer.avatar}
-                                          sx={{
-                                            width: 24,
-                                            height: 24,
-                                          }}
-                                        />
-                                        <Box>
-                                          <Typography
-                                            sx={{
-                                              fontSize: "0.85rem",
-                                              fontWeight: "500",
-                                            }}
-                                          >
-                                            {designer.fullName}
-                                          </Typography>
-                                          <Typography
-                                            sx={{
-                                              fontSize: "0.7rem",
-                                              color: "text.secondary",
-                                            }}
-                                          >
-                                            {designer.email}
-                                          </Typography>
-                                        </Box>
-                                      </Stack>
-                                    </MenuItem>
-                                  ))
-                                )}
-                              </Select>
-                            </FormControl>
+                                {assigningDesigner 
+                                  ? "Đang giao task..." 
+                                  : "Giao task"
+                                }
+                              </Button>
+                            </Grid>
                           </Grid>
-                          <Grid item xs={12} md={4}>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              disabled={
-                                !selectedDesigner ||
-                                assigningDesigner ||
-                                loadingDesigners
-                              }
-                              onClick={async () => {
-                                await handleAssignDesigner();
-                                handleCloseDetails();
-                              }}
-                              startIcon={
-                                assigningDesigner ? (
-                                  <CircularProgress size={16} color="inherit" />
-                                ) : (
-                                  <PersonAddIcon fontSize="small" />
-                                )
-                              }
-                              fullWidth
-                              sx={{
-                                py: 1,
-                                fontSize: "0.8rem",
-                                fontWeight: "600",
-                                transition: "all 0.2s ease",
-                                "&:hover": { transform: "scale(1.02)" },
-                              }}
-                            >
-                              {assigningDesigner ? "Đang giao..." : "Giao task"}
-                            </Button>
-                          </Grid>
-                        </Grid>
+                        </Box>
                       </Card>
                     )}
 
