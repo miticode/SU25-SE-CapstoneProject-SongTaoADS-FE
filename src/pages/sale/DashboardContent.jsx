@@ -3,7 +3,7 @@ import { getOrderDetailsApi } from "../../api/orderService";
 import { getImageFromS3, openFileInNewTab } from "../../api/s3Service";
 import { getOrderContractApi } from "../../api/contractService";
 import { useDispatch, useSelector } from "react-redux";
-import { uploadContract, uploadRevisedContract } from "../../store/features/contract/contractSlice";
+import { uploadContract, uploadRevisedContract, requestContractResign } from "../../store/features/contract/contractSlice";
 import { contractSignedOrder, updateOrderEstimatedDeliveryDate } from "../../store/features/order/orderSlice";
 import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
 import {
@@ -2382,6 +2382,40 @@ const DashboardContent = ({
     }
   }, [dispatch, onRefreshOrders]);
 
+  // Handler yêu cầu ký lại hợp đồng
+  const handleRequestResign = useCallback(async (orderId) => {
+    try {
+      setSnackbar({
+        open: true,
+        message: "Đang gửi yêu cầu ký lại hợp đồng...",
+        severity: "info",
+      });
+
+      await dispatch(requestContractResign(orderId)).unwrap();
+      
+      setSnackbar({
+        open: true,
+        message: "Đã gửi yêu cầu ký lại hợp đồng thành công!",
+        severity: "success",
+      });
+
+      // Đóng dialog xem hợp đồng sau khi thực hiện thành công
+      handleCloseContractDialog();
+
+      // Tự động làm mới danh sách orders
+      if (onRefreshOrders) {
+        onRefreshOrders();
+      }
+    } catch (error) {
+      console.error("Error requesting contract resign:", error);
+      setSnackbar({
+        open: true,
+        message: error || "Có lỗi xảy ra khi gửi yêu cầu ký lại hợp đồng",
+        severity: "error",
+      });
+    }
+  }, [dispatch, onRefreshOrders, handleCloseContractDialog]);
+
   // Handler đóng snackbar
   const handleCloseSnackbar = useCallback(() => {
     setSnackbar((prev) => ({ ...prev, open: false }));
@@ -3166,7 +3200,18 @@ const DashboardContent = ({
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button onClick={handleCloseContractDialog} sx={{ ml: "auto" }}>
+          {/* Hiển thị nút Yêu cầu ký lại chỉ khi hợp đồng đã ký */}
+          {contractDialog.contract && contractDialog.contract.status === 'SIGNED' && (
+            <Button 
+              variant="outlined" 
+              color="warning"
+              onClick={() => handleRequestResign(contractDialog.orderId)}
+              sx={{ mr: 'auto' }}
+            >
+              Yêu cầu ký lại
+            </Button>
+          )}
+          <Button onClick={handleCloseContractDialog}>
             Đóng
           </Button>
         </DialogActions>
