@@ -121,14 +121,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-
   ResponsiveContainer,
   Legend,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 
 const getStatusColor = (status) => {
@@ -684,27 +678,7 @@ const ManagerFineTuneAI = () => {
     jobPage * jobRowsPerPage + jobRowsPerPage
   );
 
-  // Dummy data for UI demo
-  const dummyLineData = [
-    { date: "01/07", count: 12 },
-    { date: "02/07", count: 18 },
-    { date: "03/07", count: 9 },
-    { date: "04/07", count: 15 },
-    { date: "05/07", count: 22 },
-    { date: "06/07", count: 17 },
-    { date: "07/07", count: 25 },
-  ];
-  const dummyPieData = [
-    { name: "Báo giá", value: 8 },
-    { name: "Kỹ thuật", value: 5 },
-    { name: "Sản phẩm", value: 7 },
-    { name: "Hỗ trợ", value: 4 },
-  ];
-  const dummyBarData = [
-    { type: "Tự động", value: 32 },
-    { type: "Chuyển người thật", value: 8 },
-  ];
-  const pieColors = ["#1976d2", "#43a047", "#ff9800", "#e53935"];
+
 
   // Topic management handlers
   const handleCreateTopic = async () => {
@@ -2053,11 +2027,11 @@ const ManagerFineTuneAI = () => {
             }}
           >
             <Typography variant="h6" mb={2}>
-              5. Phân tích: Top 10 câu hỏi được hỏi nhiều nhất
+              Phân tích: Top 10 câu hỏi được hỏi nhiều nhất
             </Typography>
             {frequentQuestionsStatus === "loading" ? (
               <CircularProgress />
-            ) : (
+            ) : frequentQuestions && frequentQuestions.length > 0 ? (
               <Box sx={{ width: "100%", height: 350 }}>
                 <ResponsiveContainer width="100%" height={350}>
                   <BarChart
@@ -2080,120 +2054,20 @@ const ManagerFineTuneAI = () => {
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
+            ) : (
+              <Box sx={{ 
+                textAlign: "center", 
+                py: 8, 
+                color: "text.secondary" 
+              }}>
+                <Typography variant="body1">
+                  Chưa có dữ liệu thống kê câu hỏi
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Dữ liệu sẽ hiển thị khi có người dùng tương tác với chatbot
+                </Typography>
+              </Box>
             )}
-          </Paper>
-          {/* Số lượng câu hỏi theo thời gian */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              mb: 3,
-            }}
-          >
-            <Typography variant="h6" mb={2}>
-              Số lượng câu hỏi theo thời gian (Demo)
-            </Typography>
-            <Box sx={{ width: "100%", height: 300 }}>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart
-                  data={dummyLineData}
-                  margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#1976d2"
-                    strokeWidth={2}
-                    name="Số câu hỏi"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
-            {/* TODO: Kết nối API số lượng câu hỏi theo thời gian */}
-          </Paper>
-          {/* Tỉ lệ chủ đề câu hỏi */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              mb: 3,
-            }}
-          >
-            <Typography variant="h6" mb={2}>
-              Tỉ lệ chủ đề câu hỏi (Demo)
-            </Typography>
-            <Box
-              sx={{
-                width: "100%",
-                height: 300,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <ResponsiveContainer width={300} height={300}>
-                <PieChart>
-                  <Pie
-                    data={dummyPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label
-                  >
-                    {dummyPieData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={pieColors[index % pieColors.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-            {/* TODO: Kết nối API phân loại chủ đề câu hỏi */}
-          </Paper>
-          {/* Tỉ lệ câu hỏi đã trả lời tự động vs. chuyển người thật */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-              mb: 3,
-            }}
-          >
-            <Typography variant="h6" mb={2}>
-              Tỉ lệ câu hỏi đã trả lời tự động vs. chuyển người thật (Demo)
-            </Typography>
-            <Box sx={{ width: "100%", height: 300 }}>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart
-                  data={dummyBarData}
-                  margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="type" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" fill="#43a047" name="Số câu hỏi" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-            {/* TODO: Kết nối API tỉ lệ tự động vs. chuyển người thật */}
           </Paper>
         </Box>
       )}

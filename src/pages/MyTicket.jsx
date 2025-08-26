@@ -302,6 +302,16 @@ export default function MyTicket() {
                         py: 2.5,
                       }}
                     >
+                      Mã đơn hàng
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        fontWeight: 700,
+                        color: "white",
+                        fontSize: "0.875rem",
+                        py: 2.5,
+                      }}
+                    >
                       Mô tả vấn đề
                     </TableCell>
                     <TableCell
@@ -357,6 +367,15 @@ export default function MyTicket() {
                         py: 2
                       }}>
                         {ticket.title}
+                      </TableCell>
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        fontSize: "0.875rem",
+                        color: "#3b82f6",
+                        py: 2,
+                        fontFamily: "monospace"
+                      }}>
+                        {ticket.orders?.orderCode || "N/A"}
                       </TableCell>
                       <TableCell
                         sx={{ 
@@ -596,7 +615,7 @@ export default function MyTicket() {
                       />
                     </Box>
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography
                         variant="body2"
                         color="#64748b"
@@ -609,6 +628,50 @@ export default function MyTicket() {
                         {new Date(selectedTicket.createdAt).toLocaleDateString("vi-VN")}
                       </Typography>
                     </Box>
+
+                    {selectedTicket.orders?.orderCode && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="#64748b"
+                          fontWeight={600}
+                          sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
+                        >
+                          Mã đơn hàng
+                        </Typography>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            color: "#3b82f6", 
+                            fontWeight: 600,
+                            fontFamily: "monospace",
+                            fontSize: "1.1rem"
+                          }}
+                        >
+                          {selectedTicket.orders.orderCode}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.orders?.orderType && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography
+                          variant="body2"
+                          color="#64748b"
+                          fontWeight={600}
+                          sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
+                        >
+                          Loại đơn hàng
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: "#374151", fontWeight: 500 }}>
+                          {selectedTicket.orders.orderType === "CUSTOM_DESIGN_WITH_CONSTRUCTION" 
+                            ? "Thiết kế tùy chỉnh + Thi công"
+                            : selectedTicket.orders.orderType === "CUSTOM_DESIGN_ONLY"
+                            ? "Chỉ thiết kế tùy chỉnh"
+                            : selectedTicket.orders.orderType}
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 </Box>
 

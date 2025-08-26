@@ -52,6 +52,7 @@ import {
   selectOrdersStatsLastUpdated
 } from "../../store/features/dashboard/dashboardSlice";
 import TicketManager from "./TicketManager";
+import ChatBotTopicManager from "./ChatBotTopicManager";
 
 // Mock data for manager dashboard (keeping only what's still used)
 const teamPerformanceData = [
@@ -1090,6 +1091,8 @@ const ManagerDashboard = () => {
         return renderSettingsContent();
       case "support-ticket":
         return <TicketManager />;
+      case "chat-bot-topic":
+        return <ChatBotTopicManager />;
       default:
         return renderDashboardContent();
     }
