@@ -5368,14 +5368,34 @@ const OrderHistory = () => {
                               {order.status === "NEED_DEPOSIT_DESIGN" && (
                                 <Button
                                   variant="contained"
-                                  color="warning"
-                                  size="small"
                                   onClick={() => handleDesignDeposit(order)}
                                   disabled={depositLoadingId === order.id}
                                   sx={{
                                     minWidth: "fit-content",
                                     whiteSpace: "nowrap",
                                     flexShrink: 0,
+                                    background: "#ff4434",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    padding: "8px 20px",
+                                    borderRadius: "8px",
+                                    boxShadow: "0 2px 8px rgba(255, 138, 128, 0.3)",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      background: "#ff6b6b",
+                                      boxShadow: "0 4px 12px rgba(255, 138, 128, 0.4)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                    "&:active": {
+                                      transform: "translateY(0px)",
+                                      boxShadow: "0 1px 4px rgba(255, 138, 128, 0.3)",
+                                    },
+                                    "&:disabled": {
+                                      background: "#ccc",
+                                      boxShadow: "none",
+                                      transform: "none",
+                                    },
                                   }}
                                 >
                                   {depositLoadingId === order.id ? (
@@ -5388,7 +5408,19 @@ const OrderHistory = () => {
                                       Đang xử lý...
                                     </>
                                   ) : (
-                                    "💰 ĐẶT CỌC THIẾT KẾ"
+                                    <>
+                                      <Box
+                                        component="span"
+                                        sx={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+                                        }}
+                                      >
+                                        ĐẶT CỌC THIẾT KẾ
+                                      </Box>
+                                    </>
                                   )}
                                 </Button>
                               )}
@@ -5396,7 +5428,6 @@ const OrderHistory = () => {
                               {order.status === "NEED_FULLY_PAID_DESIGN" && (
                                 <Button
                                   variant="contained"
-                                  color="error"
                                   size="small"
                                   onClick={() => handleDesignRemaining(order)}
                                   disabled={payingRemaining}
@@ -5404,6 +5435,28 @@ const OrderHistory = () => {
                                     minWidth: "fit-content",
                                     whiteSpace: "nowrap",
                                     flexShrink: 0,
+                                    background: "#ff4434",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    padding: "8px 20px",
+                                    borderRadius: "8px",
+                                    boxShadow: "0 2px 8px rgba(247, 21, 0, 0.3)",
+                                    transition: "all 0.2s ease",
+                                    "&:hover": {
+                                      background: "#ff6b6b",
+                                      boxShadow: "0 4px 12px rgba(235, 69, 54, 0.4)",
+                                      transform: "translateY(-1px)",
+                                    },
+                                    "&:active": {
+                                      transform: "translateY(0px)",
+                                      boxShadow: "0 1px 4px rgba(255, 138, 128, 0.3)",
+                                    },
+                                    "&:disabled": {
+                                      background: "#ccc",
+                                      boxShadow: "none",
+                                      transform: "none",
+                                    },
                                   }}
                                 >
                                   {payingRemaining ? (
@@ -5416,7 +5469,19 @@ const OrderHistory = () => {
                                       Đang xử lý...
                                     </>
                                   ) : (
-                                    "⚡ THANH TOÁN ĐỦ THIẾT KẾ"
+                                    <>
+                                      <Box
+                                        component="span"
+                                        sx={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+                                        }}
+                                      >
+                                        THANH TOÁN ĐỦ THIẾT KẾ
+                                      </Box>
+                                    </>
                                   )}
                                 </Button>
                               )}
@@ -5841,25 +5906,45 @@ const OrderHistory = () => {
                         </Box>
                       )}
 
-                      {req.status === "ASSIGNED_DESIGNER" && (
+                      {(req.status === "ASSIGNED_DESIGNER" || req.status === "PROCESSING") && (
                         <Box
                           sx={{
                             p: 2,
                             borderRadius: 2,
                             background:
-                              "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)",
-                            border: "1px solid rgba(59, 130, 246, 0.3)",
+                              "linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
                           }}
                         >
                           <Chip
-                            icon={<BrushIcon />}
-                            label="👨‍🎨 Đợi thiết kế từ designer"
+                            label="Đợi thiết kế từ designer"
                             sx={{
                               background:
-                                "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                                "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
                               color: "white",
                               fontWeight: 600,
-                              "& .MuiChip-icon": { color: "white" },
+                            }}
+                          />
+                        </Box>
+                      )}
+
+                      {req.status === "APPROVED_PRICING" && (
+                        <Box
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            background:
+                              "linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                          }}
+                        >
+                          <Chip
+                            label="Cần đặt cọc cho đơn hàng"
+                            sx={{
+                              background:
+                                "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                              color: "white",
+                              fontWeight: 600,
                             }}
                           />
                         </Box>

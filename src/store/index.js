@@ -27,6 +27,7 @@ import dashboardReducer from "./features/dashboard/dashboardSlice";
 import topicReducer from "./features/topic/topicSlice";
 import questionReducer from "./features/question/questionSlice";
 import notificationReducer from "./features/notification/notificationSlice";
+import chatBotTopicReducer from "./features/chatBotTopic/chatBotTopicSlice";
 
 export const store = configureStore({
   reducer: {
@@ -58,6 +59,7 @@ export const store = configureStore({
     topic: topicReducer,
     question: questionReducer,
     notification: notificationReducer,
+    chatBotTopic: chatBotTopicReducer,
   },
 });
 

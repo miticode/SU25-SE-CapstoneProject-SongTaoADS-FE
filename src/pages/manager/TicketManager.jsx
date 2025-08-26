@@ -547,13 +547,13 @@ const TicketManager = () => {
               {ticketDetail.orders?.totalConstructionAmount > 0 && (
                 <>
                   <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, mt: 3 }}>
-                    Thông tin Xây dựng
+                    Thông tin thi công
                   </Typography>
                   
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
                     <Box>
                       <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền xây dựng
+                        Tổng tiền thi công
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
                         {ticketDetail.orders?.totalConstructionAmount?.toLocaleString('vi-VN')} VNĐ
@@ -562,7 +562,7 @@ const TicketManager = () => {
                     
                     <Box>
                       <Typography variant="subtitle2" color="text.secondary">
-                        Đã đặt cọc xây dựng
+                        Đã đặt cọc thi công
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
                         {ticketDetail.orders?.depositConstructionAmount?.toLocaleString('vi-VN')} VNĐ
@@ -574,7 +574,7 @@ const TicketManager = () => {
                   {ticketDetail.orders?.contractors && (
                     <Box sx={{ mt: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary">
-                        Nhà thầu thi công
+                        Đơn vị thi công
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
                         {ticketDetail.orders.contractors.companyName || ticketDetail.orders.contractors.fullName}
