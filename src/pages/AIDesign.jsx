@@ -1476,7 +1476,7 @@ const ModernBillboardForm = ({
                   <motion.button
                     type="button"
                     onClick={handleConfirmSizes}
-                    className="px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-all shadow-md hover:shadow-lg flex items-center"
+                    className="cursor-pointer px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-all shadow-md hover:shadow-lg flex items-center"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     disabled={sizesStatus === "loading"}
@@ -2934,7 +2934,7 @@ const AIDesign = () => {
                   setShowIconPicker(false);
                   dispatch(clearSelectedIcon());
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="cursor-pointer px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
                 Hủy
               </button>
@@ -2943,7 +2943,7 @@ const AIDesign = () => {
                 disabled={!selectedIcon}
                 className={`px-4 py-2 rounded-lg font-medium ${
                   selectedIcon
-                    ? "bg-custom-primary text-white hover:bg-custom-secondary"
+                    ? "bg-custom-primary text-white hover:bg-custom-secondary cursor-pointer"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >

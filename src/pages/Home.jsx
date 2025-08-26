@@ -134,7 +134,7 @@ const Home = () => {
             >
               <div className="mb-6">
                 <span className="inline-block px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-full text-sm uppercase tracking-wide">
-                  🚀 AI Technology
+                  🚀 Công nghệ AI
                 </span>
               </div>
 
@@ -177,9 +177,9 @@ const Home = () => {
               </h1>
 
               <p className="mt-8 text-xl leading-relaxed text-gray-200 max-w-xl">
-                🎯 Song Tạo ADS giúp doanh nghiệp tạo ra các quảng cáo hấp dẫn
+                 Song Tạo ADS giúp doanh nghiệp tạo ra các quảng cáo hấp dẫn
                 và hiệu quả thông qua công nghệ AI tiên tiến nhất. Tiết kiệm
-                thời gian, tăng ROI và chinh phục khách hàng.
+                thời gian và chinh phục khách hàng.
               </p>
 
               <div className="mt-12 flex flex-wrap gap-4 ">
@@ -196,23 +196,7 @@ const Home = () => {
                 </motion.button>
               </div>
 
-              {/* Stats */}
-              <div className="mt-16 grid grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="text-3xl font-black text-yellow-400">
-                    10K+
-                  </div>
-                  <div className="text-sm text-gray-300">Khách hàng</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-black text-blue-400">50K+</div>
-                  <div className="text-sm text-gray-300">Quảng cáo tạo</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-black text-green-400">99%</div>
-                  <div className="text-sm text-gray-300">Hài lòng</div>
-                </div>
-              </div>
+             
             </motion.div>
 
             <motion.div
@@ -235,9 +219,7 @@ const Home = () => {
                 <div className="absolute -top-4 -right-4 w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-black font-bold animate-bounce">
                   AI
                 </div>
-                <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold animate-pulse">
-                  🚀
-                </div>
+             
               </div>
             </motion.div>
           </div>

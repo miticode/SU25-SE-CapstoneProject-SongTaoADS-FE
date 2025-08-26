@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -52,6 +52,8 @@ const TemplateBackgroundSelection = ({
 }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  // Loading state cho nút "Thiết kế với Background" tránh click lặp
+  const [continueLoading, setContinueLoading] = useState(false);
 
   const productTypes = useSelector(selectAllProductTypes);
   
@@ -126,6 +128,7 @@ const TemplateBackgroundSelection = ({
       // Proceed với AI generation
       handleContinueToPreview();
     } else {
+  if (continueLoading) return; // Ngăn double click
       // Logic cho Background - Thêm pixel value API integration
       if (!selectedBackgroundId) {
         setSnackbar({
@@ -135,6 +138,8 @@ const TemplateBackgroundSelection = ({
         });
         return;
       }
+
+  setContinueLoading(true);
 
       console.log(
         "🔵 [Background Selection] Starting background continue process"
@@ -311,6 +316,9 @@ const TemplateBackgroundSelection = ({
           message: "Có lỗi xảy ra khi xử lý background. Vui lòng thử lại.",
           severity: "error",
         });
+      } finally {
+        // Nếu đã chuyển trang có thể không cần, nhưng an toàn vẫn reset sau một khoảng nhỏ
+        setTimeout(() => setContinueLoading(false), 800);
       }
     }
   };
@@ -804,7 +812,7 @@ const TemplateBackgroundSelection = ({
         <motion.button
           type="button"
           onClick={() => setCurrentStep(4)}
-          className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+          className="cursor-pointer px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -827,29 +835,44 @@ const TemplateBackgroundSelection = ({
         <motion.button
           type="button"
           onClick={handleContinue}
-          className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
-            isButtonEnabled
-              ? "bg-custom-primary text-white hover:bg-custom-secondary"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          className={`relative px-8 py-3 font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+            isAiGenerated
+              ? isButtonEnabled
+                ? "bg-custom-primary text-white hover:bg-custom-secondary cursor-pointer"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : continueLoading
+                ? "bg-custom-primary text-white cursor-wait"
+                : isButtonEnabled
+                  ? "bg-custom-primary text-white hover:bg-custom-secondary cursor-pointer"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
-          whileHover={isButtonEnabled ? { scale: 1.02 } : {}}
-          whileTap={isButtonEnabled ? { scale: 0.98 } : {}}
-          disabled={!isButtonEnabled}
+          whileHover={isButtonEnabled && !continueLoading ? { scale: 1.02 } : {}}
+          whileTap={isButtonEnabled && !continueLoading ? { scale: 0.98 } : {}}
+          disabled={!isButtonEnabled || continueLoading}
         >
-          {isAiGenerated ? "Tạo thiết kế AI" : "Thiết kế với Background"}
-          <svg
-            className="w-5 h-5 ml-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M14 5l7 7m0 0l-7 7m7-7H3"
-            />
-          </svg>
+          {continueLoading && !isAiGenerated ? (
+            <>
+              <CircularProgress size={18} color="inherit" />
+              <span>Đang xử lý...</span>
+            </>
+          ) : (
+            <>
+              {isAiGenerated ? "Tạo thiết kế AI" : "Thiết kế với Background"}
+              <svg
+                className="w-5 h-5 ml-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
+              </svg>
+            </>
+          )}
         </motion.button>
       </motion.div>
     </motion.div>

@@ -235,7 +235,7 @@ const BillboardInfoForm = ({
           <motion.button
             type="button"
             onClick={handleBackToTypeSelection}
-            className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
+            className="cursor-pointer px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -263,7 +263,7 @@ const BillboardInfoForm = ({
                 type="button"
                 onClick={handleCustomDesign}
                 disabled={!coreAttributesReady}
-                className={`px-8 py-3 font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center ${
+                className={` cursor-pointer px-8 py-3 font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center ${
                   coreAttributesReady
                     ? "bg-gray-600 text-white hover:bg-gray-700"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -298,7 +298,7 @@ const BillboardInfoForm = ({
               <motion.button
                 type="submit"
                 disabled={!coreAttributesReady || attributeStatus === "loading"}
-                className={`px-8 py-3 font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center ${
+                className={`cursor-pointer px-8 py-3 font-medium rounded-lg transition-all shadow-md hover:shadow-lg flex items-center ${
                   coreAttributesReady && attributeStatus !== "loading"
                     ? "bg-custom-primary text-white hover:bg-custom-secondary"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"

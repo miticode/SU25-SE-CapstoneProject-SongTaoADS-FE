@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://songtaoads.online/api';
+const API_URL = import.meta.env.VITE_API_URL
 
 // Lấy token từ localStorage
 const getAuthToken = () => {
@@ -9,7 +9,7 @@ const getAuthToken = () => {
 
 // Tạo instance axios với config mặc định
 const apiClient = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -33,7 +33,7 @@ apiClient.interceptors.request.use(
 // Lấy tất cả topics
 export const getAllTopics = async () => {
     try {
-        const response = await apiClient.get('/topics');
+        const response = await apiClient.get('/api/topics');
         return response.data;
     } catch (error) {
         console.error('❌ API Error:', error);
@@ -44,7 +44,7 @@ export const getAllTopics = async () => {
 // Lấy topic theo ID
 export const getTopicById = async (id) => {
     try {
-        const response = await apiClient.get(`/topics/${id}`);
+        const response = await apiClient.get(`/api/topics/${id}`);
         return response.data;
     } catch (error) {
         throw error;
@@ -54,7 +54,7 @@ export const getTopicById = async (id) => {
 // Tạo topic mới
 export const createTopic = async (topicData) => {
     try {
-        const response = await apiClient.post('/topics', topicData);
+        const response = await apiClient.post('/api/topics', topicData);
         return response.data;
     } catch (error) {
         throw error;
@@ -64,7 +64,7 @@ export const createTopic = async (topicData) => {
 // Cập nhật topic
 export const updateTopic = async (id, topicData) => {
     try {
-        const response = await apiClient.put(`/topics/${id}`, topicData);
+        const response = await apiClient.put(`/api/topics/${id}`, topicData);
         return response.data;
     } catch (error) {
         throw error;
@@ -74,7 +74,7 @@ export const updateTopic = async (id, topicData) => {
 // Xóa topic
 export const deleteTopic = async (id) => {
     try {
-        const response = await apiClient.delete(`/topics/${id}`);
+        const response = await apiClient.delete(`/api/topics/${id}`);
         return response.data;
     } catch (error) {
         throw error;

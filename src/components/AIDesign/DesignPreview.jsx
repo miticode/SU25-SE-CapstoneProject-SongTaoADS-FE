@@ -580,7 +580,7 @@ const DesignPreview = ({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleGoBack}
-          className="px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center"
+          className="cursor-pointer px-8 py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center"
         >
           <FaArrowLeft className="mr-2" />
           Quay lại
@@ -591,7 +591,7 @@ const DesignPreview = ({
           whileTap={{ scale: 0.95 }}
           onClick={handleConfirmDesign}
           disabled={!generatedImage || isConfirming}
-          className={`px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
+          className={`cursor-pointer px-8 py-3 font-medium rounded-lg transition-all flex items-center ${
             generatedImage && !isConfirming
               ? "bg-custom-secondary text-white hover:bg-custom-secondary/90"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
