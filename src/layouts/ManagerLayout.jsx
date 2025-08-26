@@ -92,7 +92,7 @@ import BackgroundManager from "../pages/manager/BackgroundManager";
 import CostTypeManager from "../pages/manager/CostTypeManager";
 import ContractorManagement from "../pages/manager/ContractorManagement";
 import SupportManager from "../pages/manager/SupportManager";
-import ChatBotTopicManager from "../pages/manager/ChatBotTopicManager";
+// ChatBotTopicManager đã được tích hợp vào ManagerFineTuneAI.jsx
 const drawerWidth = 240;
 
 // Define all sidebar menu items for Manager with enhanced styling
@@ -200,13 +200,7 @@ const menuItems = [
     color: "#e91e63",
     description: "Quản lý yêu cầu thiết kế cần hỗ trợ",
   },
-  {
-    id: "chat-bot-topic",
-    text: "Chat Bot Topic",
-    icon: <CategoryIcon />,
-    color: "#9c27b0",
-    description: "Quản lý mối quan hệ giữa Model Chat Bot và Topic",
-  },
+
 
 ];
 
@@ -1108,7 +1102,7 @@ const ManagerLayout = () => {
             <Outlet context={{ activeTab, setActiveTab }} />
           )}
           {activeTab === "support-system" && <SupportManager />}
-          {activeTab === "chat-bot-topic" && <ChatBotTopicManager />}
+          {/* {activeTab === "chat-bot-topic" && <ChatBotTopicManager />} */}
 
           {activeTab === "contractor-management" && <ContractorManagement />}
           {activeTab !== "order-management" &&
@@ -1123,7 +1117,6 @@ const ManagerLayout = () => {
             activeTab !== "cost-type-management" &&
             activeTab !== "support-ticket" &&
             activeTab !== "support-system" &&
-            activeTab !== "chat-bot-topic" &&
 
             activeTab !== "contractor-management" && (
               <Outlet context={{ activeTab, setActiveTab }} />
