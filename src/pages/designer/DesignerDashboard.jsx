@@ -30,7 +30,6 @@ import {
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import DesignRequests from "./DesignRequests";
-import SaleChat from "./SaleChat";
 import DashboardContent from "./DashboardContent";
 import IconManager from "./IconManager";
 
@@ -273,8 +272,6 @@ const DesignerDashboard = () => {
         );
       case "designs":
         return <DesignRequests />;
-      case "chat":
-        return <SaleChat />;
       case "icons":
         return <IconManager />;
       default:
@@ -384,7 +381,6 @@ const DesignerDashboard = () => {
                   {[
                     { id: "dashboard", text: "Dashboard", color: "green", icon: "📊" },
                     { id: "designs", text: "Yêu cầu thiết kế", color: "blue", icon: "🎨" },
-                    { id: "chat", text: "Chat với Sale", color: "orange", icon: "💬" },
                     { id: "icons", text: "Quản lý Icon", color: "purple", icon: "🎯" },
                   ].map((item) => (
                     <button
@@ -394,7 +390,7 @@ const DesignerDashboard = () => {
                         setMobileMenuOpen(false);
                       }}
                       className={`
-                        w-full text-left p-3 rounded-xl transition-all duration-300 flex items-center gap-3
+                        w-full text-left p-3 rounded-xl transition-all duration-300 flex items-center gap-3 cursor-pointer
                         ${
                           selectedMenu === item.id
                             ? `${item.color === 'green' ? 'bg-green-50 text-green-700 border-2 border-green-200' : 
@@ -423,14 +419,13 @@ const DesignerDashboard = () => {
               {[
                 { id: "dashboard", text: "Dashboard", color: "green", icon: "📊" },
                 { id: "designs", text: "Yêu cầu thiết kế", color: "blue", icon: "🎨" },
-                { id: "chat", text: "Chat với Sale", color: "orange", icon: "💬" },
                 { id: "icons", text: "Quản lý Icon", color: "purple", icon: "🎯" },
               ].map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleMenuItemClick(item.id)}
                   className={`
-                    w-full text-left p-3 rounded-xl transition-all duration-300 transform hover:translate-x-1 flex items-center gap-3
+                    w-full text-left p-3 rounded-xl transition-all duration-300 transform hover:translate-x-1 flex items-center gap-3 cursor-pointer
                     ${
                       selectedMenu === item.id
                         ? `${item.color === 'green' ? 'bg-green-50 text-green-700 border-2 border-green-200' : 

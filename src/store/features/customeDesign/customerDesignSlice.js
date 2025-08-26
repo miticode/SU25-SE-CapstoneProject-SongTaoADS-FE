@@ -9,7 +9,8 @@ import {
   createCustomDesignRequestApi,
   sendFinalDesignImageApi,
   fetchDesignRequestsByDesignerApi,
-  getFinalDesignSubImagesApi
+  getFinalDesignSubImagesApi,
+  searchDesignRequestsByDesignerApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -219,6 +220,22 @@ export const getFinalDesignSubImages = createAsyncThunk(
   }
 );
 
+// Search yêu cầu thiết kế của Designer
+export const searchDesignRequestsByDesigner = createAsyncThunk(
+  'customDesign/searchDesignRequestsByDesigner',
+  async ({ keyword = '', page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await searchDesignRequestsByDesignerApi(keyword, page, size);
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to search design requests');
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred while searching design requests');
+    }
+  }
+);
+
 // Create the slice
 const customerDesignSlice = createSlice({
   name: "customDesign",
@@ -371,6 +388,25 @@ const customerDesignSlice = createSlice({
         state.finalDesignSubImages = action.payload;
       })
       .addCase(getFinalDesignSubImages.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(searchDesignRequestsByDesigner.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(searchDesignRequestsByDesigner.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.designRequests = action.payload.result;
+        state.pagination = {
+          currentPage: action.payload.currentPage,
+          totalPages: action.payload.totalPages,
+          pageSize: action.payload.pageSize,
+          totalElements: action.payload.totalElements
+        };
+        state.error = null;
+      })
+      .addCase(searchDesignRequestsByDesigner.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       });

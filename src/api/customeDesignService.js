@@ -262,4 +262,23 @@ export const getDesignRequestsNeedSupport = async (page = 1, size = 10) => {
   }
 };
 
+// Search yêu cầu thiết kế của Designer
+export const searchDesignRequestsByDesignerApi = async (keyword = '', page = 1, size = 10) => {
+  try {
+    const params = { page, size };
+    if (keyword && keyword.trim() !== '') {
+      params.keyword = keyword.trim();
+    }
+
+    const response = await customDesignService.get('/api/custom-design-requests/designer-search', { params });
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to search design requests'
+    };
+  }
+};
+
 export default customDesignService;
