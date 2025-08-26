@@ -400,7 +400,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
   };
 
   return (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+  <div className="p-6 bg-gradient-to-br from-gray-50 via-green-50 to-green-100 min-h-full">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
