@@ -2,38 +2,20 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
-  Paper,
-  Typography,
-  Tabs,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Button,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Grid,
-  Card,
-  CardContent,
-  LinearProgress,
   IconButton,
   Tooltip,
-  Badge,
   CircularProgress,
   Alert,
   Avatar,
   Snackbar,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
 } from "@mui/material";
 import {
   Assignment as AssignmentIcon,
@@ -49,6 +31,8 @@ import {
   LocalShipping as LocalShippingIcon,
   Delete as DeleteIcon,
   AttachMoney as AttachMoneyIcon,
+  Search as SearchIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 
 // Import Redux actions và selectors
@@ -59,30 +43,65 @@ import {
   selectOrderStatus,
   selectOrderError,
   selectOrderPagination,
+  searchProductionOrders,
+  selectSearchProductionOrders,
+  selectSearchProductionOrdersStatus,
+  selectSearchProductionOrdersPagination,
+  selectSearchProductionOrdersQuery,
+  clearSearchProductionOrders,
+  fetchOrderDetails,
 } from "../../store/features/order/orderSlice";
+import { useSelector as useReduxSelector } from 'react-redux';
 import {
   createProgressLog,
   resetCreateStatus,
 } from "../../store/features/progressLog/progressLogSlice";
 import {
   castPaidThunk,
-  selectPaymentLoading,
   selectPaymentSuccess,
   selectPaymentError,
 } from "../../store/features/payment/paymentSlice";
 import { getOrdersApi } from "../../api/orderService";
 
+// Card thống kê sử dụng Tailwind
+const StatsCard = ({ icon, label, value, loading, color = 'blue' }) => {
+  const colorMap = {
+    blue: 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300',
+    purple: 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300',
+    emerald: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+    amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300',
+    cyan: 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-300'
+  };
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium ${colorMap[color] || colorMap.blue}`}>
+        {icon}
+      </div>
+      <div className="flex-1 space-y-1">
+        <div className="text-lg font-semibold text-gray-800 dark:text-neutral-100 h-6 flex items-center">
+          {loading ? <CircularProgress size={18} /> : (value ?? 0)}
+        </div>
+        <p className="text-xs leading-snug text-gray-500 dark:text-neutral-400 line-clamp-2">{label}</p>
+      </div>
+    </div>
+  );
+};
+
 const OrderManager = () => {
   const dispatch = useDispatch();
 
   // Redux state
-  const orders = useSelector(selectOrders);
-  const loading = useSelector(selectOrderStatus) === "loading";
+  const orders = useSelector(selectOrders); // normal list
+  const orderStatusLoading = useSelector(selectOrderStatus) === "loading";
   const error = useSelector(selectOrderError);
-  const pagination = useSelector(selectOrderPagination);
+  const normalPagination = useSelector(selectOrderPagination);
+  // Production search state
+  const productionSearchResults = useSelector(selectSearchProductionOrders);
+  const productionSearchStatus = useSelector(selectSearchProductionOrdersStatus);
+  const productionSearchPagination = useSelector(selectSearchProductionOrdersPagination);
+  const productionSearchQuery = useSelector(selectSearchProductionOrdersQuery);
 
   // Payment selectors
-  const paymentLoading = useSelector(selectPaymentLoading);
   const paymentSuccess = useSelector(selectPaymentSuccess);
   const paymentError = useSelector(selectPaymentError);
 
@@ -90,6 +109,19 @@ const OrderManager = () => {
   const [currentTab, setCurrentTab] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Order details state from redux (if already wired in slice)
+  const orderDetails = useReduxSelector(state => state.order.orderDetails);
+  const orderDetailsStatus = useReduxSelector(state => state.order.orderDetailsStatus);
+  const orderDetailsError = useReduxSelector(state => state.order.orderDetailsError);
+
+  const openDetailsDialog = (order) => {
+    setSelectedOrder(order);
+    setDialogOpen(true);
+    // Fetch richer details if installed or always (optionally only for INSTALLED)
+    if (order?.id) {
+      dispatch(fetchOrderDetails(order.id));
+    }
+  };
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false); // Dialog upload file
   const [uploading, setUploading] = useState(false); // Trạng thái upload
   const [description, setDescription] = useState(""); // Description cho progress log
@@ -97,6 +129,7 @@ const OrderManager = () => {
   const [filePreviews, setFilePreviews] = useState([]); // Multiple file previews
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [searchInput, setSearchInput] = useState("");
   const [statsLoading, setStatsLoading] = useState(false);
   const [productUploadDialogOpen, setProductUploadDialogOpen] = useState(false);
   const [deliveryUploadDialogOpen, setDeliveryUploadDialogOpen] =
@@ -172,6 +205,60 @@ const OrderManager = () => {
       setConfirmingPayment(false);
     }
   };
+
+  // Refresh stats + current tab data
+  const handleRefresh = () => {
+    loadOverviewStatsWithApi();
+    loadOrdersByTab(currentTab);
+  };
+
+  // Đổi tab
+  const changeTab = (index) => {
+    setCurrentTab(index);
+    setPage(1);
+  };
+
+  // Search handlers
+  const handleSearch = () => {
+    if (searchInput.trim()) {
+      dispatch(searchProductionOrders({ query: searchInput.trim(), page: 1, size: pageSize }));
+    }
+  };
+  const handleSearchKey = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+  const handleClearSearch = () => {
+    setSearchInput('');
+    dispatch(clearSearchProductionOrders());
+    loadOrdersByTab(currentTab);
+  };
+
+  // Status chip renderer
+  const getStatusChip = (status) => {
+    if (!status) return null;
+    const map = {
+      IN_PROGRESS: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300',
+      PRODUCING: 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300',
+      PRODUCTION_COMPLETED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
+      DELIVERING: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
+      INSTALLED: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300',
+      ORDER_COMPLETED: 'bg-emerald-200 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300'
+    };
+    const label = ORDER_STATUS_MAP[status]?.label || status;
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${map[status] || 'bg-gray-100 text-gray-600 dark:bg-neutral-700 dark:text-neutral-300'}`}>{label}</span>;
+  };
+
+  // Payment side-effects notifications
+  useEffect(() => {
+    if (paymentSuccess) {
+      showNotification('Thanh toán thành công', 'success');
+    }
+    if (paymentError) {
+      showNotification('Lỗi thanh toán: ' + paymentError, 'error');
+    }
+  }, [paymentSuccess, paymentError]);
 
   const openDeliveryUploadDialog = (order) => {
     setSelectedOrder(order);
@@ -268,43 +355,17 @@ const OrderManager = () => {
   }, []);
 
   useEffect(() => {
-    // Load đơn hàng khi thay đổi tab, page, pageSize
-    loadOrdersByTab(currentTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTab, page, pageSize]);
-
-  // Xử lý kết quả thanh toán
-  useEffect(() => {
-    if (paymentSuccess) {
-      showNotification("Xác nhận thanh toán thành công!", "success");
+    // Nếu đang tìm kiếm production thì gọi search, ngược lại load theo tab
+    if (productionSearchQuery) {
+      dispatch(searchProductionOrders({ query: productionSearchQuery, page, size: pageSize }));
+    } else {
+      loadOrdersByTab(currentTab);
     }
-    if (paymentError) {
-      showNotification(`Lỗi thanh toán: ${paymentError}`, "error");
-    }
-  }, [paymentSuccess, paymentError]);
-
-  const handleTabChange = (event, newValue) => {
-    setCurrentTab(newValue);
-    setPage(1); // Reset về trang đầu
-    // loadOrdersByTab sẽ được gọi tự động qua useEffect
-  };
-  const handleRefresh = () => {
-    loadOverviewStatsWithApi(); // Refresh thống kê với API
-    loadOrdersByTab(currentTab); // Refresh tab hiện tại
-  };
-
-  const getStatusChip = (status) => {
-    const statusInfo = ORDER_STATUS_MAP[status] || {
-      label: status,
-      color: "default",
-    };
-    return (
-      <Chip label={statusInfo.label} color={statusInfo.color} size="small" />
-    );
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productionSearchQuery, currentTab, page, pageSize, dispatch]);
 
   // Tính toán progress dựa trên status
- const calculateProgress = (status) => {
+  const calculateProgress = (status) => {
   switch (status) {
     case "IN_PROGRESS":
       return 20;
@@ -325,31 +386,28 @@ const OrderManager = () => {
 
   const ProductionProgress = ({ order }) => {
     const progress = calculateProgress(order.status);
-    const statusInfo = ORDER_STATUS_MAP[order.status] || {
-      label: order.status,
-    };
-
+    const statusInfo = ORDER_STATUS_MAP[order.status] || { label: order.status };
     return (
-      <Box sx={{ width: "100%" }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {statusInfo.label}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {progress}%
-          </Typography>
-        </Box>
-        <LinearProgress
-          variant="determinate"
-          value={progress}
-          sx={{ height: 8, borderRadius: 4 }}
-          color={progress === 100 ? "success" : "primary"}
-        />
-      </Box>
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-1 text-[11px] text-gray-500 dark:text-neutral-400">
+          <span>{statusInfo.label}</span>
+          <span>{progress}%</span>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-gray-200 dark:bg-neutral-700 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-300 ${progress === 100 ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-indigo-500 dark:bg-indigo-400'}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
     );
   };
 
-  if (loading && orders.length === 0) {
+  const displayedOrders = productionSearchQuery ? productionSearchResults : orders;
+  const displayedPagination = productionSearchQuery ? productionSearchPagination : normalPagination;
+  const displayedLoading = productionSearchQuery ? productionSearchStatus === "loading" : orderStatusLoading;
+
+  if (displayedLoading && displayedOrders.length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
         <CircularProgress />
@@ -367,7 +425,6 @@ const OrderManager = () => {
           showNotification(`File ${file.name} không phải là ảnh!`, "warning");
           continue;
         }
-        
         if (file.size > 5 * 1024 * 1024) {
           showNotification(`File ${file.name} quá lớn! Vui lòng chọn file nhỏ hơn 5MB.`, "warning");
           continue;
@@ -619,929 +676,841 @@ const OrderManager = () => {
     setDescription("");
   };
   return (
-    <Box sx={{ p: 3 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-        }}
-      >
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
-          Quản lý Thi công & Vận chuyển
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-800 dark:text-neutral-100">Quản lý Thi công & Vận chuyển</h1>
+        <button
           onClick={handleRefresh}
-          disabled={loading || statsLoading}
+          disabled={orderStatusLoading || statsLoading}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-700 dark:text-neutral-200 cursor-pointer"
         >
-          {statsLoading ? "Đang tải..." : "Làm mới"}
-        </Button>
-      </Box>
+          {statsLoading && <CircularProgress size={16} />}
+          <span>{statsLoading ? 'Đang tải...' : 'Làm mới'}</span>
+        </button>
+      </div>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <div className="rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
           {error}
-        </Alert>
+        </div>
       )}
 
       {/* Thống kê tổng quan */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <AssignmentIcon color="primary" sx={{ mr: 1 }} />
-                <Box>
-                  <Typography variant="h6">
-                    {statsLoading ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      overviewStats.inProgress
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Đang trong quá trình thi công
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <BuildIcon color="secondary" sx={{ mr: 1 }} />
-                <Box>
-                  <Typography variant="h6">
-                    {statsLoading ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      overviewStats.producing
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Đang thi công
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <CheckCircleIcon color="success" sx={{ mr: 1 }} />
-                <Box>
-                  <Typography variant="h6">
-                    {statsLoading ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      overviewStats.productionCompleted
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Đã thi công
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <TimerIcon color="warning" sx={{ mr: 1 }} />
-                <Box>
-                  <Typography variant="h6">
-                    {statsLoading ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      overviewStats.delivering
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Đang vận chuyển
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <CheckCircleIcon color="info" sx={{ mr: 1 }} />
-                <Box>
-                  <Typography variant="h6">
-                    {statsLoading ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      overviewStats.installed
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Đã lắp đặt
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatsCard
+          icon={<AssignmentIcon fontSize="small" className="text-primary-600 text-blue-600" />}
+          label="Đang trong quá trình thi công"
+          value={overviewStats.inProgress}
+          loading={statsLoading}
+          color="blue"
+        />
+        <StatsCard
+          icon={<BuildIcon fontSize="small" className="text-purple-600" />}
+          label="Đang thi công"
+          value={overviewStats.producing}
+          loading={statsLoading}
+          color="purple"
+        />
+        <StatsCard
+          icon={<CheckCircleIcon fontSize="small" className="text-emerald-600" />}
+          label="Đã thi công"
+          value={overviewStats.productionCompleted}
+          loading={statsLoading}
+          color="emerald"
+        />
+        <StatsCard
+          icon={<TimerIcon fontSize="small" className="text-amber-600" />}
+          label="Đang vận chuyển"
+          value={overviewStats.delivering}
+          loading={statsLoading}
+          color="amber"
+        />
+        <StatsCard
+          icon={<CheckCircleIcon fontSize="small" className="text-cyan-600" />}
+          label="Đã lắp đặt"
+          value={overviewStats.installed}
+          loading={statsLoading}
+          color="cyan"
+        />
+      </div>
 
-      {/* Tabs và bảng đơn hàng */}
-      <Paper sx={{ p: 3 }}>
-        <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-          <Tab label="Đang trong quá trình thi công" />
-          <Tab label="Đang thi công" />
-          <Tab label="Đã thi công" />
-          <Tab label="Đang vận chuyển" />
-          <Tab label="Đã lắp đặt" />
-        </Tabs>
-
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Mã đơn</TableCell>
-                <TableCell>Khách hàng</TableCell>
-                <TableCell>Trạng thái</TableCell>
-                <TableCell>Tiến độ</TableCell>
-                <TableCell>Ngày tạo</TableCell>
-                <TableCell>Ngày giao dự kiến</TableCell>
-                <TableCell>Thao tác</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center">
-                    <CircularProgress size={24} />
-                  </TableCell>
-                </TableRow>
-              ) : orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center">
-                    <Typography color="text.secondary">
-                      Không có đơn hàng nào
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>{order.orderCode || order.id}</TableCell>
-                    <TableCell>
-                      {order.users?.fullName ||
-                        order.user?.name ||
-                        order.customerName ||
-                        "N/A"}
-                    </TableCell>
-                    <TableCell>{getStatusChip(order.status)}</TableCell>
-                    <TableCell sx={{ minWidth: 200 }}>
-                      <ProductionProgress order={order} />
-                    </TableCell>
-                    <TableCell>
-                      {order.createAt
-                        ? new Date(order.createAt).toLocaleDateString("vi-VN")
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      {order.estimatedDeliveryDate
-                        ? new Date(
-                            order.estimatedDeliveryDate
-                          ).toLocaleDateString("vi-VN")
-                        : "Chưa xác định"}
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Tooltip title="Xem chi tiết">
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setDialogOpen(true);
-                            }}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-
-                        {/* Nút bắt đầu thi công chỉ hiện với status IN_PROGRESS */}
-                        {order.status === "IN_PROGRESS" && (
-                          <Tooltip title="Bắt đầu thi công">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => openUploadDialog(order)}
-                            >
-                              <BuildIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-
-                        {/* Nút chuyển trạng thái tùy theo status hiện tại */}
-                        {order.status === "PRODUCING" && (
-                          <Tooltip title="Hoàn thành sản xuất">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => openProductUploadDialog(order)}
-                            >
-                              <CheckCircleIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-
-                        {order.status === "PRODUCTION_COMPLETED" && (
-                          <Tooltip title="Bắt đầu vận chuyển">
-                            <IconButton
-                              size="small"
-                              color="info"
-                              onClick={() => openDeliveryUploadDialog(order)}
-                            >
-                              <LocalShippingIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-
-                        {order.status === "DELIVERING" && (
-                          <Tooltip title="Hoàn thành lắp đặt">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => openInstalledUploadDialog(order)}
-                            >
-                              <CheckCircleIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-
-                        {/* Nút xác nhận thanh toán tiền mặt cho đơn hàng đã lắp đặt */}
-                        {order.status === "INSTALLED" && (
-                          <Tooltip title="Xác nhận thanh toán tiền mặt">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => openCashPaymentDialog(order)}
-                            >
-                              <AttachMoneyIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-
-                        <Tooltip title="Cập nhật trạng thái">
-                          <IconButton size="small">
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                    <Dialog
-                      open={installedUploadDialogOpen}
-                      onClose={() => setInstalledUploadDialogOpen(false)}
-                      maxWidth="md"
-                      fullWidth
-                    >
-                      <DialogTitle>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <CheckCircleIcon color="success" />
-                          Hoàn thành lắp đặt
-                        </Box>
-                      </DialogTitle>
-                      <DialogContent>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Khách hàng:{" "}
-                            {selectedOrder?.users?.fullName || "N/A"}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ mb: 3 }}>
-                          <Button
-                            variant="outlined"
-                            component="label"
-                            startIcon={<CloudUploadIcon />}
-                            fullWidth
-                            sx={{ mb: 2 }}
-                          >
-                            Chọn nhiều ảnh lắp đặt
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              hidden
-                              onChange={handleMultipleFileSelect}
-                            />
-                          </Button>
-
-                          {selectedFiles.length > 0 && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              Đã chọn {selectedFiles.length} file
-                            </Typography>
-                          )}
-
-                          {filePreviews.length > 0 && (
-                            <Box sx={{ mb: 2 }}>
-                              <Typography variant="subtitle2" gutterBottom>
-                                Xem trước ({filePreviews.length} ảnh):
-                              </Typography>
-                              <Grid container spacing={2}>
-                                {filePreviews.map((preview, index) => (
-                                  <Grid item xs={6} sm={4} key={index}>
-                                    <Box sx={{ position: "relative" }}>
-                                      <Avatar
-                                        src={preview.preview || preview}
-                                        variant="rounded"
-                                        sx={{
-                                          width: "100%",
-                                          height: 120,
-                                          objectFit: "cover",
-                                        }}
-                                      />
-                                      <IconButton
-                                        size="small"
-                                        sx={{
-                                          position: "absolute",
-                                          top: 4,
-                                          right: 4,
-                                          backgroundColor: "rgba(255, 255, 255, 0.8)",
-                                          "&:hover": {
-                                            backgroundColor: "rgba(255, 255, 255, 0.9)",
-                                          },
-                                        }}
-                                        onClick={() => removeFile(index)}
-                                      >
-                                        <DeleteIcon fontSize="small" />
-                                      </IconButton>
-                                    </Box>
-                                  </Grid>
-                                ))}
-                              </Grid>
-                            </Box>
-                          )}
-                        </Box>
-
-                        <TextField
-                          fullWidth
-                          label="Mô tả hoàn thành lắp đặt"
-                          multiline
-                          rows={3}
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          placeholder="Nhập mô tả về tình trạng lắp đặt hoàn thành..."
-                          sx={{ mb: 2 }}
-                        />
-
-                        <Alert severity="success" sx={{ mt: 2 }}>
-                          Sau khi upload, trạng thái đơn hàng sẽ chuyển thành
-                          "Đã lắp đặt"
-                        </Alert>
-                      </DialogContent>
-                      <DialogActions>
-                        <Button
-                          onClick={() => setInstalledUploadDialogOpen(false)}
-                          disabled={uploading}
-                        >
-                          Hủy
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          onClick={handleUploadInstalledProgressImage}
-                          disabled={selectedFiles.length === 0 || uploading || !description.trim()}
-                          startIcon={
-                            uploading ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <CheckCircleIcon />
-                            )
-                          }
-                        >
-                          {uploading
-                            ? "Đang xử lý..."
-                            : "Hoàn thành lắp đặt"}
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
-                    <Dialog
-                      open={deliveryUploadDialogOpen}
-                      onClose={() => setDeliveryUploadDialogOpen(false)}
-                      maxWidth="sm"
-                      fullWidth
-                    >
-                      <DialogTitle>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <LocalShippingIcon color="info" />
-                          Bắt đầu vận chuyển - Upload ảnh vận chuyển
-                        </Box>
-                      </DialogTitle>
-                      <DialogContent>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Khách hàng:{" "}
-                            {selectedOrder?.users?.fullName || "N/A"}
-                          </Typography>
-                        </Box>
-
-                        {/* Description Input */}
-                        <Box sx={{ mb: 3 }}>
-                          <TextField
-                            label="Mô tả tiến độ"
-                            multiline
-                            rows={3}
-                            fullWidth
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Nhập mô tả về quá trình vận chuyển..."
-                            variant="outlined"
-                          />
-                        </Box>
-
-                        {/* Multiple File Input */}
-                        <Box sx={{ mb: 3 }}>
-                          <Button
-                            variant="outlined"
-                            component="label"
-                            startIcon={<CloudUploadIcon />}
-                            fullWidth
-                            sx={{ mb: 2 }}
-                          >
-                            Chọn ảnh vận chuyển (có thể chọn nhiều file)
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              hidden
-                              onChange={handleMultipleFileSelect}
-                            />
-                          </Button>
-
-                          {selectedFiles.length > 0 && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              Đã chọn {selectedFiles.length} file
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {/* Preview multiple images */}
-                        {filePreviews.length > 0 && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              Xem trước:
-                            </Typography>
-                            <Grid container spacing={2}>
-                              {filePreviews.map((preview, index) => (
-                                <Grid item xs={6} sm={4} key={index}>
-                                  <Box sx={{ position: 'relative' }}>
-                                    <Avatar
-                                      src={preview.preview}
-                                      variant="rounded"
-                                      sx={{
-                                        width: "100%",
-                                        height: 120,
-                                        objectFit: "contain",
-                                      }}
-                                    />
-                                    <IconButton
-                                      size="small"
-                                      sx={{
-                                        position: 'absolute',
-                                        top: -8,
-                                        right: -8,
-                                        backgroundColor: 'error.main',
-                                        color: 'white',
-                                        '&:hover': {
-                                          backgroundColor: 'error.dark',
-                                        },
-                                      }}
-                                      onClick={() => removeFile(index)}
-                                    >
-                                      <CancelIcon fontSize="small" />
-                                    </IconButton>
-                                    <Typography variant="caption" display="block" textAlign="center" sx={{ mt: 1 }}>
-                                      {preview.name}
-                                    </Typography>
-                                    <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
-                                      {(preview.size / 1024 / 1024).toFixed(2)}MB
-                                    </Typography>
-                                  </Box>
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </Box>
-                        )}
-
-                        <Alert severity="info" sx={{ mt: 2 }}>
-                          Sau khi upload, sẽ tạo progress log mới và trạng thái đơn hàng sẽ chuyển thành "Đang vận chuyển"
-                        </Alert>
-                      </DialogContent>
-                      <DialogActions>
-                        <Button
-                          onClick={() => setDeliveryUploadDialogOpen(false)}
-                          disabled={uploading}
-                        >
-                          Hủy
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="info"
-                          onClick={handleUploadDeliveryProgressImage}
-                          disabled={selectedFiles.length === 0 || !description.trim() || uploading}
-                          startIcon={
-                            uploading ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <LocalShippingIcon />
-                            )
-                          }
-                        >
-                          {uploading
-                            ? "Đang xử lý..."
-                            : "Bắt đầu vận chuyển"}
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
-                    <Dialog
-                      open={productUploadDialogOpen}
-                      onClose={() => setProductUploadDialogOpen(false)}
-                      maxWidth="sm"
-                      fullWidth
-                    >
-                      <DialogTitle>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <CheckCircleIcon color="success" />
-                          Hoàn thành sản xuất - Upload ảnh sản phẩm
-                        </Box>
-                      </DialogTitle>
-                      <DialogContent>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Khách hàng:{" "}
-                            {selectedOrder?.users?.fullName || "N/A"}
-                          </Typography>
-                        </Box>
-
-                        {/* Description Input */}
-                        <Box sx={{ mb: 3 }}>
-                          <TextField
-                            label="Mô tả tiến độ"
-                            multiline
-                            rows={3}
-                            fullWidth
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Nhập mô tả về sản phẩm hoàn thành..."
-                            variant="outlined"
-                          />
-                        </Box>
-
-                        {/* Multiple File Input */}
-                        <Box sx={{ mb: 3 }}>
-                          <Button
-                            variant="outlined"
-                            component="label"
-                            startIcon={<CloudUploadIcon />}
-                            fullWidth
-                            sx={{ mb: 2 }}
-                          >
-                            Chọn ảnh sản phẩm hoàn thành (có thể chọn nhiều file)
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              hidden
-                              onChange={handleMultipleFileSelect}
-                            />
-                          </Button>
-
-                          {selectedFiles.length > 0 && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              Đã chọn {selectedFiles.length} file
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {/* Preview multiple images */}
-                        {filePreviews.length > 0 && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              Xem trước:
-                            </Typography>
-                            <Grid container spacing={2}>
-                              {filePreviews.map((preview, index) => (
-                                <Grid item xs={6} sm={4} key={index}>
-                                  <Box sx={{ position: 'relative' }}>
-                                    <Avatar
-                                      src={preview.preview}
-                                      variant="rounded"
-                                      sx={{
-                                        width: "100%",
-                                        height: 120,
-                                        objectFit: "contain",
-                                      }}
-                                    />
-                                    <IconButton
-                                      size="small"
-                                      sx={{
-                                        position: 'absolute',
-                                        top: -8,
-                                        right: -8,
-                                        backgroundColor: 'error.main',
-                                        color: 'white',
-                                        '&:hover': {
-                                          backgroundColor: 'error.dark',
-                                        },
-                                      }}
-                                      onClick={() => removeFile(index)}
-                                    >
-                                      <CancelIcon fontSize="small" />
-                                    </IconButton>
-                                    <Typography variant="caption" display="block" textAlign="center" sx={{ mt: 1 }}>
-                                      {preview.name}
-                                    </Typography>
-                                    <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
-                                      {(preview.size / 1024 / 1024).toFixed(2)}MB
-                                    </Typography>
-                                  </Box>
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </Box>
-                        )}
-
-                        <Alert severity="success" sx={{ mt: 2 }}>
-                          Sau khi upload, sẽ tạo progress log mới và trạng thái đơn hàng sẽ chuyển thành "Hoàn thành sản xuất"
-                        </Alert>
-                      </DialogContent>
-                      <DialogActions>
-                        <Button
-                          onClick={() => setProductUploadDialogOpen(false)}
-                          disabled={uploading}
-                        >
-                          Hủy
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          onClick={handleUploadProductionCompletedImage}
-                          disabled={selectedFiles.length === 0 || !description.trim() || uploading}
-                          startIcon={
-                            uploading ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <CheckCircleIcon />
-                            )
-                          }
-                        >
-                          {uploading
-                            ? "Đang xử lý..."
-                            : "Hoàn thành sản xuất"}
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Dialog
-          open={uploadDialogOpen}
-          onClose={() => setUploadDialogOpen(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <CloudUploadIcon color="primary" />
-              Bắt đầu thi công - Upload ảnh thiết kế
-            </Box>
-          </DialogTitle>
-          <DialogContent>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Khách hàng: {selectedOrder?.users?.fullName || "N/A"}
-              </Typography>
-            </Box>
-
-            {/* Description Input */}
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                label="Mô tả tiến độ"
-                multiline
-                rows={3}
-                fullWidth
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Nhập mô tả về tiến độ công việc..."
-                variant="outlined"
-              />
-            </Box>
-
-            {/* Multiple File Input */}
-            <Box sx={{ mb: 3 }}>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<CloudUploadIcon />}
-                fullWidth
-                sx={{ mb: 2 }}
+      {/* Tabs và bảng đơn hàng (Tailwind) */}
+      <div className="mt-4 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 md:p-6 shadow-sm space-y-4">
+        {/* Tabs */}
+        <div className="overflow-x-auto">
+          <div className="flex gap-2 md:gap-3 border-b border-gray-200 dark:border-neutral-700 pb-2 mb-4">
+            {[
+              'Đang trong quá trình thi công',
+              'Đang thi công',
+              'Đã thi công',
+              'Đang vận chuyển',
+              'Đã lắp đặt'
+            ].map((label, index) => (
+              <button
+                key={index}
+                onClick={() => changeTab(index)}
+                className={`whitespace-nowrap relative px-3 py-1.5 rounded-md text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 flex items-center gap-1
+                ${currentTab === index ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 shadow-inner ring-1 ring-indigo-200 dark:ring-indigo-500/30' : 'text-gray-600 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800'} cursor-pointer`}
               >
-                Chọn ảnh thiết kế (có thể chọn nhiều file)
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  hidden
-                  onChange={handleMultipleFileSelect}
-                />
-              </Button>
-
-              {selectedFiles.length > 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Đã chọn {selectedFiles.length} file
-                </Typography>
+                {label}
+                {index === 0 && overviewStats.inProgress > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[10px] font-semibold bg-indigo-600 text-white dark:bg-indigo-500/80">{overviewStats.inProgress}</span>
+                )}
+                {index === 1 && overviewStats.producing > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[10px] font-semibold bg-purple-600 text-white dark:bg-purple-500/80">{overviewStats.producing}</span>
+                )}
+                {index === 2 && overviewStats.productionCompleted > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[10px] font-semibold bg-emerald-600 text-white dark:bg-emerald-500/80">{overviewStats.productionCompleted}</span>
+                )}
+                {index === 3 && overviewStats.delivering > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[10px] font-semibold bg-amber-600 text-white dark:bg-amber-500/80">{overviewStats.delivering}</span>
+                )}
+                {index === 4 && overviewStats.installed > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[10px] font-semibold bg-cyan-600 text-white dark:bg-cyan-500/80">{overviewStats.installed}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Search */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center mb-3">
+          <div className="flex-1 flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-gray-400">
+                <SearchIcon fontSize="small" />
+              </span>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 pl-9 pr-8 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-gray-800 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-neutral-500"
+                placeholder="Tìm kiếm đơn hàng (mã đơn, khách hàng, ...)"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={handleSearchKey}
+              />
+              {searchInput && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute inset-y-0 right-1 flex items-center px-1 text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 cursor-pointer"
+                >
+                  <CloseIcon fontSize="small" />
+                </button>
               )}
-            </Box>
-
-            {/* Preview multiple images */}
-            {filePreviews.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Xem trước:
-                </Typography>
-                <Grid container spacing={2}>
-                  {filePreviews.map((preview, index) => (
-                    <Grid item xs={6} sm={4} key={index}>
-                      <Box sx={{ position: 'relative' }}>
-                        <Avatar
-                          src={preview.preview}
-                          variant="rounded"
-                          sx={{
-                            width: "100%",
-                            height: 120,
-                            objectFit: "contain",
-                          }}
-                        />
-                        <IconButton
-                          size="small"
-                          sx={{
-                            position: 'absolute',
-                            top: -8,
-                            right: -8,
-                            backgroundColor: 'error.main',
-                            color: 'white',
-                            '&:hover': {
-                              backgroundColor: 'error.dark',
-                            },
-                          }}
-                          onClick={() => removeFile(index)}
-                        >
-                          <CancelIcon fontSize="small" />
-                        </IconButton>
-                        <Typography variant="caption" display="block" textAlign="center" sx={{ mt: 1 }}>
-                          {preview.name}
-                        </Typography>
-                        <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
-                          {(preview.size / 1024 / 1024).toFixed(2)}MB
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={productionSearchStatus === 'loading'}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium px-4 py-2 shadow hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {productionSearchStatus === 'loading' && <CircularProgress size={16} color="inherit" />}
+              <span>Tìm</span>
+            </button>
+            {productionSearchQuery && (
+              <button
+                onClick={handleClearSearch}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gray-200 dark:bg-neutral-700 text-gray-700 dark:text-neutral-200 text-sm font-medium px-3 py-2 hover:bg-gray-300 dark:hover:bg-neutral-600 cursor-pointer"
+              >
+                <CloseIcon fontSize="small" />
+                <span>Xóa</span>
+              </button>
             )}
-
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Sau khi upload, sẽ tạo progress log mới và trạng thái đơn hàng sẽ chuyển thành "Đang sản xuất"
-            </Alert>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => setUploadDialogOpen(false)}
-              disabled={uploading}
-            >
-              Hủy
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleUploadDraftImage}
-              disabled={selectedFiles.length === 0 || !description.trim() || uploading}
-              startIcon={
-                uploading ? <CircularProgress size={16} /> : <BuildIcon />
-              }
-            >
-              {uploading ? "Đang xử lý..." : "Bắt đầu sản xuất"}
-            </Button>
-          </DialogActions>
-        </Dialog>
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Trang {pagination.currentPage} / {pagination.totalPages}
-              (Tổng {pagination.totalElements} đơn hàng)
-            </Typography>
-          </Box>
+          </div>
+        </div>
+        {productionSearchQuery && (
+          <div className="rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-xs text-sky-700 dark:text-sky-300 mb-2">
+            Đang hiển thị kết quả tìm kiếm cho: <strong>{productionSearchQuery}</strong> (Trang {displayedPagination.currentPage}/{displayedPagination.totalPages})
+          </div>
         )}
-      </Paper>
-
-      {/* Dialog xác nhận thanh toán tiền mặt */}
-      <Dialog
-        open={cashPaymentDialogOpen}
-        onClose={() => setCashPaymentDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AttachMoneyIcon color="primary" />
-            Xác nhận thanh toán tiền mặt
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Đơn hàng: {selectedOrder?.orderCode || selectedOrder?.id}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Khách hàng: {selectedOrder?.users?.fullName || "N/A"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Số tiền thi công còn lại: {selectedOrder?.remainingConstructionAmount?.toLocaleString("vi-VN") || "0"} VNĐ
-            </Typography>
-          </Box>
-
-          {/* Thông tin số tiền cần thanh toán */}
-          <Box sx={{ mb: 2, p: 2, bgcolor: "primary.main", borderRadius: 1 }}>
-            <Typography variant="h6" sx={{ color: "white", textAlign: "center" }}>
-              Số tiền cần thanh toán: {selectedOrder?.remainingConstructionAmount?.toLocaleString("vi-VN") || "0"} VNĐ
-            </Typography>
-          </Box>
-
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Xác nhận thanh toán tiền mặt</strong>
-            </Typography>
-            <Typography variant="body2">
-              Bạn đang xác nhận rằng khách hàng đã thanh toán số tiền còn lại của phần thi công bằng tiền mặt.
-              Hành động này không thể hoàn tác.
-            </Typography>
-          </Alert>
-
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => setCashPaymentDialogOpen(false)}
-            disabled={confirmingPayment}
-          >
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleConfirmCashPayment}
-            disabled={confirmingPayment}
-            startIcon={
-              confirmingPayment ? (
-                <CircularProgress size={16} />
+        {/* Table */}
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-neutral-700 relative">
+          {/* Overlay spinner while loading but keep previous rows for smoother UX */}
+          {displayedLoading && displayedOrders.length > 0 && (
+            <div className="absolute inset-0 bg-white/40 dark:bg-neutral-900/40 backdrop-blur-[1px] flex items-start justify-end p-2 pointer-events-none">
+              <div className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-white/80 dark:bg-neutral-800/70 shadow text-[11px] font-medium text-gray-600 dark:text-neutral-300">
+                <CircularProgress size={14} />
+                <span>Đang tải...</span>
+              </div>
+            </div>
+          )}
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700 text-sm">
+            <thead className="bg-gray-50 dark:bg-neutral-800">
+              <tr className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-neutral-300">
+                <th className="px-4 py-3 text-left">Mã đơn</th>
+                <th className="px-4 py-3 text-left">Khách hàng</th>
+                <th className="px-4 py-3 text-left">Trạng thái</th>
+                <th className="px-4 py-3 text-left min-w-[180px]">Tiến độ</th>
+                <th className="px-4 py-3 text-left">Ngày tạo</th>
+                <th className="px-4 py-3 text-left">Ngày giao dự kiến</th>
+                <th className="px-4 py-3 text-left">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-neutral-700 bg-white dark:bg-neutral-900">
+              {displayedLoading && displayedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center">
+                    <CircularProgress size={24} />
+                  </td>
+                </tr>
+              ) : displayedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500 dark:text-neutral-400">Không có đơn hàng nào</td>
+                </tr>
               ) : (
-                <AttachMoneyIcon />
-              )
-            }
-          >
-            {confirmingPayment
-              ? "Đang xác nhận..."
-              : "Xác nhận thanh toán"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                displayedOrders.map(order => (
+                  <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/60 transition">
+                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-neutral-100 whitespace-nowrap">{order.orderCode || order.id}</td>
+                    <td className="px-4 py-3 text-gray-700 dark:text-neutral-200 whitespace-nowrap">{order.users?.fullName || order.user?.name || order.customerName || 'N/A'}</td>
+                    <td className="px-4 py-3">{getStatusChip(order.status)}</td>
+                    <td className="px-4 py-3 w-56"><ProductionProgress order={order} /></td>
+                    <td className="px-4 py-3 whitespace-nowrap">{order.createdAt || order.createAt ? new Date(order.createdAt || order.createAt).toLocaleDateString('vi-VN') : 'N/A'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{order.estimatedDeliveryDate ? new Date(order.estimatedDeliveryDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Tooltip title="Xem chi tiết">
+                          <IconButton size="small" onClick={() => openDetailsDialog(order)} className="cursor-pointer">
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {order.status === 'IN_PROGRESS' && (
+                          <Tooltip title="Bắt đầu thi công">
+                            <IconButton size="small" color="primary" onClick={() => openUploadDialog(order)} className="cursor-pointer">
+                              <BuildIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {order.status === 'PRODUCING' && (
+                          <Tooltip title="Hoàn thành sản xuất">
+                            <IconButton size="small" color="success" onClick={() => openProductUploadDialog(order)} className="cursor-pointer">
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {order.status === 'PRODUCTION_COMPLETED' && (
+                          <Tooltip title="Bắt đầu vận chuyển">
+                            <IconButton size="small" color="info" onClick={() => openDeliveryUploadDialog(order)} className="cursor-pointer">
+                              <LocalShippingIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {order.status === 'DELIVERING' && (
+                          <Tooltip title="Hoàn thành lắp đặt">
+                            <IconButton size="small" color="success" onClick={() => openInstalledUploadDialog(order)} className="cursor-pointer">
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {order.status === 'INSTALLED' && (
+                          <Tooltip title="Xác nhận thanh toán tiền mặt">
+                            <IconButton size="small" color="primary" onClick={() => openCashPaymentDialog(order)} className="cursor-pointer">
+                              <AttachMoneyIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </td>
+                    {/* Các dialog upload tách ra khỏi map */}
+                  </tr>
+                )))}
+              </tbody>
+            </table>
+        </div>
+        {/* Pagination */}
+        {displayedPagination.totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4">
+            <div className="text-xs text-gray-500 dark:text-neutral-400">Trang {displayedPagination.currentPage} / {displayedPagination.totalPages} (Tổng {displayedPagination.totalElements} đơn hàng)</div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-neutral-600 text-xs font-medium bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >Trước</button>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="px-2 py-1 rounded bg-indigo-600 text-white font-semibold">{page}</span>
+              </div>
+              <button
+                onClick={() => setPage(p => Math.min(displayedPagination.totalPages, p + 1))}
+                disabled={page === displayedPagination.totalPages}
+                className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-neutral-600 text-xs font-medium bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >Sau</button>
+            </div>
+          </div>
+        )}
+        {/* Tailwind Modal: Hoàn thành lắp đặt */}
+        {installedUploadDialogOpen && (
+          <div className="fixed inset-0 z-50 flex justify-center p-4 sm:p-6 items-start md:items-center pt-24 md:pt-6">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => !uploading && setInstalledUploadDialogOpen(false)}
+            />
+            <div className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-gray-200 dark:border-neutral-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-300">
+                  <CheckCircleIcon fontSize="small" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-neutral-100">Hoàn thành lắp đặt</h2>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Upload ảnh lắp đặt & mô tả hoàn thành</p>
+                </div>
+                <button
+                  onClick={() => !uploading && setInstalledUploadDialogOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition inline-flex p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+                >
+                  <CloseIcon fontSize="small" />
+                </button>
+              </div>
+              {/* Body */}
+              <div className="px-5 pb-4 pt-3 overflow-y-auto custom-scrollbar">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Mã đơn</span>
+                      <span className="text-gray-800 dark:text-neutral-100 text-sm font-semibold">{selectedOrder?.orderCode || selectedOrder?.id}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Khách hàng</span>
+                      <span className="text-gray-700 dark:text-neutral-200 text-sm line-clamp-2">{selectedOrder?.users?.fullName || 'N/A'}</span>
+                    </div>
+                  </div>
+                  {/* Description */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Mô tả hoàn thành</label>
+                    <textarea
+                      rows={4}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Nhập mô tả về tình trạng lắp đặt hoàn thành..."
+                      className="w-full resize-y rounded-lg border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-800 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                    />
+                  </div>
+                  {/* Upload Zone */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Ảnh lắp đặt</label>
+                    <div className="relative">
+                      <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-4 cursor-pointer transition bg-gray-50/60 dark:bg-neutral-800/40 border-gray-300 dark:border-neutral-600 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/40 dark:hover:bg-cyan-500/10">
+                        <div className="flex flex-col items-center text-center gap-1">
+                          <CloudUploadIcon className="text-cyan-500" fontSize="small" />
+                          <span className="text-xs font-medium text-gray-700 dark:text-neutral-200">Chọn ảnh lắp đặt (nhiều)</span>
+                          <span className="text-[10px] text-gray-400 dark:text-neutral-500">Tối đa 5MB mỗi ảnh</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          hidden
+                          onChange={handleMultipleFileSelect}
+                          disabled={uploading}
+                        />
+                      </label>
+                    </div>
+                    {selectedFiles.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-neutral-400">Đã chọn {selectedFiles.length} file</p>
+                    )}
+                  </div>
+                  {/* Previews */}
+                  {filePreviews.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">Xem trước</p>
+                        <span className="text-[10px] text-gray-400 dark:text-neutral-500">{filePreviews.length} ảnh</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {filePreviews.map((preview, index) => (
+                          <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50 dark:bg-neutral-800 border-gray-200 dark:border-neutral-700">
+                            <img src={preview.preview || preview} alt={preview.name || `image-${index}`} className="h-32 w-full object-contain p-1 bg-white dark:bg-neutral-900" />
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition inline-flex items-center justify-center h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                            >
+                              <CancelIcon fontSize="inherit" className="!text-xs" />
+                            </button>
+                            <div className="px-1.5 pb-1">
+                              <p className="text-[10px] font-medium text-gray-600 dark:text-neutral-300 truncate" title={preview.name}>{preview.name || 'Ảnh'}</p>
+                              {preview.size && <p className="text-[10px] text-gray-400 dark:text-neutral-500">{(preview.size / 1024 / 1024).toFixed(2)}MB</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-cyan-200 dark:border-cyan-500/30 bg-cyan-50 dark:bg-cyan-500/10 px-3 py-2 text-[11px] text-cyan-700 dark:text-cyan-300 leading-relaxed">
+                    Sau khi upload, trạng thái đơn hàng sẽ chuyển thành <strong>Đã lắp đặt</strong>.
+                  </div>
+                </div>
+              </div>
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-neutral-700">
+                <button
+                  onClick={() => setInstalledUploadDialogOpen(false)}
+                  disabled={uploading}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleUploadInstalledProgressImage}
+                  disabled={selectedFiles.length === 0 || uploading || !description.trim()}
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed shadow"
+                >
+                  {uploading && <CircularProgress size={16} color="inherit" />}
+                  {uploading ? 'Đang xử lý...' : 'Hoàn thành lắp đặt'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Tailwind Modal: Bắt đầu vận chuyển */}
+        {deliveryUploadDialogOpen && (
+          <div className="fixed inset-0 z-50 flex justify-center p-4 sm:p-6 items-start md:items-center pt-24 md:pt-6">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => !uploading && setDeliveryUploadDialogOpen(false)}
+            />
+            <div className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-gray-200 dark:border-neutral-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-300">
+                  <LocalShippingIcon fontSize="small" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-neutral-100">Bắt đầu vận chuyển</h2>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Upload ảnh vận chuyển & mô tả tiến độ</p>
+                </div>
+                <button
+                  onClick={() => !uploading && setDeliveryUploadDialogOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition inline-flex p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+                >
+                  <CloseIcon fontSize="small" />
+                </button>
+              </div>
+              {/* Body */}
+              <div className="px-5 pb-4 pt-3 overflow-y-auto custom-scrollbar">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Mã đơn</span>
+                      <span className="text-gray-800 dark:text-neutral-100 text-sm font-semibold">{selectedOrder?.orderCode || selectedOrder?.id}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Khách hàng</span>
+                      <span className="text-gray-700 dark:text-neutral-200 text-sm line-clamp-2">{selectedOrder?.users?.fullName || 'N/A'}</span>
+                    </div>
+                  </div>
+                  {/* Description */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Mô tả tiến độ</label>
+                    <textarea
+                      rows={4}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Nhập mô tả về quá trình vận chuyển..."
+                      className="w-full resize-y rounded-lg border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-800 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500"
+                    />
+                  </div>
+                  {/* Upload Zone */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Ảnh vận chuyển</label>
+                    <div className="relative">
+                      <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-4 cursor-pointer transition bg-gray-50/60 dark:bg-neutral-800/40 border-gray-300 dark:border-neutral-600 hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50/40 dark:hover:bg-sky-500/10">
+                        <div className="flex flex-col items-center text-center gap-1">
+                          <CloudUploadIcon className="text-sky-500" fontSize="small" />
+                          <span className="text-xs font-medium text-gray-700 dark:text-neutral-200">Chọn ảnh vận chuyển</span>
+                          <span className="text-[10px] text-gray-400 dark:text-neutral-500">Có thể chọn nhiều ảnh (tối đa 5MB mỗi ảnh)</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          hidden
+                          onChange={handleMultipleFileSelect}
+                          disabled={uploading}
+                        />
+                      </label>
+                    </div>
+                    {selectedFiles.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-neutral-400">Đã chọn {selectedFiles.length} file</p>
+                    )}
+                  </div>
+                  {/* Previews */}
+                  {filePreviews.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">Xem trước</p>
+                        <span className="text-[10px] text-gray-400 dark:text-neutral-500">{filePreviews.length} ảnh</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {filePreviews.map((preview, index) => (
+                          <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50 dark:bg-neutral-800 border-gray-200 dark:border-neutral-700">
+                            <img src={preview.preview} alt={preview.name} className="h-32 w-full object-contain p-1 bg-white dark:bg-neutral-900" />
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition inline-flex items-center justify-center h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                            >
+                              <CancelIcon fontSize="inherit" className="!text-xs" />
+                            </button>
+                            <div className="px-1.5 pb-1">
+                              <p className="text-[10px] font-medium text-gray-600 dark:text-neutral-300 truncate" title={preview.name}>{preview.name}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-neutral-500">{(preview.size / 1024 / 1024).toFixed(2)}MB</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-[11px] text-sky-700 dark:text-sky-300 leading-relaxed">
+                    Sau khi upload sẽ tạo progress log mới và trạng thái đơn hàng chuyển thành <strong>Đang vận chuyển</strong>.
+                  </div>
+                </div>
+              </div>
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-neutral-700">
+                <button
+                  onClick={() => setDeliveryUploadDialogOpen(false)}
+                  disabled={uploading}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleUploadDeliveryProgressImage}
+                  disabled={selectedFiles.length === 0 || !description.trim() || uploading}
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed shadow"
+                >
+                  {uploading && <CircularProgress size={16} color="inherit" />}
+                  {uploading ? 'Đang xử lý...' : 'Bắt đầu vận chuyển'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Tailwind Modal: Hoàn thành sản xuất */}
+        {productUploadDialogOpen && (
+          <div className="fixed inset-0 z-50 flex justify-center p-4 sm:p-6 items-start md:items-center pt-24 md:pt-6">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => !uploading && setProductUploadDialogOpen(false)}
+            />
+            <div className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-gray-200 dark:border-neutral-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                  <CheckCircleIcon fontSize="small" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-neutral-100">Hoàn thành sản xuất</h2>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Upload ảnh sản phẩm & mô tả tiến độ</p>
+                </div>
+                <button
+                  onClick={() => !uploading && setProductUploadDialogOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition inline-flex p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+                >
+                  <CloseIcon fontSize="small" />
+                </button>
+              </div>
+              {/* Body */}
+              <div className="px-5 pb-4 pt-3 overflow-y-auto custom-scrollbar">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Mã đơn</span>
+                      <span className="text-gray-800 dark:text-neutral-100 text-sm font-semibold">{selectedOrder?.orderCode || selectedOrder?.id}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Khách hàng</span>
+                      <span className="text-gray-700 dark:text-neutral-200 text-sm line-clamp-2">{selectedOrder?.users?.fullName || 'N/A'}</span>
+                    </div>
+                  </div>
+                  {/* Description */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Mô tả tiến độ</label>
+                    <textarea
+                      rows={4}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Nhập mô tả về sản phẩm hoàn thành..."
+                      className="w-full resize-y rounded-lg border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-800 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                    />
+                  </div>
+                  {/* Upload Zone */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Ảnh sản phẩm</label>
+                    <div className="relative">
+                      <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-4 cursor-pointer transition bg-gray-50/60 dark:bg-neutral-800/40 border-gray-300 dark:border-neutral-600 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-500/10">
+                        <div className="flex flex-col items-center text-center gap-1">
+                          <CloudUploadIcon className="text-emerald-500" fontSize="small" />
+                          <span className="text-xs font-medium text-gray-700 dark:text-neutral-200">Chọn ảnh sản phẩm hoàn thành</span>
+                          <span className="text-[10px] text-gray-400 dark:text-neutral-500">Có thể chọn nhiều ảnh (tối đa 5MB mỗi ảnh)</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          hidden
+                          onChange={handleMultipleFileSelect}
+                          disabled={uploading}
+                        />
+                      </label>
+                    </div>
+                    {selectedFiles.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-neutral-400">Đã chọn {selectedFiles.length} file</p>
+                    )}
+                  </div>
+                  {/* Previews */}
+                  {filePreviews.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">Xem trước</p>
+                        <span className="text-[10px] text-gray-400 dark:text-neutral-500">{filePreviews.length} ảnh</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {filePreviews.map((preview, index) => (
+                          <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50 dark:bg-neutral-800 border-gray-200 dark:border-neutral-700">
+                            <img src={preview.preview} alt={preview.name} className="h-32 w-full object-contain p-1 bg-white dark:bg-neutral-900" />
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition inline-flex items-center justify-center h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                            >
+                              <CancelIcon fontSize="inherit" className="!text-xs" />
+                            </button>
+                            <div className="px-1.5 pb-1">
+                              <p className="text-[10px] font-medium text-gray-600 dark:text-neutral-300 truncate" title={preview.name}>{preview.name}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-neutral-500">{(preview.size / 1024 / 1024).toFixed(2)}MB</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                    Sau khi upload sẽ tạo progress log mới và trạng thái đơn hàng chuyển thành <strong>Hoàn thành sản xuất</strong>.
+                  </div>
+                </div>
+              </div>
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-neutral-700">
+                <button
+                  onClick={() => setProductUploadDialogOpen(false)}
+                  disabled={uploading}
+                  className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleUploadProductionCompletedImage}
+                  disabled={selectedFiles.length === 0 || !description.trim() || uploading}
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed shadow"
+                >
+                  {uploading && <CircularProgress size={16} color="inherit" />}
+                  {uploading ? 'Đang xử lý...' : 'Hoàn thành sản xuất'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Tailwind Modal: Bắt đầu thi công */}
+        {uploadDialogOpen && (
+          <div className="fixed inset-0 z-50 flex justify-center p-4 sm:p-6 items-start md:items-center pt-24 md:pt-6">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => !uploading && setUploadDialogOpen(false)}
+            />
+            <div className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-gray-200 dark:border-neutral-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
+                  <CloudUploadIcon fontSize="small" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-neutral-100">Bắt đầu thi công</h2>
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Upload ảnh thiết kế & mô tả tiến độ</p>
+                </div>
+                <button
+                  onClick={() => !uploading && setUploadDialogOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition inline-flex p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+                >
+                  <CloseIcon fontSize="small" />
+                </button>
+              </div>
+              {/* Body */}
+              <div className="px-5 pb-4 pt-3 overflow-y-auto custom-scrollbar">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Mã đơn</span>
+                      <span className="text-gray-800 dark:text-neutral-100 text-sm font-semibold">{selectedOrder?.orderCode || selectedOrder?.id}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-gray-500 dark:text-neutral-400">Khách hàng</span>
+                      <span className="text-gray-700 dark:text-neutral-200 text-sm line-clamp-2">{selectedOrder?.users?.fullName || 'N/A'}</span>
+                    </div>
+                  </div>
+                  {/* Description */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Mô tả tiến độ</label>
+                    <textarea
+                      rows={4}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Nhập mô tả về tiến độ công việc..."
+                      className="w-full resize-y rounded-lg border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-800 dark:text-neutral-100 placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
+                    />
+                  </div>
+                  {/* Upload Zone */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Ảnh thiết kế</label>
+                    <div className="relative">
+                      <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-4 cursor-pointer transition bg-gray-50/60 dark:bg-neutral-800/40 border-gray-300 dark:border-neutral-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/40 dark:hover:bg-indigo-500/10">
+                        <div className="flex flex-col items-center text-center gap-1">
+                          <CloudUploadIcon className="text-indigo-500" fontSize="small" />
+                          <span className="text-xs font-medium text-gray-700 dark:text-neutral-200">Chọn ảnh thiết kế</span>
+                          <span className="text-[10px] text-gray-400 dark:text-neutral-500">Có thể chọn nhiều ảnh (tối đa 5MB mỗi ảnh)</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          hidden
+                          onChange={handleMultipleFileSelect}
+                          disabled={uploading}
+                        />
+                      </label>
+                    </div>
+                    {selectedFiles.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-neutral-400">Đã chọn {selectedFiles.length} file</p>
+                    )}
+                  </div>
+                  {/* Previews */}
+                  {filePreviews.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">Xem trước</p>
+                        <span className="text-[10px] text-gray-400 dark:text-neutral-500">{filePreviews.length} ảnh</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {filePreviews.map((preview, index) => (
+                          <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50 dark:bg-neutral-800 border-gray-200 dark:border-neutral-700">
+                            <img src={preview.preview} alt={preview.name} className="h-32 w-full object-contain p-1 bg-white dark:bg-neutral-900" />
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition inline-flex items-center justify-center h-6 w-6 rounded-full bg-red-500 text-white shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                            >
+                              <CancelIcon fontSize="inherit" className="!text-xs" />
+                            </button>
+                            <div className="px-1.5 pb-1">
+                              <p className="text-[10px] font-medium text-gray-600 dark:text-neutral-300 truncate" title={preview.name}>{preview.name}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-neutral-500">{(preview.size / 1024 / 1024).toFixed(2)}MB</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-[11px] text-sky-600 dark:text-sky-300 leading-relaxed">
+                    Sau khi upload sẽ tạo progress log mới và trạng thái đơn hàng chuyển thành <strong>Đang sản xuất</strong>.
+                  </div>
+                </div>
+              </div>
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-neutral-700">
+                <button
+                  onClick={() => setUploadDialogOpen(false)}
+                  disabled={uploading}
+                  className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleUploadDraftImage}
+                  disabled={selectedFiles.length === 0 || !description.trim() || uploading}
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed shadow"
+                >
+                  {uploading && <CircularProgress size={16} color="inherit" />}
+                  {uploading ? 'Đang xử lý...' : 'Bắt đầu sản xuất'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+  </div>
+
+      {/* Tailwind Modal: Xác nhận thanh toán tiền mặt */}
+      {cashPaymentDialogOpen && (
+        <div className="fixed inset-0 z-50 flex justify-center p-4 sm:p-6 items-start md:items-center pt-24 md:pt-6">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !confirmingPayment && setCashPaymentDialogOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-gray-200 dark:border-neutral-700">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300">
+                <AttachMoneyIcon fontSize="small" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-neutral-100">Xác nhận thanh toán tiền mặt</h2>
+                <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Kiểm tra thông tin trước khi xác nhận</p>
+              </div>
+              <button
+                onClick={() => !confirmingPayment && setCashPaymentDialogOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition inline-flex p-1 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+              >
+                <CloseIcon fontSize="small" />
+              </button>
+            </div>
+            {/* Body */}
+            <div className="px-5 pb-4 pt-3 overflow-y-auto custom-scrollbar">
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Đơn hàng</span>
+                    <span className="font-semibold text-gray-800 dark:text-neutral-100">{selectedOrder?.orderCode || selectedOrder?.id}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Khách hàng</span>
+                    <span className="text-gray-700 dark:text-neutral-200">{selectedOrder?.users?.fullName || 'N/A'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-neutral-400">Số tiền còn lại</span>
+                    <span className="text-gray-700 dark:text-neutral-200">{selectedOrder?.remainingConstructionAmount?.toLocaleString('vi-VN') || '0'} VNĐ</span>
+                  </div>
+                </div>
+                {/* Amount highlight */}
+                <div className="rounded-lg bg-indigo-600 text-white px-4 py-3 text-center shadow">
+                  <p className="text-xs font-medium tracking-wide opacity-80">Số tiền cần thanh toán</p>
+                  <p className="text-lg font-bold mt-1">{selectedOrder?.remainingConstructionAmount?.toLocaleString('vi-VN') || '0'} VNĐ</p>
+                </div>
+                {/* Warning */}
+                <div className="rounded-lg border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                  <p className="font-semibold mb-1">Xác nhận thanh toán tiền mặt</p>
+                  <p>Bạn đang xác nhận rằng khách hàng đã thanh toán toàn bộ số tiền còn lại của phần thi công bằng tiền mặt. Hành động này <strong>không thể hoàn tác</strong>.</p>
+                </div>
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200 dark:border-neutral-700">
+              <button
+                onClick={() => setCashPaymentDialogOpen(false)}
+                disabled={confirmingPayment}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmCashPayment}
+                disabled={confirmingPayment}
+                className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed shadow"
+              >
+                {confirmingPayment && <CircularProgress size={16} color="inherit" />}
+                {confirmingPayment ? 'Đang xác nhận...' : 'Xác nhận thanh toán'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dialog chi tiết đơn hàng */}
       <Dialog
@@ -1550,42 +1519,120 @@ const OrderManager = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Chi tiết đơn hàng {selectedOrder?.orderCode || selectedOrder?.id}</DialogTitle>
+  <DialogTitle>Chi tiết đơn hàng {selectedOrder?.orderCode || selectedOrder?.id}</DialogTitle>
         <DialogContent>
-          {selectedOrder && (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Thông tin cơ bản
-                </Typography>
-                <Typography>
-                  Khách hàng: {selectedOrder.user?.name || "N/A"}
-                </Typography>
-                <Typography>
-                  Trạng thái:{" "}
-                  {ORDER_STATUS_MAP[selectedOrder.status]?.label ||
-                    selectedOrder.status}
-                </Typography>
-                <Typography>
-                  Tổng tiền:{" "}
-                  {selectedOrder.totalAmount?.toLocaleString("vi-VN")} VNĐ
-                </Typography>
-                <Typography>
-                  Địa chỉ: {selectedOrder.address || "Chưa có"}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Trạng thái sản xuất
-                </Typography>
-                <ProductionProgress order={selectedOrder} />
-              </Grid>
-            </Grid>
-          )}
+          {selectedOrder && (() => {
+            const detail = orderDetails || selectedOrder;
+            const customerName = detail?.user?.fullName || detail?.user?.name || selectedOrder?.users?.fullName || selectedOrder?.user?.name || 'N/A';
+            const remainConstruction = detail?.remainingConstructionAmount ?? selectedOrder?.remainingConstructionAmount ?? 0;
+            const remainOrder = detail?.totalOrderRemainingAmount ?? selectedOrder?.totalOrderRemainingAmount ?? 0;
+            const addressValue = detail.address || selectedOrder.address || detail.user?.address || selectedOrder.users?.address || 'Chưa có';
+            const orderType = detail.orderType || selectedOrder.orderType || 'N/A';
+            const note = detail.note || selectedOrder.note || '';
+            const estimatedDeliveryDate = detail.estimatedDeliveryDate || selectedOrder.estimatedDeliveryDate || null;
+            const status = detail.status || selectedOrder.status;
+            return (
+              <div className="space-y-6">
+                {/* Basic Info Card */}
+                <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 md:p-5 shadow-sm shadow-gray-100 dark:shadow-black/20 transition hover:shadow-md">
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                    <h3 className="text-sm font-semibold tracking-wide uppercase text-gray-600 dark:text-neutral-400 flex items-center gap-2">Thông tin cơ bản
+                      {status && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 normal-case">{status}</span>
+                      )}
+                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">{detail.orderCode || selectedOrder.orderCode}</span>
+                      {orderType && <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-300">{orderType}</span>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Khách hàng</span>
+                      <span className="font-medium text-gray-800 dark:text-neutral-100">{customerName}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Địa chỉ</span>
+                      <span className="text-gray-700 dark:text-neutral-200 line-clamp-2">{addressValue}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Ngày giao dự kiến</span>
+                      <span className="text-gray-700 dark:text-neutral-200">{estimatedDeliveryDate ? new Date(estimatedDeliveryDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Ngày tạo</span>
+                      <span className="text-gray-700 dark:text-neutral-200">{detail.createdAt ? new Date(detail.createdAt).toLocaleString('vi-VN') : (selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString('vi-VN') : 'N/A')}</span>
+                    </div>
+                    {detail.updatedAt && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Cập nhật</span>
+                        <span className="text-gray-700 dark:text-neutral-200">{new Date(detail.updatedAt).toLocaleString('vi-VN')}</span>
+                      </div>
+                    )}
+                    {note && (
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">Ghi chú</span>
+                        <span className="text-gray-700 dark:text-neutral-200 whitespace-pre-line">{note}</span>
+                      </div>
+                    )}
+                    {orderDetailsStatus === 'loading' && (
+                      <div className="sm:col-span-2 text-xs text-gray-500 dark:text-neutral-400">Đang tải chi tiết...</div>
+                    )}
+                    {orderDetailsError && (
+                      <div className="sm:col-span-2 text-xs text-red-600 dark:text-red-400">{orderDetailsError}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Financial Info Card */}
+                <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 md:p-5 shadow-sm shadow-gray-100 dark:shadow-black/20 transition hover:shadow-md">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold tracking-wide uppercase text-gray-600 dark:text-neutral-400">Thông tin tài chính</h3>
+                    {remainOrder > 0 ? (
+                      <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">Còn nợ</span>
+                    ) : (
+                      <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">Đã thanh toán</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                    <div className="flex justify-between sm:block">
+                      <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Tổng thi công</p>
+                      <p className="font-medium text-gray-800 dark:text-neutral-100">{(detail.totalConstructionAmount || selectedOrder.totalConstructionAmount || 0).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    <div className="flex justify-between sm:block">
+                      <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Đặt cọc thi công</p>
+                      <p className="text-gray-700 dark:text-neutral-200">{(detail.depositConstructionAmount || selectedOrder.depositConstructionAmount || 0).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    <div className="flex justify-between sm:block">
+                      <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Còn lại thi công</p>
+                      <p className={(remainConstruction>0? 'text-red-600 dark:text-red-400':'text-emerald-600 dark:text-emerald-400') + ' font-semibold'}>{(remainConstruction).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    <div className="flex justify-between sm:block">
+                      <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Tổng đơn hàng</p>
+                      <p className="font-medium text-gray-800 dark:text-neutral-100">{(detail.totalOrderAmount || selectedOrder.totalOrderAmount || 0).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    <div className="flex justify-between sm:block">
+                      <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Đặt cọc đơn hàng</p>
+                      <p className="text-gray-700 dark:text-neutral-200">{(detail.totalOrderDepositAmount || selectedOrder.totalOrderDepositAmount || 0).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    <div className="flex justify-between sm:block">
+                      <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Còn lại đơn hàng</p>
+                      <p className={(remainOrder>0? 'text-red-600 dark:text-red-400':'text-emerald-600 dark:text-emerald-400') + ' font-semibold'}>{(remainOrder).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                    {detail.contractors?.name && (
+                      <div className="flex justify-between sm:block sm:col-span-2">
+                        <p className="text-gray-500 dark:text-neutral-400 mb-0.5 sm:mb-1 text-xs font-medium">Nhà thầu</p>
+                        <p className="text-gray-700 dark:text-neutral-200 font-medium">{detail.contractors.name}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Đóng</Button>
-          <Button variant="contained">Cập nhật</Button>
         </DialogActions>
       </Dialog>
 
@@ -1604,7 +1651,7 @@ const OrderManager = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+  </div>
   );
 };
 

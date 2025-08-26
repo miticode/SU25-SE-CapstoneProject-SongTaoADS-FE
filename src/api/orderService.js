@@ -1182,4 +1182,94 @@ export const searchCustomerOrdersApi = async (query, page = 1, size = 10) => {
   }
 };
 
+// Tìm kiếm đơn hàng dùng cho bộ phận sản xuất (production) theo orderCode / mã đơn / thông tin liên quan
+// Endpoint: GET /api/orders/production-search?query=...&page=&size=
+export const searchProductionOrdersApi = async (query, page = 1, size = 10) => {
+  try {
+    if (!query || query.trim() === "") {
+      return {
+        success: true,
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 1,
+          pageSize: size,
+          totalElements: 0,
+        },
+        timestamp: new Date().toISOString(),
+        message: "Thiếu từ khóa tìm kiếm",
+      };
+    }
+
+    console.log("Gọi API tìm kiếm đơn hàng production với params:", { query, page, size });
+
+    const params = { query: query.trim(), page, size };
+    const response = await orderService.get("/api/orders/production-search", { params });
+
+    const {
+      success,
+      result,
+      message,
+      currentPage,
+      totalPages,
+      pageSize,
+      totalElements,
+      timestamp,
+    } = response.data;
+
+    if (success) {
+      console.log("Kết quả trả về từ API tìm kiếm đơn hàng production:", {
+        success,
+        totalOrders: result?.length,
+        currentPage,
+        totalPages,
+        timestamp,
+      });
+
+      return {
+        success: true,
+        data: result || [],
+        pagination: {
+          currentPage: currentPage || page,
+          totalPages: totalPages || 1,
+          pageSize: pageSize || size,
+          totalElements: totalElements || (result ? result.length : 0),
+        },
+        timestamp,
+        message,
+      };
+    }
+
+    return { success: false, error: message || "Invalid response format" };
+  } catch (error) {
+    console.error("Error searching production orders:", error.response?.data || error);
+
+    if (error.code === "ERR_NETWORK") {
+      return {
+        success: false,
+        error: "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.",
+      };
+    }
+
+    if (error.response?.status === 401) {
+      return {
+        success: false,
+        error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    if (error.response?.status === 403) {
+      return {
+        success: false,
+        error: "Không có quyền truy cập tính năng tìm kiếm đơn hàng production.",
+      };
+    }
+
+    return {
+      success: false,
+      error: error.response?.data?.message || "Không thể tìm kiếm đơn hàng production. Vui lòng thử lại.",
+    };
+  }
+};
+
 export default orderService;
