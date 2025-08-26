@@ -52,7 +52,7 @@ import {
   selectOrdersStatsLastUpdated
 } from "../../store/features/dashboard/dashboardSlice";
 import TicketManager from "./TicketManager";
-import ChatBotTopicManager from "./ChatBotTopicManager";
+// ChatBotTopicManager đã được tích hợp vào ManagerFineTuneAI.jsx
 
 // Mock data for manager dashboard (keeping only what's still used)
 const teamPerformanceData = [
@@ -1092,7 +1092,21 @@ const ManagerDashboard = () => {
       case "support-ticket":
         return <TicketManager />;
       case "chat-bot-topic":
-        return <ChatBotTopicManager />;
+        return (
+          <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+            <div className="mb-8">
+              <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+                🤖 ChatBot Topic Management
+              </Typography>
+              <Typography variant="body1" className="!text-gray-600">
+                Tính năng này đã được tích hợp vào trang "Quản lý Chatbot - Tinh chỉnh Model AI & RAG"
+              </Typography>
+              <Typography variant="body2" className="!text-gray-500 !mt-2">
+                Vui lòng sử dụng tab "Quản lý Topic của Model Chat" trong trang đó.
+              </Typography>
+            </div>
+          </div>
+        );
       default:
         return renderDashboardContent();
     }

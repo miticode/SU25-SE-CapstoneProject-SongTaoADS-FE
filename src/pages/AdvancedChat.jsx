@@ -19,6 +19,10 @@ import {
   Fade,
   Collapse,
   MenuItem,
+  FormControl,
+  Select,
+  InputLabel,
+  CircularProgress,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
@@ -44,6 +48,7 @@ import PrecisionManufacturingIcon from "@mui/icons-material/PrecisionManufacturi
 import HandymanIcon from "@mui/icons-material/Handyman";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import PrintIcon from "@mui/icons-material/Print";
+import SmartToy from "@mui/icons-material/SmartToy";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
@@ -66,6 +71,12 @@ import {
   fetchQuestionsByTopic,
   selectQuestionLoading,
 } from "../store/features/question/questionSlice";
+import {
+  fetchChatBotTopicsByModelChat,
+  selectChatBotTopicsByModel,
+  selectChatBotTopicLoading,
+} from "../store/features/chatBotTopic/chatBotTopicSlice";
+import { getFineTunedModelsModelChatApi } from "../api/chatService";
 import { selectIsAuthenticated } from "../store/features/auth/authSlice";
 
 const TypingIndicator = () => (
@@ -126,6 +137,10 @@ const AdvancedChat = () => {
   const topicLoading = useSelector(selectTopicLoading);
   const questionLoading = useSelector(selectQuestionLoading);
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  
+  // ChatBot Topic selectors
+  const chatBotTopicsByModel = useSelector(selectChatBotTopicsByModel);
+  const chatBotTopicLoading = useSelector(selectChatBotTopicLoading);
 
   const [input, setInput] = useState("");
   const [selectedTopic, setSelectedTopic] = useState(null);
@@ -138,6 +153,7 @@ const AdvancedChat = () => {
   const [trackingType, setTrackingType] = useState("all");
   const [trackingError, setTrackingError] = useState("");
   const [inlineTrackingVisible, setInlineTrackingVisible] = useState(false);
+  const [selectedModelChatBot, setSelectedModelChatBot] = useState(null); // Phải chọn model trước khi xem topics
   const trackingStatus = useSelector(selectTrackingOrderStatus);
   const isBusy = status === "loading" || trackingStatus === "loading";
   const ORDER_CODE_RGX = /DH-[A-Z0-9]{10}/i;
@@ -151,6 +167,91 @@ const AdvancedChat = () => {
 
   // Guard to avoid duplicate welcome in StrictMode
   const didWelcomeRef = useRef(false);
+
+  // State cho model chat bot
+  const [fineTunedModels, setFineTunedModels] = useState([]);
+  const [modelLoading, setModelLoading] = useState(false);
+
+  // Function để lấy danh sách model đã fine-tune (chỉ lưu các model active: true)
+  const fetchFineTunedModels = async () => {
+    try {
+      setModelLoading(true);
+      console.log('🔄 Fetching fine-tuned models...');
+      const response = await getFineTunedModelsModelChatApi(1, 100);
+      if (response.success) {
+        const activeModels = response.result.filter(model => model.active === true);
+        console.log(`✅ Found ${response.result.length} models, ${activeModels.length} active`);
+        setFineTunedModels(activeModels); // Chỉ lưu các model active
+      } else {
+        console.error('❌ Lỗi khi lấy danh sách model:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi gọi API model:', error);
+    } finally {
+      setModelLoading(false);
+    }
+  };
+
+  // Mock data cho model chat bot (fineTunedModels đã chỉ chứa các model active: true)
+  const mockModelChatBots = fineTunedModels.map(model => ({
+    id: model.id,
+    name: model.modelName,
+    description: `Model đã fine-tune - Đang hoạt động`
+  }));
+  
+  // Tự động chọn model active khi có models
+  useEffect(() => {
+    if (fineTunedModels.length > 0) {
+      // Tự động chọn model đầu tiên có active: true
+      const activeModel = fineTunedModels.find(model => model.active === true);
+      if (activeModel) {
+        setSelectedModelChatBot(activeModel);
+        console.log(`🤖 Auto-selected active model: ${activeModel.modelName}`);
+      }
+      console.log(`🎯 Available active models:`, mockModelChatBots.map(m => ({ id: m.id, name: m.name })));
+    }
+  }, [fineTunedModels]);
+
+  // Lấy topics dựa trên model chatbot được chọn (chỉ hiển thị topics của model đã chọn)
+  const getFilteredTopics = () => {
+    if (!selectedModelChatBot) {
+      return []; // Không hiển thị topics nào nếu chưa chọn model
+    }
+    
+    const modelChatBotTopics = chatBotTopicsByModel[selectedModelChatBot.id];
+    if (!modelChatBotTopics) {
+      return []; // Không có topics cho model này
+    }
+    
+    // Lấy topic IDs từ chatBotTopics
+    const topicIds = modelChatBotTopics.map(cbt => cbt.topicId);
+    
+    // Lọc topics dựa trên topicIds
+    const filtered = (topics || []).filter(topic => topicIds.includes(topic.id));
+    
+    console.log(`🔍 Model ${selectedModelChatBot.name}:`, {
+      totalTopics: topics?.length || 0,
+      modelTopics: modelChatBotTopics.length,
+      filteredTopics: filtered.length,
+      topicIds: topicIds
+    });
+    
+    return filtered;
+  };
+  
+  // Debug log khi chatBotTopicsByModel thay đổi
+  useEffect(() => {
+    if (selectedModelChatBot && Object.keys(chatBotTopicsByModel).length > 0) {
+      const modelTopics = chatBotTopicsByModel[selectedModelChatBot.id];
+      console.log(`📊 ChatBot Topics for ${selectedModelChatBot.name}:`, {
+        modelId: selectedModelChatBot.id,
+        topicsCount: modelTopics?.length || 0,
+        topics: modelTopics || []
+      });
+    }
+  }, [chatBotTopicsByModel, selectedModelChatBot]);
+
+  const filteredTopics = getFilteredTopics();
 
   const detectTrackingIntent = (text) => {
     const code = (text.match(ORDER_CODE_RGX) || [])[0];
@@ -205,10 +306,22 @@ const AdvancedChat = () => {
     // Chỉ gọi API khi đã đăng nhập
     if (isAuthenticated) {
       dispatch(fetchAllTopics());
+      fetchFineTunedModels(); // Fetch danh sách model và tự động chọn model active
     }
     // đặt thread là advanced khi vào màn này
     dispatch(setCurrentThread('advanced'));
   }, [dispatch, isAuthenticated]);
+
+  // Load ChatBot Topics khi model chatbot được chọn
+  useEffect(() => {
+    if (selectedModelChatBot && isAuthenticated) {
+      console.log(`🚀 Fetching topics for model: ${selectedModelChatBot.name} (${selectedModelChatBot.id})`);
+      dispatch(fetchChatBotTopicsByModelChat(selectedModelChatBot.id));
+      // Reset selected topic khi thay đổi model
+      setSelectedTopic(null);
+      setExpandedTopics({});
+    }
+  }, [selectedModelChatBot, isAuthenticated, dispatch]);
 
   // Add a single welcome message for the advanced thread when empty
   useEffect(() => {
@@ -495,25 +608,39 @@ const AdvancedChat = () => {
                     display: "flex",
                     alignItems: "center",
                     gap: 1.5,
+                    mb: 2,
                   }}
                 >
                   <CategoryIcon sx={{ color: "#ffffff" }} />
                   Danh mục tư vấn
                 </Typography>
+                
+
+
               </motion.div>
             </Box>
             
             {/* Tracking panel removed - inline in chat instead */}
             
                          {/* Scrollable Content */}
-             {topicLoading ? (
+             {(topicLoading || chatBotTopicLoading) ? (
                <Box sx={{ textAlign: "center", py: 4 }}>
                  <motion.div
                    animate={{ rotate: 360 }}
                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                  >
-                   <Typography color="rgba(156, 163, 175, 0.8)">
-                     Đang tải chủ đề...
+                   <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
+                   <Typography color="rgba(156, 163, 175, 0.8)" variant="h6" sx={{ mb: 1 }}>
+                     {selectedModelChatBot 
+                       ? `Đang tải chủ đề cho ${selectedModelChatBot.name}...`
+                       : 'Đang tải chủ đề...'
+                     }
+                   </Typography>
+                   <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
+                     {selectedModelChatBot 
+                       ? 'Vui lòng chờ trong giây lát...'
+                       : 'Đang chuẩn bị dữ liệu...'
+                     }
                    </Typography>
                  </motion.div>
                </Box>
@@ -540,16 +667,30 @@ const AdvancedChat = () => {
                 }}
               >
                                  <Box sx={{ p: 2.5 }}>
-                   {!isAuthenticated || topics?.length === 0 ? (
+                   {!isAuthenticated ? (
                      <Box sx={{ py: 2 }}>
                        <Typography color="rgba(156, 163, 175, 0.7)" variant="body2">
-                         Không có topics để hiển thị
+                         Vui lòng đăng nhập để sử dụng tính năng này
                        </Typography>
                      </Box>
-                   ) : (
+                                       ) : !selectedModelChatBot ? (
+                      <Box sx={{ py: 4, textAlign: 'center' }}>
+                        <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
+                        <Typography color="rgba(156, 163, 175, 0.8)" variant="h6" sx={{ mb: 1 }}>
+                          Chào mừng đến với Advanced Chat
+                        </Typography>
+                        <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
+                          Hệ thống đang tự động tìm và kích hoạt model chatbot
+                        </Typography>
+                        <Typography color="rgba(156, 163, 175, 0.5)" variant="caption" sx={{ mt: 2, display: 'block' }}>
+                          💡 Chỉ các model đang hoạt động mới được sử dụng
+                        </Typography>
+                      </Box>
+                    ) : (
                      <List sx={{ p: 0 }}>
                     <AnimatePresence>
-                      {topics?.map((topic, index) => (
+                      {filteredTopics?.length > 0 ? (
+                        filteredTopics.map((topic, index) => (
                         <motion.div
                           key={topic.id}
                           initial={{ opacity: 0, x: -50 }}
@@ -656,10 +797,32 @@ const AdvancedChat = () => {
                               </Box>
                             </Collapse>
                           </Box>
-                        </motion.div>
-                      ))}
-                                         </AnimatePresence>
-                   </List>
+                                                  </motion.div>
+                        ))
+                      ) : (
+                                                 <Box sx={{ textAlign: "center", py: 4 }}>
+                           <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
+                           <Typography color="rgba(156, 163, 175, 0.8)" variant="h6" sx={{ mb: 1 }}>
+                             {selectedModelChatBot 
+                               ? `Model ${selectedModelChatBot.name} chưa có chủ đề`
+                               : 'Chưa chọn Model ChatBot'
+                             }
+                           </Typography>
+                           <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
+                             {selectedModelChatBot 
+                               ? 'Model này chưa có chủ đề nào được thiết lập. Vui lòng liên hệ staff để thiết lập chủ đề cho model này.'
+                               : 'Vui lòng chọn một Model ChatBot ở bên trái để xem các chủ đề và câu hỏi tương ứng'
+                             }
+                           </Typography>
+                           {selectedModelChatBot && (
+                             <Typography color="rgba(156, 163, 175, 0.5)" variant="caption" sx={{ mt: 2, display: 'block' }}>
+                               🔧 Staff cần thiết lập ChatBot Topics cho model này
+                             </Typography>
+                           )}
+                         </Box>
+                      )}
+                      </AnimatePresence>
+                    </List>
                    )}
                  </Box>
                </Box>
