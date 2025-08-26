@@ -42,15 +42,60 @@ authService.interceptors.response.use(
       console.error("Authentication error:", error);
     }
 
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
+  // Cho phép truyền cờ skipAuthRefresh ở mức request:
+  // authService.get('/secure', { skipAuthRefresh: true }) để bỏ qua logic refresh
+  const { skipAuthRefresh } = originalRequest;
+  const requestUrl = originalRequest.url || "";
+    const hasAccessToken = !!localStorage.getItem("accessToken");
+    const isRefreshEndpoint = requestUrl.includes("/api/auth/refresh-token");
+    const isLoginEndpoint = requestUrl.includes("/api/auth/login");
+    const isRegisterEndpoint = requestUrl.includes("/api/auth/register");
+    const isOutboundAuthEndpoint = requestUrl.includes(
+      "/api/auth/outbound/authentication"
+    );
+    const isVerificationEndpoint = requestUrl.includes(
+      "/api/verifications/"
+    );
+    const isPasswordResetEndpoint = requestUrl.includes(
+      "/api/password-reset/"
+    );
 
-    // Try to refresh token if it's a 401 error
+    // Xác định xem lỗi 401 này có khả năng do token hết hạn hay chỉ là lỗi đăng nhập sai
+    const errorMessage = error.response?.data?.message || "";
+    const maybeExpiredToken = /expired|hết hạn|invalid token|jwt/i.test(
+      errorMessage
+    );
+
+    // Điều kiện đủ để thử refresh:
+    // - Có access token hiện tại
+    // - Là lỗi 401
+    // - Không phải là các endpoint đăng nhập / đăng ký / refresh / xác thực email / reset password / outbound auth
+    // - Hoặc thông điệp gợi ý token hết hạn
+    const shouldAttemptRefresh =
+      error.response?.status === 401 &&
+      hasAccessToken &&
+      !originalRequest._retry &&
+      !skipAuthRefresh &&
+      !isRefreshEndpoint &&
+      !isLoginEndpoint &&
+      !isRegisterEndpoint &&
+      !isOutboundAuthEndpoint &&
+      !isVerificationEndpoint &&
+      !isPasswordResetEndpoint &&
+      (maybeExpiredToken || !errorMessage || errorMessage.length < 120); // fallback nhẹ
+
+    // Nếu là lỗi đăng nhập sai thông tin thì trả về luôn, không cố refresh
     if (
       error.response?.status === 401 &&
-      !originalRequest._retry &&
-      // Check if the request URL is not the refresh token endpoint itself
-      !originalRequest.url?.includes("refresh-token")
+      isLoginEndpoint &&
+      !hasAccessToken &&
+      !maybeExpiredToken
     ) {
+      return Promise.reject(error);
+    }
+
+    if (shouldAttemptRefresh) {
       originalRequest._retry = true;
 
       // Handle concurrent refresh requests

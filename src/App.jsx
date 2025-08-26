@@ -1,4 +1,4 @@
-import { Route, Routes, useLocation, Navigate } from "react-router-dom";
+import { Route, Routes, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useState, useRef } from "react";
@@ -111,11 +111,13 @@ const ProtectedRoute = ({ children }) => {
 
 const App = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  const showChatbot = isAuthenticated && user && user.role === ROLES.CUSTOMER;
+  const userRole = user?.roles?.name || user?.role || null;
+  const showChatbot = isAuthenticated && userRole === ROLES.CUSTOMER;
   const authInitialized = useRef(false); // Thêm ref để track đã init hay chưa
 
   // Xử lý sự kiện đăng nhập thành công
@@ -209,6 +211,30 @@ const App = () => {
       }
     };
   }, [dispatch, isAuthenticated, user]);
+
+  // Hạn chế truy cập: các role đặc quyền chỉ ở trong dashboard của chính họ
+  useEffect(() => {
+    if (!isAuthenticated || !userRole) return;
+    const privileged = [ROLES.ADMIN, ROLES.SALE, ROLES.STAFF, ROLES.DESIGNER];
+    if (!privileged.includes(userRole)) return; // CUSTOMER không hạn chế ở đây
+
+    const baseMap = {
+      [ROLES.ADMIN]: "/admin",
+      [ROLES.SALE]: "/sale",
+      [ROLES.STAFF]: "/manager",
+      [ROLES.DESIGNER]: "/designer",
+    };
+    const allowedBase = baseMap[userRole];
+    if (!allowedBase) return;
+
+    const path = location.pathname;
+    const isAllowed = path === allowedBase || path.startsWith(allowedBase + "/");
+
+    // Nếu không thuộc base path của chính role -> ép quay về dashboard
+    if (!isAllowed) {
+      navigate(allowedBase, { replace: true });
+    }
+  }, [isAuthenticated, userRole, location.pathname, navigate]);
 
   // Xử lý đóng thông báo
   const handleCloseAlert = (event, reason) => {
