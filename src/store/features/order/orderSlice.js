@@ -22,6 +22,8 @@ import {
   deleteOrderApi,
   cancelOrderApi,
   getCustomDesignOrdersApi,
+  searchCustomerOrdersApi,
+  searchProductionOrdersApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -441,6 +443,72 @@ export const fetchCustomDesignOrders = createAsyncThunk(
   }
 );
 
+// Search Customer Orders
+export const searchCustomerOrders = createAsyncThunk(
+  "order/searchCustomerOrders",
+  async (params, { rejectWithValue }) => {
+    try {
+      let query, page, size;
+      if (typeof params === "object" && params !== null) {
+        query = params.query;
+        page = params.page || 1;
+        size = params.size || 10;
+      } else {
+        query = params; // string
+        page = 1;
+        size = 10;
+      }
+
+      const response = await searchCustomerOrdersApi(query, page, size);
+      if (response.success) {
+        return {
+          orders: response.data || [],
+          pagination: response.pagination,
+          timestamp: response.timestamp,
+          message: response.message,
+          query,
+        };
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tìm kiếm đơn hàng");
+    }
+  }
+);
+
+// Search Production Orders
+export const searchProductionOrders = createAsyncThunk(
+  "order/searchProductionOrders",
+  async (params, { rejectWithValue }) => {
+    try {
+      let query, page, size;
+      if (typeof params === "object" && params !== null) {
+        query = params.query;
+        page = params.page || 1;
+        size = params.size || 10;
+      } else {
+        query = params; // string
+        page = 1;
+        size = 10;
+      }
+
+      const response = await searchProductionOrdersApi(query, page, size);
+      if (response.success) {
+        return {
+          orders: response.data || [],
+          pagination: response.pagination,
+          timestamp: response.timestamp,
+          message: response.message,
+          query,
+        };
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tìm kiếm đơn hàng production");
+    }
+  }
+);
+
 const initialState = {
   orders: [],
   loading: false,
@@ -460,6 +528,30 @@ const initialState = {
     totalElements: 0,
   },
   customDesignOrders: [], // Thêm state riêng cho custom design orders
+  search: {
+    query: "",
+    results: [],
+    status: "idle",
+    error: null,
+    pagination: {
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 10,
+      totalElements: 0,
+    },
+  },
+  productionSearch: {
+    query: "",
+    results: [],
+    status: "idle",
+    error: null,
+    pagination: {
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 10,
+      totalElements: 0,
+    },
+  },
 };
 
 const orderSlice = createSlice({
@@ -479,6 +571,31 @@ const orderSlice = createSlice({
     },
     clearLastMessage: (state) => {
       state.lastMessage = null;
+    },
+    // Clear search customer orders state so UI can fall back to full order list
+    clearSearchCustomerOrders: (state) => {
+      state.search.query = "";
+      state.search.results = [];
+      state.search.status = "idle";
+      state.search.error = null;
+      state.search.pagination = {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0,
+      };
+    },
+    clearSearchProductionOrders: (state) => {
+      state.productionSearch.query = "";
+      state.productionSearch.results = [];
+      state.productionSearch.status = "idle";
+      state.productionSearch.error = null;
+      state.productionSearch.pagination = {
+        currentPage: 1,
+        totalPages: 1,
+        pageSize: 10,
+        totalElements: 0,
+      };
     },
   },
   extraReducers: (builder) => {
@@ -909,11 +1026,49 @@ const orderSlice = createSlice({
       .addCase(fetchCustomDesignOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Search Customer Orders
+      .addCase(searchCustomerOrders.pending, (state) => {
+        state.search.status = "loading";
+        state.search.error = null;
+      })
+      .addCase(searchCustomerOrders.fulfilled, (state, action) => {
+        state.search.status = "succeeded";
+        state.search.results = action.payload.orders || [];
+        state.search.query = action.payload.query;
+        if (action.payload.pagination) {
+          state.search.pagination = action.payload.pagination;
+        }
+        state.lastUpdated = action.payload.timestamp || new Date().toISOString();
+        state.lastMessage = action.payload.message;
+      })
+      .addCase(searchCustomerOrders.rejected, (state, action) => {
+        state.search.status = "failed";
+        state.search.error = action.payload;
+  })
+      // Search Production Orders
+      .addCase(searchProductionOrders.pending, (state) => {
+        state.productionSearch.status = "loading";
+        state.productionSearch.error = null;
+      })
+      .addCase(searchProductionOrders.fulfilled, (state, action) => {
+        state.productionSearch.status = "succeeded";
+        state.productionSearch.results = action.payload.orders || [];
+        state.productionSearch.query = action.payload.query;
+        if (action.payload.pagination) {
+          state.productionSearch.pagination = action.payload.pagination;
+        }
+        state.lastUpdated = action.payload.timestamp || new Date().toISOString();
+        state.lastMessage = action.payload.message;
+      })
+      .addCase(searchProductionOrders.rejected, (state, action) => {
+        state.productionSearch.status = "failed";
+        state.productionSearch.error = action.payload;
       });
   },
 });
 
-export const { clearError, setCurrentOrder, clearOrderDetails, clearLastMessage } = orderSlice.actions;
+export const { clearError, setCurrentOrder, clearOrderDetails, clearLastMessage, clearSearchCustomerOrders, clearSearchProductionOrders } = orderSlice.actions;
 export default orderSlice.reducer;
 
 export const selectCurrentOrder = (state) => state.order.currentOrder;
@@ -944,3 +1099,13 @@ export const selectOrdersByType = (state, orderTypes) => {
 
 // Thêm selector cho custom design orders
 export const selectCustomDesignOrders = (state) => state.order.customDesignOrders;
+export const selectSearchCustomerOrders = (state) => state.order.search.results;
+export const selectSearchCustomerOrdersStatus = (state) => state.order.search.status;
+export const selectSearchCustomerOrdersError = (state) => state.order.search.error;
+export const selectSearchCustomerOrdersPagination = (state) => state.order.search.pagination;
+export const selectSearchCustomerOrdersQuery = (state) => state.order.search.query;
+export const selectSearchProductionOrders = (state) => state.order.productionSearch.results;
+export const selectSearchProductionOrdersStatus = (state) => state.order.productionSearch.status;
+export const selectSearchProductionOrdersError = (state) => state.order.productionSearch.error;
+export const selectSearchProductionOrdersPagination = (state) => state.order.productionSearch.pagination;
+export const selectSearchProductionOrdersQuery = (state) => state.order.productionSearch.query;

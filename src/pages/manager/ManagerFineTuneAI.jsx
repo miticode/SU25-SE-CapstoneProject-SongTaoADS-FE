@@ -33,6 +33,13 @@ import {
   Pagination,
   Tooltip,
   Snackbar,
+  Grid,
+  Card,
+  CardContent,
+  Select,
+  MenuItem,
+  InputLabel,
+  Fab,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -46,8 +53,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
+import ViewIcon from "@mui/icons-material/Visibility";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import SmartToy from "@mui/icons-material/SmartToy";
+import TopicIcon from "@mui/icons-material/Topic";
+import ChatIcon from "@mui/icons-material/Chat";
 import {
   uploadFileFineTune,
   fineTuneModel,
@@ -91,6 +102,7 @@ import {
   selectFineTuneFileContentStatus,
 } from "../../store/features/chat/chatSlice";
 import { downloadFile } from "../../api/s3Service";
+import { getFineTunedModelsModelChatApi } from "../../api/chatService";
 import {
   fetchAllTopics,
   createNewTopic,
@@ -115,6 +127,24 @@ import {
   clearError as clearQuestionError,
   clearSuccess as clearQuestionSuccess,
 } from "../../store/features/question/questionSlice";
+import {
+  fetchAllChatBotTopics,
+  fetchChatBotTopicsByModelChat,
+  fetchChatBotTopicsByTopic,
+  addTopicToModelChatBot,
+  addTopicFromExistingModel,
+  deleteChatBotTopicById,
+  selectAllChatBotTopics,
+  selectChatBotTopicsByModel,
+  selectChatBotTopicsByTopic,
+  selectChatBotTopicLoading,
+  selectChatBotTopicCreateLoading,
+  selectChatBotTopicDeleteLoading,
+  selectChatBotTopicError,
+  selectChatBotTopicSuccess,
+  clearError as clearChatBotTopicError,
+  clearSuccess as clearChatBotTopicSuccess,
+} from "../../store/features/chatBotTopic/chatBotTopicSlice";
 import {
   BarChart,
   Bar,
@@ -205,6 +235,16 @@ const ManagerFineTuneAI = () => {
   const questionError = useSelector(selectQuestionError);
   const questionSuccess = useSelector(selectQuestionSuccess);
 
+  // ChatBot Topic management selectors
+  const chatBotTopics = useSelector(selectAllChatBotTopics);
+  const chatBotTopicsByModel = useSelector(selectChatBotTopicsByModel);
+  const chatBotTopicsByTopic = useSelector(selectChatBotTopicsByTopic);
+  const chatBotTopicLoading = useSelector(selectChatBotTopicLoading);
+  const chatBotTopicCreateLoading = useSelector(selectChatBotTopicCreateLoading);
+  const chatBotTopicDeleteLoading = useSelector(selectChatBotTopicDeleteLoading);
+  const chatBotTopicError = useSelector(selectChatBotTopicError);
+  const chatBotTopicSuccess = useSelector(selectChatBotTopicSuccess);
+
   const fineTuneStatus = useSelector(selectFineTuneStatus);
   const trainingStatus = useSelector(selectTrainingStatus);
   const uploadedFile = useSelector(selectUploadedFile);
@@ -236,6 +276,23 @@ const ManagerFineTuneAI = () => {
   const [questionFilter, setQuestionFilter] = useState('');
   const [topicAlert, setTopicAlert] = useState(null);
   const [currentTopicForQuestions, setCurrentTopicForQuestions] = useState(null);
+
+  // ChatBot Topic management states
+  const [openChatBotTopicDialog, setOpenChatBotTopicDialog] = useState(false);
+  const [openChatBotTopicViewDialog, setOpenChatBotTopicViewDialog] = useState(false);
+  const [selectedChatBotTopic, setSelectedChatBotTopic] = useState(null);
+  const [chatBotTopicDialogMode, setChatBotTopicDialogMode] = useState('create');
+  const [chatBotTopicForm, setChatBotTopicForm] = useState({
+    modelChatBotId: '',
+    topicId: '',
+    description: '',
+  });
+  const [chatBotTopicFilter, setChatBotTopicFilter] = useState('');
+  const [chatBotTopicAlert, setChatBotTopicAlert] = useState(null);
+  
+  // Model chat bot states
+  const [fineTunedModels, setFineTunedModels] = useState([]);
+  const [modelLoading, setModelLoading] = useState(false);
   
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -292,6 +349,26 @@ const ManagerFineTuneAI = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  // Auto-hide topicAlert after 3 seconds
+  useEffect(() => {
+    if (topicAlert) {
+      const timer = setTimeout(() => {
+        setTopicAlert(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [topicAlert]);
+
+  // Auto-hide chatBotTopicAlert after 3 seconds
+  useEffect(() => {
+    if (chatBotTopicAlert) {
+      const timer = setTimeout(() => {
+        setChatBotTopicAlert(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [chatBotTopicAlert]);
+
   // Helper function để hiển thị dialog xác nhận
   const showConfirmDialog = (title, message, onConfirm) => {
     setConfirmDialog({
@@ -312,11 +389,35 @@ const ManagerFineTuneAI = () => {
     });
   };
 
+  // Function để lấy danh sách model đã fine-tune
+  const fetchFineTunedModels = async () => {
+    try {
+      setModelLoading(true);
+      const response = await getFineTunedModelsModelChatApi(1, 100); // Lấy tối đa 100 model
+      if (response.success) {
+        setFineTunedModels(response.result);
+      } else {
+        console.error('Lỗi khi lấy danh sách model:', response.error);
+      }
+    } catch (error) {
+      console.error('Lỗi khi gọi API model:', error);
+    } finally {
+      setModelLoading(false);
+    }
+  };
+
   useEffect(() => {
     return () => {
       dispatch(resetFineTuneStatus());
     };
   }, [dispatch]);
+
+  // Fetch fine-tuned models khi mở dialog hoặc khi tab thay đổi
+  useEffect(() => {
+    if (tab === 5) { // Tab "Quản lý ChatBot Topic"
+      fetchFineTunedModels();
+    }
+  }, [tab]);
 
   useEffect(() => {
     if (error) {
@@ -328,6 +429,7 @@ const ManagerFineTuneAI = () => {
     if (tab === 1) dispatch(fetchFineTuneJobs());
     if (tab === 2) dispatch(fetchFineTuneFiles());
     if (tab === 4) dispatch(fetchAllTopics()); // Load topics when switching to tab 4
+    if (tab === 5) dispatch(fetchAllChatBotTopics()); // Load chat bot topics when switching to tab 5
     // Bỏ useEffect fetchOpenAiModels khi vào tab 0
     // if (tab === 0) dispatch(fetchOpenAiModels());
   }, [tab, dispatch]);
@@ -402,6 +504,26 @@ const ManagerFineTuneAI = () => {
       return () => clearTimeout(timer);
     }
   }, [integrateAlert]);
+
+  // Tự động ẩn thông báo ChatBot Topic sau 3 giây
+  useEffect(() => {
+    if (chatBotTopicSuccess) {
+      const timer = setTimeout(() => {
+        dispatch(clearChatBotTopicSuccess());
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [chatBotTopicSuccess, dispatch]);
+
+  // Tự động ẩn thông báo ChatBot Topic error sau 5 giây
+  useEffect(() => {
+    if (chatBotTopicError) {
+      const timer = setTimeout(() => {
+        dispatch(clearChatBotTopicError());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [chatBotTopicError, dispatch]);
 
   // Kiểm tra trạng thái job fine-tune định kỳ khi có job đang chạy
   useEffect(() => {
@@ -833,6 +955,111 @@ const ManagerFineTuneAI = () => {
       )
     : [];
 
+  // ChatBot Topic management functions
+  const handleOpenChatBotTopicDialog = (mode, item = null) => {
+    setChatBotTopicDialogMode(mode);
+    if (mode === 'edit' && item) {
+      setSelectedChatBotTopic(item);
+      setChatBotTopicForm({
+        modelChatBotId: item.modelChatBotId || '',
+        topicId: item.topicId || '',
+        description: item.description || '',
+      });
+    } else {
+      setSelectedChatBotTopic(null);
+      setChatBotTopicForm({
+        modelChatBotId: '',
+        topicId: '',
+        description: '',
+      });
+    }
+    setOpenChatBotTopicDialog(true);
+  };
+
+  const handleCloseChatBotTopicDialog = () => {
+    setOpenChatBotTopicDialog(false);
+    setSelectedChatBotTopic(null);
+    setChatBotTopicForm({
+      modelChatBotId: '',
+      topicId: '',
+      description: '',
+    });
+  };
+
+  const handleChatBotTopicInputChange = (field, value) => {
+    setChatBotTopicForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleChatBotTopicSubmit = async () => {
+    if (!chatBotTopicForm.modelChatBotId || !chatBotTopicForm.topicId) {
+      setChatBotTopicAlert({ type: "error", message: "Vui lòng chọn Model Chat Bot và Topic" });
+      return;
+    }
+
+    try {
+      if (chatBotTopicDialogMode === 'create') {
+        await dispatch(addTopicToModelChatBot({
+          modelChatBotId: chatBotTopicForm.modelChatBotId,
+          topicId: chatBotTopicForm.topicId
+        })).unwrap();
+      } else {
+        await dispatch(addTopicFromExistingModel({
+          modelChatBotId: chatBotTopicForm.modelChatBotId,
+          topicData: {
+            topicId: chatBotTopicForm.topicId,
+            description: chatBotTopicForm.description
+          }
+        })).unwrap();
+      }
+      setChatBotTopicAlert({ type: "success", message: "Thao tác thành công!" });
+      handleCloseChatBotTopicDialog();
+      dispatch(fetchAllChatBotTopics());
+    } catch (error) {
+      setChatBotTopicAlert({ type: "error", message: error || "Lỗi khi thực hiện thao tác" });
+    }
+  };
+
+  const handleDeleteChatBotTopic = (id) => {
+    showConfirmDialog(
+      "Xác nhận xóa ChatBot Topic",
+      "Bạn có chắc muốn xóa liên kết này?",
+      async () => {
+        try {
+          await dispatch(deleteChatBotTopicById(id)).unwrap();
+          showSnackbar("Xóa ChatBot Topic thành công!", "success");
+          dispatch(fetchAllChatBotTopics());
+          handleCloseConfirmDialog();
+        } catch (error) {
+          showSnackbar(error || "Lỗi khi xóa ChatBot Topic", "error");
+          handleCloseConfirmDialog();
+        }
+      }
+    );
+  };
+
+  const handleViewChatBotTopic = (item) => {
+    setSelectedChatBotTopic(item);
+    setOpenChatBotTopicViewDialog(true);
+  };
+
+  const filteredChatBotTopics = chatBotTopics 
+    ? chatBotTopics.filter(item => 
+        item.topic?.title?.toLowerCase().includes(chatBotTopicFilter.toLowerCase()) ||
+        item.modelChatBot?.name?.toLowerCase().includes(chatBotTopicFilter.toLowerCase())
+      )
+    : [];
+
+  // Sử dụng API thực tế thay vì mock data
+  const modelChatBots = fineTunedModels.map(model => ({
+    id: model.id,
+    name: model.modelName,
+    active: model.active, // Thêm thuộc tính active
+    description: `Model đã tinh chỉnh - ${model.active ? 'Đang hoạt động' : 'Không hoạt động'}`
+  }));
+
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" mb={2}>
@@ -883,6 +1110,7 @@ const ManagerFineTuneAI = () => {
         <Tab label="Danh sách File Đã Upload" />
         <Tab label="Thống Kê" />
         <Tab label="Danh sách chủ đề" />
+        <Tab label="Quản lý Topic của Model Chat" />
       </Tabs>
       {tab === 0 && (
         <>
@@ -2828,6 +3056,230 @@ const ManagerFineTuneAI = () => {
           </Dialog>
         </Box>
       )}
+
+      {/* Tab 5: Quản lý Topic của Model Chat */}
+      {tab === 5 && (
+        <Box sx={{ p: 3 }}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ChatIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+              <Box>
+                <Typography variant="h4" component="h1" gutterBottom>
+                  Quản lý Topic của Model Chat
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Quản lý các chủ đề (topic) được gán cho từng Model Chat Bot
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={() => {
+                  dispatch(fetchAllChatBotTopics());
+                  dispatch(fetchAllTopics());
+                  fetchFineTunedModels();
+                }}
+                disabled={chatBotTopicLoading}
+              >
+                Làm mới
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenChatBotTopicDialog('create')}
+                disabled={chatBotTopicCreateLoading}
+              >
+                Thêm mới
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Stats Cards */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <SmartToy sx={{ fontSize: 40, color: 'primary.main' }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {modelChatBots.length}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Model Chat Bot
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <TopicIcon sx={{ fontSize: 40, color: 'secondary.main' }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {topics?.length || 0}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Topic
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <ChatIcon sx={{ fontSize: 40, color: 'success.main' }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {chatBotTopics?.length || 0}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Liên kết Topic
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <TopicIcon sx={{ fontSize: 40, color: 'info.main' }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {topics?.filter(t => chatBotTopics?.some(cbt => cbt.topicId === t.id))?.length || 0}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Topic đã gán
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Alert for ChatBot Topic operations */}
+          {chatBotTopicAlert && (
+            <Alert 
+              severity={chatBotTopicAlert.type} 
+              sx={{ mb: 2 }}
+              onClose={() => setChatBotTopicAlert(null)}
+            >
+              {chatBotTopicAlert.message}
+            </Alert>
+          )}
+
+          {/* Main Table */}
+          {/* <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+            <TableContainer sx={{ maxHeight: 600 }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Model Chat Bot</TableCell>
+                    <TableCell>Topic</TableCell>
+                    <TableCell>Mô tả Topic</TableCell>
+                    <TableCell>Ngày tạo</TableCell>
+                    <TableCell align="center">Thao tác</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {chatBotTopicLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <CircularProgress />
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredChatBotTopics.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography variant="body1" color="text.secondary">
+                          Không có dữ liệu
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredChatBotTopics.map((item) => (
+                      <TableRow key={item.id} hover>
+                        <TableCell>{item.id}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={item.modelChatBot?.name || `Model ${item.modelChatBotId}`}
+                            color="primary"
+                            variant="outlined"
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={item.topic?.title || `Topic ${item.topicId}`}
+                            color="secondary"
+                            variant="outlined"
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                            {item.description || 'Chưa có mô tả'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                            <Tooltip title="Xem chi tiết">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleViewChatBotTopic(item)}
+                                color="info"
+                              >
+                                <ViewIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Chỉnh sửa">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleOpenChatBotTopicDialog('edit', item)}
+                                color="primary"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Xóa">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteChatBotTopic(item.id)}
+                                color="error"
+                                disabled={chatBotTopicDeleteLoading}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper> */}
+
+
+        </Box>
+      )}
       
       {/* Confirmation Dialog */}
       <Dialog
@@ -2893,10 +3345,328 @@ const ManagerFineTuneAI = () => {
         </DialogActions>
       </Dialog>
       
+      {/* ChatBot Topic Create/Edit Dialog */}
+      <Dialog
+        open={openChatBotTopicDialog}
+        onClose={handleCloseChatBotTopicDialog}
+        maxWidth="md"
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          bgcolor: chatBotTopicDialogMode === 'create' ? '#e8f5e9' : '#fff3e0', 
+          color: chatBotTopicDialogMode === 'create' ? '#2e7d32' : '#e65100', 
+          fontWeight: 700,
+          borderBottom: `1px solid ${chatBotTopicDialogMode === 'create' ? '#4caf50' : '#ff9800'}`
+        }}>
+          {chatBotTopicDialogMode === 'create' ? 'Thêm Topic cho Model Chat ' : 'Chỉnh sửa Topic cho Model Chat'}
+        </DialogTitle>
+                  <DialogContent sx={{ pt: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Model Chat Bot Selection */}
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary" mb={1}>
+                  Model đã tinh chỉnh
+                </Typography>
+                <FormControl fullWidth>
+                  <InputLabel>Chọn Model </InputLabel>
+                  <Select
+                    value={chatBotTopicForm.modelChatBotId}
+                    onChange={(e) => handleChatBotTopicInputChange('modelChatBotId', e.target.value)}
+                    label="Chọn Model Chat Bot"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        bgcolor: '#f8f9fa'
+                      }
+                    }}
+                  >
+                    {modelLoading ? (
+                      <MenuItem disabled>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <CircularProgress size={16} />
+                          <Typography>Đang tải danh sách model...</Typography>
+                        </Box>
+                      </MenuItem>
+                    ) : modelChatBots.length > 0 ? (
+                      modelChatBots.map((bot) => (
+                        <MenuItem key={bot.id} value={bot.id}>
+                          <Box sx={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                            <SmartToy 
+                              sx={{ 
+                                color: bot.active ? '#4caf50' : '#666',
+                                fontSize: 20,
+                                mt: 0.5
+                              }} 
+                            />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography 
+                                variant="body1" 
+                                fontWeight={600}
+                                sx={{ 
+                                  color: bot.active ? '#4caf50' : 'inherit',
+                                  mb: 0.5
+                                }}
+                              >
+                                {bot.name}
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: bot.active ? '#4caf50' : 'text.secondary',
+                                  fontWeight: bot.active ? 600 : 400
+                                }}
+                              >
+                                {bot.description}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <MenuItem disabled>
+                        <Typography color="text.secondary">
+                          Không có model nào được tìm thấy
+                        </Typography>
+                      </MenuItem>
+                    )}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Topic Selection */}
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary" mb={1}>
+                  Topic *
+                </Typography>
+                <FormControl fullWidth>
+                  <InputLabel>Chọn Topic</InputLabel>
+                  <Select
+                    value={chatBotTopicForm.topicId}
+                    onChange={(e) => handleChatBotTopicInputChange('topicId', e.target.value)}
+                    label="Chọn Topic"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        bgcolor: '#f8f9fa'
+                      }
+                    }}
+                  >
+                    {topics?.map((topic) => (
+                      <MenuItem key={topic.id} value={topic.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                          <TopicIcon 
+                            sx={{ 
+                              color: '#1976d2',
+                              fontSize: 20,
+                              mt: 0.5
+                            }} 
+                          />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body1" fontWeight={600}>
+                              {topic.title}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {topic.description || 'Không có mô tả'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Description Field */}
+              {/* <Box>
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary" mb={1}>
+                  📝 Mô tả (tùy chọn)
+                </Typography>
+                <TextField
+                  fullWidth
+                  placeholder="Nhập mô tả cho liên kết này..."
+                  value={chatBotTopicForm.description}
+                  onChange={(e) => handleChatBotTopicInputChange('description', e.target.value)}
+                  multiline
+                  rows={4}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: '#f8f9fa'
+                    }
+                  }}
+                />
+              </Box> */}
+            </Box>
+          </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button 
+            onClick={handleCloseChatBotTopicDialog}
+            variant="outlined"
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              color: '#666',
+              borderColor: '#ddd',
+              '&:hover': {
+                borderColor: '#999',
+                bgcolor: '#f5f5f5'
+              }
+            }}
+          >
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleChatBotTopicSubmit}
+            variant="contained"
+            disabled={chatBotTopicCreateLoading}
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              fontWeight: 600,
+              background: chatBotTopicDialogMode === 'create' 
+                ? 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)'
+                : 'linear-gradient(45deg, #ff9800 30%, #ffb74d 90%)',
+              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+              '&:hover': {
+                boxShadow: '0 6px 16px rgba(76, 175, 80, 0.4)'
+              }
+            }}
+          >
+            {chatBotTopicCreateLoading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              chatBotTopicDialogMode === 'create' ? 'Thêm mới' : 'Cập nhật'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ChatBot Topic View Dialog */}
+      <Dialog
+        open={openChatBotTopicViewDialog}
+        onClose={() => setOpenChatBotTopicViewDialog(false)}
+        maxWidth="md"
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          bgcolor: '#e3f2fd', 
+          color: '#1976d2', 
+          fontWeight: 700,
+          borderBottom: '1px solid #1976d2'
+        }}>
+          👁️ Chi tiết ChatBot Topic
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {selectedChatBotTopic && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} color="#1976d2" gutterBottom>
+                      Model Chat Bot
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <SmartToy color="primary" sx={{ fontSize: 40 }} />
+                      <Box>
+                        <Typography variant="h6" fontWeight={700}>
+                          {selectedChatBotTopic.modelChatBot?.name || `Model ${selectedChatBotTopic.modelChatBotId}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedChatBotTopic.modelChatBot?.description || 'Không có mô tả'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} color="#2e7d32" gutterBottom>
+                      Topic
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <TopicIcon color="primary" sx={{ fontSize: 40 }} />
+                      <Box>
+                        <Typography variant="h6" fontWeight={700}>
+                          {selectedChatBotTopic.topic?.title || `Topic ${selectedChatBotTopic.topicId}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedChatBotTopic.topic?.description || 'Không có mô tả'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12}>
+                <Card sx={{ bgcolor: '#fff3e0', border: '1px solid #ffcc02' }}>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} color="#e65100" gutterBottom>
+                      Mô tả liên kết
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedChatBotTopic.description || 'Không có mô tả cho liên kết này'}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Ngày tạo: {selectedChatBotTopic.createdAt 
+                      ? new Date(selectedChatBotTopic.createdAt).toLocaleString('vi-VN')
+                      : 'Không có'
+                    }
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    ID: {selectedChatBotTopic.id}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button 
+            onClick={() => setOpenChatBotTopicViewDialog(false)}
+            variant="outlined"
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              color: '#666',
+              borderColor: '#ddd',
+              '&:hover': {
+                borderColor: '#999',
+                bgcolor: '#f5f5f5'
+              }
+            }}
+          >
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
+        autoHideDuration={3000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >

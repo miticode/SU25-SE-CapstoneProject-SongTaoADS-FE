@@ -118,6 +118,9 @@ const AIChatbot = () => {
   useEffect(() => {
     if (location.pathname !== "/advanced-chat") {
       dispatch(setCurrentThread('basic'));
+    } else {
+      // Đảm bảo khi ở màn nâng cao, thread là advanced
+      dispatch(setCurrentThread('advanced'));
     }
   }, [location.pathname, dispatch]);
 

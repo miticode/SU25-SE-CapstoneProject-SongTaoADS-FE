@@ -31,9 +31,10 @@ import {
   Stack,
   Backdrop,
   Container,
+  InputAdornment,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchDesignRequestsByDesigner } from "../../store/features/customeDesign/customerDesignSlice";
+import { fetchDesignRequestsByDesigner, searchDesignRequestsByDesigner } from "../../store/features/customeDesign/customerDesignSlice";
 import {
   selectStatus,
   selectError,
@@ -63,6 +64,8 @@ import { useDropzone } from "react-dropzone";
 import { useSelector as useAuthSelector } from "react-redux";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AssignmentIcon from "@mui/icons-material/Assignment";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 
 const DesignRequests = () => {
   const dispatch = useDispatch();
@@ -172,7 +175,10 @@ const DesignRequests = () => {
   });
   const [updateDemoError, setUpdateDemoError] = useState("");
 
-
+  // State cho search
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Lấy sub-images cho demo hiện tại
   const demoSubImages = useSelector((state) =>
@@ -353,20 +359,39 @@ const DesignRequests = () => {
   const refreshDesignRequestsData = async () => {
     if (designerId) {
       try {
-        const res = await dispatch(
-          fetchDesignRequestsByDesigner({
-            designerId,
-            page: pagination.currentPage,
-            size: pagination.pageSize,
-          })
-        ).unwrap();
-        setRequests(res.result || []);
-        setPagination({
-          currentPage: res.currentPage || 1,
-          totalPages: res.totalPages || 1,
-          pageSize: res.pageSize || 10,
-          totalElements: res.totalElements || 0,
-        });
+        if (isSearching && searchKeyword.trim() !== "") {
+          // Nếu đang tìm kiếm, refresh kết quả tìm kiếm
+          const res = await dispatch(
+            searchDesignRequestsByDesigner({
+              keyword: searchKeyword.trim(),
+              page: pagination.currentPage,
+              size: pagination.pageSize,
+            })
+          ).unwrap();
+          setRequests(res.result || []);
+          setPagination({
+            currentPage: res.currentPage || 1,
+            totalPages: res.totalPages || 1,
+            pageSize: res.pageSize || 10,
+            totalElements: res.totalElements || 0,
+          });
+        } else {
+          // Nếu không tìm kiếm, refresh danh sách gốc
+          const res = await dispatch(
+            fetchDesignRequestsByDesigner({
+              designerId,
+              page: pagination.currentPage,
+              size: pagination.pageSize,
+            })
+          ).unwrap();
+          setRequests(res.result || []);
+          setPagination({
+            currentPage: res.currentPage || 1,
+            totalPages: res.totalPages || 1,
+            pageSize: res.pageSize || 10,
+            totalElements: res.totalElements || 0,
+          });
+        }
       } catch (error) {
         console.error("Error refreshing design requests:", error);
       }
@@ -417,6 +442,11 @@ const DesignRequests = () => {
     } else {
       await refreshDesignRequestsData();
     }
+  };
+
+  // Function để reset về trang đầu tiên khi tìm kiếm
+  const resetToFirstPage = () => {
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
   // ===== KẾT THÚC CÁC FUNCTION REFRESH =====
@@ -540,6 +570,12 @@ const DesignRequests = () => {
 
   const handlePageChange = (event, value) => {
     setPagination((prev) => ({ ...prev, currentPage: value }));
+    
+    // Nếu đang tìm kiếm, cần fetch lại kết quả tìm kiếm với trang mới
+    if (isSearching && searchKeyword.trim() !== "") {
+      // Không cần gọi API ở đây vì useEffect sẽ tự động xử lý
+      // khi pagination.currentPage thay đổi
+    }
   };
 
   const handleApprove = async () => {
@@ -797,6 +833,352 @@ const DesignRequests = () => {
     });
   };
 
+  // Function tìm kiếm với debounce
+  const handleSearch = async (keyword) => {
+    if (!designerId) return;
+    
+    setSearchLoading(true);
+    setIsSearching(true);
+    resetToFirstPage(); // Reset về trang đầu tiên khi tìm kiếm
+    
+    try {
+      const res = await dispatch(
+        searchDesignRequestsByDesigner({
+          keyword: keyword.trim(),
+          page: 1, // Reset về trang đầu tiên khi tìm kiếm
+          size: pagination.pageSize,
+        })
+      ).unwrap();
+      
+      setRequests(res.result || []);
+      setPagination({
+        currentPage: res.currentPage || 1,
+        totalPages: res.totalPages || 1,
+        pageSize: res.pageSize || 10,
+        totalElements: res.totalElements || 0,
+      });
+      
+      // Fetch customer details cho kết quả tìm kiếm
+      const ids = Array.from(
+        new Set(
+          (res.result || [])
+            .map((r) => {
+              if (
+                typeof r.customerDetail === "object" &&
+                r.customerDetail !== null
+              ) {
+                return r.customerDetail.id;
+              }
+              return r.customerDetail;
+            })
+            .filter(Boolean)
+        )
+      );
+      
+      ids.forEach((id) => {
+        if (!customerDetails[id]) {
+          dispatch(fetchCustomerDetailById(id))
+            .unwrap()
+            .then((detail) => {
+              setCustomerDetails((prev) => ({
+                ...prev,
+                [id]: {
+                  companyName: detail.companyName || "Không rõ",
+                  avatar: detail.users?.avatar || null,
+                },
+              }));
+
+              // Fetch avatar từ S3 nếu có
+              if (detail.users?.avatar) {
+                getPresignedUrl(detail.users.avatar)
+                  .then((result) => {
+                    if (result.success) {
+                      setCustomerAvatars((prev) => ({
+                        ...prev,
+                        [id]: result.url,
+                      }));
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error fetching avatar:", error);
+                  });
+              }
+            })
+            .catch(() => {
+              setCustomerDetails((prev) => ({
+                ...prev,
+                [id]: { companyName: "Không rõ", avatar: null },
+              }));
+            });
+        }
+      });
+    } catch (error) {
+      console.error("Error searching design requests:", error);
+      setNotification({
+        open: true,
+        message: "Lỗi khi tìm kiếm yêu cầu thiết kế",
+        severity: "error",
+      });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Function xóa tìm kiếm và quay về danh sách gốc
+  const handleClearSearch = async () => {
+    setSearchKeyword("");
+    setIsSearching(false);
+    resetToFirstPage(); // Reset về trang đầu tiên
+    
+    // Refresh lại danh sách gốc
+    if (designerId) {
+      try {
+        const res = await dispatch(
+          fetchDesignRequestsByDesigner({
+            designerId,
+            page: 1,
+            size: pagination.pageSize,
+          })
+        ).unwrap();
+        
+        setRequests(res.result || []);
+        setPagination({
+          currentPage: res.currentPage || 1,
+          totalPages: res.totalPages || 1,
+          pageSize: res.pageSize || 10,
+          totalElements: res.totalElements || 0,
+        });
+        
+        // Fetch customer details
+        const ids = Array.from(
+          new Set(
+            (res.result || [])
+              .map((r) => {
+                if (
+                  typeof r.customerDetail === "object" &&
+                  r.customerDetail !== null
+                ) {
+                  return r.customerDetail.id;
+                }
+                return r.customerDetail;
+              })
+              .filter(Boolean)
+          )
+        );
+        
+        ids.forEach((id) => {
+          if (!customerDetails[id]) {
+            dispatch(fetchCustomerDetailById(id))
+              .unwrap()
+              .then((detail) => {
+                setCustomerDetails((prev) => ({
+                  ...prev,
+                  [id]: {
+                    companyName: detail.companyName || "Không rõ",
+                    avatar: detail.users?.avatar || null,
+                  },
+                }));
+
+                if (detail.users?.avatar) {
+                  getPresignedUrl(detail.users.avatar)
+                    .then((result) => {
+                      if (result.success) {
+                        setCustomerAvatars((prev) => ({
+                          ...prev,
+                          [id]: result.url,
+                        }));
+                      }
+                    })
+                    .catch((error) => {
+                      console.error("Error fetching avatar:", error);
+                    });
+                }
+              })
+              .catch(() => {
+                setCustomerDetails((prev) => ({
+                  ...prev,
+                  [id]: { companyName: "Không rõ", avatar: null },
+                }));
+              });
+          }
+        });
+      } catch (error) {
+        console.error("Error refreshing design requests:", error);
+      }
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchKeyword.trim() !== "") {
+        handleSearch(searchKeyword);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchKeyword, designerId]); // Thêm designerId vào dependencies
+
+  // Cập nhật useEffect để xử lý pagination cho cả tìm kiếm và danh sách gốc
+  useEffect(() => {
+    if (designerId) {
+      if (isSearching && searchKeyword.trim() !== "") {
+        // Nếu đang tìm kiếm, sử dụng API search
+        dispatch(
+          searchDesignRequestsByDesigner({
+            keyword: searchKeyword.trim(),
+            page: pagination.currentPage,
+            size: pagination.pageSize,
+          })
+        )
+          .unwrap()
+          .then((res) => {
+            setRequests(res.result || []);
+            setPagination({
+              currentPage: res.currentPage || 1,
+              totalPages: res.totalPages || 1,
+              pageSize: res.pageSize || 10,
+              totalElements: res.totalElements || 0,
+            });
+            
+            // Fetch customer details cho kết quả tìm kiếm
+            const ids = Array.from(
+              new Set(
+                (res.result || [])
+                  .map((r) => {
+                    if (
+                      typeof r.customerDetail === "object" &&
+                      r.customerDetail !== null
+                    ) {
+                      return r.customerDetail.id;
+                    }
+                    return r.customerDetail;
+                  })
+                  .filter(Boolean)
+              )
+            );
+            
+            ids.forEach((id) => {
+              if (!customerDetails[id]) {
+                dispatch(fetchCustomerDetailById(id))
+                  .unwrap()
+                  .then((detail) => {
+                    setCustomerDetails((prev) => ({
+                      ...prev,
+                      [id]: {
+                        companyName: detail.companyName || "Không rõ",
+                        avatar: detail.users?.avatar || null,
+                      },
+                    }));
+
+                    if (detail.users?.avatar) {
+                      getPresignedUrl(detail.users.avatar)
+                        .then((result) => {
+                          if (result.success) {
+                            setCustomerAvatars((prev) => ({
+                              ...prev,
+                              [id]: result.url,
+                            }));
+                          }
+                        })
+                        .catch((error) => {
+                          console.error("Error fetching avatar:", error);
+                        });
+                    }
+                  })
+                  .catch(() => {
+                    setCustomerDetails((prev) => ({
+                      ...prev,
+                      [id]: { companyName: "Không rõ", avatar: null },
+                    }));
+                  });
+              }
+            });
+          })
+          .catch(() => {
+            setRequests([]);
+          });
+      } else {
+        // Nếu không tìm kiếm, sử dụng API gốc
+        dispatch(
+          fetchDesignRequestsByDesigner({
+            designerId,
+            page: pagination.currentPage,
+            size: pagination.pageSize,
+          })
+        )
+          .unwrap()
+          .then((res) => {
+            setRequests(res.result || []);
+            setPagination({
+              currentPage: res.currentPage || 1,
+              totalPages: res.totalPages || 1,
+              pageSize: res.pageSize || 10,
+              totalElements: res.totalElements || 0,
+            });
+            
+            // Lấy tất cả customerDetailId duy nhất (luôn lấy .id nếu là object)
+            const ids = Array.from(
+              new Set(
+                (res.result || [])
+                  .map((r) => {
+                    if (
+                      typeof r.customerDetail === "object" &&
+                      r.customerDetail !== null
+                    ) {
+                      return r.customerDetail.id;
+                    }
+                    return r.customerDetail;
+                  })
+                  .filter(Boolean)
+              )
+            );
+            
+            ids.forEach((id) => {
+              if (!customerDetails[id]) {
+                dispatch(fetchCustomerDetailById(id))
+                  .unwrap()
+                  .then((detail) => {
+                    setCustomerDetails((prev) => ({
+                      ...prev,
+                      [id]: {
+                        companyName: detail.companyName || "Không rõ",
+                        avatar: detail.users?.avatar || null,
+                      },
+                    }));
+
+                    // Fetch avatar từ S3 nếu có
+                    if (detail.users?.avatar) {
+                      getPresignedUrl(detail.users.avatar)
+                        .then((result) => {
+                          if (result.success) {
+                            setCustomerAvatars((prev) => ({
+                              ...prev,
+                              [id]: result.url,
+                            }));
+                          }
+                        })
+                        .catch((error) => {
+                          console.error("Error fetching avatar:", error);
+                        });
+                    }
+                  })
+                  .catch(() => {
+                    setCustomerDetails((prev) => ({
+                      ...prev,
+                      [id]: { companyName: "Không rõ", avatar: null },
+                    }));
+                  });
+              }
+            });
+          })
+          .catch(() => {
+            setRequests([]);
+          });
+      }
+    }
+  }, [designerId, dispatch, pagination.currentPage, pagination.pageSize, isSearching, searchKeyword, customerDetails]);
+
   return (
     <>
       <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -848,6 +1230,111 @@ const DesignRequests = () => {
             </Stack>
           </CardContent>
         </Card>
+
+        {/* Search Bar Section */}
+        <Card
+          sx={{
+            mb: 3,
+            borderRadius: 3,
+            overflow: "hidden",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={8}>
+                <TextField
+                  fullWidth
+                  placeholder="Tìm kiếm theo mã yêu cầu, tên công ty, mô tả..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: "#64748b" }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchKeyword && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={handleClearSearch}
+                          sx={{ color: "#64748b" }}
+                        >
+                          <ClearIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      "&:hover fieldset": {
+                        borderColor: "#3b82f6",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#3b82f6",
+                      },
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Stack direction="row" spacing={2} justifyContent="flex-end">
+                  <Button
+                    variant="outlined"
+                    onClick={handleClearSearch}
+                    disabled={!searchKeyword.trim()}
+                    startIcon={<ClearIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      borderColor: "#e2e8f0",
+                      color: "#64748b",
+                      "&:hover": {
+                        borderColor: "#64748b",
+                        bgcolor: "#f8fafc",
+                      },
+                    }}
+                  >
+                    Xóa tìm kiếm
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => handleSearch(searchKeyword)}
+                    disabled={!searchKeyword.trim() || searchLoading}
+                    startIcon={searchLoading ? <CircularProgress size={16} /> : <SearchIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      bgcolor: "#3b82f6",
+                      "&:hover": {
+                        bgcolor: "#2563eb",
+                      },
+                    }}
+                  >
+                    {searchLoading ? "Đang tìm..." : "Tìm kiếm"}
+                  </Button>
+                </Stack>
+              </Grid>
+            </Grid>
+            
+            {/* Search Status */}
+            {isSearching && (
+              <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                <Chip
+                  label={`Đang tìm kiếm: "${searchKeyword}"`}
+                  color="primary"
+                  size="small"
+                  sx={{ bgcolor: "#dbeafe", color: "#1e40af" }}
+                />
+                <Typography variant="body2" color="#64748b">
+                  Tìm thấy {pagination.totalElements || 0} kết quả
+                </Typography>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+
         {status === "loading" ? (
           <Box display="flex" justifyContent="center" py={8}>
             <CircularProgress
@@ -884,7 +1371,10 @@ const DesignRequests = () => {
               border: "1px solid #bfdbfe",
             }}
           >
-            Không có yêu cầu thiết kế nào được giao.
+            {isSearching 
+              ? `Không tìm thấy yêu cầu thiết kế nào phù hợp với từ khóa "${searchKeyword}"`
+              : "Không có yêu cầu thiết kế nào được giao."
+            }
           </Alert>
         ) : (
           <>
@@ -907,10 +1397,13 @@ const DesignRequests = () => {
                     variant="h6"
                     sx={{ fontWeight: 600, color: "#1f2937", mb: 0.5 }}
                   >
-                    Danh sách yêu cầu thiết kế
+                    {isSearching ? "Kết quả tìm kiếm" : "Danh sách yêu cầu thiết kế"}
                   </Typography>
                   <Typography variant="body2" color="#64748b">
-                    Tổng cộng {requests.length} yêu cầu được giao
+                    {isSearching 
+                      ? `Tìm thấy ${pagination.totalElements || 0} yêu cầu phù hợp với "${searchKeyword}"`
+                      : `Tổng cộng ${pagination.totalElements || 0} yêu cầu được giao`
+                    }
                   </Typography>
                 </Box>
                 <TableContainer>

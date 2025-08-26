@@ -116,7 +116,8 @@ const DesignTemplateManager = () => {
   // Lấy danh sách design template với pagination
   const loadDesignTemplates = async (page = 1, size = 10) => {
     try {
-      const response = await dispatch(fetchAllDesignTemplates({ page, size }));
+      const aspectRatioParam = selectedAspectRatio === "all" ? undefined : selectedAspectRatio;
+      const response = await dispatch(fetchAllDesignTemplates({ page, size, aspectRatio: aspectRatioParam }));
       if (response.meta.requestStatus === "fulfilled") {
         const { currentPage, totalPages, pageSize: size, totalElements } = response.payload.pagination;
         setApiPagination({

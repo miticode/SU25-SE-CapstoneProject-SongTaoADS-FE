@@ -25,7 +25,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  TablePagination,
   IconButton,
   FormControlLabel,
   Switch,
@@ -48,6 +47,8 @@ import {
   selectBackgroundStatus,
   selectBackgroundError,
   selectSelectedBackground,
+  selectBackgroundPagination,
+  selectAllBackgroundsPagination,
   setSelectedBackground,
   clearSelectedBackground,
   fetchAllBackgrounds,
@@ -77,6 +78,8 @@ const BackgroundManager = () => {
   const dispatch = useDispatch();
   // State redux
   const backgrounds = useSelector(selectAllBackgroundSuggestions) || [];
+  const backgroundPagination = useSelector(selectBackgroundPagination);
+  const allBackgroundsPagination = useSelector(selectAllBackgroundsPagination);
   const backgroundStatus = useSelector(selectBackgroundStatus);
   const backgroundError = useSelector(selectBackgroundError);
   const selectedBackground = useSelector(selectSelectedBackground);
@@ -131,11 +134,12 @@ const BackgroundManager = () => {
   const [imageFile, setImageFile] = useState(null);
   const [openDetail, setOpenDetail] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [pagination, setPagination] = useState({ page: 0, rowsPerPage: 10 });
+  const FIXED_PAGE_SIZE = 10; // số item mỗi trang cố định
+  const [pagination, setPagination] = useState({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
 
   // Thêm state để biết có đang ở chế độ tất cả không
   const [showAll, setShowAll] = useState(false);
-  const [allBackgrounds, setAllBackgrounds] = useState([]);
+  // Server pagination: không cần state allBackgrounds nữa
 
   // Component để hiển thị hình ảnh background với S3
   const BackgroundImage = ({ background, size = "large" }) => {
@@ -222,9 +226,8 @@ const BackgroundManager = () => {
       setFilterAttributeValue("");
       setFilterAttributes([]);
       setFilterAttributeValues([]);
-      setPagination({ page: 0, rowsPerPage: 10 });
-      const backgroundsRes = await dispatch(fetchAllBackgrounds());
-      if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+  setPagination({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
+  await dispatch(fetchAllBackgrounds({ page: 1, size: FIXED_PAGE_SIZE }));
     };
 
     initializeData();
@@ -233,9 +236,20 @@ const BackgroundManager = () => {
   // Lấy danh sách background khi chọn attribute value
   useEffect(() => {
     if (filterAttributeValue) {
-      dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+      dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: pagination.page + 1, size: pagination.rowsPerPage }));
+    } else if (showAll) {
+      dispatch(fetchAllBackgrounds({ page: pagination.page + 1, size: pagination.rowsPerPage }));
     }
-  }, [dispatch, filterAttributeValue]);
+  }, [dispatch, filterAttributeValue, pagination.page, pagination.rowsPerPage, showAll]);
+
+  // Clamp current page in showAll mode when data length changes (e.g. after delete) or page size changes
+  // Clamp when totalPages from server changes
+  useEffect(() => {
+    const totalPages = showAll ? allBackgroundsPagination.totalPages : backgroundPagination.totalPages;
+    if (pagination.page > totalPages - 1) {
+      setPagination(prev => ({ ...prev, page: Math.max(0, totalPages - 1) }));
+    }
+  }, [showAll, allBackgroundsPagination.totalPages, backgroundPagination.totalPages, pagination.page]);
 
   // Hàm xử lý khi bấm nút TẤT CẢ
   const handleShowAll = async () => {
@@ -247,9 +261,8 @@ const BackgroundManager = () => {
     setFilterAttributeValues([]);
     setIsLoadingFilterAttributes(false);
     setIsLoadingFilterAttributeValues(false);
-    setPagination({ page: 0, rowsPerPage: 10 });
-    const res = await dispatch(fetchAllBackgrounds());
-    if (res.payload) setAllBackgrounds(res.payload);
+  setPagination({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
+  await dispatch(fetchAllBackgrounds({ page: 1, size: FIXED_PAGE_SIZE }));
   };
 
   // Hàm xử lý khi product type thay đổi
@@ -362,7 +375,12 @@ const BackgroundManager = () => {
 
     // Tự động fetch backgrounds theo attribute value được chọn
     if (selectedValue) {
-      dispatch(fetchBackgroundsByAttributeValueId(selectedValue));
+      dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: selectedValue, page: 1, size: pagination.rowsPerPage }));
+    } else {
+      // If cleared selection switch to all mode page 1
+      if (showAll) {
+        dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+      }
     }
   };
 
@@ -486,17 +504,17 @@ const BackgroundManager = () => {
         // Tự động làm mới danh sách backgrounds để hiển thị background mới
         if (showAll) {
           // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
-          const backgroundsRes = await dispatch(fetchAllBackgrounds());
-          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+          await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
         } else if (filterAttributeValue) {
-          // Nếu có filter theo attribute value, refresh theo filter đó
-          dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+          // Nếu có filter theo attribute value, refresh theo filter đó (reset to page 1)
+          dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: 1, size: pagination.rowsPerPage }));
+          setPagination((prev) => ({ ...prev, page: 0 }));
         } else {
           // Mặc định chuyển về chế độ hiển thị tất cả và refresh
           setShowAll(true);
           setFilterAttributeValue("");
-          const backgroundsRes = await dispatch(fetchAllBackgrounds());
-          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+          await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+          setPagination((prev) => ({ ...prev, page: 0 }));
         }
       } else {
         setFormError(res.payload || "Tạo nền thất bại");
@@ -524,17 +542,15 @@ const BackgroundManager = () => {
         // Tự động làm mới danh sách backgrounds sau khi cập nhật
         if (showAll) {
           // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
-          const backgroundsRes = await dispatch(fetchAllBackgrounds());
-          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+          await dispatch(fetchAllBackgrounds({ page: pagination.page + 1, size: pagination.rowsPerPage }));
         } else if (filterAttributeValue) {
-          // Nếu có filter theo attribute value, refresh theo filter đó
-          dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+          dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: pagination.page + 1, size: pagination.rowsPerPage }));
         } else {
           // Mặc định chuyển về chế độ hiển thị tất cả và refresh
           setShowAll(true);
           setFilterAttributeValue("");
-          const backgroundsRes = await dispatch(fetchAllBackgrounds());
-          if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+          await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+          setPagination((prev) => ({ ...prev, page: 0 }));
         }
       } else {
         setFormError(res.payload || "Cập nhật thất bại");
@@ -549,17 +565,15 @@ const BackgroundManager = () => {
       // Tự động làm mới danh sách backgrounds sau khi xóa
       if (showAll) {
         // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
-        const backgroundsRes = await dispatch(fetchAllBackgrounds());
-        if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+  await dispatch(fetchAllBackgrounds({ page: pagination.page + 1, size: pagination.rowsPerPage }));
       } else if (filterAttributeValue) {
-        // Nếu có filter theo attribute value, refresh theo filter đó
-        dispatch(fetchBackgroundsByAttributeValueId(filterAttributeValue));
+        dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: pagination.page + 1, size: pagination.rowsPerPage }));
       } else {
         // Mặc định chuyển về chế độ hiển thị tất cả và refresh
         setShowAll(true);
         setFilterAttributeValue("");
-        const backgroundsRes = await dispatch(fetchAllBackgrounds());
-        if (backgroundsRes.payload) setAllBackgrounds(backgroundsRes.payload);
+  await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+        setPagination((prev) => ({ ...prev, page: 0 }));
       }
     }
   };
@@ -571,16 +585,40 @@ const BackgroundManager = () => {
   };
 
   // Tính toán backgrounds hiển thị - chỉ filter theo attribute value
-  const filteredBackgrounds = showAll
-    ? allBackgrounds.filter((bg) => {
-        if (
-          filterAttributeValue &&
-          bg.attributeValues?.id !== filterAttributeValue
-        )
-          return false;
-        return true;
-      })
-    : backgrounds;
+  const filteredBackgrounds = backgrounds; // now backgrounds always holds current page data
+
+  // Helper tạo danh sách số trang với dấu '...'
+  const getPageNumbers = (current, total, maxLength = 7) => {
+    if (total <= maxLength) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const leftWidth = 2;
+    const rightWidth = 2;
+    if (current <= maxLength - rightWidth - 1) {
+      return [
+        ...Array.from({ length: maxLength - 2 }, (_, i) => i + 1),
+        '...',
+        total,
+      ];
+    }
+    if (current >= total - (maxLength - leftWidth - 2)) {
+      return [
+        1,
+        '...',
+        ...Array.from({ length: maxLength - 2 }, (_, i) => total - (maxLength - 2) + i),
+      ];
+    }
+    return [
+      1,
+      '...',
+      ...Array.from({ length: leftWidth + rightWidth + 1 }, (_, i) => current - leftWidth + i),
+      '...',
+      total,
+    ];
+  };
+
+  const totalPages = showAll ? (allBackgroundsPagination.totalPages || 1) : (backgroundPagination.totalPages || 1);
+  const pageNumbers = getPageNumbers(pagination.page + 1, totalPages);
 
   // Render
   return (
@@ -781,10 +819,10 @@ const BackgroundManager = () => {
           >
             <Typography variant="body2" color="text.secondary">
               {showAll
-                ? `Hiển thị tất cả: ${filteredBackgrounds.length} nền mẫu`
+                ? `Trang ${allBackgroundsPagination.currentPage}/${allBackgroundsPagination.totalPages} - Tổng ${allBackgroundsPagination.totalElements} nền`
                 : filterAttributeValue
-                ? `Kết quả tìm kiếm: ${filteredBackgrounds.length} nền mẫu`
-                : `${filteredBackgrounds.length} nền mẫu`}
+                ? `Trang ${backgroundPagination.currentPage}/${backgroundPagination.totalPages} - Tổng ${backgroundPagination.totalElements} nền`
+                : `Tổng ${backgrounds.length} nền`}
             </Typography>
             <Button
               variant="contained"
@@ -811,12 +849,7 @@ const BackgroundManager = () => {
         <Alert severity="error">{backgroundError}</Alert>
       ) : (
         <Grid container spacing={5} justifyContent="flex-start" width="100%">
-          {filteredBackgrounds
-            .slice(
-              pagination.page * pagination.rowsPerPage,
-              pagination.page * pagination.rowsPerPage + pagination.rowsPerPage
-            )
-            .map((bg) => (
+          {filteredBackgrounds.map((bg) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={bg.id}>
                 <Card
                   sx={{
@@ -890,23 +923,66 @@ const BackgroundManager = () => {
             ))}
         </Grid>
       )}
-      <Box mt={3} display="flex" justifyContent="center">
-        <TablePagination
-          component="div"
-          count={filteredBackgrounds.length}
-          page={pagination.page}
-          onPageChange={(e, newPage) =>
-            setPagination((prev) => ({ ...prev, page: newPage }))
-          }
-          rowsPerPage={pagination.rowsPerPage}
-          onRowsPerPageChange={(e) =>
-            setPagination({
-              page: 0,
-              rowsPerPage: parseInt(e.target.value, 10),
-            })
-          }
-          rowsPerPageOptions={[5, 10, 20]}
-        />
+      <Box mt={4} display="flex" justifyContent="center">
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={pagination.page === 0}
+            onClick={() => {
+              if (pagination.page > 0) {
+                const newPage = pagination.page - 1;
+                setPagination((prev) => ({ ...prev, page: newPage }));
+                if (!showAll && filterAttributeValue) {
+                  dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: newPage + 1, size: pagination.rowsPerPage }));
+                }
+              }
+            }}
+          >
+            Trước
+          </Button>
+          {pageNumbers.map((p, idx) =>
+            p === '...'
+              ? (
+                <Button key={idx} variant="text" size="small" disabled sx={{ minWidth: 36 }}>…</Button>
+              ) : (
+                <Button
+                  key={idx}
+                  variant={p === pagination.page + 1 ? 'contained' : 'outlined'}
+                  color={p === pagination.page + 1 ? 'primary' : 'inherit'}
+                  size="small"
+                  sx={{ minWidth: 40 }}
+                  onClick={() => {
+                    const newPage = p - 1;
+                    if (newPage !== pagination.page) {
+                      setPagination((prev) => ({ ...prev, page: newPage }));
+                      if (!showAll && filterAttributeValue) {
+                        dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: newPage + 1, size: pagination.rowsPerPage }));
+                      }
+                    }
+                  }}
+                >
+                  {p}
+                </Button>
+              )
+          )}
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={pagination.page >= totalPages - 1}
+            onClick={() => {
+              if (pagination.page < totalPages - 1) {
+                const newPage = pagination.page + 1;
+                setPagination((prev) => ({ ...prev, page: newPage }));
+                if (!showAll && filterAttributeValue) {
+                  dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: newPage + 1, size: pagination.rowsPerPage }));
+                }
+              }
+            }}
+          >
+            Sau
+          </Button>
+        </Stack>
       </Box>
       {/* Modal chi tiết với Tailwind CSS */}
       <Dialog

@@ -257,12 +257,12 @@ export const updateBackgroundImageApi = async (backgroundId, file) => {
 };
 
 // Lấy tất cả background
-export const fetchAllBackgroundsApi = async () => {
+export const fetchAllBackgroundsApi = async (page = 1, size = 10) => {
   try {
-    const response = await backgroundService.get(`/api/backgrounds`);
-    const { success, result, message } = response.data;
+    const response = await backgroundService.get(`/api/backgrounds`, { params: { page, size } });
+    const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
     if (success) {
-      return { success: true, data: result };
+      return { success: true, data: result, pagination: { currentPage, totalPages, pageSize, totalElements } };
     }
     return { success: false, error: message || 'Lỗi lấy tất cả background' };
   } catch (error) {

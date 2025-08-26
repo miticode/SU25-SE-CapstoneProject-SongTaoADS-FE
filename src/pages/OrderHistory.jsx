@@ -60,17 +60,17 @@ import {
   setCurrentDesignRequest,
   selectCurrentDesignRequest,
   getFinalDesignSubImages,
-  selectFinalDesignSubImages,
 } from "../store/features/customeDesign/customerDesignSlice";
 import {
   createOrderFromDesignRequest,
   fetchOrdersByUserId,
   fetchOrderDetails,
-  selectOrderDetails,
-  selectOrderDetailsStatus,
-  selectOrderDetailsError,
-  clearOrderDetails,
   cancelOrder,
+  searchCustomerOrders,
+  selectSearchCustomerOrders,
+  selectSearchCustomerOrdersStatus,
+  selectSearchCustomerOrdersQuery,
+  clearSearchCustomerOrders,
 } from "../store/features/order/orderSlice";
 import { fetchCustomerDetailByUserId } from "../store/features/customer/customerSlice";
 import {
@@ -113,7 +113,7 @@ import {
   openFileInNewTab,
   getImageFromS3,
 } from "../api/s3Service";
-import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
+import { fetchImageFromS3 } from "../store/features/s3/s3Slice";
 import {
   createImpression,
   uploadImpressionImage,
@@ -133,13 +133,6 @@ import {
 import {
   fetchProgressLogsByOrderId,
   fetchProgressLogImages,
-  selectProgressLogs,
-  selectProgressLogLoading,
-  selectProgressLogError,
-  selectProgressLogImages,
-  selectImagesLoading,
-  selectImagesError,
-  selectImagesByProgressLogId,
 } from "../store/features/progressLog/progressLogSlice";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { PhotoProvider, PhotoView } from "react-photo-view";
@@ -587,19 +580,25 @@ const ContractorInfo = ({ order, contractorInfo, loading }) => {
   useEffect(() => {
     const fetchLogo = async () => {
       if (!contractorInfo?.logo) return;
-      
+
       try {
         setLogoLoading(true);
         console.log("Fetching contractor logo with key:", contractorInfo.logo);
-        
+
         // Sử dụng getPresignedUrl thay vì fetch trực tiếp
         const result = await getPresignedUrl(contractorInfo.logo, 30);
-        
+
         if (result.success && result.url) {
           setLogoUrl(result.url);
-          console.log("Successfully got contractor logo presigned URL:", result.url);
+          console.log(
+            "Successfully got contractor logo presigned URL:",
+            result.url
+          );
         } else {
-          console.error("Failed to get contractor logo presigned URL:", result.message);
+          console.error(
+            "Failed to get contractor logo presigned URL:",
+            result.message
+          );
         }
       } catch (error) {
         console.error("Error fetching contractor logo:", error);
@@ -650,12 +649,12 @@ const ContractorInfo = ({ order, contractorInfo, loading }) => {
     <Box
       sx={{
         p: 2,
-        backgroundColor: contractorInfo.isInternal 
-          ? "rgba(219, 234, 254, 0.8)" 
+        backgroundColor: contractorInfo.isInternal
+          ? "rgba(219, 234, 254, 0.8)"
           : "rgba(240, 253, 244, 0.8)",
         borderRadius: 3,
-        border: contractorInfo.isInternal 
-          ? "1px solid rgba(59, 130, 246, 0.2)" 
+        border: contractorInfo.isInternal
+          ? "1px solid rgba(59, 130, 246, 0.2)"
           : "1px solid rgba(34, 197, 94, 0.2)",
       }}
     >
@@ -699,26 +698,30 @@ const ContractorInfo = ({ order, contractorInfo, loading }) => {
                 width: 40,
                 height: 40,
                 borderRadius: 1,
-                backgroundColor: contractorInfo.isInternal ? "#dbeafe" : "#dcfce7",
+                backgroundColor: contractorInfo.isInternal
+                  ? "#dbeafe"
+                  : "#dcfce7",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "1.2rem",
-                border: `1px solid ${contractorInfo.isInternal ? "#3b82f6" : "#22c55e"}`,
+                border: `1px solid ${
+                  contractorInfo.isInternal ? "#3b82f6" : "#22c55e"
+                }`,
               }}
             >
               🏗️
             </Box>
           )}
         </Box>
-        
+
         {/* Tên và loại đơn vị */}
         <Box sx={{ flex: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
             <Typography
               variant="subtitle2"
               fontWeight={600}
-              sx={{ 
+              sx={{
                 color: contractorInfo.isInternal ? "#1d4ed8" : "#059669",
               }}
             >
@@ -730,15 +733,17 @@ const ContractorInfo = ({ order, contractorInfo, loading }) => {
               sx={{
                 fontSize: "0.7rem",
                 height: 20,
-                backgroundColor: contractorInfo.isInternal 
-                  ? "rgba(59, 130, 246, 0.1)" 
+                backgroundColor: contractorInfo.isInternal
+                  ? "rgba(59, 130, 246, 0.1)"
                   : "rgba(34, 197, 94, 0.1)",
                 color: contractorInfo.isInternal ? "#1d4ed8" : "#059669",
-                border: `1px solid ${contractorInfo.isInternal ? "#3b82f6" : "#22c55e"}`,
+                border: `1px solid ${
+                  contractorInfo.isInternal ? "#3b82f6" : "#22c55e"
+                }`,
               }}
             />
           </Box>
-          
+
           {/* Thông tin liên hệ */}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.3 }}>
             {contractorInfo.address && (
@@ -1126,9 +1131,7 @@ const OrderHistory = () => {
     };
 
     const getStatusLabel = (status) => {
-      return (
-        IMPRESSION_STATUS_MAP[status]?.label || status || "Khác"
-      );
+      return IMPRESSION_STATUS_MAP[status]?.label || status || "Khác";
     };
 
     const getStatusColor = (status) => {
@@ -1186,7 +1189,10 @@ const OrderHistory = () => {
           <Box sx={{ p: 2 }}>
             <Stack spacing={1.5}>
               {impressions.map((impression, index) => {
-                const initials = (user?.fullName || user?.name || "B").trim().charAt(0).toUpperCase();
+                const initials = (user?.fullName || user?.name || "B")
+                  .trim()
+                  .charAt(0)
+                  .toUpperCase();
                 return (
                   <React.Fragment key={impression.id}>
                     <Box sx={{ display: "flex", gap: 2 }}>
@@ -1211,8 +1217,17 @@ const OrderHistory = () => {
 
                       {/* Comment body */}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                          <Typography variant="subtitle2" fontWeight={600}>Bạn</Typography>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <Typography variant="subtitle2" fontWeight={600}>
+                            Bạn
+                          </Typography>
                           <Rating
                             value={impression.rating}
                             readOnly
@@ -1220,7 +1235,9 @@ const OrderHistory = () => {
                             icon={<StarIcon fontSize="inherit" />}
                             emptyIcon={<StarIcon fontSize="inherit" />}
                           />
-                          <Typography variant="caption" color="text.secondary">• {formatDate(impression.sendAt)}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            • {formatDate(impression.sendAt)}
+                          </Typography>
                           <Chip
                             label={getStatusLabel(impression.status)}
                             color={getStatusColor(impression.status)}
@@ -1258,19 +1275,40 @@ const OrderHistory = () => {
                               borderColor: "grey.200",
                             }}
                           >
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                              <SupportAgentIcon fontSize="small" color="primary" />
-                              <Typography variant="subtitle2" fontWeight={600}>SongTaoADS</Typography>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 0.5,
+                              }}
+                            >
+                              <SupportAgentIcon
+                                fontSize="small"
+                                color="primary"
+                              />
+                              <Typography variant="subtitle2" fontWeight={600}>
+                                SongTaoADS
+                              </Typography>
                               {impression.responseAt && (
-                                <Typography variant="caption" color="text.secondary">• {formatDate(impression.responseAt)}</Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  • {formatDate(impression.responseAt)}
+                                </Typography>
                               )}
                             </Box>
-                            <Typography variant="body2">{impression.response}</Typography>
+                            <Typography variant="body2">
+                              {impression.response}
+                            </Typography>
                           </Box>
                         )}
                       </Box>
                     </Box>
-                    {index < impressions.length - 1 && <Divider sx={{ my: 0.5 }} />}
+                    {index < impressions.length - 1 && (
+                      <Divider sx={{ my: 0.5 }} />
+                    )}
                   </React.Fragment>
                 );
               })}
@@ -1305,6 +1343,7 @@ const OrderHistory = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [constructionLoading, setConstructionLoading] = useState(false);
+  // const [constructionLoading, setConstructionLoading] = useState(false); // unused
   // Redux state for custom design requests
   const contractLoading = useSelector(selectContractLoading);
   // const [contractData, setContractData] = useState({}); // Lưu contract theo orderId
@@ -1341,6 +1380,16 @@ const OrderHistory = () => {
   const orders = useSelector((state) => state.order.orders);
   const orderLoading = useSelector((state) => state.order.loading);
   const orderError = useSelector((state) => state.order.error);
+  // Search customer orders selectors
+  const searchResults = useSelector(selectSearchCustomerOrders);
+  const searchStatus = useSelector(selectSearchCustomerOrdersStatus);
+  // const searchError = useSelector(selectSearchCustomerOrdersError); // currently unused
+  const searchQuery = useSelector(selectSearchCustomerOrdersQuery);
+  // const searchPagination = useSelector(selectSearchCustomerOrdersPagination); // currently unused
+  // const searchError = useSelector(selectSearchCustomerOrdersError); // unused in UI
+  // const searchPagination = useSelector(selectSearchCustomerOrdersPagination); // future pagination
+  const [localSearch, setLocalSearch] = useState("");
+  const [searchDebounceTimer, setSearchDebounceTimer] = useState(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -1425,10 +1474,12 @@ const OrderHistory = () => {
     orderId: null,
     orderInfo: null,
   });
-  const s3FinalImageUrl = useSelector((state) =>
-    currentDesignRequest?.finalDesignImage
-      ? state.s3.images[currentDesignRequest.finalDesignImage]
-      : null
+  const s3FinalImageUrl = useSelector(
+    (state) =>
+      currentDesignRequest?.finalDesignImage
+        ? state.s3.images[currentDesignRequest.finalDesignImage]
+        : null
+    // const s3FinalImageUrl = useSelector((state) => currentDesignRequest?.finalDesignImage ? state.s3.images[currentDesignRequest.finalDesignImage] : null); // not used here
   );
 
   // S3 images selector
@@ -1506,18 +1557,21 @@ const OrderHistory = () => {
   // Function to fetch contractor info
   const fetchContractorInfo = useCallback(
     async (contractorId) => {
-      if (contractorInfoMap[contractorId] || loadingContractorInfo[contractorId]) {
+      if (
+        contractorInfoMap[contractorId] ||
+        loadingContractorInfo[contractorId]
+      ) {
         return; // Already fetched or currently fetching
       }
 
       try {
-        setLoadingContractorInfo(prev => ({ ...prev, [contractorId]: true }));
+        setLoadingContractorInfo((prev) => ({ ...prev, [contractorId]: true }));
         const response = await getContractorById(contractorId);
-        
+
         if (response.success) {
-          setContractorInfoMap(prev => ({ 
-            ...prev, 
-            [contractorId]: response.data 
+          setContractorInfoMap((prev) => ({
+            ...prev,
+            [contractorId]: response.data,
           }));
         } else {
           console.error("Failed to fetch contractor info:", response.error);
@@ -1525,7 +1579,10 @@ const OrderHistory = () => {
       } catch (error) {
         console.error("Error fetching contractor info:", error);
       } finally {
-        setLoadingContractorInfo(prev => ({ ...prev, [contractorId]: false }));
+        setLoadingContractorInfo((prev) => ({
+          ...prev,
+          [contractorId]: false,
+        }));
       }
     },
     [contractorInfoMap, loadingContractorInfo]
@@ -1608,6 +1665,7 @@ const OrderHistory = () => {
   // Helper function để kiểm tra loading state của progress logs
   const isLoadingProgressLogs = (orderId) => {
     return loadingProgressLogs[orderId] || false;
+    // const isLoadingProgressLogs = (orderId) => loadingProgressLogs[orderId] || false; // not used
   };
 
   // Helper function để lấy progress log theo status - ưu tiên log có ảnh
@@ -1735,6 +1793,7 @@ const OrderHistory = () => {
   // Helper function để kiểm tra loading state của ảnh progress log
   const isLoadingProgressLogImages = (progressLogId) => {
     return loadingProgressLogImages[progressLogId] || false;
+    // const isLoadingProgressLogImages = (progressLogId) => loadingProgressLogImages[progressLogId] || false; // not used
   };
 
   // Pagination helper functions
@@ -1969,7 +2028,10 @@ const OrderHistory = () => {
     const producingLog = getProgressLogByStatus(order.id, "PRODUCING");
     const deliveringLog = getProgressLogByStatus(order.id, "DELIVERING");
     const installedLog = getProgressLogByStatus(order.id, "INSTALLED");
-    const productionCompletedLog = getProgressLogByStatus(order.id, "PRODUCTION_COMPLETED");
+    const productionCompletedLog = getProgressLogByStatus(
+      order.id,
+      "PRODUCTION_COMPLETED"
+    );
 
     // Cập nhật hàm handleStepClick để hỗ trợ ảnh từ progress log
     const handleStepClick = async (step) => {
@@ -2161,7 +2223,7 @@ const OrderHistory = () => {
         description,
         totalImages: allImages.length,
       });
-      
+
       setImageDialog({
         open: true,
         imageUrl: null,
@@ -2189,8 +2251,7 @@ const OrderHistory = () => {
           setNotification({
             open: true,
             message:
-              "Không thể tải ảnh: " +
-              (result.message || "Lỗi không xác định"),
+              "Không thể tải ảnh: " + (result.message || "Lỗi không xác định"),
             severity: "error",
           });
         }
@@ -2211,18 +2272,18 @@ const OrderHistory = () => {
     // Xác định các step đã hoàn thành
     const getCompletedSteps = () => {
       const completed = new Set();
-      
+
       // Nếu đã lắp đặt (INSTALLED), tất cả các bước đều hoàn thành
       if (status === "INSTALLED" || status === "ORDER_COMPLETED") {
-        steps.forEach(step => completed.add(step.key));
+        steps.forEach((step) => completed.add(step.key));
         return completed;
       }
-      
+
       // Các bước trước currentStepIndex được coi là hoàn thành
       for (let i = 0; i < currentStepIndex; i++) {
         completed.add(steps[i].key);
       }
-      
+
       return completed;
     };
 
@@ -2235,25 +2296,33 @@ const OrderHistory = () => {
       const allProgressLogs = getProgressLogs(order.id);
 
       if (step.key === "PRODUCING") {
-        const producingLogs = allProgressLogs.filter((log) => log.status === "PRODUCING");
+        const producingLogs = allProgressLogs.filter(
+          (log) => log.status === "PRODUCING"
+        );
         hasProgressLogImage = producingLogs.some((log) => {
           const images = getProgressLogImages(log.id);
           return images && images.length > 0;
         });
       } else if (step.key === "PRODUCTION_COMPLETED") {
-        const completedLogs = allProgressLogs.filter((log) => log.status === "PRODUCTION_COMPLETED");
+        const completedLogs = allProgressLogs.filter(
+          (log) => log.status === "PRODUCTION_COMPLETED"
+        );
         hasProgressLogImage = completedLogs.some((log) => {
           const images = getProgressLogImages(log.id);
           return images && images.length > 0;
         });
       } else if (step.key === "DELIVERING") {
-        const deliveringLogs = allProgressLogs.filter((log) => log.status === "DELIVERING");
+        const deliveringLogs = allProgressLogs.filter(
+          (log) => log.status === "DELIVERING"
+        );
         hasProgressLogImage = deliveringLogs.some((log) => {
           const images = getProgressLogImages(log.id);
           return images && images.length > 0;
         });
       } else if (step.key === "INSTALLED") {
-        const installedLogs = allProgressLogs.filter((log) => log.status === "INSTALLED");
+        const installedLogs = allProgressLogs.filter(
+          (log) => log.status === "INSTALLED"
+        );
         hasProgressLogImage = installedLogs.some((log) => {
           const images = getProgressLogImages(log.id);
           return images && images.length > 0;
@@ -2266,23 +2335,28 @@ const OrderHistory = () => {
         (step.key === "PRODUCTION_COMPLETED" && order?.productImageUrl) ||
         (step.key === "DELIVERING" && order?.deliveryImageUrl) ||
         (step.key === "INSTALLED" && order?.installationImageUrl);
-      
+
       return (
         <div className="flex flex-col items-center flex-1 relative min-w-0">
           {/* Step Circle */}
-          <div 
+          <div
             className={`
               relative w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 
               rounded-full flex items-center justify-center 
               text-white text-sm sm:text-base lg:text-lg
               border-2 border-white shadow-md transition-all duration-300 z-10
-              ${isCompleted 
-                ? 'bg-green-500 hover:bg-green-600' 
-                : isActive 
-                ? 'bg-blue-500 hover:bg-blue-600 ring-4 ring-blue-200' 
-                : 'bg-gray-400'
+              ${
+                isCompleted
+                  ? "bg-green-500 hover:bg-green-600"
+                  : isActive
+                  ? "bg-blue-500 hover:bg-blue-600 ring-4 ring-blue-200"
+                  : "bg-gray-400"
               }
-              ${isClickable ? 'cursor-pointer hover:scale-110' : 'cursor-default'}
+              ${
+                isClickable
+                  ? "cursor-pointer hover:scale-110"
+                  : "cursor-default"
+              }
             `}
             onClick={isClickable ? () => handleStepClick(step) : undefined}
           >
@@ -2295,51 +2369,60 @@ const OrderHistory = () => {
 
           {/* Step Label */}
           <div className="mt-2 text-center max-w-[80px] sm:max-w-[100px] lg:max-w-[120px] z-10 relative">
-            <span 
+            <span
               className={`
                 text-xs sm:text-sm font-medium block leading-tight
-                ${isCompleted 
-                  ? 'text-green-600' 
-                  : isActive 
-                  ? 'text-blue-600' 
-                  : 'text-gray-500'
+                ${
+                  isCompleted
+                    ? "text-green-600"
+                    : isActive
+                    ? "text-blue-600"
+                    : "text-gray-500"
                 }
-                ${isClickable ? 'cursor-pointer hover:underline' : ''}
-                ${isClickable && !isCompleted ? 'text-blue-600' : ''}
+                ${isClickable ? "cursor-pointer hover:underline" : ""}
+                ${isClickable && !isCompleted ? "text-blue-600" : ""}
               `}
               onClick={isClickable ? () => handleStepClick(step) : undefined}
             >
               {step.label}
               {isClickable && " 📷"}
             </span>
-            
+
             {/* Progress log description for PRODUCING step */}
-            {step.key === "PRODUCING" && producingLog && producingLog.description && (
-              <span className="text-xs italic text-blue-500 block mt-1">
-                "{producingLog.description}"
-              </span>
-            )}
-            
+            {step.key === "PRODUCING" &&
+              producingLog &&
+              producingLog.description && (
+                <span className="text-xs italic text-blue-500 block mt-1">
+                  "{producingLog.description}"
+                </span>
+              )}
+
             {/* Progress log description for DELIVERING step */}
-            {step.key === "DELIVERING" && deliveringLog && deliveringLog.description && (
-              <span className="text-xs italic text-blue-500 block mt-1">
-                "{deliveringLog.description}"
-              </span>
-            )}
-            
+            {step.key === "DELIVERING" &&
+              deliveringLog &&
+              deliveringLog.description && (
+                <span className="text-xs italic text-blue-500 block mt-1">
+                  "{deliveringLog.description}"
+                </span>
+              )}
+
             {/* Progress log description for INSTALLED step */}
-            {step.key === "INSTALLED" && installedLog && installedLog.description && (
-              <span className="text-xs italic text-blue-500 block mt-1">
-                "{installedLog.description}"
-              </span>
-            )}
-            
+            {step.key === "INSTALLED" &&
+              installedLog &&
+              installedLog.description && (
+                <span className="text-xs italic text-blue-500 block mt-1">
+                  "{installedLog.description}"
+                </span>
+              )}
+
             {/* Progress log description for PRODUCTION_COMPLETED step */}
-            {step.key === "PRODUCTION_COMPLETED" && productionCompletedLog && productionCompletedLog.description && (
-              <span className="text-xs italic text-blue-500 block mt-1">
-                "{productionCompletedLog.description}"
-              </span>
-            )}
+            {step.key === "PRODUCTION_COMPLETED" &&
+              productionCompletedLog &&
+              productionCompletedLog.description && (
+                <span className="text-xs italic text-blue-500 block mt-1">
+                  "{productionCompletedLog.description}"
+                </span>
+              )}
           </div>
         </div>
       );
@@ -2356,7 +2439,7 @@ const OrderHistory = () => {
             Theo dõi quá trình sản xuất và lắp đặt
           </p>
         </div>
-        
+
         {/* Progress Steps */}
         <div className="relative px-4">
           <div className="relative flex justify-between items-start gap-4">
@@ -2365,16 +2448,20 @@ const OrderHistory = () => {
               const isActive = index === currentStepIndex && !isCompleted;
               // Đường nối sẽ xanh nếu bước hiện tại đã hoàn thành
               const isLineCompleted = completedSteps.has(step.key);
-              
+
               return (
                 <div key={step.key} className="flex-1 relative min-w-0">
                   {/* Connecting Line to Next Step */}
                   {index < steps.length - 1 && (
                     <div className="absolute top-4 sm:top-5 lg:top-6 left-1/2 w-full h-0.5 flex">
-                      <div className={`flex-1 h-full ${isLineCompleted ? 'bg-green-500' : 'bg-gray-300'} transition-all duration-300`}></div>
+                      <div
+                        className={`flex-1 h-full ${
+                          isLineCompleted ? "bg-green-500" : "bg-gray-300"
+                        } transition-all duration-300`}
+                      ></div>
                     </div>
                   )}
-                  
+
                   {renderStepCircle(step, index, isCompleted, isActive)}
                 </div>
               );
@@ -2385,20 +2472,15 @@ const OrderHistory = () => {
         {/* Status Information */}
         <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-              <span className="text-sm font-medium text-blue-700">Trạng thái hiện tại:</span>
-              <span className="text-sm text-blue-600">
-                {currentStep?.label || 'Không xác định'}
-              </span>
-            </div>
-            
             {/* Status-specific messages */}
             {status === "PRODUCING" && (
               <div className="text-sm text-blue-600">
                 🔨 Đơn hàng đang được thi công
                 {(() => {
                   const allProgressLogs = getProgressLogs(order.id);
-                  const producingLogs = allProgressLogs.filter((log) => log.status === "PRODUCING");
+                  const producingLogs = allProgressLogs.filter(
+                    (log) => log.status === "PRODUCING"
+                  );
                   let totalProgressLogImages = 0;
 
                   for (const log of producingLogs) {
@@ -2411,7 +2493,8 @@ const OrderHistory = () => {
                   if (totalProgressLogImages > 0) {
                     return (
                       <div className="text-xs italic mt-1 text-blue-500">
-                        💡 Click vào "Đang thi công" để xem ảnh tiến độ ({totalProgressLogImages} ảnh)
+                        💡 Click vào "Đang thi công" để xem ảnh tiến độ (
+                        {totalProgressLogImages} ảnh)
                       </div>
                     );
                   } else if (order?.draftImageUrl) {
@@ -2425,7 +2508,7 @@ const OrderHistory = () => {
                 })()}
               </div>
             )}
-            
+
             {status === "PRODUCTION_COMPLETED" && (
               <div className="text-sm text-blue-600">
                 ✅ Thi công hoàn tất, chuẩn bị vận chuyển
@@ -2434,7 +2517,7 @@ const OrderHistory = () => {
                 </div>
               </div>
             )}
-            
+
             {status === "DELIVERING" && (
               <div className="text-sm text-blue-600">
                 🚛 Đang vận chuyển đến địa chỉ của bạn
@@ -2443,7 +2526,7 @@ const OrderHistory = () => {
                 </div>
               </div>
             )}
-            
+
             {status === "INSTALLED" && (
               <div className="text-sm text-blue-600">
                 🎉 Đã lắp đặt hoàn tất!
@@ -2452,12 +2535,16 @@ const OrderHistory = () => {
                 </div>
               </div>
             )}
-            
+
             {order?.estimatedDeliveryDate && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                <span className="text-sm font-medium text-blue-700">Ngày giao dự kiến:</span>
+                <span className="text-sm font-medium text-blue-700">
+                  Ngày giao dự kiến:
+                </span>
                 <span className="text-sm text-blue-600">
-                  {new Date(order.estimatedDeliveryDate).toLocaleDateString('vi-VN')}
+                  {new Date(order.estimatedDeliveryDate).toLocaleDateString(
+                    "vi-VN"
+                  )}
                 </span>
               </div>
             )}
@@ -2481,11 +2568,12 @@ const OrderHistory = () => {
   // Hàm chuyển ảnh tiếp theo
   const handleNextImage = async () => {
     if (imageDialog.allImages.length <= 1) return;
-    
-    const nextIndex = (imageDialog.currentIndex + 1) % imageDialog.allImages.length;
-    
+
+    const nextIndex =
+      (imageDialog.currentIndex + 1) % imageDialog.allImages.length;
+
     // Cập nhật index trước, giữ nguyên imageUrl hiện tại khi loading
-    setImageDialog(prev => ({
+    setImageDialog((prev) => ({
       ...prev,
       loading: true,
       currentIndex: nextIndex,
@@ -2494,13 +2582,13 @@ const OrderHistory = () => {
     try {
       const result = await getImageFromS3(imageDialog.allImages[nextIndex]);
       if (result.success) {
-        setImageDialog(prev => ({
+        setImageDialog((prev) => ({
           ...prev,
           imageUrl: result.imageUrl,
           loading: false,
         }));
       } else {
-        setImageDialog(prev => ({
+        setImageDialog((prev) => ({
           ...prev,
           loading: false,
         }));
@@ -2512,7 +2600,7 @@ const OrderHistory = () => {
       }
     } catch (error) {
       console.error("Error loading next image:", error);
-      setImageDialog(prev => ({
+      setImageDialog((prev) => ({
         ...prev,
         loading: false,
       }));
@@ -2527,13 +2615,14 @@ const OrderHistory = () => {
   // Hàm chuyển ảnh trước đó
   const handlePreviousImage = async () => {
     if (imageDialog.allImages.length <= 1) return;
-    
-    const prevIndex = imageDialog.currentIndex === 0 
-      ? imageDialog.allImages.length - 1 
-      : imageDialog.currentIndex - 1;
-    
+
+    const prevIndex =
+      imageDialog.currentIndex === 0
+        ? imageDialog.allImages.length - 1
+        : imageDialog.currentIndex - 1;
+
     // Cập nhật index trước, giữ nguyên imageUrl hiện tại khi loading
-    setImageDialog(prev => ({
+    setImageDialog((prev) => ({
       ...prev,
       loading: true,
       currentIndex: prevIndex,
@@ -2542,13 +2631,13 @@ const OrderHistory = () => {
     try {
       const result = await getImageFromS3(imageDialog.allImages[prevIndex]);
       if (result.success) {
-        setImageDialog(prev => ({
+        setImageDialog((prev) => ({
           ...prev,
           imageUrl: result.imageUrl,
           loading: false,
         }));
       } else {
-        setImageDialog(prev => ({
+        setImageDialog((prev) => ({
           ...prev,
           loading: false,
         }));
@@ -2560,7 +2649,7 @@ const OrderHistory = () => {
       }
     } catch (error) {
       console.error("Error loading previous image:", error);
-      setImageDialog(prev => ({
+      setImageDialog((prev) => ({
         ...prev,
         loading: false,
       }));
@@ -3244,13 +3333,25 @@ const OrderHistory = () => {
 
       ordersWithContractors.forEach((order) => {
         const contractorId = order.contractors.id;
-        if (contractorId && !contractorInfoMap[contractorId] && !loadingContractorInfo[contractorId]) {
-          console.log(`Fetching contractor info for contractor ID: ${contractorId}`);
+        if (
+          contractorId &&
+          !contractorInfoMap[contractorId] &&
+          !loadingContractorInfo[contractorId]
+        ) {
+          console.log(
+            `Fetching contractor info for contractor ID: ${contractorId}`
+          );
           fetchContractorInfo(contractorId);
         }
       });
     }
-  }, [tab, orders, contractorInfoMap, loadingContractorInfo, fetchContractorInfo]);
+  }, [
+    tab,
+    orders,
+    contractorInfoMap,
+    loadingContractorInfo,
+    fetchContractorInfo,
+  ]);
 
   // useEffect để fetch order details cho tất cả đơn hàng ở tab 0 (Lịch sử đơn hàng)
   useEffect(() => {
@@ -3998,79 +4099,9 @@ const OrderHistory = () => {
       <Box
         maxWidth="lg"
         mx="auto"
-        py={4}
         px={2}
         sx={{ position: "relative", zIndex: 1 }}
       >
-        {/* Header Section */}
-        <Box
-          sx={{
-            textAlign: "center",
-            mb: 4,
-            background: "rgba(255, 255, 255, 0.95)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            borderRadius: 4,
-            p: 4,
-            boxShadow: "0 25px 45px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 2,
-              mb: 2,
-            }}
-          >
-            <HistoryIcon
-              sx={{
-                fontSize: 40,
-                color: "#4f46e5",
-                filter: "drop-shadow(0 2px 4px rgba(79, 70, 229, 0.3))",
-              }}
-            />
-            <Typography
-              variant="h4"
-              fontWeight={700}
-              sx={{
-                background: "linear-gradient(135deg, #374151 0%, #1f2937 100%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                position: "relative",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  bottom: -10,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 80,
-                  height: 3,
-                  background:
-                    "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
-                  borderRadius: 2,
-                },
-              }}
-            >
-              Lịch sử đơn hàng
-            </Typography>
-          </Box>
-          <Typography
-            variant="body1"
-            color="rgba(55, 65, 81, 0.7)"
-            sx={{
-              mt: 2,
-              fontSize: "1.1rem",
-              fontWeight: 500,
-              opacity: 0.8,
-            }}
-          >
-            Quản lý và theo dõi tất cả đơn hàng của bạn
-          </Typography>
-        </Box>
-
         {/* Tabs Section */}
         <Box
           sx={{
@@ -4136,6 +4167,122 @@ const OrderHistory = () => {
         </Box>
         {tab === 0 ? (
           <>
+            {/* Search Bar for Customer Orders */}
+            <Box
+              sx={{
+                mb: 3,
+                background: "rgba(255,255,255,0.98)",
+                p: 2.5,
+                borderRadius: 4,
+                border: "1px solid rgba(220,225,235,0.6)",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.05)",
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+                alignItems: { xs: "stretch", sm: "center" },
+              }}
+            >
+              <TextField
+                fullWidth
+                placeholder="Tìm kiếm mã đơn hàng (ví dụ: DH-15CH...)"
+                value={localSearch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setLocalSearch(val);
+                  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                  const timer = setTimeout(() => {
+                    if (val && val.trim().length >= 2) {
+                      dispatch(
+                        searchCustomerOrders({
+                          query: val.trim(),
+                          page: 1,
+                          size: 10,
+                        })
+                      );
+                    }
+                  }, 500);
+                  setSearchDebounceTimer(timer);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                    if (localSearch && localSearch.trim().length >= 1) {
+                      dispatch(
+                        searchCustomerOrders({
+                          query: localSearch.trim(),
+                          page: 1,
+                          size: 10,
+                        })
+                      );
+                    }
+                  }
+                  if (e.key === "Escape") {
+                    setLocalSearch("");
+                  }
+                }}
+                size="medium"
+                variant="outlined"
+                InputProps={{
+                  sx: {
+                    borderRadius: 3,
+                    backgroundColor: "rgba(255,255,255,0.9)",
+                  },
+                }}
+              />
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                    if (localSearch && localSearch.trim().length >= 1) {
+                      dispatch(
+                        searchCustomerOrders({
+                          query: localSearch.trim(),
+                          page: 1,
+                          size: 10,
+                        })
+                      );
+                    }
+                  }}
+                  disabled={searchStatus === "loading"}
+                  sx={{
+                    fontWeight: 600,
+                    background:
+                      "linear-gradient(135deg,#4f46e5 0%, #7c3aed 100%)",
+                  }}
+                >
+                  {searchStatus === "loading" ? (
+                    <CircularProgress size={20} sx={{ color: "white" }} />
+                  ) : (
+                    "Tìm kiếm"
+                  )}
+                </Button>
+                {searchQuery && (
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => {
+                      setLocalSearch("");
+                      // Reset search state in store so full list shows again
+                      dispatch(clearSearchCustomerOrders());
+                      // Refetch original orders list for current user
+                      if (user?.id) {
+                        dispatch(
+                          fetchOrdersByUserId({
+                            userId: user.id,
+                            page: 1,
+                            size: 10,
+                          })
+                        );
+                      }
+                    }}
+                    sx={{ fontWeight: 600, borderRadius: 3 }}
+                  >
+                    Xóa
+                  </Button>
+                )}
+              </Stack>
+            </Box>
             {orderLoading ? (
               <Box
                 display="flex"
@@ -4175,7 +4322,9 @@ const OrderHistory = () => {
                   ⚠️ {orderError}
                 </Typography>
               </Box>
-            ) : orders.length === 0 ? (
+            ) : (
+                searchQuery ? searchResults.length === 0 : orders.length === 0
+              ) ? (
               <Box
                 sx={{
                   background: "rgba(249, 250, 251, 0.98)",
@@ -4199,7 +4348,7 @@ const OrderHistory = () => {
               </Box>
             ) : (
               <Stack spacing={3}>
-                {orders.map((order) => {
+                {(searchQuery ? searchResults : orders).map((order) => {
                   // ✅ Sử dụng helper function thay vì useSelector
                   const orderImpressions = getOrderImpressions(order.id);
                   const orderDetails = getOrderDetails(order.id);
@@ -4273,113 +4422,131 @@ const OrderHistory = () => {
                                 mb: 2,
                               }}
                             >
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-                              {order.orderType === "AI_DESIGN" ? (
-                                <Chip
-                                  label="🤖 AI Design"
-                                  size="medium"
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    fontSize: "0.875rem",
-                                    px: 1,
-                                    boxShadow:
-                                      "0 2px 8px rgba(139, 92, 246, 0.3)",
-                                    "& .MuiChip-icon": { color: "white" },
-                                  }}
-                                />
-                              ) : order.orderType ===
-                                "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
-                                <Chip
-                                  icon={<BrushIcon />}
-                                  label=" Thiết kế + Thi công"
-                                  size="medium"
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    fontSize: "0.875rem",
-                                    px: 1,
-                                    boxShadow:
-                                      "0 2px 8px rgba(59, 130, 246, 0.3)",
-                                    "& .MuiChip-icon": { color: "white" },
-                                  }}
-                                />
-                              ) : order.orderType ===
-                                "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
-                                <Chip
-                                  label="🎨 Chỉ thiết kế"
-                                  size="medium"
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    fontSize: "0.875rem",
-                                    px: 1,
-                                    boxShadow:
-                                      "0 2px 8px rgba(245, 158, 11, 0.3)",
-                                    "& .MuiChip-icon": { color: "white" },
-                                  }}
-                                />
-                              ) : (
-                                <Chip
-                                  icon={<ShoppingBagIcon />}
-                                  label="🛍️ Đơn hàng mẫu"
-                                  size="medium"
-                                  sx={{
-                                    background:
-                                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    fontSize: "0.875rem",
-                                    px: 1,
-                                    boxShadow:
-                                      "0 2px 8px rgba(16, 185, 129, 0.3)",
-                                    "& .MuiChip-icon": { color: "white" },
-                                  }}
-                                />
-                              )}
-
-                              <Chip
-                                label={
-                                  statusMap[order.status]?.label || order.status
-                                }
-                                size="medium"
+                              <Box
                                 sx={{
-                                  background:
-                                    order.status === "COMPLETED" ||
-                                    order.status === "ORDER_COMPLETED"
-                                      ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                                      : order.status === "CANCELLED"
-                                      ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                                      : order.status === "IN_PROGRESS" ||
-                                        order.status === "PRODUCING"
-                                      ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
-                                      : order.status === "INSTALLED"
-                                      ? "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
-                                      : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                                  color: "white",
-                                  fontWeight: 600,
-                                  fontSize: "0.875rem",
-                                  px: 1.5,
-                                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  flexWrap: "wrap",
                                 }}
-                              />
+                              >
+                                {order.orderType === "AI_DESIGN" ? (
+                                  <Chip
+                                    label="🤖 AI Design"
+                                    size="medium"
+                                    sx={{
+                                      background:
+                                        "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
+                                      color: "white",
+                                      fontWeight: 600,
+                                      fontSize: "0.875rem",
+                                      px: 1,
+                                      boxShadow:
+                                        "0 2px 8px rgba(139, 92, 246, 0.3)",
+                                      "& .MuiChip-icon": { color: "white" },
+                                    }}
+                                  />
+                                ) : order.orderType ===
+                                  "CUSTOM_DESIGN_WITH_CONSTRUCTION" ? (
+                                  <Chip
+                                    icon={<BrushIcon />}
+                                    label=" Thiết kế + Thi công"
+                                    size="medium"
+                                    sx={{
+                                      background:
+                                        "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
+                                      color: "white",
+                                      fontWeight: 600,
+                                      fontSize: "0.875rem",
+                                      px: 1,
+                                      boxShadow:
+                                        "0 2px 8px rgba(59, 130, 246, 0.3)",
+                                      "& .MuiChip-icon": { color: "white" },
+                                    }}
+                                  />
+                                ) : order.orderType ===
+                                  "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION" ? (
+                                  <Chip
+                                    label="🎨 Chỉ thiết kế"
+                                    size="medium"
+                                    sx={{
+                                      background:
+                                        "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
+                                      color: "white",
+                                      fontWeight: 600,
+                                      fontSize: "0.875rem",
+                                      px: 1,
+                                      boxShadow:
+                                        "0 2px 8px rgba(245, 158, 11, 0.3)",
+                                      "& .MuiChip-icon": { color: "white" },
+                                    }}
+                                  />
+                                ) : (
+                                  <Chip
+                                    icon={<ShoppingBagIcon />}
+                                    label="🛍️ Đơn hàng mẫu"
+                                    size="medium"
+                                    sx={{
+                                      background:
+                                        "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                      color: "white",
+                                      fontWeight: 600,
+                                      fontSize: "0.875rem",
+                                      px: 1,
+                                      boxShadow:
+                                        "0 2px 8px rgba(16, 185, 129, 0.3)",
+                                      "& .MuiChip-icon": { color: "white" },
+                                    }}
+                                  />
+                                )}
+
+                                <Chip
+                                  label={
+                                    statusMap[order.status]?.label ||
+                                    order.status
+                                  }
+                                  size="medium"
+                                  sx={{
+                                    background:
+                                      order.status === "COMPLETED" ||
+                                      order.status === "ORDER_COMPLETED"
+                                        ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                                        : order.status === "CANCELLED"
+                                        ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                                        : order.status === "IN_PROGRESS" ||
+                                          order.status === "PRODUCING"
+                                        ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                                        : order.status === "INSTALLED"
+                                        ? "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
+                                        : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    fontSize: "0.875rem",
+                                    px: 1.5,
+                                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                                  }}
+                                />
                               </Box>
 
                               {/* Top-right action buttons */}
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto", flexWrap: "wrap" }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  ml: "auto",
+                                  flexWrap: "wrap",
+                                }}
+                              >
                                 {/* Contract Actions */}
                                 {[
                                   "CONTRACT_SENT",
                                   "CONTRACT_SIGNED",
                                   "CONTRACT_RESIGNED",
                                   "CONTRACT_CONFIRMED",
-                                ].includes((order.status || "").toUpperCase()) && (
+                                ].includes(
+                                  (order.status || "").toUpperCase()
+                                ) && (
                                   <Button
                                     variant="contained"
                                     size="medium"
@@ -4393,13 +4560,16 @@ const OrderHistory = () => {
                                       )
                                     }
                                     sx={{
-                                      background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                                      background:
+                                        "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
                                       color: "white",
                                       fontWeight: 600,
-                                      boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+                                      boxShadow:
+                                        "0 4px 12px rgba(59, 130, 246, 0.3)",
                                       "&:hover": {
                                         transform: "translateY(-1px)",
-                                        boxShadow: "0 6px 16px rgba(59, 130, 246, 0.4)",
+                                        boxShadow:
+                                          "0 6px 16px rgba(59, 130, 246, 0.4)",
                                       },
                                     }}
                                   >
@@ -4421,7 +4591,9 @@ const OrderHistory = () => {
                                     variant="outlined"
                                     size="medium"
                                     color="error"
-                                    onClick={() => handleOpenCancelDialog(order)}
+                                    onClick={() =>
+                                      handleOpenCancelDialog(order)
+                                    }
                                     disabled={cancelingOrderId === order.id}
                                     startIcon={
                                       cancelingOrderId === order.id ? (
@@ -4433,32 +4605,41 @@ const OrderHistory = () => {
                                       color: "#ef4444",
                                       fontWeight: 600,
                                       "&:hover": {
-                                        backgroundColor: "rgba(239, 68, 68, 0.08)",
+                                        backgroundColor:
+                                          "rgba(239, 68, 68, 0.08)",
                                         transform: "translateY(-1px)",
                                       },
                                     }}
                                   >
-                                    {cancelingOrderId === order.id ? "Đang hủy..." : "❌ Hủy đơn"}
+                                    {cancelingOrderId === order.id
+                                      ? "Đang hủy..."
+                                      : "❌ Hủy đơn"}
                                   </Button>
                                 )}
-                                {(order.status === "ORDER_COMPLETED" || order.status === "INSTALLED") && (
+                                {(order.status === "ORDER_COMPLETED" ||
+                                  order.status === "INSTALLED") && (
                                   <Button
                                     variant="contained"
                                     size="medium"
-                                    onClick={() => handleOpenImpressionDialog(order.id)}
+                                    onClick={() =>
+                                      handleOpenImpressionDialog(order.id)
+                                    }
                                     startIcon={<StarIcon />}
                                     sx={{
-                                      background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+                                      background:
+                                        "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
                                       color: "white",
                                       fontWeight: 600,
-                                      boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)",
+                                      boxShadow:
+                                        "0 4px 12px rgba(139, 92, 246, 0.3)",
                                       "&:hover": {
                                         transform: "translateY(-1px)",
-                                        boxShadow: "0 6px 16px rgba(139, 92, 246, 0.4)",
+                                        boxShadow:
+                                          "0 6px 16px rgba(139, 92, 246, 0.4)",
                                       },
                                     }}
                                   >
-                                     Đánh giá
+                                    Đánh giá
                                   </Button>
                                 )}
                                 {!["CANCELLED"].includes(order.status) && (
@@ -4466,14 +4647,17 @@ const OrderHistory = () => {
                                     variant="outlined"
                                     size="medium"
                                     color="info"
-                                    onClick={() => handleOpenTicketDialog(order.id)}
+                                    onClick={() =>
+                                      handleOpenTicketDialog(order.id)
+                                    }
                                     startIcon={<SupportAgentIcon />}
                                     sx={{
                                       borderColor: "#3b82f6",
                                       color: "#3b82f6",
                                       fontWeight: 600,
                                       "&:hover": {
-                                        backgroundColor: "rgba(59, 130, 246, 0.08)",
+                                        backgroundColor:
+                                          "rgba(59, 130, 246, 0.08)",
                                         transform: "translateY(-1px)",
                                       },
                                     }}
@@ -4492,19 +4676,44 @@ const OrderHistory = () => {
                               "INSTALLED",
                               "ORDER_COMPLETED",
                             ].includes(order.status) && (
-                              <ProductionProgressBar status={order.status} order={order} />
+                              <ProductionProgressBar
+                                status={order.status}
+                                order={order}
+                              />
                             )}
 
                             {/* Order Progress Bar - hiển thị cho các trạng thái từ PENDING_CONTRACT đến IN_PROGRESS */}
-                            {['PENDING_CONTRACT', 'CONTRACT_SENT', 'CONTRACT_SIGNED', 'CONTRACT_DISCUSS', 
-                              'CONTRACT_RESIGNED', 'CONTRACT_CONFIRMED', 'DEPOSITED', 'IN_PROGRESS'].includes(order.status) && (
-                              <OrderProgressBar status={order.status} order={order} compact={true} />
+                            {[
+                              "PENDING_CONTRACT",
+                              "CONTRACT_SENT",
+                              "CONTRACT_SIGNED",
+                              "CONTRACT_DISCUSS",
+                              "CONTRACT_RESIGNED",
+                              "CONTRACT_CONFIRMED",
+                              "DEPOSITED",
+                              "IN_PROGRESS",
+                            ].includes(order.status) && (
+                              <OrderProgressBar
+                                status={order.status}
+                                order={order}
+                                compact={true}
+                              />
                             )}
 
                             {/* Design Progress Bar - hiển thị cho các trạng thái thiết kế */}
-                            {['PENDING_DESIGN', 'NEED_DEPOSIT_DESIGN', 'DEPOSITED_DESIGN', 'NEED_FULLY_PAID_DESIGN', 
-                              'WAITING_FINAL_DESIGN', 'DESIGN_COMPLETED'].includes(order.status) && (
-                              <DesignProgressBar status={order.status} order={order} compact={true} />
+                            {[
+                              "PENDING_DESIGN",
+                              "NEED_DEPOSIT_DESIGN",
+                              "DEPOSITED_DESIGN",
+                              "NEED_FULLY_PAID_DESIGN",
+                              "WAITING_FINAL_DESIGN",
+                              "DESIGN_COMPLETED",
+                            ].includes(order.status) && (
+                              <DesignProgressBar
+                                status={order.status}
+                                order={order}
+                                compact={true}
+                              />
                             )}
 
                             {/* Order Details Section */}
@@ -4530,7 +4739,7 @@ const OrderHistory = () => {
                                   fontSize: "1.25rem",
                                 }}
                               >
-                                #{order.orderCode || order.id}
+                                Mã Đơn: {order.orderCode || order.id}
                               </Typography>
 
                               {(order.orderType ===
@@ -4912,13 +5121,19 @@ const OrderHistory = () => {
                               )}
 
                               {/* Thông tin đơn vị thi công */}
-                              {order.contractors?.id && (order.estimatedDeliveryDate || order.deliveryDate) && (
-                                <ContractorInfo 
-                                  order={order}
-                                  contractorInfo={getContractorInfo(order.contractors.id)}
-                                  loading={isLoadingContractorInfo(order.contractors.id)}
-                                />
-                              )}
+                              {order.contractors?.id &&
+                                (order.estimatedDeliveryDate ||
+                                  order.deliveryDate) && (
+                                  <ContractorInfo
+                                    order={order}
+                                    contractorInfo={getContractorInfo(
+                                      order.contractors.id
+                                    )}
+                                    loading={isLoadingContractorInfo(
+                                      order.contractors.id
+                                    )}
+                                  />
+                                )}
 
                               {/* Hiển thị Order Details */}
                               {loadingDetails && (
@@ -5380,16 +5595,19 @@ const OrderHistory = () => {
                                     fontSize: "0.875rem",
                                     padding: "8px 20px",
                                     borderRadius: "8px",
-                                    boxShadow: "0 2px 8px rgba(255, 138, 128, 0.3)",
+                                    boxShadow:
+                                      "0 2px 8px rgba(255, 138, 128, 0.3)",
                                     transition: "all 0.2s ease",
                                     "&:hover": {
                                       background: "#ff6b6b",
-                                      boxShadow: "0 4px 12px rgba(255, 138, 128, 0.4)",
+                                      boxShadow:
+                                        "0 4px 12px rgba(255, 138, 128, 0.4)",
                                       transform: "translateY(-1px)",
                                     },
                                     "&:active": {
                                       transform: "translateY(0px)",
-                                      boxShadow: "0 1px 4px rgba(255, 138, 128, 0.3)",
+                                      boxShadow:
+                                        "0 1px 4px rgba(255, 138, 128, 0.3)",
                                     },
                                     "&:disabled": {
                                       background: "#ccc",
@@ -5415,7 +5633,8 @@ const OrderHistory = () => {
                                           display: "inline-flex",
                                           alignItems: "center",
                                           gap: 0.5,
-                                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+                                          textShadow:
+                                            "0 1px 2px rgba(0, 0, 0, 0.3)",
                                         }}
                                       >
                                         ĐẶT CỌC THIẾT KẾ
@@ -5441,16 +5660,19 @@ const OrderHistory = () => {
                                     fontSize: "0.875rem",
                                     padding: "8px 20px",
                                     borderRadius: "8px",
-                                    boxShadow: "0 2px 8px rgba(247, 21, 0, 0.3)",
+                                    boxShadow:
+                                      "0 2px 8px rgba(247, 21, 0, 0.3)",
                                     transition: "all 0.2s ease",
                                     "&:hover": {
                                       background: "#ff6b6b",
-                                      boxShadow: "0 4px 12px rgba(235, 69, 54, 0.4)",
+                                      boxShadow:
+                                        "0 4px 12px rgba(235, 69, 54, 0.4)",
                                       transform: "translateY(-1px)",
                                     },
                                     "&:active": {
                                       transform: "translateY(0px)",
-                                      boxShadow: "0 1px 4px rgba(255, 138, 128, 0.3)",
+                                      boxShadow:
+                                        "0 1px 4px rgba(255, 138, 128, 0.3)",
                                     },
                                     "&:disabled": {
                                       background: "#ccc",
@@ -5476,7 +5698,8 @@ const OrderHistory = () => {
                                           display: "inline-flex",
                                           alignItems: "center",
                                           gap: 0.5,
-                                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+                                          textShadow:
+                                            "0 1px 2px rgba(0, 0, 0, 0.3)",
                                         }}
                                       >
                                         THANH TOÁN ĐỦ THIẾT KẾ
@@ -5560,16 +5783,29 @@ const OrderHistory = () => {
                               >
                                 <StarIcon /> Chia sẻ trải nghiệm của bạn
                               </Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                🎉 Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi! Hãy chia sẻ trải nghiệm
-                                của bạn để giúp chúng tôi cải thiện chất lượng dịch vụ.
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 2 }}
+                              >
+                                🎉 Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!
+                                Hãy chia sẻ trải nghiệm của bạn để giúp chúng
+                                tôi cải thiện chất lượng dịch vụ.
                               </Typography>
                               <Button
                                 variant="contained"
                                 color="primary"
                                 startIcon={<FeedbackIcon />}
-                                onClick={() => handleOpenImpressionDialog(order.id)}
-                                sx={{ borderRadius: 2, fontWeight: 600, textTransform: "none", boxShadow: 2, "&:hover": { boxShadow: 4 } }}
+                                onClick={() =>
+                                  handleOpenImpressionDialog(order.id)
+                                }
+                                sx={{
+                                  borderRadius: 2,
+                                  fontWeight: 600,
+                                  textTransform: "none",
+                                  boxShadow: 2,
+                                  "&:hover": { boxShadow: 4 },
+                                }}
                               >
                                 Đánh giá đơn hàng
                               </Button>
@@ -5906,7 +6142,8 @@ const OrderHistory = () => {
                         </Box>
                       )}
 
-                      {(req.status === "ASSIGNED_DESIGNER" || req.status === "PROCESSING") && (
+                      {(req.status === "ASSIGNED_DESIGNER" ||
+                        req.status === "PROCESSING") && (
                         <Box
                           sx={{
                             p: 2,
@@ -9579,7 +9816,8 @@ const OrderHistory = () => {
                   color="text.secondary"
                   sx={{ ml: 1 }}
                 >
-                  ({imageDialog.currentIndex + 1}/{imageDialog.allImages.length})
+                  ({imageDialog.currentIndex + 1}/{imageDialog.allImages.length}
+                  )
                 </Typography>
               )}
             </Typography>
@@ -9721,8 +9959,13 @@ const OrderHistory = () => {
                     >
                       <ArrowBackIcon />
                     </IconButton>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                      Ảnh {imageDialog.currentIndex + 1} / {imageDialog.allImages.length}
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontWeight: 500 }}
+                    >
+                      Ảnh {imageDialog.currentIndex + 1} /{" "}
+                      {imageDialog.allImages.length}
                     </Typography>
                     <IconButton
                       onClick={handleNextImage}
@@ -9904,15 +10147,20 @@ const OrderHistory = () => {
           </DialogTitle>
           <DialogContent sx={{ p: 4 }}>
             {/* Hướng dẫn chung */}
-            <Box sx={{ 
-              mt: 2,
-              mb: 3, 
-              p: 3, 
-              bgcolor: '#f8fafc', 
-              borderRadius: 2, 
-              border: '1px solid #e2e8f0' 
-            }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b', mb: 2 }}>
+            <Box
+              sx={{
+                mt: 2,
+                mb: 3,
+                p: 3,
+                bgcolor: "#f8fafc",
+                borderRadius: 2,
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "#1e293b", mb: 2 }}
+              >
                 Hướng dẫn gửi yêu cầu hỗ trợ
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -9938,23 +10186,23 @@ const OrderHistory = () => {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  bgcolor: '#f8fafc',
+                  bgcolor: "#f8fafc",
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    bgcolor: '#f1f5f9',
+                    bgcolor: "#f1f5f9",
                   },
                   "&.Mui-focused": {
-                    bgcolor: 'white',
+                    bgcolor: "white",
                     boxShadow: "0 0 0 2px rgba(30, 41, 59, 0.1)",
                   },
                 },
                 "& .MuiFormHelperText-root": {
-                  color: '#64748b',
-                  fontSize: '0.875rem'
-                }
+                  color: "#64748b",
+                  fontSize: "0.875rem",
+                },
               }}
             />
-            
+
             <TextField
               label="Mô tả chi tiết vấn đề"
               value={ticketDescription}
@@ -9969,42 +10217,46 @@ const OrderHistory = () => {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
-                  bgcolor: '#f8fafc',
+                  bgcolor: "#f8fafc",
                   transition: "all 0.3s ease",
                   "&:hover": {
-                    bgcolor: '#f1f5f9',
+                    bgcolor: "#f1f5f9",
                   },
                   "&.Mui-focused": {
-                    bgcolor: 'white',
+                    bgcolor: "white",
                     boxShadow: "0 0 0 2px rgba(30, 41, 59, 0.1)",
                   },
                 },
                 "& .MuiFormHelperText-root": {
-                  color: '#64748b',
-                  fontSize: '0.875rem'
-                }
+                  color: "#64748b",
+                  fontSize: "0.875rem",
+                },
               }}
             />
 
             {/* Ví dụ mẫu */}
-            <Box sx={{ 
-              mt: 3, 
-              p: 3, 
-              bgcolor: '#eff6ff', 
-              borderRadius: 2, 
-              border: '1px solid #bfdbfe' 
-            }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e40af', mb: 2 }}>
+            <Box
+              sx={{
+                mt: 3,
+                p: 3,
+                bgcolor: "#eff6ff",
+                borderRadius: 2,
+                border: "1px solid #bfdbfe",
+              }}
+            >
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, color: "#1e40af", mb: 2 }}
+              >
                 Ví dụ các chủ đề hỗ trợ phổ biến:
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 {[
-                  'Chính sách bảo hành',
-                  'Chính sách thanh toán', 
-                  'Thời gian giao hàng',
-                  'Chất lượng sản phẩm',
-                  'Thay đổi đơn hàng',
-                
+                  "Chính sách bảo hành",
+                  "Chính sách thanh toán",
+                  "Thời gian giao hàng",
+                  "Chất lượng sản phẩm",
+                  "Thay đổi đơn hàng",
                 ].map((topic, index) => (
                   <Chip
                     key={index}
@@ -10012,14 +10264,14 @@ const OrderHistory = () => {
                     size="small"
                     onClick={() => setTicketTitle(topic)}
                     sx={{
-                      bgcolor: 'white',
-                      color: '#1e40af',
-                      border: '1px solid #bfdbfe',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: '#dbeafe',
-                        transform: 'translateY(-1px)'
-                      }
+                      bgcolor: "white",
+                      color: "#1e40af",
+                      border: "1px solid #bfdbfe",
+                      cursor: "pointer",
+                      "&:hover": {
+                        bgcolor: "#dbeafe",
+                        transform: "translateY(-1px)",
+                      },
                     }}
                   />
                 ))}
@@ -10056,7 +10308,7 @@ const OrderHistory = () => {
               </Alert>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 4, pt: 3, bgcolor: '#f8fafc', gap: 2 }}>
+          <DialogActions sx={{ p: 4, pt: 3, bgcolor: "#f8fafc", gap: 2 }}>
             <Button
               onClick={handleCloseTicketDialog}
               variant="outlined"
@@ -10096,8 +10348,8 @@ const OrderHistory = () => {
                 },
                 "&:disabled": {
                   bgcolor: "#94a3b8",
-                  color: "white"
-                }
+                  color: "white",
+                },
               }}
             >
               {createStatus === "loading" ? (

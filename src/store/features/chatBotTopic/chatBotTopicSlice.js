@@ -217,6 +217,12 @@ const chatBotTopicSlice = createSlice({
                 if (!state.chatBotTopics.find(item => item.id === action.payload.id)) {
                     state.chatBotTopics.push(action.payload);
                 }
+                // Cập nhật chatBotTopicsByModel nếu có modelChatBotId
+                if (action.payload.modelChatBotId && state.chatBotTopicsByModel[action.payload.modelChatBotId]) {
+                    if (!state.chatBotTopicsByModel[action.payload.modelChatBotId].find(item => item.id === action.payload.id)) {
+                        state.chatBotTopicsByModel[action.payload.modelChatBotId].push(action.payload);
+                    }
+                }
             })
             .addCase(addTopicFromExistingModel.rejected, (state, action) => {
                 state.createLoading = false;
