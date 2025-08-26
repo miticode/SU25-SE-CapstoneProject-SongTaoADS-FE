@@ -96,9 +96,9 @@ export const updateDesignTemplateImage = createAsyncThunk(
 // Async thunk for fetching all design templates
 export const fetchAllDesignTemplates = createAsyncThunk(
   'designTemplate/fetchAll',
-  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+  async ({ page = 1, size = 10, aspectRatio } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchAllDesignTemplatesApi(page, size);
+      const response = await fetchAllDesignTemplatesApi(page, size, aspectRatio);
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch all design templates');
       }

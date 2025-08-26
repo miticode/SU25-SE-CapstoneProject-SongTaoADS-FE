@@ -142,15 +142,14 @@ export const updateDesignTemplateImageApi = async (designTemplateId, file) => {
   }
 };
 
-// Lấy tất cả thiết kế mẫu
-export const fetchAllDesignTemplatesApi = async (page = 1, size = 10) => {
+// Lấy tất cả thiết kế mẫu (có thể filter theo aspectRatio: SQUARE | HORIZONTAL | VERTICAL)
+export const fetchAllDesignTemplatesApi = async (page = 1, size = 10, aspectRatio) => {
   try {
-    const response = await designTemplateService.get(`/api/design-templates`, {
-      params: {
-        page,
-        size
-      }
-    });
+    const params = { page, size };
+    if (aspectRatio && ["SQUARE", "HORIZONTAL", "VERTICAL"].includes(aspectRatio)) {
+      params.aspectRatio = aspectRatio;
+    }
+    const response = await designTemplateService.get(`/api/design-templates`, { params });
     const { success, result, message, currentPage, totalPages, pageSize, totalElements } = response.data;
     if (success) {
       return {

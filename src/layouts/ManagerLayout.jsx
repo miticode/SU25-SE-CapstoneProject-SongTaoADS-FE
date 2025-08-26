@@ -1056,10 +1056,12 @@ const ManagerLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 4,
-          background:
-            "linear-gradient(135deg, #f8fafc 0%, #e8f5e0 50%, #f1f8e9 100%)",
-          height: "calc(100vh - 64px)",
+          // top padding accounts for fixed AppBar height
+          pt: '90px',
+          px: 4,
+          pb: 4,
+          background: "linear-gradient(180deg, #eefcf0 0%, #e2f5e4 40%, #d7edd9 100%)",
+          minHeight: '100vh',
           overflow: "auto",
           position: "relative",
           marginLeft: !isMobile && open ? 0 : 0,
@@ -1088,8 +1090,7 @@ const ManagerLayout = () => {
           },
         }}
       >
-        <Toolbar sx={{ minHeight: "70px !important" }} />
-        <Box sx={{ position: "relative", zIndex: 1 }}>
+  <Box sx={{ position: "relative", zIndex: 1 }}>
           {activeTab === "order-management" && <OrderManager />}
           {activeTab === "product-type" && (
             <ProductTypeManager setActiveTab={setActiveTab} />

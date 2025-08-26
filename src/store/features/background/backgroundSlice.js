@@ -18,6 +18,20 @@ const initialState = {
   status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
   selectedBackground: null,
+  // Pagination metadata when filtering by attribute value (server-side)
+  backgroundPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0,
+  },
+  // Pagination for all backgrounds mode
+  allBackgroundsPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalElements: 0,
+  },
   // Thêm state cho edited design
   editedDesign: null,
   editedDesignStatus: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -135,19 +149,39 @@ export const fetchEditedDesignById = createAsyncThunk(
 // Thunk lấy tất cả background
 export const fetchAllBackgrounds = createAsyncThunk(
   "background/fetchAllBackgrounds",
-  async (_, { rejectWithValue }) => {
-    const response = await fetchAllBackgroundsApi();
-    if (!response.success) return rejectWithValue(response.error);
-    return response.data;
+  async (arg, { rejectWithValue }) => {
+    try {
+      let page = 1; let size = 10;
+      if (typeof arg === 'object' && arg) { page = arg.page || 1; size = arg.size || 10; }
+      const response = await fetchAllBackgroundsApi(page, size);
+      if (!response.success) return rejectWithValue(response.error);
+      return { data: response.data, pagination: response.pagination };
+    } catch (e) {
+      return rejectWithValue(e.message || 'Failed to fetch all backgrounds');
+    }
   }
 );
 // Thunk lấy background theo giá trị thuộc tính
 export const fetchBackgroundsByAttributeValueId = createAsyncThunk(
   "background/fetchBackgroundsByAttributeValueId",
-  async (attributeValueId, { rejectWithValue }) => {
-    const response = await fetchBackgroundsByAttributeValueIdApi(attributeValueId);
-    if (!response.success) return rejectWithValue(response.error);
-    return response.data;
+  async (arg, { rejectWithValue }) => {
+    try {
+      let attributeValueId;
+      let page = 1;
+      let size = 10;
+      if (typeof arg === 'object') {
+        attributeValueId = arg.attributeValueId;
+        page = arg.page || 1;
+        size = arg.size || 10;
+      } else {
+        attributeValueId = arg; // backward compatibility
+      }
+      const response = await fetchBackgroundsByAttributeValueIdApi(attributeValueId, page, size);
+      if (!response.success) return rejectWithValue(response.error);
+      return { data: response.data, pagination: response.pagination };
+    } catch (e) {
+      return rejectWithValue(e.message || 'Failed to fetch backgrounds');
+    }
   }
 );
 // Thunk tạo background mới
@@ -346,9 +380,13 @@ const backgroundSlice = createSlice({
       })
       .addCase(fetchBackgroundsByAttributeValueId.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.backgroundSuggestions = action.payload;
+        state.backgroundSuggestions = action.payload.data;
         state.error = null;
-        // Có thể lưu pagination nếu cần: state.pagination = action.payload.pagination;
+        if (action.payload.pagination) {
+          state.backgroundPagination = action.payload.pagination;
+        } else {
+          state.backgroundPagination = { currentPage:1, totalPages:1, pageSize: action.payload.data?.length || 10, totalElements: action.payload.data?.length || 0 };
+        }
       })
       .addCase(fetchBackgroundsByAttributeValueId.rejected, (state, action) => {
         state.status = 'failed';
@@ -401,8 +439,13 @@ const backgroundSlice = createSlice({
       })
       .addCase(fetchAllBackgrounds.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.backgroundSuggestions = action.payload;
+        state.backgroundSuggestions = action.payload.data;
         state.error = null;
+        if (action.payload.pagination) {
+          state.allBackgroundsPagination = action.payload.pagination;
+        } else {
+          state.allBackgroundsPagination = { currentPage:1, totalPages:1, pageSize: action.payload.data?.length || 10, totalElements: action.payload.data?.length || 0 };
+        }
       })
       .addCase(fetchAllBackgrounds.rejected, (state, action) => {
         state.status = 'failed';
@@ -462,6 +505,8 @@ export const selectBackgroundStatus = (state) => state.background.status;
 export const selectBackgroundError = (state) => state.background.error;
 export const selectSelectedBackground = (state) =>
   state.background.selectedBackground;
+export const selectBackgroundPagination = (state) => state.background.backgroundPagination;
+export const selectAllBackgroundsPagination = (state) => state.background.allBackgroundsPagination;
 
 // Helper selectors
 export const selectAvailableBackgrounds = (state) =>

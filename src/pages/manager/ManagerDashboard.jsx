@@ -236,7 +236,7 @@ const ManagerDashboard = () => {
 
   // Dashboard Content
   const renderDashboardContent = () => (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="p-6 min-h-full">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -898,7 +898,7 @@ const ManagerDashboard = () => {
 
   // Team Management Content
   const renderTeamContent = () => (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="p-6 min-h-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
@@ -923,7 +923,7 @@ const ManagerDashboard = () => {
 
   // Task Management Content
   const renderTasksContent = () => (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="p-6 min-h-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
@@ -948,7 +948,7 @@ const ManagerDashboard = () => {
 
   // Statistics Content
   const renderStatisticsContent = () => (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="p-6 min-h-full">
       <div className="mb-8">
         <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
           📊 Team Analytics & Statistics
@@ -1007,7 +1007,7 @@ const ManagerDashboard = () => {
 
   // Settings Content
   const renderSettingsContent = () => (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="p-6 min-h-full">
       <div className="mb-8">
         <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
           ⚙️ Team Settings
