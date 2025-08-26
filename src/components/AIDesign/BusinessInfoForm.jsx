@@ -341,7 +341,7 @@ const BusinessInfoForm = ({
           <motion.button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 hover:border-gray-400 transition-all duration-300 flex items-center justify-center"
+            className="cursor-pointer w-full sm:w-auto px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 hover:border-gray-400 transition-all duration-300 flex items-center justify-center"
             variants={itemVariants}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

@@ -595,7 +595,7 @@ const DesignEditor = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={applyLayout1}
-                    className="w-full p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all text-sm font-medium flex items-center justify-between group"
+                    className="cursor-pointer w-full p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all text-sm font-medium flex items-center justify-between group"
                   >
                     <div className="flex items-center">
                       <span className="mr-3 text-lg">📋</span>
@@ -612,7 +612,7 @@ const DesignEditor = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={applyLayout2}
-                    className="w-full p-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all text-sm font-medium flex items-center justify-between group"
+                    className="cursor-pointer w-full p-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all text-sm font-medium flex items-center justify-between group"
                   >
                     <div className="flex items-center">
                       <span className="mr-3 text-lg">📌</span>
@@ -629,7 +629,7 @@ const DesignEditor = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={applyLayout3}
-                    className="w-full p-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all text-sm font-medium flex items-center justify-between group"
+                    className="cursor-pointer w-full p-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all text-sm font-medium flex items-center justify-between group"
                   >
                     <div className="flex items-center">
                       <span className="mr-3 text-lg">📊</span>
@@ -671,7 +671,7 @@ const DesignEditor = ({
                     <Tooltip title="Kích thước thiết kế gốc">
                       <div className="hidden sm:block bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
                         <div className="flex items-center space-x-1">
-                          <FaExpandArrowsAlt className="text-blue-600 text-xs" />
+                          <FaExpandArrowsAlt className="text-blue-600 text-xs " />
                           <span className="text-xs font-semibold text-blue-800">
                             {pixelValueData.width}×{pixelValueData.height}px
                           </span>
@@ -765,7 +765,7 @@ const DesignEditor = ({
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={addText}
-                        className="p-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-all shadow-sm"
+                        className="cursor-pointer p-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-all shadow-sm"
                       >
                         <FaFont className="text-sm" />
                       </motion.button>
@@ -781,7 +781,7 @@ const DesignEditor = ({
                             loadIcons(1);
                           }
                         }}
-                        className="p-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all shadow-sm"
+                        className="cursor-pointer p-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all shadow-sm"
                       >
                         <FaPalette className="text-sm" />
                       </motion.button>
@@ -809,7 +809,7 @@ const DesignEditor = ({
                       whileTap={{ scale: hasActiveObject ? 0.95 : 1 }}
                       onClick={deleteSelectedObject}
                       disabled={!hasActiveObject}
-                      className={`p-2 rounded-md ${hasActiveObject ? "bg-red-500 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                      className={` p-2 rounded-md ${hasActiveObject ? "bg-red-500 text-white cursor-pointer" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                     >
                       <FaTrash />
                     </motion.button>
@@ -993,7 +993,7 @@ const DesignEditor = ({
               setCurrentStep(5);
             }
           }}
-          className="px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all shadow-lg flex items-center"
+          className="cursor-pointer px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-semibold rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all shadow-lg flex items-center"
         >
           <FaTimes className="mr-2" />
           Quay lại bước trước
@@ -1005,7 +1005,7 @@ const DesignEditor = ({
           whileTap={{ scale: 0.95 }}
           onClick={exportDesign}
           disabled={isExporting}
-          className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-green-700 transition-all shadow-lg flex items-center min-w-[200px] justify-center"
+          className="cursor-pointer px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-green-700 transition-all shadow-lg flex items-center min-w-[200px] justify-center"
         >
           {isExporting ? (
             <>
@@ -1032,7 +1032,7 @@ const DesignEditor = ({
           whileTap={{ scale: hasExportedInCurrentSession && !isOrdering ? 0.95 : 1 }}
           onClick={handleConfirm}
           disabled={!hasExportedInCurrentSession || isOrdering}
-          className={`px-8 py-4 font-semibold rounded-lg transition-all shadow-lg flex items-center min-w-[200px] justify-center ${
+          className={`cursor-pointer px-8 py-4 font-semibold rounded-lg transition-all shadow-lg flex items-center min-w-[200px] justify-center ${
             hasExportedInCurrentSession && !isOrdering
               ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700"
               : "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500 cursor-not-allowed"

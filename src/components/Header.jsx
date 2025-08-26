@@ -429,7 +429,7 @@ export default function Header() {
             <button
               onClick={() => onClose(alert.id)}
               className={`
-                p-1.5 rounded-full transition-all duration-200 
+                p-1.5 rounded-full transition-all duration-200 cursor-pointer
                 hover:bg-gray-100 hover:scale-110 active:scale-95
                 text-gray-400 hover:text-gray-600
                 focus:outline-none focus:ring-2 focus:ring-gray-300
@@ -559,7 +559,7 @@ export default function Header() {
 
         <div className="md:hidden">
           <button
-            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             <FaBars size={20} className="text-[#2B2F4A]" />
@@ -569,13 +569,13 @@ export default function Header() {
         <nav className="hidden md:flex space-x-1 items-center">
           <a
             href="/"
-            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group"
+            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group cursor-pointer"
           >
             <span className="relative z-10">Trang chủ</span>
             <div className="absolute inset-0 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           </a>
           <div className="relative group">
-            <button className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold flex items-center space-x-2 transition-all duration-300 hover:scale-105 relative">
+            <button className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold flex items-center space-x-2 transition-all duration-300 hover:scale-105 relative cursor-pointer">
               <span className="relative z-10">Giải pháp</span>
               <FaChevronDown
                 size={12}
@@ -587,19 +587,19 @@ export default function Header() {
               <div className="py-2">
                 <a
                   href="#"
-                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 transition-all duration-200 hover:text-[#2B2F4A] font-medium rounded-lg mx-2"
+                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 transition-all duration-200 hover:text-[#2B2F4A] font-medium rounded-lg mx-2 cursor-pointer"
                 >
                   🤖 Quảng cáo AI
                 </a>
                 <a
                   href="#"
-                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 transition-all duration-200 hover:text-[#2B2F4A] font-medium rounded-lg mx-2"
+                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 transition-all duration-200 hover:text-[#2B2F4A] font-medium rounded-lg mx-2 cursor-pointer"
                 >
                   📊 Phân tích dữ liệu
                 </a>
                 <a
                   href="#"
-                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 transition-all duration-200 hover:text-[#2B2F4A] font-medium rounded-lg mx-2"
+                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 transition-all duration-200 hover:text-[#2B2F4A] font-medium rounded-lg mx-2 cursor-pointer"
                 >
                   ⚡ Tối ưu hóa quảng cáo
                 </a>
@@ -608,21 +608,21 @@ export default function Header() {
           </div>
           <a
             href="/service"
-            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group"
+            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group cursor-pointer"
           >
             <span className="relative z-10">Dịch vụ</span>
             <div className="absolute inset-0 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           </a>
           <a
             href="/aboutus"
-            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group"
+            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group cursor-pointer"
           >
             <span className="relative z-10">Giới thiệu</span>
             <div className="absolute inset-0 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
           </a>
           <a
             href="/blog"
-            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group"
+            className="px-4 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-[#2B2F4A]/10 hover:to-[#3B4164]/10 text-gray-700 font-semibold transition-all duration-300 hover:scale-105 relative group cursor-pointer"
           >
             <span className="relative z-10">Blog</span>
             <div className="absolute inset-0 bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
@@ -645,7 +645,7 @@ export default function Header() {
             <>
               <button
                 onClick={() => navigate("/order-history")}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 title="Lịch sử đơn hàng"
               >
                 <ShoppingCartIcon />
@@ -658,7 +658,7 @@ export default function Header() {
                     e.stopPropagation();
                     toggleNotificationMenu();
                   }}
-                  className="relative p-3 rounded-full hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group transform hover:scale-110"
+                  className="cursor-pointer relative p-3 rounded-full hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 group transform hover:scale-110"
                   title="Thông báo"
                 >
                   <FaBell 
@@ -839,7 +839,7 @@ export default function Header() {
                   e.stopPropagation();
                   toggleUserMenu();
                 }}
-                className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
+                className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <UserAvatar size={20} />
                 <span className="font-medium text-gray-700">
@@ -853,28 +853,28 @@ export default function Header() {
                   <div className="py-1">
                     <Link
                       to="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       Thông tin cá nhân
                     </Link>
                     <Link
                       to="/payment-history"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       Lịch sử thanh toán
                     </Link>
                     <Link
                       to="/my-ticket"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       Lịch sử hỗ trợ
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                     >
                       Đăng xuất
                     </button>
@@ -884,16 +884,16 @@ export default function Header() {
             </div>
           ) : (
             <>
-              <Link
-                to="/auth/login"
-                className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
+                <Link
+                  to="/auth/login"
+                  className="px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                >
                 Đăng nhập
               </Link>
-              <Link
-                to="/auth/signup"
-                className="px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm"
-              >
+                <Link
+                  to="/auth/signup"
+                  className="px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+                >
                 Đăng ký
               </Link>
             </>
@@ -903,7 +903,7 @@ export default function Header() {
 
       {menuOpen && (
         <div className="md:hidden px-6 pb-4 bg-white space-y-3 text-gray-700 text-sm font-medium border-t border-gray-100 animate-fadeIn">
-          <a href="/" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/" className="block py-2 hover:text-[#2B2F4A] cursor-pointer">
             Trang chủ
           </a>
           <div className="py-2">
@@ -918,32 +918,32 @@ export default function Header() {
               <div className="mt-2 ml-4 space-y-2">
                 <a
                   href="#"
-                  className="block py-1 text-gray-600 hover:text-[#2B2F4A]"
+                  className="block py-1 text-gray-600 hover:text-[#2B2F4A] cursor-pointer"
                 >
                   Quảng cáo AI
                 </a>
                 <a
                   href="#"
-                  className="block py-1 text-gray-600 hover:text-[#2B2F4A]"
+                  className="block py-1 text-gray-600 hover:text-[#2B2F4A] cursor-pointer"
                 >
                   Phân tích dữ liệu
                 </a>
                 <a
                   href="#"
-                  className="block py-1 text-gray-600 hover:text-[#2B2F4A]"
+                  className="block py-1 text-gray-600 hover:text-[#2B2F4A] cursor-pointer"
                 >
                   Tối ưu hóa quảng cáo
                 </a>
               </div>
             </details>
           </div>
-          <a href="/service" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/service" className="block py-2 hover:text-[#2B2F4A] cursor-pointer">
             Dịch vụ
           </a>
-          <a href="/aboutus" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/aboutus" className="block py-2 hover:text-[#2B2F4A] cursor-pointer">
             Về chúng tôi
           </a>
-          <a href="/blog" className="block py-2 hover:text-[#2B2F4A]">
+          <a href="/blog" className="block py-2 hover:text-[#2B2F4A] cursor-pointer">
             Blog
           </a>
 
@@ -962,7 +962,7 @@ export default function Header() {
 
             {isAuthenticated ? (
               <div className="space-y-2">
-                <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md mb-2">
+                <div className=" flex items-center space-x-2 p-2 bg-gray-50 rounded-md mb-2">
                   <UserAvatar size={18} />
                   <span className="font-medium text-gray-700 text-sm">
                     {user?.fullName || user?.email || "Tài khoản"}
@@ -978,7 +978,7 @@ export default function Header() {
                       navigate('/notifications');
                       setMenuOpen(false);
                     }}
-                    className="flex items-center justify-between w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+                    className=" flex items-center justify-between w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center space-x-2">
                       <FaBell size={16} />
@@ -994,34 +994,34 @@ export default function Header() {
                 
                 <Link
                   to="/profile"
-                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center cursor-pointer"
                   onClick={() => setMenuOpen(false)}
                 >
                   Thông tin cá nhân
                 </Link>
                 <Link
                   to="/order-history"
-                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center cursor-pointer"
                   onClick={() => setMenuOpen(false)}
                 >
                   Lịch sử đơn hàng
                 </Link>
                 <Link
                   to="/payment-history"
-                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center cursor-pointer"
                   onClick={() => setMenuOpen(false)}
                 >
                   Lịch sử thanh toán
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center cursor-pointer"
                 >
                   Bảng điều khiển
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="block w-full px-4 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition-colors text-center"
+                  className="block w-full px-4 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition-colors text-center cursor-pointer"
                 >
                   Đăng xuất
                 </button>
@@ -1030,13 +1030,13 @@ export default function Header() {
               <>
                 <Link
                   to="/auth/login"
-                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center"
+                  className="block w-full px-4 py-2 border border-[#2B2F4A] text-[#2B2F4A] rounded-md text-sm font-medium hover:bg-gray-50 transition-colors mb-2 text-center cursor-pointer"
                 >
                   Đăng nhập
                 </Link>
                 <Link
                   to="/auth/signup"
-                  className="block w-full px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center"
+                  className="block w-full px-4 py-2 bg-custom-secondary text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity text-center cursor-pointer"
                 >
                   Đăng ký
                 </Link>
