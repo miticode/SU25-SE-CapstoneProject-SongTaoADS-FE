@@ -1614,8 +1614,9 @@ const ModernBillboardForm = ({
 
                     <Grid container spacing={2}>
                       {attrs.map((attr) => {
-                        const attributeValues =
-                          attributeValuesState[attr.id] || [];
+                        // Chỉ hiển thị các attribute value có isAvailable = true (yêu cầu case 4)
+                        const attributeValuesRaw = attributeValuesState[attr.id] || [];
+                        const attributeValues = attributeValuesRaw.filter((v) => v?.isAvailable);
                         const isLoadingValues =
                           attributeValuesStatusState[attr.id] === "loading";
                         // Get price for this attribute if available
