@@ -252,7 +252,7 @@ export const getStaffTickets = async (page = 1, size = 10) => {
 // Xem tất cả ticket theo trạng thái (cho sale)
 export const getTicketsByStatus = async (status, page = 1, size = 10) => {
   try {
-    const response = await ticketService.get('/api/tickets/customer', {
+    const response = await ticketService.get('/api/tickets', {
       params: { status, page, size }
     });
 

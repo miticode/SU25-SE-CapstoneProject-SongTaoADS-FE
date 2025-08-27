@@ -37,7 +37,7 @@ import {
   Avatar,
   Badge,
 } from "@mui/material";
-import { 
+import {
   Visibility as VisibilityIcon,
   SupportAgent as SupportAgentIcon,
   Assignment as AssignmentIcon,
@@ -60,6 +60,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchTicketsByStatus,
+  fetchAllTickets,
   selectTickets,
   selectTicketStatus,
   selectTicketError,
@@ -77,50 +78,140 @@ import S3Avatar from "../../components/S3Avatar";
 
 // Tạo mã ticket chuyên nghiệp
 const generateTicketCode = (ticket) => {
-     if (!ticket?.id || !ticket?.createdAt) return "SP-000000";
-  
+  if (!ticket?.id || !ticket?.createdAt) return "SP-000000";
+
   // Lấy 6 ký tự đầu của ID
   const idPart = ticket.id.substring(0, 6).toUpperCase();
-  
+
   // Tạo mã dựa trên ngày tạo (format: YYMMDD)
   const date = new Date(ticket.createdAt);
   const year = date.getFullYear().toString().slice(-2);
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  
-     return `SP-${year}${month}${day}-${idPart}`;
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+
+  return `SP-${year}${month}${day}-${idPart}`;
 };
 
 // Map trạng thái sang tiếng Việt và màu
 const getStatusDisplay = (status) => {
   switch (status) {
+    // Trạng thái ticket
     case "OPEN":
-      return "CHỜ XỬ LÍ";
+      return "Chờ xử lý";
     case "IN_PROGRESS":
-      return "ĐANG XỬ LÍ";
+      return "Đang xử lý";
     case "CLOSED":
-      return "ĐÃ XỬ LÍ";
+      return "Đã xử lý";
+    case "PENDING":
+      return "Chờ xử lý";
+    case "PROCESSING":
+      return "Đang xử lý";
+    case "COMPLETED":
+      return "Hoàn thành";
+    case "WAITING_CUSTOMER_APPROVAL":
+      return "Chờ khách hàng phê duyệt";
+    case "APPROVED":
+      return "Đã phê duyệt";
+    case "REJECTED":
+      return "Đã từ chối";
+
+    // Mức độ ưu tiên
+    case "HIGH":
+      return "Cao";
+    case "MEDIUM":
+      return "Trung bình";
+    case "LOW":
+      return "Thấp";
+    case "PRODUCTION":
+      return "Sản xuất";
+
+    // Loại đơn hàng
+    case "CUSTOM_DESIGN_WITH_CONSTRUCTION":
+      return "Thiết kế và thi công";
+    case "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION":
+      return "Thiết kế không thi công";
+    case "AI_DESIGN":
+      return "Thiết kế AI";
+
+    // Trạng thái thiết kế
+    case "PENDING_DESIGN":
+      return "Chờ thiết kế";
+    case "NEED_DEPOSIT_DESIGN":
+      return "Cần đặt cọc thiết kế";
+    case "DEPOSITED_DESIGN":
+      return "Đã đặt cọc thiết kế";
+    case "NEED_FULLY_PAID_DESIGN":
+      return "Cần thanh toán đủ thiết kế";
+    case "WAITING_FINAL_DESIGN":
+      return "Chờ thiết kế cuối cùng";
+    case "DESIGN_COMPLETED":
+      return "Thiết kế hoàn thành";
+    case "AWAITING_DESIGN":
+      return "Chờ thiết kế";
+    case "DESIGN_IN_PROGRESS":
+      return "Đang thiết kế";
+
+    // Trạng thái hợp đồng
+    case "PENDING_CONTRACT":
+      return "Chờ ký hợp đồng";
+    case "CONTRACT_SENT":
+      return "Đã gửi hợp đồng";
+    case "CONTRACT_SIGNED":
+      return "Đã ký hợp đồng";
+    case "CONTRACT_DISCUSS":
+      return "Thảo luận hợp đồng";
+    case "CONTRACT_RESIGNED":
+      return "Ký lại hợp đồng";
+    case "CONTRACT_CONFIRMED":
+      return "Xác nhận hợp đồng";
+
+    // Trạng thái sản xuất và thực hiện
+    case "DEPOSITED":
+      return "Đã đặt cọc";
+    case "PRODUCING":
+      return "Đang sản xuất";
+    case "PRODUCTION_COMPLETED":
+      return "Hoàn thành sản xuất";
+    case "DELIVERING":
+      return "Đang giao hàng";
+    case "INSTALLED":
+      return "Đã lắp đặt";
+    case "ORDER_COMPLETED":
+      return "Đơn hàng hoàn thành";
+    case "CANCELLED":
+      return "Đã hủy";
+
+    // Trạng thái thi công
+    case "NEED_DEPOSIT_CONSTRUCTION":
+      return "Cần đặt cọc thi công";
+    case "CONSTRUCTION_IN_PROGRESS":
+      return "Đang thi công";
+    case "CONSTRUCTION_COMPLETED":
+      return "Thi công hoàn thành";
+
+    // Trạng thái giao hàng và thanh toán
+    case "DELIVERED":
+      return "Đã giao hàng";
+    case "PAYMENT_PENDING":
+      return "Chờ thanh toán";
+    case "PAID":
+      return "Đã thanh toán";
+    case "REFUNDED":
+      return "Đã hoàn tiền";
+
     default:
       return status;
   }
 };
-const getStatusColor = (status) => {
-  switch (status) {
-    case "OPEN":
-      return "error"; // Đỏ - cần xử lý ngay
-    case "IN_PROGRESS":
-      return "warning"; // Cam - đang xử lý
-    case "CLOSED":
-      return "success"; // Xanh - hoàn thành
-    default:
-      return "default";
-  }
+const getStatusColor = () => {
+  return "default"; // Sử dụng màu mặc định cho tất cả trạng thái
 };
 
 const statusOptions = [
-  { value: "OPEN", label: "CHỜ XỬ LÍ" },
-  { value: "IN_PROGRESS", label: "ĐANG XỬ LÍ" },
-  { value: "CLOSED", label: "ĐÃ XỬ LÍ" },
+  { value: "ALL", label: "Tất cả" },
+  { value: "OPEN", label: "Chờ xử lý" },
+  { value: "IN_PROGRESS", label: "Đang xử lý" },
+  { value: "CLOSED", label: "Đã xử lý" },
 ];
 
 const TicketManager = () => {
@@ -138,7 +229,7 @@ const TicketManager = () => {
   const [open, setOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [report, setReport] = useState("");
-  const [filterStatus, setFilterStatus] = useState("OPEN");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -146,13 +237,22 @@ const TicketManager = () => {
   const [openDeliverySnackbar, setOpenDeliverySnackbar] = useState(false);
 
   useEffect(() => {
-    dispatch(
-      fetchTicketsByStatus({
-        status: filterStatus,
-        page: page + 1,
-        size: rowsPerPage,
-      })
-    );
+    if (filterStatus === "ALL") {
+      dispatch(
+        fetchAllTickets({
+          page: page + 1,
+          size: rowsPerPage,
+        })
+      );
+    } else {
+      dispatch(
+        fetchTicketsByStatus({
+          status: filterStatus,
+          page: page + 1,
+          size: rowsPerPage,
+        })
+      );
+    }
   }, [dispatch, filterStatus, page, rowsPerPage]);
 
   const handleView = (ticket) => {
@@ -227,35 +327,40 @@ const TicketManager = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       {/* Header Section */}
-      <Card sx={{ 
-        mb: 3, 
-        background: "linear-gradient(135deg, #030C20 0%, #030C20 50%, #030C20 100%)",
-        color: "white",
-        borderRadius: 3,      
-        overflow: "hidden",
-        position: "relative",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
+      <Card
+        sx={{
+          mb: 3,
+          background:
+            "linear-gradient(135deg, #030C20 0%, #030C20 50%, #030C20 100%)",
+          color: "white",
+          borderRadius: 3,
+          overflow: "hidden",
+          position: "relative",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `
             radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
             radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
           `,
-          pointerEvents: "none",
-        },
-      }}>
+            pointerEvents: "none",
+          },
+        }}
+      >
         <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
           <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-            <Avatar sx={{ 
-              bgcolor: "rgba(255, 255, 255, 0.2)", 
-              width: 56, 
-              height: 56,
-              border: "2px solid rgba(255, 255, 255, 0.3)"
-            }}>
+            <Avatar
+              sx={{
+                bgcolor: "rgba(255, 255, 255, 0.2)",
+                width: 56,
+                height: 56,
+                border: "2px solid rgba(255, 255, 255, 0.3)",
+              }}
+            >
               <SupportAgentIcon sx={{ fontSize: 28 }} />
             </Avatar>
             <Box>
@@ -263,14 +368,22 @@ const TicketManager = () => {
                 Quản lý Hỗ trợ Khách hàng
               </Typography>
               <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                Theo dõi và xử lý các yêu cầu hỗ trợ từ khách hàng
+                Theo dõi và xử lý các yêu cầu hỗ trợ từ khách hàng - Có thể xem
+                tất cả hoặc lọc theo trạng thái
               </Typography>
             </Box>
           </Stack>
-          
-          <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
+
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={2}
+            flexWrap="wrap"
+          >
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel sx={{ color: "rgba(255, 255, 255, 0.8)" }}>Trạng thái</InputLabel>
+              <InputLabel sx={{ color: "rgba(255, 255, 255, 0.8)" }}>
+                Trạng thái
+              </InputLabel>
               <Select
                 value={filterStatus}
                 label="Trạng thái"
@@ -295,17 +408,26 @@ const TicketManager = () => {
                 ))}
               </Select>
             </FormControl>
-            
+
             <Tooltip title="Làm mới danh sách" arrow>
               <IconButton
                 onClick={() => {
-                  dispatch(
-                    fetchTicketsByStatus({
-                      status: filterStatus,
-                      page: page + 1,
-                      size: rowsPerPage,
-                    })
-                  );
+                  if (filterStatus === "ALL") {
+                    dispatch(
+                      fetchAllTickets({
+                        page: page + 1,
+                        size: rowsPerPage,
+                      })
+                    );
+                  } else {
+                    dispatch(
+                      fetchTicketsByStatus({
+                        status: filterStatus,
+                        page: page + 1,
+                        size: rowsPerPage,
+                      })
+                    );
+                  }
                 }}
                 sx={{
                   bgcolor: "rgba(255, 255, 255, 0.1)",
@@ -323,39 +445,64 @@ const TicketManager = () => {
           </Stack>
         </CardContent>
       </Card>
-      <Card sx={{ borderRadius: 3, overflow: "hidden", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)" }}>
+      <Card
+        sx={{
+          borderRadius: 3,
+          overflow: "hidden",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+        }}
+      >
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow sx={{ background: "#030C20" }}>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                <TableCell
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}
+                >
                   Mã Hỗ trợ
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                <TableCell
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}
+                >
                   Mã Đơn Hàng
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                <TableCell
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}
+                >
                   Khách hàng
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                <TableCell
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}
+                >
                   Loại hỗ trợ
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                <TableCell
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}
+                >
                   Trạng thái
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}>
+                <TableCell
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", color: "white" }}
+                >
                   Ngày tạo
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.95rem", textAlign: "center", color: "white" }}>
+                <TableCell
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: "0.95rem",
+                    textAlign: "center",
+                    color: "white",
+                  }}
+                >
                   Hành động
                 </TableCell>
               </TableRow>
             </TableHead>
-                       <TableBody>
+            <TableBody>
               {tickets && tickets.length > 0 ? (
                 tickets.map((tk) => (
-                  <TableRow 
-                    key={tk.id} 
+                  <TableRow
+                    key={tk.id}
                     hover
                     sx={{
                       "&:hover": {
@@ -368,12 +515,16 @@ const TicketManager = () => {
                       },
                     }}
                   >
-                    <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>
-                      <Typography variant="body2" fontWeight="bold" color="primary.main">
+                    <TableCell sx={{ fontWeight: 600, color: "primary.main" }}>
+                      <Typography
+                        variant="body2"
+                        fontWeight="bold"
+                        color="primary.main"
+                      >
                         {generateTicketCode(tk)}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>
+                    <TableCell sx={{ color: "text.secondary" }}>
                       <Typography variant="body2" color="text.secondary">
                         {tk.orders?.orderCode || "N/A"}
                       </Typography>
@@ -385,14 +536,19 @@ const TicketManager = () => {
                           sx={{
                             width: 32,
                             height: 32,
-                            background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
-                            fontSize: "0.8rem"
+                            background:
+                              "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                            fontSize: "0.8rem",
                           }}
                         >
-                          {(tk.customer?.fullName || tk.customer || "K").charAt(0).toUpperCase()}
+                          {(tk.customer?.fullName || tk.customer || "K")
+                            .charAt(0)
+                            .toUpperCase()}
                         </S3Avatar>
                         <Typography variant="body2" fontWeight="medium">
-                          {tk.customer?.fullName || tk.customer || "Chưa có thông tin"}
+                          {tk.customer?.fullName ||
+                            tk.customer ||
+                            "Chưa có thông tin"}
                         </Typography>
                       </Stack>
                     </TableCell>
@@ -422,8 +578,8 @@ const TicketManager = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Xem chi tiết" arrow>
-                        <IconButton 
-                          color="primary" 
+                        <IconButton
+                          color="primary"
                           onClick={() => handleView(tk)}
                           sx={{
                             bgcolor: "rgba(25, 118, 210, 0.1)",
@@ -444,8 +600,14 @@ const TicketManager = () => {
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
                     <Box sx={{ textAlign: "center" }}>
-                      <SupportAgentIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
-                      <Typography variant="h6" color="text.secondary" gutterBottom>
+                      <SupportAgentIcon
+                        sx={{ fontSize: 64, color: "text.disabled", mb: 2 }}
+                      />
+                      <Typography
+                        variant="h6"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         Không có yêu cầu hỗ trợ nào
                       </Typography>
                       <Typography variant="body2" color="text.disabled">
@@ -456,10 +618,10 @@ const TicketManager = () => {
                 </TableRow>
               )}
             </TableBody>
-                  </Table>
+          </Table>
         </TableContainer>
       </Card>
-      
+
       <Box sx={{ mt: 2 }}>
         <TablePagination
           component="div"
@@ -472,26 +634,30 @@ const TicketManager = () => {
         />
       </Box>
       {/* Dialog chi tiết hỗ trợ */}
-      <Dialog 
-        open={open} 
-        onClose={handleClose} 
-        maxWidth="md" 
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
         fullWidth
         TransitionComponent={Fade}
         TransitionProps={{ timeout: 300 }}
         PaperProps={{
           sx: {
             borderRadius: 3,
-            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-          }
+            boxShadow:
+              "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          },
         }}
       >
-        <DialogTitle sx={{ 
-          background: "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
-          color: "white",
-          fontWeight: 700,
-          fontSize: "1.5rem",
-        }}>
+        <DialogTitle
+          sx={{
+            background:
+              "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
+            color: "white",
+            fontWeight: 700,
+            fontSize: "1.5rem",
+          }}
+        >
           <Stack direction="row" alignItems="center" spacing={2}>
             <SupportAgentIcon sx={{ fontSize: 28 }} />
             <Typography variant="h6" component="div">
@@ -510,114 +676,154 @@ const TicketManager = () => {
               <CircularProgress />
             </Box>
           ) : (
-            <Box mb={2}>
+            <Box sx={{ mt: 2 }}>
               {/* Thông tin cơ bản */}
-                             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
-                 Thông tin Yêu cầu Hỗ trợ
-               </Typography>
-              
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                                 <Box>
-                   <Typography variant="subtitle2" color="text.secondary">
-                     Mã Hỗ trợ
-                   </Typography>
-                   <Typography variant="body1" sx={{ fontWeight: 500, color: 'primary.main' }}>
-                     {generateTicketCode(ticketDetail)}
-                   </Typography>
-                 </Box>
-                
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+              >
+                Thông tin yêu cầu hỗ trợ
+              </Typography>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 2,
+                  mb: 2,
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Mã hỗ trợ
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{ fontWeight: 600, color: "primary.main" }}
+                  >
+                    {generateTicketCode(ticketDetail)}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Trạng thái
                   </Typography>
                   <Chip
                     label={getStatusDisplay(ticketDetail.status)}
                     color={getStatusColor(ticketDetail.status)}
+                    size="small"
                     sx={{ mt: 0.5, fontWeight: 600 }}
                   />
                 </Box>
               </Box>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 2,
+                  mb: 2,
+                }}
+              >
                 <Box>
-                                     <Typography variant="subtitle2" color="text.secondary">
-                     Loại hỗ trợ
-                   </Typography>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Loại hỗ trợ
+                  </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
                     {ticketDetail.title || ticketDetail.type}
                   </Typography>
                 </Box>
-                
+
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Mức độ ưu tiên
                   </Typography>
                   <Chip
-                    label={ticketDetail.severity}
-                    color={ticketDetail.severity === 'HIGH' ? 'error' : ticketDetail.severity === 'MEDIUM' ? 'warning' : 'info'}
+                    label={getStatusDisplay(ticketDetail.severity)}
+                    color={getStatusColor(ticketDetail.severity)}
                     size="small"
-                    sx={{ mt: 0.5 }}
+                    sx={{ mt: 0.5, fontWeight: 600 }}
                   />
                 </Box>
               </Box>
 
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary">
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600, mb: 1 }}
+                >
                   Mô tả vấn đề
                 </Typography>
-                <Typography variant="body1" sx={{ 
-                  backgroundColor: 'grey.50', 
-                  p: 1.5, 
-                  borderRadius: 1, 
-                  border: '1px solid',
-                  borderColor: 'grey.200',
-                  mt: 0.5
-                }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    backgroundColor: "grey.50",
+                    p: 2,
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: "grey.200",
+                    lineHeight: 1.6,
+                  }}
+                >
                   {ticketDetail.description}
                 </Typography>
               </Box>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Ngày tạo
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {new Date(ticketDetail.createdAt).toLocaleString("vi-VN")}
-                  </Typography>
-                </Box>
-                
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Cập nhật lần cuối
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {new Date(ticketDetail.updatedAt).toLocaleString("vi-VN")}
-                  </Typography>
-                </Box>
-              </Box>
+              <Divider sx={{ my: 3 }} />
 
               {/* Thông tin khách hàng */}
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, mt: 3 }}>
-                Thông tin Khách hàng
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+              >
+                Thông tin khách hàng
               </Typography>
-              
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  mb: 2,
+                  p: 2,
+                  bgcolor: "grey.50",
+                  borderRadius: 1,
+                }}
+              >
                 <S3Avatar
                   s3Key={ticketDetail.customer?.avatar}
                   sx={{
-                    width: 64,
-                    height: 64,
+                    width: 50,
+                    height: 50,
                     mr: 2,
-                    background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
-                    fontSize: "1.5rem",
+                    background:
+                      "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
+                    fontSize: "1.2rem",
                     fontWeight: 600,
                   }}
                 >
-                  {ticketDetail.customer?.fullName?.charAt(0)?.toUpperCase() || "K"}
+                  {ticketDetail.customer?.fullName?.charAt(0)?.toUpperCase() ||
+                    "K"}
                 </S3Avatar>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
                     {ticketDetail.customer?.fullName}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -625,136 +831,228 @@ const TicketManager = () => {
                   </Typography>
                 </Box>
               </Box>
-              
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Số điện thoại
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.customer?.phone}
+                    {ticketDetail.customer?.phone || "Chưa cập nhật"}
                   </Typography>
                 </Box>
-                
+
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Địa chỉ
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.customer?.address || 'Chưa cập nhật'}
+                    {ticketDetail.customer?.address || "Chưa cập nhật"}
                   </Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Số điện thoại
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.customer?.phone}
-                  </Typography>
-                </Box>
-                
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Địa chỉ
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.customer?.address || 'Chưa cập nhật'}
-                  </Typography>
-                </Box>
-              </Box>
+              <Divider sx={{ my: 3 }} />
 
               {/* Thông tin đơn hàng */}
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, mt: 3 }}>
-                Thông tin Đơn hàng
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+              >
+                Thông tin đơn hàng
               </Typography>
-              
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 2,
+                  mb: 2,
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Mã đơn hàng
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500, color: 'primary.main' }}>
+                  <Typography
+                    variant="body1"
+                    sx={{ fontWeight: 600, color: "primary.main" }}
+                  >
                     {ticketDetail.orders?.orderCode}
                   </Typography>
                 </Box>
-                
+
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Loại đơn hàng
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.orders?.orderType}
+                    {getStatusDisplay(ticketDetail.orders?.orderType)}
                   </Typography>
                 </Box>
               </Box>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Trạng thái đơn hàng
-                  </Typography>
-                  <Chip
-                    label={ticketDetail.orders?.status}
-                    color={ticketDetail.orders?.status === 'PENDING_CONTRACT' ? 'warning' : 'success'}
-                    size="small"
-                    sx={{ mt: 0.5 }}
-                  />
-                </Box>
-                
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Địa chỉ giao hàng
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {ticketDetail.orders?.address}
-                  </Typography>
-                </Box>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Trạng thái đơn hàng
+                </Typography>
+                <Chip
+                  label={getStatusDisplay(ticketDetail.orders?.status)}
+                  color={getStatusColor(ticketDetail.orders?.status)}
+                  size="small"
+                  sx={{ mt: 0.5, fontWeight: 600 }}
+                />
               </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Địa chỉ giao hàng
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  {ticketDetail.orders?.address}
+                </Typography>
+              </Box>
+
+              {ticketDetail.orders?.note && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, mb: 1 }}
+                  >
+                    Ghi chú đơn hàng
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      backgroundColor: "warning.50",
+                      p: 2,
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "warning.200",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {ticketDetail.orders.note}
+                  </Typography>
+                </Box>
+              )}
+
+              <Divider sx={{ my: 3 }} />
 
               {/* Thông tin tài chính */}
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, mt: 3 }}>
-                Thông tin Tài chính
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+              >
+                Thông tin tài chính
               </Typography>
-              
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Tổng tiền đơn hàng
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    {ticketDetail.orders?.totalOrderAmount?.toLocaleString('vi-VN')} VNĐ
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 700,
+                      color: "black",
+                      fontSize: "1.1rem",
+                    }}
+                  >
+                    {ticketDetail.orders?.totalOrderAmount?.toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    VNĐ
                   </Typography>
                 </Box>
-                
+
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Đã đặt cọc
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
-                    {ticketDetail.orders?.totalOrderDepositAmount?.toLocaleString('vi-VN')} VNĐ
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 700,
+                      color: "black",
+                      fontSize: "1.1rem",
+                    }}
+                  >
+                    {ticketDetail.orders?.totalOrderDepositAmount?.toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    VNĐ
                   </Typography>
                 </Box>
-              </Box>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600 }}
+                  >
                     Còn lại
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, color: 'warning.main' }}>
-                    {ticketDetail.orders?.totalOrderRemainingAmount?.toLocaleString('vi-VN')} VNĐ
-                  </Typography>
-                </Box>
-                
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Ngày tạo đơn hàng
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {new Date(ticketDetail.orders?.createdAt).toLocaleString("vi-VN")}
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 700,
+                      color: "black",
+                      fontSize: "1.1rem",
+                    }}
+                  >
+                    {ticketDetail.orders?.totalOrderRemainingAmount?.toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    VNĐ
                   </Typography>
                 </Box>
               </Box>
@@ -762,27 +1060,77 @@ const TicketManager = () => {
               {/* Thông tin thiết kế */}
               {ticketDetail.orders?.totalDesignAmount > 0 && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, mt: 3 }}>
-                    Thông tin Thiết kế
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+                  >
+                    Thông tin thiết kế
                   </Typography>
-                  
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền thiết kế
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                        {ticketDetail.orders?.totalDesignAmount?.toLocaleString('vi-VN')} VNĐ
-                      </Typography>
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Đã đặt cọc thiết kế
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
-                        {ticketDetail.orders?.depositDesignAmount?.toLocaleString('vi-VN')} VNĐ
-                      </Typography>
+
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: "1px solid #e0e0e0",
+                      borderRadius: 1,
+                      backgroundColor: "#f9f9f9",
+                      mb: 3,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: 3,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Box sx={{ flex: 1, minWidth: "200px" }}>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Tổng tiền thiết kế
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 700,
+                            color: "black",
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {ticketDetail.orders?.totalDesignAmount?.toLocaleString(
+                            "vi-VN"
+                          )}{" "}
+                          VNĐ
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ flex: 1, minWidth: "200px" }}>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Đã đặt cọc thiết kế
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 700,
+                            color: "black",
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {ticketDetail.orders?.depositDesignAmount?.toLocaleString(
+                            "vi-VN"
+                          )}{" "}
+                          VNĐ
+                        </Typography>
+                      </Box>
                     </Box>
                   </Box>
                 </>
@@ -791,213 +1139,316 @@ const TicketManager = () => {
               {/* Thông tin xây dựng */}
               {ticketDetail.orders?.totalConstructionAmount > 0 && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, mt: 3 }}>
-                    Thông tin Xây dựng
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+                  >
+                    Thông tin thi công
                   </Typography>
-                  
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Tổng tiền xây dựng
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                        {ticketDetail.orders?.totalConstructionAmount?.toLocaleString('vi-VN')} VNĐ
-                      </Typography>
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Đã đặt cọc xây dựng
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
-                        {ticketDetail.orders?.depositConstructionAmount?.toLocaleString('vi-VN')} VNĐ
-                      </Typography>
+
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: "1px solid #e0e0e0",
+                      borderRadius: 1,
+                      backgroundColor: "#f0f7ff",
+                      mb: 2,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: 3,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Box sx={{ flex: 1, minWidth: "200px" }}>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Tổng tiền thi công
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 700,
+                            color: "black",
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {ticketDetail.orders?.totalConstructionAmount?.toLocaleString(
+                            "vi-VN"
+                          )}{" "}
+                          VNĐ
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ flex: 1, minWidth: "200px" }}>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Đã đặt cọc thi công
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 700,
+                            color: "black",
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {ticketDetail.orders?.depositConstructionAmount?.toLocaleString(
+                            "vi-VN"
+                          )}{" "}
+                          VNĐ
+                        </Typography>
+                      </Box>
                     </Box>
                   </Box>
 
-                  {/* Thông tin nhà thầu */}
+                  {/* Thông tin Dơn vị */}
                   {ticketDetail.orders?.contractors && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Nhà thầu thi công
+                    <Box sx={{ mb: 3 }}>
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600, mb: 1 }}
+                      >
+                        Đơn vị thi công
                       </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {ticketDetail.orders.contractors.companyName || ticketDetail.orders.contractors.fullName}
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          backgroundColor: "info.50",
+                          p: 2,
+                          borderRadius: 1,
+                          border: "1px solid",
+                          borderColor: "info.200",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {ticketDetail.orders.contractors.name || ""}
                       </Typography>
                     </Box>
                   )}
                 </>
               )}
 
-              {/* Ghi chú đơn hàng */}
-              {ticketDetail.orders?.note && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Ghi chú đơn hàng
-                  </Typography>
-                  <Typography variant="body1" sx={{ 
-                    backgroundColor: 'grey.50', 
-                    p: 1.5, 
-                    borderRadius: 1, 
-                    border: '1px solid',
-                    borderColor: 'grey.200',
-                    mt: 0.5
-                  }}>
-                    {ticketDetail.orders.note}
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Thông tin Staff xử lý - chỉ hiển thị khi severity = PRODUCTION và có staff */}
+              {/* Thông tin Staff xử lý */}
               {ticketDetail.severity === "PRODUCTION" && ticketDetail.staff && (
-                <Box sx={{ 
-                  mt: 3, 
-                  p: 3, 
-                  backgroundColor: 'primary.50', 
-                  borderRadius: 2,
-                  border: '2px solid',
-                  borderColor: 'primary.200',
-                  position: 'relative',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '4px',
-                    backgroundColor: 'primary.main',
-                    borderRadius: '2px 2px 0 0'
-                  }
-                }}>
-                  <Typography variant="h6" sx={{ 
-                    mb: 3, 
-                    color: 'primary.main', 
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <Box component="span" sx={{ 
-                      width: 8, 
-                      height: 8, 
-                      borderRadius: '50%', 
-                      backgroundColor: 'primary.main',
-                      display: 'inline-block'
-                    }} />
-                    Thông tin Staff xử lý
+                <>
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+                  >
+                    Staff xử lý
                   </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        Họ tên Staff
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.dark' }}>
-                        {ticketDetail.staff.fullName}
-                      </Typography>
+
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: "primary.50",
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "primary.200",
+                      mb: 3,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 2,
+                        mb: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Họ tên Staff
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ fontWeight: 600, color: "primary.dark" }}
+                        >
+                          {ticketDetail.staff.fullName}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Email
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ fontWeight: 500, color: "primary.dark" }}
+                        >
+                          {ticketDetail.staff.email}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        Email
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.dark' }}>
-                        {ticketDetail.staff.email}
-                      </Typography>
+
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Số điện thoại
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ fontWeight: 500, color: "primary.dark" }}
+                        >
+                          {ticketDetail.staff.phone}
+                        </Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Vai trò
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ fontWeight: 500, color: "primary.dark" }}
+                        >
+                          {ticketDetail.staff.roles?.name}
+                        </Typography>
+                      </Box>
                     </Box>
                   </Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 2 }}>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        Số điện thoại
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.dark' }}>
-                        {ticketDetail.staff.phone}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                        Vai trò
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.dark' }}>
-                        {ticketDetail.staff.roles?.name}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
+                </>
               )}
 
               {/* Giải pháp đã xử lý */}
               {ticketDetail.solution && (
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="h6" sx={{ mb: 2, color: 'success.main', fontWeight: 600 }}>
-                    Giải pháp đã xử lý
+                <>
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 2, color: "success.main", fontWeight: 600 }}
+                  >
+                    ✅ Giải pháp đã xử lý
                   </Typography>
-                  <Typography variant="body1" sx={{ 
-                    backgroundColor: 'success.50', 
-                    p: 1.5, 
-                    borderRadius: 1, 
-                    border: '1px solid',
-                    borderColor: 'success.200',
-                    color: 'success.dark'
-                  }}>
+
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      backgroundColor: "success.50",
+                      p: 2,
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "success.200",
+                      color: "success.dark",
+                      lineHeight: 1.6,
+                      mb: 3,
+                    }}
+                  >
                     {ticketDetail.solution}
                   </Typography>
-                </Box>
+                </>
               )}
+
+              <Divider sx={{ my: 3 }} />
+
               {/* Form phản hồi hoặc thông báo đã hỗ trợ */}
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "primary.main", fontWeight: 600 }}
+              >
+                💬 Phản hồi
+              </Typography>
+
               {ticketDetail.status === "CLOSED" ? (
-                <Alert severity="success" sx={{ mt: 2 }}>
-                  Vấn đề này đã được hỗ trợ và phản hồi. Không thể gửi thêm phản
-                  hồi.
+                <Alert severity="success" sx={{ borderRadius: 1 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    Vấn đề này đã được hỗ trợ và phản hồi. Không thể gửi thêm
+                    phản hồi.
+                  </Typography>
                 </Alert>
               ) : ticketDetail.staff ||
                 ticketDetail.status === "IN_PROGRESS" ? (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  ĐÃ GỬI CHO BỘ PHẬN QUẢN LÝ, VUI LÒNG ĐỢI PHẢN HỒI.
+                <Alert severity="info" sx={{ borderRadius: 1 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    Đã gửi cho bộ phận quản lý, vui lòng đợi phản hồi.
+                  </Typography>
                 </Alert>
               ) : (
-                <Box mt={2}>
-                  <Typography fontWeight={600} mb={1}>
-                    Phản hồi cho khách hàng:
-                  </Typography>
+                <Box>
                   <TextField
                     fullWidth
                     multiline
-                    minRows={2}
+                    minRows={3}
                     value={report}
                     onChange={(e) => setReport(e.target.value)}
-                    placeholder="Nhập nội dung phản hồi..."
+                    placeholder="Nhập nội dung phản hồi chi tiết cho khách hàng..."
                     disabled={reportStatus === "loading"}
+                    sx={{ mb: 2 }}
                   />
-                  <Box display="flex" gap={2} mt={2}>
+                  <Stack direction="row" spacing={2}>
                     <Button
                       variant="contained"
                       color="primary"
                       onClick={handleReportSubmit}
                       disabled={reportStatus === "loading" || !report.trim()}
+                      startIcon={
+                        reportStatus === "loading" ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <CheckCircleIcon />
+                        )
+                      }
                     >
-                      {reportStatus === "loading" ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        "GỬI PHẢN HỒI"
-                      )}
+                      Gửi phản hồi
                     </Button>
                     <Button
                       variant="outlined"
                       color="secondary"
                       onClick={handleSendToStaff}
                       disabled={deliveryStatus === "loading"}
+                      startIcon={
+                        deliveryStatus === "loading" ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <SupportAgentIcon />
+                        )
+                      }
                     >
-                      {deliveryStatus === "loading" ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        "GỬI CHO BỘ PHẬN QUẢN LÝ"
-                      )}
+                      Gửi cho bộ phận quản lý
                     </Button>
-                  </Box>
+                  </Stack>
                   {reportError && (
-                    <Typography color="error" mt={1}>
-                      {reportError}
-                    </Typography>
+                    <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>
+                      <Typography variant="body2">{reportError}</Typography>
+                    </Alert>
                   )}
                 </Box>
               )}
@@ -1008,17 +1459,17 @@ const TicketManager = () => {
           <Button onClick={handleClose}>Đóng</Button>
         </DialogActions>
       </Dialog>
-             {/* Confirm Dialog chuyển hỗ trợ */}
-       <Dialog
-         open={openDeliveryConfirm}
-         onClose={() => setOpenDeliveryConfirm(false)}
-       >
-         <DialogTitle>Xác nhận chuyển yêu cầu hỗ trợ</DialogTitle>
+      {/* Confirm Dialog chuyển hỗ trợ */}
+      <Dialog
+        open={openDeliveryConfirm}
+        onClose={() => setOpenDeliveryConfirm(false)}
+      >
+        <DialogTitle>Xác nhận chuyển yêu cầu hỗ trợ</DialogTitle>
         <DialogContent>
-                     <Typography>
-             Bạn chắc chắn muốn chuyển yêu cầu hỗ trợ này cho bộ phận sản xuất (staff) xử
-             lý?
-           </Typography>
+          <Typography>
+            Bạn chắc chắn muốn chuyển yêu cầu hỗ trợ này cho bộ phận sản xuất
+            (staff) xử lý?
+          </Typography>
           {deliveryError && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {deliveryError}
@@ -1026,7 +1477,7 @@ const TicketManager = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDeliveryConfirm(false)}>Huỷ</Button>
+          <Button onClick={() => setOpenDeliveryConfirm(false)}>Hủy</Button>
           <Button
             onClick={handleConfirmDelivery}
             variant="contained"
@@ -1042,7 +1493,7 @@ const TicketManager = () => {
           </Button>
         </DialogActions>
       </Dialog>
-             {/* Snackbar chuyển hỗ trợ thành công */}
+      {/* Snackbar chuyển hỗ trợ thành công */}
       <Snackbar
         open={openDeliverySnackbar}
         autoHideDuration={2500}
@@ -1054,7 +1505,7 @@ const TicketManager = () => {
           sx={{ width: "100%" }}
           onClose={() => setOpenDeliverySnackbar(false)}
         >
-                     Chuyển yêu cầu hỗ trợ cho staff thành công!
+          Chuyển yêu cầu hỗ trợ cho staff thành công!
         </Alert>
       </Snackbar>
       <Snackbar
