@@ -6,7 +6,7 @@ import {
   updateDesignTemplateImageApi,
   fetchAllDesignTemplatesApi,
   fetchDesignTemplateByIdApi,
-  deleteDesignTemplateByIdApi,
+  toggleDesignTemplateStatusApi,
   fetchDesignTemplateSuggestionsByCustomerChoiceIdApi
 } from '../../../api/designTemplateService';
 
@@ -128,14 +128,14 @@ export const fetchDesignTemplateById = createAsyncThunk(
   }
 );
 
-// Async thunk for deleting a design template by ID
-export const deleteDesignTemplateById = createAsyncThunk(
-  'designTemplate/deleteById',
-  async (designTemplateId, { rejectWithValue }) => {
+// Async thunk for toggling design template status (hide/show)
+export const toggleDesignTemplateStatus = createAsyncThunk(
+  'designTemplate/toggleStatus',
+  async ({ designTemplateId, templateData }, { rejectWithValue }) => {
     try {
-      const response = await deleteDesignTemplateByIdApi(designTemplateId);
+      const response = await toggleDesignTemplateStatusApi(designTemplateId, templateData);
       if (!response.success) {
-        return rejectWithValue(response.error || 'Failed to delete design template');
+        return rejectWithValue(response.error || 'Failed to toggle design template status');
       }
       return response.data;
     } catch (error) {
@@ -195,10 +195,6 @@ const designTemplateSlice = createSlice({
         pageSize: 10,
         totalElements: 0
       };
-    },
-    // Optimistic delete - xóa template ngay lập tức khỏi state
-    removeDesignTemplateOptimistically: (state, action) => {
-      state.designTemplates = state.designTemplates.filter(t => t.id !== action.payload);
     }
   },
   extraReducers: (builder) => {
@@ -287,17 +283,18 @@ const designTemplateSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Delete design template by ID
-      .addCase(deleteDesignTemplateById.pending, (state) => {
+      // Toggle design template status
+      .addCase(toggleDesignTemplateStatus.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(deleteDesignTemplateById.fulfilled, (state) => {
+      .addCase(toggleDesignTemplateStatus.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        // Không cần xử lý thêm vì đã dùng optimistic update
-        // Template đã được xóa khỏi state trước đó
+        // Update the template in the array
+        const idx = state.designTemplates.findIndex(t => t.id === action.payload.id);
+        if (idx !== -1) state.designTemplates[idx] = action.payload;
         state.error = null;
       })
-      .addCase(deleteDesignTemplateById.rejected, (state, action) => {
+      .addCase(toggleDesignTemplateStatus.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       })
@@ -324,8 +321,7 @@ export const {
   resetSuggestionsStatus,
   setSelectedTemplate,
   clearSelectedTemplate,
-  clearSuggestedTemplates,
-  removeDesignTemplateOptimistically
+  clearSuggestedTemplates
 } = designTemplateSlice.actions;
 
 // Export selectors

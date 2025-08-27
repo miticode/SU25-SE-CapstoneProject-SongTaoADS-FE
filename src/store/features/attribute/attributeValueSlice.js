@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createAttributeValueApi,
-  deleteAttributeValueApi,
+  toggleAttributeValueStatusApi,
   getAttributeValuesByAttributeIdApi,
   updateAttributeValueApi,
 } from "../../../api/attributeValueService";
@@ -98,18 +98,21 @@ export const updateAttributeValue = createAsyncThunk(
     }
   }
 );
-export const deleteAttributeValue = createAsyncThunk(
-  "attributeValue/delete",
-  async (attributeValueId, thunkAPI) => {
+// Toggle trạng thái attribute value
+export const toggleAttributeValueStatus = createAsyncThunk(
+  "attributeValue/toggleStatus",
+  async ({ attributeValueId, attributeValueData }, thunkAPI) => {
     try {
-      const response = await deleteAttributeValueApi(attributeValueId);
+      const response = await toggleAttributeValueStatusApi(
+        attributeValueId,
+        attributeValueData
+      );
       if (!response.success) {
         return thunkAPI.rejectWithValue(
-          response.error || "Failed to delete attribute value"
+          response.error || "Failed to toggle attribute value status"
         );
       }
-      // Return the ID of the deleted value so we can remove it from the state
-      return attributeValueId;
+      return response.data;
     } catch (error) {
       const message =
         error.response?.data?.message ||
@@ -187,23 +190,22 @@ const attributeValueSlice = createSlice({
       state.isError = true;
       state.message = action.payload;
     })
-     .addCase(deleteAttributeValue.pending, (state) => {
+     // Toggle attribute value status
+     .addCase(toggleAttributeValueStatus.pending, (state) => {
       state.isLoading = true;
       state.isSuccess = false;
       state.isError = false;
     })
-    .addCase(deleteAttributeValue.fulfilled, (state, action) => {
+    .addCase(toggleAttributeValueStatus.fulfilled, (state, action) => {
       state.isLoading = false;
       state.isSuccess = true;
-      // Remove the deleted attribute value from the array
-      state.attributeValues = state.attributeValues.filter(
-        (value) => value.id !== action.payload
+      // Update the attribute value in the array
+      state.attributeValues = state.attributeValues.map((value) =>
+        value.id === action.payload.id ? action.payload : value
       );
-      if (state.currentAttributeValue && state.currentAttributeValue.id === action.payload) {
-        state.currentAttributeValue = null;
-      }
+      state.currentAttributeValue = action.payload;
     })
-    .addCase(deleteAttributeValue.rejected, (state, action) => {
+    .addCase(toggleAttributeValueStatus.rejected, (state, action) => {
       state.isLoading = false;
       state.isError = true;
       state.message = action.payload;

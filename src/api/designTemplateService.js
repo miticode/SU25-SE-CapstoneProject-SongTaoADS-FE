@@ -191,21 +191,28 @@ export const fetchDesignTemplateByIdApi = async (designTemplateId) => {
   }
 };
 
-// Xóa thiết kế mẫu theo ID
-export const deleteDesignTemplateByIdApi = async (designTemplateId) => {
+// Toggle trạng thái thiết kế mẫu (ẩn/hiện)
+export const toggleDesignTemplateStatusApi = async (designTemplateId, templateData) => {
   try {
-    const response = await designTemplateService.delete(`/api/design-templates/${designTemplateId}`);
-    const { success, message } = response.data;
+    const response = await designTemplateService.patch(
+      `/api/design-templates/${designTemplateId}/information`,
+      {
+        name: templateData.name,
+        description: templateData.description,
+        aspectRatio: templateData.aspectRatio,
+        isAvailable: !templateData.isAvailable // Toggle trạng thái
+      }
+    );
+    const { success, result, message } = response.data;
     if (success) {
-      // API delete chỉ trả về success message, không có result object
-      return { success: true, data: { id: designTemplateId } };
+      return { success: true, data: result };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
-    console.error('Error deleting design template:', error);
+    console.error('Error toggling design template status:', error);
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to delete design template'
+      error: error.response?.data?.message || 'Failed to toggle design template status'
     };
   }
 };

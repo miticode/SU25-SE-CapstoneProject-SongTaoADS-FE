@@ -33,7 +33,8 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
   PhotoCamera as PhotoCameraIcon,
@@ -45,7 +46,7 @@ import {
   updateContractorThunk,
   updateContractorLogoThunk,
   fetchContractorById,
-  deleteContractorThunk,
+  toggleContractorStatusThunk,
   clearError,
 } from "../../store/features/contractor/contractorSlice";
 import ContractorLogo from "../../components/ContractorLogo";
@@ -65,14 +66,14 @@ const ContractorManagement = () => {
   const { contractors, loading, error, pagination } = useSelector(
     (state) => state.contractor
   );
-  
+
   // State cho phân trang và filter
   const [paginationParams, setPaginationParams] = useState({
     page: 1,
     size: 10,
     isInternal: null,
   });
-  
+
   const [openDialog, setOpenDialog] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [editId, setEditId] = useState(null);
@@ -86,7 +87,10 @@ const ContractorManagement = () => {
     data: null,
     loading: false,
   });
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
+  const [toggleDialog, setToggleDialog] = useState({
+    open: false,
+    contractor: null,
+  });
   const [logoPreview, setLogoPreview] = useState(null);
 
   useEffect(() => {
@@ -95,33 +99,37 @@ const ContractorManagement = () => {
       page: paginationParams.page,
       size: paginationParams.size,
     };
-    
+
     // Chỉ thêm isInternal nếu có giá trị boolean
     if (paginationParams.isInternal !== null) {
       apiParams.isInternal = paginationParams.isInternal;
     }
-    
+
     dispatch(fetchAllContractors(apiParams));
   }, [dispatch, paginationParams]);
 
   // Xử lý thay đổi phân trang
   const handlePageChange = (event, newPage) => {
-    setPaginationParams(prev => ({ ...prev, page: newPage }));
+    setPaginationParams((prev) => ({ ...prev, page: newPage }));
   };
 
   // Xử lý thay đổi filter
   const handleFilterChange = (field, value) => {
     // Chuyển đổi giá trị string thành boolean hoặc null
     let processedValue = value;
-    if (field === 'isInternal') {
-      if (value === '') {
+    if (field === "isInternal") {
+      if (value === "") {
         processedValue = null; // "Tất cả"
       } else {
-        processedValue = value === 'true'; // Chuyển string thành boolean
+        processedValue = value === "true"; // Chuyển string thành boolean
       }
     }
-    
-    setPaginationParams(prev => ({ ...prev, [field]: processedValue, page: 1 }));
+
+    setPaginationParams((prev) => ({
+      ...prev,
+      [field]: processedValue,
+      page: 1,
+    }));
   };
 
   const handleOpenDialog = (contractor) => {
@@ -154,11 +162,11 @@ const ContractorManagement = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-    
+
     if (type === "file" && files) {
       const file = files[0];
-      setForm(prev => ({ ...prev, logoImage: file }));
-      
+      setForm((prev) => ({ ...prev, logoImage: file }));
+
       // Tạo preview
       if (file) {
         const reader = new FileReader();
@@ -177,15 +185,16 @@ const ContractorManagement = () => {
     e.preventDefault();
     if (editId) {
       // Update
-      let updateSuccess = false;
-      
+
       // Nếu có logo mới, cập nhật logo trước
       if (form.logoImage) {
         const logoRes = await dispatch(
-          updateContractorLogoThunk({ contractorId: editId, logoFile: form.logoImage })
+          updateContractorLogoThunk({
+            contractorId: editId,
+            logoFile: form.logoImage,
+          })
         );
         if (logoRes.meta.requestStatus === "fulfilled") {
-          updateSuccess = true;
           // Clear cache của logo cũ nếu có
           if (logoPreview) {
             clearAvatarCache(logoPreview);
@@ -199,7 +208,7 @@ const ContractorManagement = () => {
           return;
         }
       }
-      
+
       // Cập nhật thông tin khác
       const res = await dispatch(
         updateContractorThunk({ contractorId: editId, data: form })
@@ -211,7 +220,7 @@ const ContractorManagement = () => {
           severity: "success",
         });
         handleCloseDialog();
-        
+
         // Refresh lại danh sách để hiển thị logo mới
         const apiParams = {
           page: paginationParams.page,
@@ -238,7 +247,7 @@ const ContractorManagement = () => {
           severity: "success",
         });
         handleCloseDialog();
-        
+
         // Refresh lại danh sách để hiển thị logo mới
         const apiParams = {
           page: paginationParams.page,
@@ -274,28 +283,48 @@ const ContractorManagement = () => {
     }
   };
 
-  // Xác nhận xóa
-  const handleDelete = (id) => {
-    setDeleteDialog({ open: true, id });
+  // Toggle trạng thái hoạt động
+  const handleToggleStatus = (contractor) => {
+    setToggleDialog({
+      open: true,
+      contractor: contractor,
+    });
   };
-  
-  const handleConfirmDelete = async () => {
-    const id = deleteDialog.id;
-    const res = await dispatch(deleteContractorThunk(id));
+
+  const handleConfirmToggleStatus = async () => {
+    const contractor = toggleDialog.contractor;
+    const res = await dispatch(
+      toggleContractorStatusThunk({
+        contractorId: contractor.id,
+        contractorData: contractor,
+      })
+    );
     if (res.meta.requestStatus === "fulfilled") {
       setSnackbar({
         open: true,
-        message: "Xóa thành công!",
+        message: `Đã ${
+          contractor.isAvailable ? "tạm ngưng" : "kích hoạt"
+        } đơn vị thi công thành công!`,
         severity: "success",
       });
+
+      // Refresh lại danh sách
+      const apiParams = {
+        page: paginationParams.page,
+        size: paginationParams.size,
+      };
+      if (paginationParams.isInternal !== null) {
+        apiParams.isInternal = paginationParams.isInternal;
+      }
+      dispatch(fetchAllContractors(apiParams));
     } else {
       setSnackbar({
         open: true,
-        message: res.payload || "Xóa thất bại!",
+        message: res.payload || "Thay đổi trạng thái thất bại!",
         severity: "error",
       });
     }
-    setDeleteDialog({ open: false, id: null });
+    setToggleDialog({ open: false, contractor: null });
   };
 
   // Xử lý đóng snackbar
@@ -321,16 +350,18 @@ const ContractorManagement = () => {
         </Typography>
         <Box>
           <Tooltip title="Làm mới danh sách">
-            <IconButton onClick={() => {
-              const apiParams = {
-                page: paginationParams.page,
-                size: paginationParams.size,
-              };
-              if (paginationParams.isInternal !== null) {
-                apiParams.isInternal = paginationParams.isInternal;
-              }
-              dispatch(fetchAllContractors(apiParams));
-            }}>
+            <IconButton
+              onClick={() => {
+                const apiParams = {
+                  page: paginationParams.page,
+                  size: paginationParams.size,
+                };
+                if (paginationParams.isInternal !== null) {
+                  apiParams.isInternal = paginationParams.isInternal;
+                }
+                dispatch(fetchAllContractors(apiParams));
+              }}
+            >
               <RefreshIcon />
             </IconButton>
           </Tooltip>
@@ -351,9 +382,13 @@ const ContractorManagement = () => {
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Loại đơn vị</InputLabel>
             <Select
-              value={paginationParams.isInternal === null ? "" : paginationParams.isInternal.toString()}
+              value={
+                paginationParams.isInternal === null
+                  ? ""
+                  : paginationParams.isInternal.toString()
+              }
               label="Loại đơn vị"
-              onChange={(e) => handleFilterChange('isInternal', e.target.value)}
+              onChange={(e) => handleFilterChange("isInternal", e.target.value)}
             >
               <MenuItem value="">Tất cả</MenuItem>
               <MenuItem value="true">Nội bộ</MenuItem>
@@ -389,14 +424,18 @@ const ContractorManagement = () => {
               ) : contractors && contractors.length > 0 ? (
                 contractors.map((row, idx) => (
                   <TableRow key={row.id} hover>
-                    <TableCell>{(paginationParams.page - 1) * paginationParams.size + idx + 1}</TableCell>
-                                         <TableCell>
-                       <ContractorLogo
-                         logoKey={row.logo}
-                         contractorName={row.name}
-                         size={40}
-                       />
-                     </TableCell>
+                    <TableCell>
+                      {(paginationParams.page - 1) * paginationParams.size +
+                        idx +
+                        1}
+                    </TableCell>
+                    <TableCell>
+                      <ContractorLogo
+                        logoKey={row.logo}
+                        contractorName={row.name}
+                        size={40}
+                      />
+                    </TableCell>
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.address}</TableCell>
                     <TableCell>{row.phone}</TableCell>
@@ -410,7 +449,9 @@ const ContractorManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={row.isAvailable ? "Hoạt động" : "Không hoạt động"}
+                        label={
+                          row.isAvailable ? "Hoạt động" : "Không hoạt động"
+                        }
                         color={row.isAvailable ? "success" : "error"}
                         size="small"
                       />
@@ -426,9 +467,19 @@ const ContractorManagement = () => {
                           <EditIcon color="primary" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Xóa">
-                        <IconButton onClick={() => handleDelete(row.id)}>
-                          <DeleteIcon color="error" />
+                      <Tooltip
+                        title={
+                          row.isAvailable
+                            ? "Tạm ngưng hoạt động"
+                            : "Kích hoạt hoạt động"
+                        }
+                      >
+                        <IconButton onClick={() => handleToggleStatus(row)}>
+                          {row.isAvailable ? (
+                            <ToggleOnIcon color="success" />
+                          ) : (
+                            <ToggleOffIcon color="error" />
+                          )}
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -444,7 +495,7 @@ const ContractorManagement = () => {
             </TableBody>
           </Table>
         </TableContainer>
-        
+
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <Box display="flex" justifyContent="center" p={2}>
@@ -472,46 +523,45 @@ const ContractorManagement = () => {
         </DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent dividers>
-                         {/* Logo upload */}
-             <Box display="flex" flexDirection="column" alignItems="center" mb={2}>
-               {editId && form.logoImage ? (
-                 <Avatar
-                   src={logoPreview}
-                   sx={{ width: 80, height: 80, mb: 1 }}
-                 >
-                   {form.name?.charAt(0)?.toUpperCase()}
-                 </Avatar>
-                               ) : editId ? (
-                  <ContractorLogo
-                    logoKey={logoPreview}
-                    contractorName={form.name}
-                    size={80}
-                    sx={{ mb: 1 }}
-                  />
-                ) : (
-                 <Avatar
-                   src={logoPreview}
-                   sx={{ width: 80, height: 80, mb: 1 }}
-                 >
-                   {form.name?.charAt(0)?.toUpperCase()}
-                 </Avatar>
-               )}
-               <Button
-                 variant="outlined"
-                 component="label"
-                 startIcon={<PhotoCameraIcon />}
-                 size="small"
-               >
-                 {editId ? "Thay đổi logo" : "Tải logo"}
-                 <input
-                   type="file"
-                   hidden
-                   name="logoImage"
-                   accept="image/*"
-                   onChange={handleChange}
-                 />
-               </Button>
-             </Box>
+            {/* Logo upload */}
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              mb={2}
+            >
+              {editId && form.logoImage ? (
+                <Avatar src={logoPreview} sx={{ width: 80, height: 80, mb: 1 }}>
+                  {form.name?.charAt(0)?.toUpperCase()}
+                </Avatar>
+              ) : editId ? (
+                <ContractorLogo
+                  logoKey={logoPreview}
+                  contractorName={form.name}
+                  size={80}
+                  sx={{ mb: 1 }}
+                />
+              ) : (
+                <Avatar src={logoPreview} sx={{ width: 80, height: 80, mb: 1 }}>
+                  {form.name?.charAt(0)?.toUpperCase()}
+                </Avatar>
+              )}
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<PhotoCameraIcon />}
+                size="small"
+              >
+                {editId ? "Thay đổi logo" : "Tải logo"}
+                <input
+                  type="file"
+                  hidden
+                  name="logoImage"
+                  accept="image/*"
+                  onChange={handleChange}
+                />
+              </Button>
+            </Box>
 
             <TextField
               label="Tên đơn vị"
@@ -600,16 +650,16 @@ const ContractorManagement = () => {
               <CircularProgress />
             </Box>
           ) : detailDialog.data ? (
-                         <Box>
-               {/* Logo */}
-               <Box display="flex" justifyContent="center" mb={2}>
-                 <ContractorLogo
-                   logoKey={detailDialog.data.logo}
-                   contractorName={detailDialog.data.name}
-                   size={160}
-                 />
-               </Box>
-              
+            <Box>
+              {/* Logo */}
+              <Box display="flex" justifyContent="center" mb={2}>
+                <ContractorLogo
+                  logoKey={detailDialog.data.logo}
+                  contractorName={detailDialog.data.name}
+                  size={160}
+                />
+              </Box>
+
               <Typography>
                 <b>Tên đơn vị:</b> {detailDialog.data.name}
               </Typography>
@@ -623,17 +673,22 @@ const ContractorManagement = () => {
                 <b>Email:</b> {detailDialog.data.email}
               </Typography>
               <Typography>
-                <b>Loại:</b> {detailDialog.data.isInternal ? "Nội bộ" : "Bên ngoài"}
+                <b>Loại:</b>{" "}
+                {detailDialog.data.isInternal ? "Nội bộ" : "Bên ngoài"}
               </Typography>
               <Typography>
                 <b>Trạng thái:</b>{" "}
-                {detailDialog.data.isAvailable ? "Hoạt động" : "Không hoạt động"}
+                {detailDialog.data.isAvailable
+                  ? "Hoạt động"
+                  : "Không hoạt động"}
               </Typography>
               <Typography>
-                <b>Ngày tạo:</b> {new Date(detailDialog.data.createdAt).toLocaleString('vi-VN')}
+                <b>Ngày tạo:</b>{" "}
+                {new Date(detailDialog.data.createdAt).toLocaleString("vi-VN")}
               </Typography>
               <Typography>
-                <b>Ngày cập nhật:</b> {new Date(detailDialog.data.updatedAt).toLocaleString('vi-VN')}
+                <b>Ngày cập nhật:</b>{" "}
+                {new Date(detailDialog.data.updatedAt).toLocaleString("vi-VN")}
               </Typography>
             </Box>
           ) : (
@@ -651,26 +706,34 @@ const ContractorManagement = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog xác nhận xóa */}
+      {/* Dialog xác nhận toggle trạng thái */}
       <Dialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, id: null })}
+        open={toggleDialog.open}
+        onClose={() => setToggleDialog({ open: false, contractor: null })}
         maxWidth="xs"
       >
-        <DialogTitle>Xác nhận xóa</DialogTitle>
+        <DialogTitle>Xác nhận thay đổi trạng thái</DialogTitle>
         <DialogContent>
-          Bạn có chắc chắn muốn xóa đơn vị thi công này?
+          {toggleDialog.contractor && (
+            <>
+              Bạn có chắc chắn muốn{" "}
+              {toggleDialog.contractor.isAvailable ? "tạm ngưng" : "kích hoạt"}
+              đơn vị thi công "<strong>{toggleDialog.contractor.name}</strong>"?
+            </>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog({ open: false, id: null })}>
+          <Button
+            onClick={() => setToggleDialog({ open: false, contractor: null })}
+          >
             Hủy
           </Button>
           <Button
-            onClick={handleConfirmDelete}
-            color="error"
+            onClick={handleConfirmToggleStatus}
+            color={toggleDialog.contractor?.isAvailable ? "error" : "success"}
             variant="contained"
           >
-            Xóa
+            {toggleDialog.contractor?.isAvailable ? "Tạm ngưng" : "Kích hoạt"}
           </Button>
         </DialogActions>
       </Dialog>
