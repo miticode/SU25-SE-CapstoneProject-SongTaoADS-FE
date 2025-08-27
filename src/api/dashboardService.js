@@ -101,10 +101,15 @@ export const fetchSaleDashboardApi = async (startDate, endDate) => {
   }
 };
 
-// API to fetch designer dashboard data
-export const fetchDesignerDashboardApi = async () => {
+// API to fetch designer dashboard data (updated: POST with date range body)
+export const fetchDesignerDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/designer');
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const body = { start: defaultStart, end: defaultEnd };
+
+    const response = await dashboardService.post('/api/dashboard/designer', body);
 
     const { success, result, message } = response.data;
 

@@ -32,6 +32,13 @@ import {
 import DesignRequests from "./DesignRequests";
 import DashboardContent from "./DashboardContent";
 import IconManager from "./IconManager";
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+import { Button, Popover, Box, Typography, Divider, CircularProgress } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { CalendarMonth as CalendarIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 
 const DesignerDashboard = () => {
   const dispatch = useDispatch();
@@ -51,6 +58,13 @@ const DesignerDashboard = () => {
   const designerDashboard = useSelector(selectDesignerDashboard);
   const dashboardStatus = useSelector(selectDashboardStatus);
   const dashboardError = useSelector(selectDashboardError);
+  
+  // Date range state (new)
+  const [startDate, setStartDate] = useState(dayjs().subtract(30, 'day'));
+  const [endDate, setEndDate] = useState(dayjs());
+  const [datePickerAnchor, setDatePickerAnchor] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  dayjs.locale('vi');
   
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
@@ -107,14 +121,14 @@ const DesignerDashboard = () => {
     setAlertNotifications(prev => prev.filter(alert => alert.id !== alertId));
   };
 
-  // Fetch notifications and dashboard data when user is authenticated
+  // Fetch notifications and dashboard data when user is authenticated OR date range changes
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchNotifications({ page: 1, size: 10 }));
       dispatch(fetchRoleNotifications({ page: 1, size: 10 }));
-      dispatch(fetchDesignerDashboard());
+      dispatch(fetchDesignerDashboard({ startDate: startDate.toISOString(), endDate: endDate.toISOString() }));
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, startDate, endDate]);
 
   // Socket.IO connection for real-time notifications
   useEffect(() => {
@@ -260,15 +274,69 @@ const DesignerDashboard = () => {
     setSelectedMenu(menuId);
   };
 
+  // Refresh handler
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(fetchDesignerDashboard({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })).unwrap();
+    } catch (e) {
+      console.error('Refresh designer dashboard failed:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, startDate, endDate]);
+  
+  const handleDateChange = useCallback(() => {
+    dispatch(fetchDesignerDashboard({ startDate: startDate.toISOString(), endDate: endDate.toISOString() }));
+  }, [dispatch, startDate, endDate]);
+  
+  const handleQuickDateSelect = useCallback((days) => {
+    setStartDate(dayjs().subtract(days, 'day'));
+    setEndDate(dayjs());
+    setDatePickerAnchor(null);
+  }, []);
+
   const renderContent = () => {
     switch (selectedMenu) {
       case "dashboard":
         return (
-          <DashboardContent 
-            stats={designerDashboard} 
-            loading={dashboardStatus === 'loading'}
-            error={dashboardError}
-          />
+          <>
+            {/* Header controls similar to Sale dashboard */}
+            <div className="px-4 pt-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">Dashboard Thiết Kế</h2>
+                  <p className="text-gray-500 text-sm">Thống kê hiệu suất thiết kế trong khoảng thời gian đã chọn</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="outlined"
+                    startIcon={<CalendarIcon />}
+                    onClick={(e) => setDatePickerAnchor(e.currentTarget)}
+                    className="!rounded-xl !border-2 !border-indigo-200 !text-indigo-600 hover:!bg-indigo-50 hover:!border-indigo-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md"
+                    size="small"
+                  >
+                    Lọc ngày
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+                    onClick={handleRefresh}
+                    disabled={refreshing || dashboardStatus === 'loading'}
+                    className="!rounded-xl !border-2 !border-blue-200 !text-blue-600 hover:!bg-blue-50 hover:!border-blue-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md"
+                    size="small"
+                  >
+                    {refreshing ? 'Đang làm mới...' : 'Làm mới'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <DashboardContent 
+              stats={designerDashboard} 
+              loading={dashboardStatus === 'loading'}
+              error={dashboardError}
+            />
+          </>
         );
       case "designs":
         return <DesignRequests />;
@@ -593,6 +661,38 @@ const DesignerDashboard = () => {
           animation: slideInRight 0.3s ease-out;
         }
       `}</style>
+
+      {/* Date Picker Popover */}
+      <Popover
+        open={Boolean(datePickerAnchor)}
+        anchorEl={datePickerAnchor}
+        onClose={() => setDatePickerAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+          <Box className="p-4 min-w-80">
+            <Typography variant="h6" className="!font-bold !mb-4">Chọn khoảng thời gian</Typography>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(7)} className="!rounded-lg">7 ngày qua</Button>
+              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(30)} className="!rounded-lg">30 ngày qua</Button>
+              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(90)} className="!rounded-lg">3 tháng qua</Button>
+              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(365)} className="!rounded-lg">1 năm qua</Button>
+            </div>
+            <Divider className="!my-4" />
+            <div className="space-y-4">
+              <DatePicker label="Từ ngày" value={startDate} onChange={(v) => setStartDate(v)} slotProps={{ textField: { size: 'small', fullWidth: true }}} />
+              <DatePicker label="Đến ngày" value={endDate} onChange={(v) => setEndDate(v)} slotProps={{ textField: { size: 'small', fullWidth: true }}} />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button variant="contained" onClick={handleDateChange} className="!rounded-lg !flex-1" disabled={dashboardStatus === 'loading'}>
+                {dashboardStatus === 'loading' ? 'Đang tải...' : 'Áp dụng'}
+              </Button>
+              <Button variant="outlined" onClick={() => setDatePickerAnchor(null)} className="!rounded-lg !flex-1">Đóng</Button>
+            </div>
+          </Box>
+        </LocalizationProvider>
+      </Popover>
     </div>
   );
 };
