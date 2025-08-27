@@ -7,6 +7,7 @@ import {
     addTopicToModelChat,
     addTopicFromModel,
     deleteChatBotTopic,
+    copyTopicsFromModel,
 } from '../../../api/chatBotTopicService';
 
 const initialState = {
@@ -108,6 +109,19 @@ export const deleteChatBotTopicById = createAsyncThunk(
             return id;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || 'Lỗi khi xóa chat bot topic');
+        }
+    }
+);
+
+// Copy topics từ model khác
+export const copyTopicsFromPreviousModel = createAsyncThunk(
+    'chatBotTopic/copyTopicsFromPreviousModel',
+    async ({ targetModelId, sourceModelId }, { rejectWithValue }) => {
+        try {
+            const response = await copyTopicsFromModel(targetModelId, sourceModelId);
+            return response.result || response;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.message || 'Lỗi khi copy topics từ model khác');
         }
     }
 );
@@ -249,6 +263,33 @@ const chatBotTopicSlice = createSlice({
             })
             .addCase(deleteChatBotTopicById.rejected, (state, action) => {
                 state.deleteLoading = false;
+                state.error = action.payload;
+            })
+
+            // copyTopicsFromPreviousModel
+            .addCase(copyTopicsFromPreviousModel.pending, (state) => {
+                state.createLoading = true;
+                state.error = null;
+            })
+            .addCase(copyTopicsFromPreviousModel.fulfilled, (state, action) => {
+                state.createLoading = false;
+                state.success = 'Copy topics từ model khác thành công';
+                // Cập nhật danh sách topics của model hiện tại
+                const topics = action.payload;
+                if (Array.isArray(topics) && topics.length > 0) {
+                    const modelId = topics[0].modelChatBotId;
+                    if (state.chatBotTopicsByModel[modelId]) {
+                        state.chatBotTopicsByModel[modelId] = [
+                            ...state.chatBotTopicsByModel[modelId],
+                            ...topics
+                        ];
+                    } else {
+                        state.chatBotTopicsByModel[modelId] = topics;
+                    }
+                }
+            })
+            .addCase(copyTopicsFromPreviousModel.rejected, (state, action) => {
+                state.createLoading = false;
                 state.error = action.payload;
             });
     },

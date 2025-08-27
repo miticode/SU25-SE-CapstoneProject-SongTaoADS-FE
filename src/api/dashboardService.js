@@ -34,17 +34,20 @@ dashboardService.interceptors.request.use(
   }
 );
 
-// API to fetch staff dashboard data
-export const fetchStaffDashboardApi = async () => {
+// API to fetch staff dashboard data (updated: POST with date range body)
+export const fetchStaffDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/staff');
+    // fallback: last 7 days if not provided
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    const body = { start: defaultStart, end: defaultEnd };
+    const response = await dashboardService.post('/api/dashboard/staff', body);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching staff dashboard:', error);
@@ -55,17 +58,18 @@ export const fetchStaffDashboardApi = async () => {
   }
 };
 
-// API to fetch admin dashboard data
-export const fetchAdminDashboardApi = async () => {
+// API to fetch admin dashboard data (updated: POST with date range body)
+export const fetchAdminDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/admin');
-
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const body = { start: defaultStart, end: defaultEnd };
+    const response = await dashboardService.post('/api/dashboard/admin', body);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching admin dashboard:', error);
@@ -76,17 +80,18 @@ export const fetchAdminDashboardApi = async () => {
   }
 };
 
-// API to fetch sale dashboard data
-export const fetchSaleDashboardApi = async () => {
+// API to fetch sale dashboard data (updated: POST with date range body)
+export const fetchSaleDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/sale');
-
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const body = { start: defaultStart, end: defaultEnd };
+    const response = await dashboardService.post('/api/dashboard/sale', body);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching sale dashboard:', error);
@@ -97,10 +102,15 @@ export const fetchSaleDashboardApi = async () => {
   }
 };
 
-// API to fetch designer dashboard data
-export const fetchDesignerDashboardApi = async () => {
+// API to fetch designer dashboard data (updated: POST with date range body)
+export const fetchDesignerDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/designer');
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const body = { start: defaultStart, end: defaultEnd };
+
+    const response = await dashboardService.post('/api/dashboard/designer', body);
 
     const { success, result, message } = response.data;
 

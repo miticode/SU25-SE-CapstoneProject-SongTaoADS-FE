@@ -164,12 +164,12 @@ const initialState = {
   paymentsStatsLastUpdated: null
 };
 
-// Async thunk for fetching staff dashboard data
+// Async thunk for fetching staff dashboard data (updated to pass date range)
 export const fetchStaffDashboard = createAsyncThunk(
   'dashboard/fetchStaffDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchStaffDashboardApi();
+      const response = await fetchStaffDashboardApi(startDate, endDate);
 
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch staff dashboard');
@@ -185,14 +185,12 @@ export const fetchStaffDashboard = createAsyncThunk(
 // Async thunk for fetching admin dashboard data
 export const fetchAdminDashboard = createAsyncThunk(
   'dashboard/fetchAdminDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchAdminDashboardApi();
-
+      const response = await fetchAdminDashboardApi(startDate, endDate);
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch admin dashboard');
       }
-
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
@@ -203,14 +201,12 @@ export const fetchAdminDashboard = createAsyncThunk(
 // Async thunk for fetching sale dashboard data
 export const fetchSaleDashboard = createAsyncThunk(
   'dashboard/fetchSaleDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchSaleDashboardApi();
-
+      const response = await fetchSaleDashboardApi(startDate, endDate);
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch sale dashboard');
       }
-
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
@@ -221,9 +217,9 @@ export const fetchSaleDashboard = createAsyncThunk(
 // Async thunk for fetching designer dashboard data
 export const fetchDesignerDashboard = createAsyncThunk(
   'dashboard/fetchDesignerDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchDesignerDashboardApi();
+      const response = await fetchDesignerDashboardApi(startDate, endDate);
 
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch designer dashboard');
@@ -493,7 +489,8 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchStaffDashboard.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.staffDashboard = action.payload;
+        // Merge to preserve missing legacy keys (set to previous or 0)
+        state.staffDashboard = { ...state.staffDashboard, ...action.payload };
         state.lastUpdated = new Date().toISOString();
         state.error = null;
       })
@@ -523,7 +520,7 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchSaleDashboard.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.saleDashboard = action.payload;
+        state.saleDashboard = { ...state.saleDashboard, ...action.payload };
         state.lastUpdated = new Date().toISOString();
         state.error = null;
       })

@@ -65,6 +65,21 @@ export const fetchCustomDesignRequestsApi = async (status, page = 1, size = 10) 
     };
   }
 };
+
+// Search yêu cầu thiết kế của Sale
+export const searchDesignRequestsSaleApi = async (keyword = '', page = 1, size = 10) => {
+  try {
+    const params = { keyword, page, size };
+    const response = await customDesignService.get('/api/custom-design-requests/sale-search', { params });
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to search design requests for sale'
+    };
+  }
+};
 // chia task cho designer
 export const assignDesignerToRequestApi = async (customDesignRequestId, designerId) => {
   try {

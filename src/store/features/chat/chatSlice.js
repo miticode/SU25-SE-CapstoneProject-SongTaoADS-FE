@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { sendChatMessageApi, uploadFileFineTuneApi, fineTuneModelApi, cancelFineTuneJobApi, deleteFineTuneFileApi, getFineTuneJobsApi, getFineTuneFilesApi, getFineTuneFileDetailApi, getFineTuneJobDetailApi, getFrequentQuestionsApi, getTraditionalPricingApi, getModernPricingApi, selectModelForModelChatApi, uploadFileExcelModelChatApi, getFineTunedModelsModelChatApi, testChatApi, requestTraditionalPricingApi, getOpenAiModelsApi, getFineTuneFileContentApi, trackOrderApi } from '../../../api/chatService';
+import { getChatBotTopicsByModelChat, addTopicToModelChat } from '../../../api/chatBotTopicService';
 
 const initialState = {
   messages: [
@@ -43,6 +44,13 @@ const initialState = {
   trackingOrderResult: null,
   lastTrackedOrderCode: null,
   currentThread: 'basic',
+  // Model management states
+  managementFineTunedModels: [],
+  managementFineTunedModelsStatus: 'idle',
+  managementFineTunedModelsPagination: null,
+  selectedModelChatBotTopics: [],
+  selectedModelChatBotTopicsStatus: 'idle',
+  selectedModelForTopics: null,
 };
 
 export const sendChatMessage = createAsyncThunk(
@@ -221,6 +229,40 @@ export const testChat = createAsyncThunk(
     const response = await testChatApi(data);
     if (!response.success) return rejectWithValue(response.error);
     return response.result;
+  }
+);
+
+// Fetch fine-tuned models for management (tab 5)
+export const fetchManagementFineTunedModels = createAsyncThunk(
+  'chat/fetchManagementFineTunedModels',
+  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+    const response = await getFineTunedModelsModelChatApi(page, size);
+    if (!response.success) return rejectWithValue(response.error);
+    return response;
+  }
+);
+
+// Fetch chat bot topics by model chat bot id
+export const fetchChatBotTopicsByModelId = createAsyncThunk(
+  'chat/fetchChatBotTopicsByModelId',
+  async (modelChatBotId, { rejectWithValue }) => {
+    const response = await getChatBotTopicsByModelChat(modelChatBotId);
+    if (!response.success) return rejectWithValue(response.message || 'Failed to fetch chat bot topics');
+    return { modelChatBotId, topics: response.result };
+  }
+);
+
+// Add topic to model chat bot
+export const assignTopicToModelChat = createAsyncThunk(
+  'chat/assignTopicToModelChat',
+  async ({ modelChatBotId, topicId }, { rejectWithValue }) => {
+    try {
+      const response = await addTopicToModelChat(modelChatBotId, topicId);
+      if (!response.success) return rejectWithValue(response.message || 'Failed to assign topic to model');
+      return { modelChatBotId, topicId, result: response.result };
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to assign topic to model');
+    }
   }
 );
 
@@ -575,6 +617,49 @@ const chatSlice = createSlice({
       })
       .addCase(checkFineTuneJobStatus.rejected, (state, action) => {
         state.error = action.payload;
+      })
+      // Management fine-tuned models reducers
+      .addCase(fetchManagementFineTunedModels.pending, (state) => {
+        state.managementFineTunedModelsStatus = 'loading';
+      })
+      .addCase(fetchManagementFineTunedModels.fulfilled, (state, action) => {
+        state.managementFineTunedModelsStatus = 'succeeded';
+        state.managementFineTunedModels = action.payload.result || [];
+        state.managementFineTunedModelsPagination = {
+          currentPage: action.payload.currentPage,
+          totalPages: action.payload.totalPages,
+          pageSize: action.payload.pageSize,
+          totalElements: action.payload.totalElements
+        };
+      })
+      .addCase(fetchManagementFineTunedModels.rejected, (state, action) => {
+        state.managementFineTunedModelsStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Chat bot topics by model id reducers
+      .addCase(fetchChatBotTopicsByModelId.pending, (state) => {
+        state.selectedModelChatBotTopicsStatus = 'loading';
+      })
+      .addCase(fetchChatBotTopicsByModelId.fulfilled, (state, action) => {
+        state.selectedModelChatBotTopicsStatus = 'succeeded';
+        state.selectedModelChatBotTopics = action.payload.topics || [];
+        state.selectedModelForTopics = action.payload.modelChatBotId;
+      })
+      .addCase(fetchChatBotTopicsByModelId.rejected, (state, action) => {
+        state.selectedModelChatBotTopicsStatus = 'failed';
+        state.error = action.payload;
+      })
+      // Assign topic to model chat bot reducers
+      .addCase(assignTopicToModelChat.pending, (state) => {
+        state.selectedModelChatBotTopicsStatus = 'loading';
+      })
+      .addCase(assignTopicToModelChat.fulfilled, (state, action) => {
+        state.selectedModelChatBotTopicsStatus = 'succeeded';
+        // Optionally refresh the topics for the model after assignment
+      })
+      .addCase(assignTopicToModelChat.rejected, (state, action) => {
+        state.selectedModelChatBotTopicsStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });
@@ -625,5 +710,12 @@ export const selectCurrentJobStatus = (state) => state.chat.currentJobStatus;
 export const selectTrackingOrderStatus = (state) => state.chat.trackingOrderStatus;
 export const selectTrackingOrderResult = (state) => state.chat.trackingOrderResult;
 export const selectLastTrackedOrderCode = (state) => state.chat.lastTrackedOrderCode;
+// Management selectors
+export const selectManagementFineTunedModels = (state) => state.chat.managementFineTunedModels;
+export const selectManagementFineTunedModelsStatus = (state) => state.chat.managementFineTunedModelsStatus;
+export const selectManagementFineTunedModelsPagination = (state) => state.chat.managementFineTunedModelsPagination;
+export const selectSelectedModelChatBotTopics = (state) => state.chat.selectedModelChatBotTopics;
+export const selectSelectedModelChatBotTopicsStatus = (state) => state.chat.selectedModelChatBotTopicsStatus;
+export const selectSelectedModelForTopics = (state) => state.chat.selectedModelForTopics;
 
 export default chatSlice.reducer;
