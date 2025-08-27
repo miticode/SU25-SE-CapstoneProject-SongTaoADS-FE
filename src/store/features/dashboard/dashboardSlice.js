@@ -185,14 +185,12 @@ export const fetchStaffDashboard = createAsyncThunk(
 // Async thunk for fetching admin dashboard data
 export const fetchAdminDashboard = createAsyncThunk(
   'dashboard/fetchAdminDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchAdminDashboardApi();
-
+      const response = await fetchAdminDashboardApi(startDate, endDate);
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch admin dashboard');
       }
-
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
