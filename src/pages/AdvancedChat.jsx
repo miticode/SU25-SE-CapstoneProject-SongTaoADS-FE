@@ -137,7 +137,7 @@ const AdvancedChat = () => {
   const topicLoading = useSelector(selectTopicLoading);
   const questionLoading = useSelector(selectQuestionLoading);
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  
+
   // ChatBot Topic selectors
   const chatBotTopicsByModel = useSelector(selectChatBotTopicsByModel);
   const chatBotTopicLoading = useSelector(selectChatBotTopicLoading);
@@ -160,9 +160,22 @@ const AdvancedChat = () => {
   const KEYWORDS = [
     { keys: ["trạng thái"], type: "status" },
     { keys: ["đơn vị thi công", "thi công"], type: "contractor" },
-    { keys: ["ngày giao", "giao dự kiến", "hoàn thành dự kiến"], type: "delivery" },
+    {
+      keys: ["ngày giao", "giao dự kiến", "hoàn thành dự kiến"],
+      type: "delivery",
+    },
     { keys: ["tổng tiền", "tổng đơn"], type: "total" },
     { keys: ["loại đơn hàng"], type: "orderType" },
+    {
+      keys: [
+        "cần phải làm gì",
+        "phải làm gì",
+        "làm gì",
+        "bước tiếp theo",
+        "hướng dẫn",
+      ],
+      type: "nextSteps",
+    },
   ];
 
   // Guard to avoid duplicate welcome in StrictMode
@@ -176,39 +189,48 @@ const AdvancedChat = () => {
   const fetchFineTunedModels = async () => {
     try {
       setModelLoading(true);
-      console.log('🔄 Fetching fine-tuned models...');
+      console.log("🔄 Fetching fine-tuned models...");
       const response = await getFineTunedModelsModelChatApi(1, 100);
       if (response.success) {
-        const activeModels = response.result.filter(model => model.active === true);
-        console.log(`✅ Found ${response.result.length} models, ${activeModels.length} active`);
+        const activeModels = response.result.filter(
+          (model) => model.active === true
+        );
+        console.log(
+          `✅ Found ${response.result.length} models, ${activeModels.length} active`
+        );
         setFineTunedModels(activeModels); // Chỉ lưu các model active
       } else {
-        console.error('❌ Lỗi khi lấy danh sách model:', response.error);
+        console.error("❌ Lỗi khi lấy danh sách model:", response.error);
       }
     } catch (error) {
-      console.error('❌ Lỗi khi gọi API model:', error);
+      console.error("❌ Lỗi khi gọi API model:", error);
     } finally {
       setModelLoading(false);
     }
   };
 
   // Mock data cho model chat bot (fineTunedModels đã chỉ chứa các model active: true)
-  const mockModelChatBots = fineTunedModels.map(model => ({
+  const mockModelChatBots = fineTunedModels.map((model) => ({
     id: model.id,
     name: model.modelName,
-    description: `Model đã fine-tune - Đang hoạt động`
+    description: `Model đã fine-tune - Đang hoạt động`,
   }));
-  
+
   // Tự động chọn model active khi có models
   useEffect(() => {
     if (fineTunedModels.length > 0) {
       // Tự động chọn model đầu tiên có active: true
-      const activeModel = fineTunedModels.find(model => model.active === true);
+      const activeModel = fineTunedModels.find(
+        (model) => model.active === true
+      );
       if (activeModel) {
         setSelectedModelChatBot(activeModel);
         console.log(`🤖 Auto-selected active model: ${activeModel.modelName}`);
       }
-      console.log(`🎯 Available active models:`, mockModelChatBots.map(m => ({ id: m.id, name: m.name })));
+      console.log(
+        `🎯 Available active models:`,
+        mockModelChatBots.map((m) => ({ id: m.id, name: m.name }))
+      );
     }
   }, [fineTunedModels]);
 
@@ -217,28 +239,30 @@ const AdvancedChat = () => {
     if (!selectedModelChatBot) {
       return []; // Không hiển thị topics nào nếu chưa chọn model
     }
-    
+
     const modelChatBotTopics = chatBotTopicsByModel[selectedModelChatBot.id];
     if (!modelChatBotTopics) {
       return []; // Không có topics cho model này
     }
-    
+
     // Lấy topic IDs từ chatBotTopics
-    const topicIds = modelChatBotTopics.map(cbt => cbt.topicId);
-    
+    const topicIds = modelChatBotTopics.map((cbt) => cbt.topicId);
+
     // Lọc topics dựa trên topicIds
-    const filtered = (topics || []).filter(topic => topicIds.includes(topic.id));
-    
+    const filtered = (topics || []).filter((topic) =>
+      topicIds.includes(topic.id)
+    );
+
     console.log(`🔍 Model ${selectedModelChatBot.name}:`, {
       totalTopics: topics?.length || 0,
       modelTopics: modelChatBotTopics.length,
       filteredTopics: filtered.length,
-      topicIds: topicIds
+      topicIds: topicIds,
     });
-    
+
     return filtered;
   };
-  
+
   // Debug log khi chatBotTopicsByModel thay đổi
   useEffect(() => {
     if (selectedModelChatBot && Object.keys(chatBotTopicsByModel).length > 0) {
@@ -246,7 +270,7 @@ const AdvancedChat = () => {
       console.log(`📊 ChatBot Topics for ${selectedModelChatBot.name}:`, {
         modelId: selectedModelChatBot.id,
         topicsCount: modelTopics?.length || 0,
-        topics: modelTopics || []
+        topics: modelTopics || [],
       });
     }
   }, [chatBotTopicsByModel, selectedModelChatBot]);
@@ -257,7 +281,7 @@ const AdvancedChat = () => {
     const code = (text.match(ORDER_CODE_RGX) || [])[0];
     if (!code) return null;
     const lower = text.toLowerCase();
-    const found = KEYWORDS.find(k => k.keys.some(w => lower.includes(w)));
+    const found = KEYWORDS.find((k) => k.keys.some((w) => lower.includes(w)));
     const type = found?.type || "all";
     return { code, type };
   };
@@ -265,7 +289,7 @@ const AdvancedChat = () => {
   const getTopicIcon = (topic) => {
     const title = topic.title?.toLowerCase() || "";
     const description = topic.description?.toLowerCase() || "";
-    
+
     if (title.includes("báo giá") || title.includes("thanh toán")) {
       return <RequestQuoteIcon sx={{ color: "white" }} />;
     }
@@ -309,13 +333,15 @@ const AdvancedChat = () => {
       fetchFineTunedModels(); // Fetch danh sách model và tự động chọn model active
     }
     // đặt thread là advanced khi vào màn này
-    dispatch(setCurrentThread('advanced'));
+    dispatch(setCurrentThread("advanced"));
   }, [dispatch, isAuthenticated]);
 
   // Load ChatBot Topics khi model chatbot được chọn
   useEffect(() => {
     if (selectedModelChatBot && isAuthenticated) {
-      console.log(`🚀 Fetching topics for model: ${selectedModelChatBot.name} (${selectedModelChatBot.id})`);
+      console.log(
+        `🚀 Fetching topics for model: ${selectedModelChatBot.name} (${selectedModelChatBot.id})`
+      );
       dispatch(fetchChatBotTopicsByModelChat(selectedModelChatBot.id));
       // Reset selected topic khi thay đổi model
       setSelectedTopic(null);
@@ -326,10 +352,17 @@ const AdvancedChat = () => {
   // Add a single welcome message for the advanced thread when empty
   useEffect(() => {
     if (didWelcomeRef.current) return;
-    const advancedMsgs = (messages || []).filter(m => (m.thread || 'basic') === 'advanced');
+    const advancedMsgs = (messages || []).filter(
+      (m) => (m.thread || "basic") === "advanced"
+    );
     if (advancedMsgs.length === 0) {
       didWelcomeRef.current = true;
-      dispatch(addBotMessage({ text: 'Xin chào quý khách! Song Tạo có thể giúp gì cho bạn?', thread: 'advanced' }));
+      dispatch(
+        addBotMessage({
+          text: "Xin chào quý khách! Song Tạo có thể giúp gì cho bạn?",
+          thread: "advanced",
+        })
+      );
     }
   }, [messages, dispatch]);
 
@@ -354,18 +387,18 @@ const AdvancedChat = () => {
 
   const handleSend = async (msg) => {
     if ((!input.trim() && !msg) || isBusy) return;
-    
+
     // Kiểm tra trạng thái đăng nhập
     if (!isAuthenticated) {
       dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
       return;
     }
-    
+
     const userMessage = msg || input.trim();
     setInput("");
     // Nếu đang mở form theo dõi thì ẩn đi để không "dính" form
     if (inlineTrackingVisible) setInlineTrackingVisible(false);
-    
+
     // Nhận diện tracking theo mã đơn
     const intent = detectTrackingIntent(userMessage);
     if (intent) {
@@ -391,23 +424,23 @@ const AdvancedChat = () => {
 
   const handleTopicClick = async (topic) => {
     setSelectedTopic(topic);
-    setExpandedTopics(prev => ({
+    setExpandedTopics((prev) => ({
       ...prev,
-      [topic.id]: !prev[topic.id]
+      [topic.id]: !prev[topic.id],
     }));
-    
+
     if (!topicQuestions[topic.id]) {
       try {
         const result = await dispatch(fetchQuestionsByTopic(topic.id)).unwrap();
-        setTopicQuestions(prev => ({
+        setTopicQuestions((prev) => ({
           ...prev,
-          [topic.id]: result.questions || result || []
+          [topic.id]: result.questions || result || [],
         }));
       } catch (error) {
-        console.error('Error loading questions for topic:', topic.id, error);
-        setTopicQuestions(prev => ({
+        console.error("Error loading questions for topic:", topic.id, error);
+        setTopicQuestions((prev) => ({
           ...prev,
-          [topic.id]: []
+          [topic.id]: [],
         }));
       }
     }
@@ -421,10 +454,13 @@ const AdvancedChat = () => {
     const c = (code || "").trim();
     if (!c) return "";
     if (type === "status") return `Tôi muốn xem trạng thái đơn hàng ${c}`;
-    if (type === "contractor") return `Tôi muốn xem đơn vị thi công đơn hàng ${c}`;
-    if (type === "delivery") return `Tôi muốn xem ngày giao dự kiến đơn hàng ${c}`;
+    if (type === "contractor")
+      return `Tôi muốn xem đơn vị thi công đơn hàng ${c}`;
+    if (type === "delivery")
+      return `Tôi muốn xem ngày giao dự kiến đơn hàng ${c}`;
     if (type === "total") return `Tôi muốn xem tổng tiền đơn hàng ${c}`;
     if (type === "orderType") return `Tôi muốn xem loại đơn hàng ${c}`;
+    if (type === "nextSteps") return `Tôi cần phải làm gì với đơn hàng ${c}`;
     return `Tôi muốn xem thông tin đơn hàng ${c}`;
   };
 
@@ -455,10 +491,10 @@ const AdvancedChat = () => {
   const sidebarWidth = 320;
 
   return (
-    <Box 
-      sx={{ 
-        height: "100vh", 
-        display: "flex", 
+    <Box
+      sx={{
+        height: "100vh",
+        display: "flex",
         flexDirection: "column",
         overflow: "hidden",
         background: "#161618",
@@ -480,7 +516,8 @@ const AdvancedChat = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+            boxShadow:
+              "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -492,13 +529,13 @@ const AdvancedChat = () => {
               <IconButton
                 color="inherit"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                sx={{ 
+                sx={{
                   color: "white",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   "&:hover": {
                     bgcolor: "rgba(255, 255, 255, 0.2)",
                     transform: "scale(1.1)",
-                  }
+                  },
                 }}
               >
                 <MenuIcon />
@@ -511,9 +548,9 @@ const AdvancedChat = () => {
               <Avatar
                 src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                 alt="AI Bot"
-                sx={{ 
-                  width: 36, 
-                  height: 36, 
+                sx={{
+                  width: 36,
+                  height: 36,
                   border: "2px solid rgba(255, 255, 255, 0.3)",
                   boxShadow: "0 4px 20px rgba(255, 255, 255, 0.3)",
                 }}
@@ -529,16 +566,16 @@ const AdvancedChat = () => {
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
-              <IconButton 
-                color="inherit" 
-                onClick={() => navigate('/')}
-                sx={{ 
+              <IconButton
+                color="inherit"
+                onClick={() => navigate("/")}
+                sx={{
                   color: "white",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   "&:hover": {
                     bgcolor: "rgba(255, 255, 255, 0.2)",
                     transform: "scale(1.1)",
-                  }
+                  },
                 }}
               >
                 <HomeIcon />
@@ -549,16 +586,16 @@ const AdvancedChat = () => {
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
-              <IconButton 
-                color="inherit" 
-                onClick={() => navigate('/')}
+              <IconButton
+                color="inherit"
+                onClick={() => navigate("/")}
                 sx={{
                   color: "white",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   "&:hover": {
                     bgcolor: "rgba(239, 68, 68, 0.2)",
                     transform: "scale(1.1)",
-                  }
+                  },
                 }}
               >
                 <CloseIcon />
@@ -569,13 +606,26 @@ const AdvancedChat = () => {
       </motion.div>
 
       {/* Main Content - 2 cột như ChatGPT */}
-      <Box sx={{ display: "flex", height: "calc(100vh - 80px)", overflow: "hidden", position: "relative", zIndex: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          height: "calc(100vh - 80px)",
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
         {/* Left Sidebar - Topics */}
         <motion.div
           initial={{ x: -300, opacity: 0 }}
           animate={{ x: sidebarOpen ? 0 : -300, opacity: sidebarOpen ? 1 : 0 }}
-          transition={{ duration: 0.5, type: "spring", stiffness: 100, damping: 20 }}
-          style={{ 
+          transition={{
+            duration: 0.5,
+            type: "spring",
+            stiffness: 100,
+            damping: 20,
+          }}
+          style={{
             width: sidebarWidth,
             height: "100%",
             flexShrink: 0,
@@ -594,7 +644,12 @@ const AdvancedChat = () => {
             }}
           >
             {/* Fixed Header */}
-            <Box sx={{ p: 2.5, borderBottom: "1px solid rgba(255, 255, 255, 0.15)" }}>
+            <Box
+              sx={{
+                p: 2.5,
+                borderBottom: "1px solid rgba(255, 255, 255, 0.15)",
+              }}
+            >
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -614,39 +669,44 @@ const AdvancedChat = () => {
                   <CategoryIcon sx={{ color: "#ffffff" }} />
                   Danh mục tư vấn
                 </Typography>
-                
-
-
               </motion.div>
             </Box>
-            
+
             {/* Tracking panel removed - inline in chat instead */}
-            
-                         {/* Scrollable Content */}
-             {(topicLoading || chatBotTopicLoading) ? (
-               <Box sx={{ textAlign: "center", py: 4 }}>
-                 <motion.div
-                   animate={{ rotate: 360 }}
-                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                 >
-                   <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
-                   <Typography color="rgba(156, 163, 175, 0.8)" variant="h6" sx={{ mb: 1 }}>
-                     {selectedModelChatBot 
-                       ? `Đang tải chủ đề cho ${selectedModelChatBot.name}...`
-                       : 'Đang tải chủ đề...'
-                     }
-                   </Typography>
-                   <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
-                     {selectedModelChatBot 
-                       ? 'Vui lòng chờ trong giây lát...'
-                       : 'Đang chuẩn bị dữ liệu...'
-                     }
-                   </Typography>
-                 </motion.div>
-               </Box>
-             ) : (
-              <Box 
-                sx={{ 
+
+            {/* Scrollable Content */}
+            {topicLoading || chatBotTopicLoading ? (
+              <Box sx={{ textAlign: "center", py: 4 }}>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <SmartToy
+                    sx={{
+                      fontSize: 48,
+                      color: "rgba(255, 255, 255, 0.3)",
+                      mb: 2,
+                    }}
+                  />
+                  <Typography
+                    color="rgba(156, 163, 175, 0.8)"
+                    variant="h6"
+                    sx={{ mb: 1 }}
+                  >
+                    {selectedModelChatBot
+                      ? `Đang tải chủ đề cho ${selectedModelChatBot.name}...`
+                      : "Đang tải chủ đề..."}
+                  </Typography>
+                  <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
+                    {selectedModelChatBot
+                      ? "Vui lòng chờ trong giây lát..."
+                      : "Đang chuẩn bị dữ liệu..."}
+                  </Typography>
+                </motion.div>
+              </Box>
+            ) : (
+              <Box
+                sx={{
                   flex: 1,
                   height: 0,
                   overflowY: "scroll",
@@ -666,169 +726,262 @@ const AdvancedChat = () => {
                   },
                 }}
               >
-                                 <Box sx={{ p: 2.5 }}>
-                   {!isAuthenticated ? (
-                     <Box sx={{ py: 2 }}>
-                       <Typography color="rgba(156, 163, 175, 0.7)" variant="body2">
-                         Vui lòng đăng nhập để sử dụng tính năng này
-                       </Typography>
-                     </Box>
-                                       ) : !selectedModelChatBot ? (
-                      <Box sx={{ py: 4, textAlign: 'center' }}>
-                        <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
-                        <Typography color="rgba(156, 163, 175, 0.8)" variant="h6" sx={{ mb: 1 }}>
-                          Chào mừng đến với Advanced Chat
-                        </Typography>
-                        <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
-                          Hệ thống đang tự động tìm và kích hoạt model chatbot
-                        </Typography>
-                        <Typography color="rgba(156, 163, 175, 0.5)" variant="caption" sx={{ mt: 2, display: 'block' }}>
-                          💡 Chỉ các model đang hoạt động mới được sử dụng
-                        </Typography>
-                      </Box>
-                    ) : (
-                     <List sx={{ p: 0 }}>
-                    <AnimatePresence>
-                      {filteredTopics?.length > 0 ? (
-                        filteredTopics.map((topic, index) => (
-                        <motion.div
-                          key={topic.id}
-                          initial={{ opacity: 0, x: -50 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1, duration: 0.5 }}
-                          whileHover={{ scale: 1.02, x: 5 }}
-                          style={{ marginBottom: 8 }}
-                        >
-                          <Box>
-                            <ListItemButton
-                              onClick={() => handleTopicClick(topic)}
-                              sx={{
-                                borderRadius: 3,
-                                mb: 1,
-                                bgcolor: selectedTopic?.id === topic.id ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                "&:hover": {
-                                  bgcolor: "rgba(255, 255, 255, 0.1)",
-                                  transform: "translateX(8px)",
-                                  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.2)",
-                                },
-                              }}
+                <Box sx={{ p: 2.5 }}>
+                  {!isAuthenticated ? (
+                    <Box sx={{ py: 2 }}>
+                      <Typography
+                        color="rgba(156, 163, 175, 0.7)"
+                        variant="body2"
+                      >
+                        Vui lòng đăng nhập để sử dụng tính năng này
+                      </Typography>
+                    </Box>
+                  ) : !selectedModelChatBot ? (
+                    <Box sx={{ py: 4, textAlign: "center" }}>
+                      <SmartToy
+                        sx={{
+                          fontSize: 48,
+                          color: "rgba(255, 255, 255, 0.3)",
+                          mb: 2,
+                        }}
+                      />
+                      <Typography
+                        color="rgba(156, 163, 175, 0.8)"
+                        variant="h6"
+                        sx={{ mb: 1 }}
+                      >
+                        Chào mừng đến với Advanced Chat
+                      </Typography>
+                      <Typography
+                        color="rgba(156, 163, 175, 0.6)"
+                        variant="body2"
+                      >
+                        Hệ thống đang tự động tìm và kích hoạt model chatbot
+                      </Typography>
+                      <Typography
+                        color="rgba(156, 163, 175, 0.5)"
+                        variant="caption"
+                        sx={{ mt: 2, display: "block" }}
+                      >
+                        💡 Chỉ các model đang hoạt động mới được sử dụng
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List sx={{ p: 0 }}>
+                      <AnimatePresence>
+                        {filteredTopics?.length > 0 ? (
+                          filteredTopics.map((topic, index) => (
+                            <motion.div
+                              key={topic.id}
+                              initial={{ opacity: 0, x: -50 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.1, duration: 0.5 }}
+                              whileHover={{ scale: 1.02, x: 5 }}
+                              style={{ marginBottom: 8 }}
                             >
-                              <ListItemIcon>
-                                <motion.div
-                                  whileHover={{ rotate: 360, scale: 1.1 }}
-                                  transition={{ duration: 0.4, ease: "easeInOut" }}
+                              <Box>
+                                <ListItemButton
+                                  onClick={() => handleTopicClick(topic)}
+                                  sx={{
+                                    borderRadius: 3,
+                                    mb: 1,
+                                    bgcolor:
+                                      selectedTopic?.id === topic.id
+                                        ? "rgba(255, 255, 255, 0.15)"
+                                        : "transparent",
+                                    transition:
+                                      "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                    "&:hover": {
+                                      bgcolor: "rgba(255, 255, 255, 0.1)",
+                                      transform: "translateX(8px)",
+                                      boxShadow:
+                                        "0 8px 25px rgba(0, 0, 0, 0.2)",
+                                    },
+                                  }}
                                 >
-                                  {getTopicIcon(topic)}
-                                </motion.div>
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={topic.title}
-                                secondary={topic.description}
-                                primaryTypographyProps={{
-                                  fontWeight: selectedTopic?.id === topic.id ? 600 : 400,
-                                  color: "white",
-                                }}
-                                secondaryTypographyProps={{
-                                  color: "rgba(156, 163, 175, 0.8)",
-                                }}
-                              />
-                              <motion.div
-                                animate={{ rotate: expandedTopics[topic.id] ? 180 : 0 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                {expandedTopics[topic.id] ? 
-                                  <ExpandLessIcon sx={{ color: "#ffffff" }} /> : 
-                                  <ExpandMoreIcon sx={{ color: "rgba(156, 163, 175, 0.8)" }} />
-                                }
-                              </motion.div>
-                            </ListItemButton>
+                                  <ListItemIcon>
+                                    <motion.div
+                                      whileHover={{ rotate: 360, scale: 1.1 }}
+                                      transition={{
+                                        duration: 0.4,
+                                        ease: "easeInOut",
+                                      }}
+                                    >
+                                      {getTopicIcon(topic)}
+                                    </motion.div>
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={topic.title}
+                                    secondary={topic.description}
+                                    primaryTypographyProps={{
+                                      fontWeight:
+                                        selectedTopic?.id === topic.id
+                                          ? 600
+                                          : 400,
+                                      color: "white",
+                                    }}
+                                    secondaryTypographyProps={{
+                                      color: "rgba(156, 163, 175, 0.8)",
+                                    }}
+                                  />
+                                  <motion.div
+                                    animate={{
+                                      rotate: expandedTopics[topic.id]
+                                        ? 180
+                                        : 0,
+                                    }}
+                                    transition={{ duration: 0.3 }}
+                                  >
+                                    {expandedTopics[topic.id] ? (
+                                      <ExpandLessIcon
+                                        sx={{ color: "#ffffff" }}
+                                      />
+                                    ) : (
+                                      <ExpandMoreIcon
+                                        sx={{
+                                          color: "rgba(156, 163, 175, 0.8)",
+                                        }}
+                                      />
+                                    )}
+                                  </motion.div>
+                                </ListItemButton>
 
-                            <Collapse in={expandedTopics[topic.id]} timeout="auto">
-                              <Box sx={{ pl: 4, pr: 2, pb: 1 }}>
-                                {questionLoading && !topicQuestions[topic.id] ? (
-                                  <Typography variant="body2" color="rgba(156, 163, 175, 0.7)" sx={{ py: 1 }}>
-                                    Đang tải câu hỏi...
-                                  </Typography>
-                                ) : topicQuestions[topic.id]?.length > 0 ? (
-                                  <Stack spacing={0.5}>
-                                    <AnimatePresence>
-                                      {topicQuestions[topic.id].map((question, qIndex) => (
-                                        <motion.div
-                                          key={question.id}
-                                          initial={{ opacity: 0, x: -30 }}
-                                          animate={{ opacity: 1, x: 0 }}
-                                          transition={{ delay: qIndex * 0.05, duration: 0.3 }}
-                                          whileHover={{ scale: 1.02, x: 4 }}
-                                        >
-                                          <Button
-                                            variant="text"
-                                            size="small"
-                                            onClick={() => handleQuestionClick(question)}
-                                            sx={{
-                                              justifyContent: "flex-start",
-                                              textAlign: "left",
-                                              textTransform: "none",
-                                              fontSize: "0.875rem",
-                                              py: 0.8,
-                                              px: 1.5,
-                                              color: "rgba(156, 163, 175, 0.8)",
-                                              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                              borderRadius: 2,
-                                              "&:hover": {
-                                                bgcolor: "rgba(255, 255, 255, 0.1)",
-                                                color: "white",
-                                                transform: "translateX(4px)",
-                                              },
-                                            }}
-                                          >
-                                            <HelpOutlineIcon sx={{ fontSize: 16, mr: 1, color: "#ffffff" }} />
-                                            {question.question}
-                                          </Button>
-                                        </motion.div>
-                                      ))}
-                                    </AnimatePresence>
-                                  </Stack>
-                                ) : (
-                                  <Typography variant="body2" color="rgba(156, 163, 175, 0.7)" sx={{ py: 1 }}>
-                                    Chưa có câu hỏi
-                                  </Typography>
-                                )}
+                                <Collapse
+                                  in={expandedTopics[topic.id]}
+                                  timeout="auto"
+                                >
+                                  <Box sx={{ pl: 4, pr: 2, pb: 1 }}>
+                                    {questionLoading &&
+                                    !topicQuestions[topic.id] ? (
+                                      <Typography
+                                        variant="body2"
+                                        color="rgba(156, 163, 175, 0.7)"
+                                        sx={{ py: 1 }}
+                                      >
+                                        Đang tải câu hỏi...
+                                      </Typography>
+                                    ) : topicQuestions[topic.id]?.length > 0 ? (
+                                      <Stack spacing={0.5}>
+                                        <AnimatePresence>
+                                          {topicQuestions[topic.id].map(
+                                            (question, qIndex) => (
+                                              <motion.div
+                                                key={question.id}
+                                                initial={{ opacity: 0, x: -30 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{
+                                                  delay: qIndex * 0.05,
+                                                  duration: 0.3,
+                                                }}
+                                                whileHover={{
+                                                  scale: 1.02,
+                                                  x: 4,
+                                                }}
+                                              >
+                                                <Button
+                                                  variant="text"
+                                                  size="small"
+                                                  onClick={() =>
+                                                    handleQuestionClick(
+                                                      question
+                                                    )
+                                                  }
+                                                  sx={{
+                                                    justifyContent:
+                                                      "flex-start",
+                                                    textAlign: "left",
+                                                    textTransform: "none",
+                                                    fontSize: "0.875rem",
+                                                    py: 0.8,
+                                                    px: 1.5,
+                                                    color:
+                                                      "rgba(156, 163, 175, 0.8)",
+                                                    transition:
+                                                      "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                                    borderRadius: 2,
+                                                    "&:hover": {
+                                                      bgcolor:
+                                                        "rgba(255, 255, 255, 0.1)",
+                                                      color: "white",
+                                                      transform:
+                                                        "translateX(4px)",
+                                                    },
+                                                  }}
+                                                >
+                                                  <HelpOutlineIcon
+                                                    sx={{
+                                                      fontSize: 16,
+                                                      mr: 1,
+                                                      color: "#ffffff",
+                                                    }}
+                                                  />
+                                                  {question.question}
+                                                </Button>
+                                              </motion.div>
+                                            )
+                                          )}
+                                        </AnimatePresence>
+                                      </Stack>
+                                    ) : (
+                                      <Typography
+                                        variant="body2"
+                                        color="rgba(156, 163, 175, 0.7)"
+                                        sx={{ py: 1 }}
+                                      >
+                                        Chưa có câu hỏi
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Collapse>
                               </Box>
-                            </Collapse>
+                            </motion.div>
+                          ))
+                        ) : (
+                          <Box sx={{ textAlign: "center", py: 4 }}>
+                            <SmartToy
+                              sx={{
+                                fontSize: 48,
+                                color: "rgba(255, 255, 255, 0.3)",
+                                mb: 2,
+                              }}
+                            />
+                            <Typography
+                              color="rgba(156, 163, 175, 0.8)"
+                              variant="h6"
+                              sx={{ mb: 1 }}
+                            >
+                              {selectedModelChatBot
+                                ? `Model ${selectedModelChatBot.name} chưa có chủ đề`
+                                : "Chưa chọn Model ChatBot"}
+                            </Typography>
+                            <Typography
+                              color="rgba(156, 163, 175, 0.6)"
+                              variant="body2"
+                            >
+                              {selectedModelChatBot
+                                ? "Model này chưa có chủ đề nào được thiết lập. Vui lòng liên hệ staff để thiết lập chủ đề cho model này."
+                                : "Vui lòng chọn một Model ChatBot ở bên trái để xem các chủ đề và câu hỏi tương ứng"}
+                            </Typography>
+                            {selectedModelChatBot && (
+                              <Typography
+                                color="rgba(156, 163, 175, 0.5)"
+                                variant="caption"
+                                sx={{ mt: 2, display: "block" }}
+                              >
+                                🔧 Staff cần thiết lập ChatBot Topics cho model
+                                này
+                              </Typography>
+                            )}
                           </Box>
-                                                  </motion.div>
-                        ))
-                      ) : (
-                                                 <Box sx={{ textAlign: "center", py: 4 }}>
-                           <SmartToy sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.3)', mb: 2 }} />
-                           <Typography color="rgba(156, 163, 175, 0.8)" variant="h6" sx={{ mb: 1 }}>
-                             {selectedModelChatBot 
-                               ? `Model ${selectedModelChatBot.name} chưa có chủ đề`
-                               : 'Chưa chọn Model ChatBot'
-                             }
-                           </Typography>
-                           <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
-                             {selectedModelChatBot 
-                               ? 'Model này chưa có chủ đề nào được thiết lập. Vui lòng liên hệ staff để thiết lập chủ đề cho model này.'
-                               : 'Vui lòng chọn một Model ChatBot ở bên trái để xem các chủ đề và câu hỏi tương ứng'
-                             }
-                           </Typography>
-                           {selectedModelChatBot && (
-                             <Typography color="rgba(156, 163, 175, 0.5)" variant="caption" sx={{ mt: 2, display: 'block' }}>
-                               🔧 Staff cần thiết lập ChatBot Topics cho model này
-                             </Typography>
-                           )}
-                         </Box>
-                      )}
+                        )}
                       </AnimatePresence>
                     </List>
-                   )}
-                 </Box>
-               </Box>
-             )}
-           </Box>
-         </motion.div>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </motion.div>
 
         {/* Right Content - Chat Area */}
         <motion.div
@@ -872,111 +1025,159 @@ const AdvancedChat = () => {
                 },
               }}
             >
-              {messages.filter(m => (m.thread || 'basic') === 'advanced').length === 0 ? (
+              {messages.filter((m) => (m.thread || "basic") === "advanced")
+                .length === 0 ? (
                 <></>
               ) : (
                 <Stack spacing={3}>
                   <AnimatePresence>
-                    {messages.filter(m => (m.thread || 'basic') === 'advanced').map((msg, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.4, 0, 0.2, 1] }}
-                      >
-                        <Fade in={true} timeout={400} style={{ transitionDelay: `${idx * 50}ms` }}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: msg.from === "user" ? "row-reverse" : "row",
-                              alignItems: "flex-start",
-                              gap: 2,
-                            }}
+                    {messages
+                      .filter((m) => (m.thread || "basic") === "advanced")
+                      .map((msg, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{
+                            duration: 0.4,
+                            delay: idx * 0.05,
+                            ease: [0.4, 0, 0.2, 1],
+                          }}
+                        >
+                          <Fade
+                            in={true}
+                            timeout={400}
+                            style={{ transitionDelay: `${idx * 50}ms` }}
                           >
-                            <motion.div
-                              whileHover={{ scale: 1.1, rotate: 5 }}
-                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection:
+                                  msg.from === "user" ? "row-reverse" : "row",
+                                alignItems: "flex-start",
+                                gap: 2,
+                              }}
                             >
-                              <Avatar
-                                sx={{
-                                  bgcolor: msg.from === "user" ? "rgba(99, 102, 241, 0.9)" : "rgba(22, 22, 24, 0.8)",
-                                  color: msg.from === "user" ? "#ffffff" : "#ffffff",
-                                  width: 44,
-                                  height: 44,
-                                  border: msg.from === "user" ? "none" : "2px solid rgba(255, 255, 255, 0.3)",
-                                  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.2)",
-                                }}
-                                src={
-                                  msg.from === "bot"
-                                    ? "https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
-                                    : undefined
-                                }
-                              >
-                                {msg.from === "user" ? <PersonIcon /> : null}
-                              </Avatar>
-                            </motion.div>
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                              style={{ maxWidth: "70%" }}
-                            >
-                              <Paper
-                                elevation={0}
-                                sx={{
-                                  bgcolor: msg.from === "user" ? "rgba(99, 102, 241, 0.8)" : "rgba(22, 22, 24, 0.25)",
-                                  color: msg.from === "user" ? "#ffffff" : "#f8fafc",
-                                  px: 3,
-                                  py: 2.5,
-                                  borderRadius: 3,
-                                  border: "1px solid rgba(255, 255, 255, 0.18)",
-                                  fontSize: "1rem",
-                                  lineHeight: 1.6,
-                                  whiteSpace: "pre-line",
-                                  backdropFilter: "blur(25px) saturate(180%)",
-                                  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                              <motion.div
+                                whileHover={{ scale: 1.1, rotate: 5 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 400,
+                                  damping: 17,
                                 }}
                               >
-                                {msg.text}
-                              </Paper>
-                            </motion.div>
-                          </Box>
-                        </Fade>
-                      </motion.div>
-                    ))}
+                                <Avatar
+                                  sx={{
+                                    bgcolor:
+                                      msg.from === "user"
+                                        ? "rgba(99, 102, 241, 0.9)"
+                                        : "rgba(22, 22, 24, 0.8)",
+                                    color:
+                                      msg.from === "user"
+                                        ? "#ffffff"
+                                        : "#ffffff",
+                                    width: 44,
+                                    height: 44,
+                                    border:
+                                      msg.from === "user"
+                                        ? "none"
+                                        : "2px solid rgba(255, 255, 255, 0.3)",
+                                    boxShadow: "0 8px 25px rgba(0, 0, 0, 0.2)",
+                                  }}
+                                  src={
+                                    msg.from === "bot"
+                                      ? "https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
+                                      : undefined
+                                  }
+                                >
+                                  {msg.from === "user" ? <PersonIcon /> : null}
+                                </Avatar>
+                              </motion.div>
+                              <motion.div
+                                whileHover={{ scale: 1.02 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 400,
+                                  damping: 17,
+                                }}
+                                style={{ maxWidth: "70%" }}
+                              >
+                                <Paper
+                                  elevation={0}
+                                  sx={{
+                                    bgcolor:
+                                      msg.from === "user"
+                                        ? "rgba(99, 102, 241, 0.8)"
+                                        : "rgba(22, 22, 24, 0.25)",
+                                    color:
+                                      msg.from === "user"
+                                        ? "#ffffff"
+                                        : "#f8fafc",
+                                    px: 3,
+                                    py: 2.5,
+                                    borderRadius: 3,
+                                    border:
+                                      "1px solid rgba(255, 255, 255, 0.18)",
+                                    fontSize: "1rem",
+                                    lineHeight: 1.6,
+                                    whiteSpace: "pre-line",
+                                    backdropFilter: "blur(25px) saturate(180%)",
+                                    boxShadow:
+                                      "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                                  }}
+                                >
+                                  {msg.text}
+                                </Paper>
+                              </motion.div>
+                            </Box>
+                          </Fade>
+                        </motion.div>
+                      ))}
                     {inlineTrackingVisible && (
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 2,
+                          }}
+                        >
                           <Avatar
                             sx={{
-                              bgcolor: 'rgba(22, 22, 24, 0.3)',
+                              bgcolor: "rgba(22, 22, 24, 0.3)",
                               width: 44,
                               height: 44,
-                              border: '1px solid rgba(255, 255, 255, 0.3)',
-                              backdropFilter: 'blur(15px)',
-                              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                              border: "1px solid rgba(255, 255, 255, 0.3)",
+                              backdropFilter: "blur(15px)",
+                              boxShadow:
+                                "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                             }}
                             src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                           />
                           <Paper
                             elevation={0}
                             sx={{
-                              bgcolor: 'rgba(22, 22, 24, 0.25)',
+                              bgcolor: "rgba(22, 22, 24, 0.25)",
                               px: 2,
                               py: 1.5,
                               borderRadius: 3,
-                              border: '1px solid rgba(255, 255, 255, 0.18)',
-                              backdropFilter: 'blur(25px) saturate(180%)',
-                              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                              border: "1px solid rgba(255, 255, 255, 0.18)",
+                              backdropFilter: "blur(25px) saturate(180%)",
+                              boxShadow:
+                                "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                               maxWidth: 360,
-                              width: '100%'
+                              width: "100%",
                             }}
                           >
-                            <Typography variant="subtitle2" sx={{ color: '#e2e8f0', mb: 1 }}>
+                            <Typography
+                              variant="subtitle2"
+                              sx={{ color: "#e2e8f0", mb: 1 }}
+                            >
                               Theo dõi đơn hàng
                             </Typography>
                             <Stack spacing={1}>
@@ -989,25 +1190,44 @@ const AdvancedChat = () => {
                                   const v = e.target.value;
                                   setTrackingCode(v);
                                   if (v && !ORDER_CODE_RGX.test(v.trim())) {
-                                    setTrackingError('Mã đơn không hợp lệ. Ví dụ đúng: DH-ABCDEF1234');
+                                    setTrackingError(
+                                      "Mã đơn không hợp lệ. Ví dụ đúng: DH-ABCDEF1234"
+                                    );
                                   } else {
-                                    setTrackingError('');
+                                    setTrackingError("");
                                   }
                                 }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleTrackSubmit(); }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleTrackSubmit();
+                                }}
                                 error={Boolean(trackingError)}
-                                helperText={trackingError || 'Bắt đầu bằng DH- và 10 ký tự chữ/số'}
+                                helperText={
+                                  trackingError ||
+                                  "Bắt đầu bằng DH- và 10 ký tự chữ/số"
+                                }
                                 sx={{
-                                  '& .MuiInputLabel-root': { color: '#e2e8f0' },
-                                  '& .MuiInputLabel-root.Mui-focused': { color: '#ffffff' },
-                                  '& .MuiOutlinedInput-root': {
-                                    color: '#f8fafc',
-                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                    '&.Mui-focused fieldset': { borderColor: '#ffffff' },
+                                  "& .MuiInputLabel-root": { color: "#e2e8f0" },
+                                  "& .MuiInputLabel-root.Mui-focused": {
+                                    color: "#ffffff",
                                   },
-                                  '& .MuiFormHelperText-root': { color: '#cbd5e1' },
-                                  '& .MuiInputBase-input::placeholder': { color: 'rgba(203, 213, 225, 0.7)' }
+                                  "& .MuiOutlinedInput-root": {
+                                    color: "#f8fafc",
+                                    "& fieldset": {
+                                      borderColor: "rgba(255, 255, 255, 0.3)",
+                                    },
+                                    "&:hover fieldset": {
+                                      borderColor: "rgba(255, 255, 255, 0.5)",
+                                    },
+                                    "&.Mui-focused fieldset": {
+                                      borderColor: "#ffffff",
+                                    },
+                                  },
+                                  "& .MuiFormHelperText-root": {
+                                    color: "#cbd5e1",
+                                  },
+                                  "& .MuiInputBase-input::placeholder": {
+                                    color: "rgba(203, 213, 225, 0.7)",
+                                  },
                                 }}
                               />
                               <TextField
@@ -1015,49 +1235,82 @@ const AdvancedChat = () => {
                                 select
                                 label="Thông tin cần xem"
                                 value={trackingType}
-                                onChange={(e) => setTrackingType(e.target.value)}
+                                onChange={(e) =>
+                                  setTrackingType(e.target.value)
+                                }
                                 sx={{
-                                  '& .MuiInputLabel-root': { color: '#e2e8f0' },
-                                  '& .MuiInputLabel-root.Mui-focused': { color: '#ffffff' },
-                                  '& .MuiOutlinedInput-root': {
-                                    color: '#f8fafc',
-                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                    '&.Mui-focused fieldset': { borderColor: '#ffffff' },
+                                  "& .MuiInputLabel-root": { color: "#e2e8f0" },
+                                  "& .MuiInputLabel-root.Mui-focused": {
+                                    color: "#ffffff",
                                   },
-                                  '& .MuiSelect-icon': { color: '#e2e8f0' }
+                                  "& .MuiOutlinedInput-root": {
+                                    color: "#f8fafc",
+                                    "& fieldset": {
+                                      borderColor: "rgba(255, 255, 255, 0.3)",
+                                    },
+                                    "&:hover fieldset": {
+                                      borderColor: "rgba(255, 255, 255, 0.5)",
+                                    },
+                                    "&.Mui-focused fieldset": {
+                                      borderColor: "#ffffff",
+                                    },
+                                  },
+                                  "& .MuiSelect-icon": { color: "#e2e8f0" },
                                 }}
                               >
-                                <MenuItem value="all">Tất cả thông tin</MenuItem>
+                                <MenuItem value="all">
+                                  Tất cả thông tin
+                                </MenuItem>
                                 <MenuItem value="status">Trạng thái</MenuItem>
-                                <MenuItem value="contractor">Đơn vị thi công</MenuItem>
-                                <MenuItem value="delivery">Ngày giao dự kiến</MenuItem>
+                                <MenuItem value="contractor">
+                                  Đơn vị thi công
+                                </MenuItem>
+                                <MenuItem value="delivery">
+                                  Ngày giao dự kiến
+                                </MenuItem>
                                 <MenuItem value="total">Tổng tiền</MenuItem>
-                                <MenuItem value="orderType">Loại đơn hàng</MenuItem>
+                                <MenuItem value="orderType">
+                                  Loại đơn hàng
+                                </MenuItem>
+                                <MenuItem value="nextSteps">
+                                  Cần phải làm gì
+                                </MenuItem>
                               </TextField>
-                              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                <Button 
-                                  size="small" 
-                                  onClick={() => setInlineTrackingVisible(false)}
-                                  sx={{ color: '#e2e8f0' }}
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                justifyContent="flex-end"
+                              >
+                                <Button
+                                  size="small"
+                                  onClick={() =>
+                                    setInlineTrackingVisible(false)
+                                  }
+                                  sx={{ color: "#e2e8f0" }}
                                 >
                                   Hủy
                                 </Button>
-                                <Button 
-                                  size="small" 
-                                  variant="contained" 
-                                  onClick={handleTrackSubmit} 
-                                  disabled={!trackingCode.trim() || isBusy || !isAuthenticated}
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={handleTrackSubmit}
+                                  disabled={
+                                    !trackingCode.trim() ||
+                                    isBusy ||
+                                    !isAuthenticated
+                                  }
                                   sx={{
-                                    background: 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)',
-                                    color: '#1f2937',
-                                    '&:hover': {
-                                      background: 'linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)'
+                                    background:
+                                      "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
+                                    color: "#1f2937",
+                                    "&:hover": {
+                                      background:
+                                        "linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)",
                                     },
-                                    '&:disabled': {
-                                      background: 'rgba(156, 163, 175, 0.3)',
-                                      color: 'rgba(156, 163, 175, 0.7)'
-                                    }
+                                    "&:disabled": {
+                                      background: "rgba(156, 163, 175, 0.3)",
+                                      color: "rgba(156, 163, 175, 0.7)",
+                                    },
                                   }}
                                 >
                                   Tra cứu
@@ -1069,7 +1322,7 @@ const AdvancedChat = () => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  
+
                   {isBusy && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
@@ -1090,7 +1343,8 @@ const AdvancedChat = () => {
                             height: 44,
                             border: "1px solid rgba(255, 255, 255, 0.3)",
                             backdropFilter: "blur(15px)",
-                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                            boxShadow:
+                              "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                           src="https://i.pinimg.com/originals/90/26/70/902670556722cfd9259344b2f24c8cfc.gif"
                         />
@@ -1105,7 +1359,8 @@ const AdvancedChat = () => {
                             display: "flex",
                             alignItems: "center",
                             backdropFilter: "blur(25px) saturate(180%)",
-                            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                            boxShadow:
+                              "0 8px 25px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
                           }}
                         >
                           <TypingIndicator />
@@ -1148,7 +1403,11 @@ const AdvancedChat = () => {
                       fullWidth
                       multiline
                       maxRows={4}
-                      placeholder={isAuthenticated ? "Nhập thông tin bạn cần tư vấn" : "Vui lòng đăng nhập để được hỗ trợ..."}
+                      placeholder={
+                        isAuthenticated
+                          ? "Nhập thông tin bạn cần tư vấn"
+                          : "Vui lòng đăng nhập để được hỗ trợ..."
+                      }
                       value={input}
                       inputRef={inputRef}
                       onChange={(e) => setInput(e.target.value)}
@@ -1185,20 +1444,26 @@ const AdvancedChat = () => {
                     <motion.div
                       whileHover={{ scale: 1.05, rotate: 5 }}
                       whileTap={{ scale: 0.95 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 17,
+                      }}
                     >
                       <IconButton
                         onClick={() => handleSend()}
                         disabled={isBusy || !input.trim() || !isAuthenticated}
                         sx={{
-                          background: "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
+                          background:
+                            "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
                           color: "#1f2937",
                           width: 56,
                           height: 56,
                           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                           boxShadow: "0 8px 25px rgba(255, 255, 255, 0.3)",
                           "&:hover": {
-                            background: "linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)",
+                            background:
+                              "linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%)",
                             transform: "rotate(15deg)",
                             boxShadow: "0 12px 35px rgba(255, 255, 255, 0.4)",
                           },
@@ -1217,17 +1482,19 @@ const AdvancedChat = () => {
                       onClick={() => setInlineTrackingVisible((v) => !v)}
                       disabled={!isAuthenticated}
                       sx={{
-                        textTransform: 'none',
-                        borderColor: 'rgba(255, 255, 255, 0.7)',
-                        color: '#e2e8f0',
-                        backdropFilter: 'blur(10px)',
-                        '&:hover': {
-                          borderColor: 'rgba(255, 255, 255, 0.9)',
-                          bgcolor: 'rgba(255, 255, 255, 0.1)'
-                        }
+                        textTransform: "none",
+                        borderColor: "rgba(255, 255, 255, 0.7)",
+                        color: "#e2e8f0",
+                        backdropFilter: "blur(10px)",
+                        "&:hover": {
+                          borderColor: "rgba(255, 255, 255, 0.9)",
+                          bgcolor: "rgba(255, 255, 255, 0.1)",
+                        },
                       }}
                     >
-                      {inlineTrackingVisible ? 'Ẩn theo dõi' : 'Theo dõi đơn hàng'}
+                      {inlineTrackingVisible
+                        ? "Ẩn theo dõi"
+                        : "Theo dõi đơn hàng"}
                     </Button>
                   </Box>
                 </Container>
