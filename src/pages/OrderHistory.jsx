@@ -140,34 +140,40 @@ import "react-photo-view/dist/react-photo-view.css";
 import DesignProgressBar from "../components/DesignProgressBar";
 
 const statusMap = {
-  // Status cho orders (đơn hàng)
-  APPROVED: { label: "Đã xác nhận", color: "success" },
-  CONFIRMED: { label: "Đã xác nhận", color: "success" },
-  REJECTED: { label: "Bị từ chối", color: "error" },
-  PENDING: { label: "Chờ xác nhận", color: "warning" },
-  NEGOTIATING: { label: "Đang thương lượng", color: "warning" },
-  DEPOSITED: { label: "Đã đặt cọc", color: "info" },
-  COMPLETED: { label: "Hoàn tất", color: "primary" },
-  CANCELLED: { label: "Đã bị hủy", color: "error" },
-  FULLY_PAID: { label: "Đã thanh toán", color: "success" },
+  // Status cho orders (đơn hàng) - các status mới
+  PENDING_DESIGN: { label: "Chờ thiết kế", color: "warning" },
+  NEED_DEPOSIT_DESIGN: { label: "Cần đặt cọc thiết kế", color: "warning" },
+  DEPOSITED_DESIGN: { label: "Đã đặt cọc thiết kế", color: "info" },
+  NEED_FULLY_PAID_DESIGN: {
+    label: "Cần thanh toán đủ thiết kế",
+    color: "error",
+  },
+  WAITING_FINAL_DESIGN: { label: "Chờ thiết kế cuối cùng", color: "warning" },
+  DESIGN_COMPLETED: { label: "Thiết kế hoàn thành", color: "success" },
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
   CONTRACT_SENT: { label: "Hợp đồng đã được gửi", color: "info" },
-  CONTRACT_SIGNED: { label: "Hợp đồng đã ký", color: "success" },
-  CONTRACT_CONFIRMED: { label: "Đã xác nhận hợp đồng", color: "success" },
-  CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
+  CONTRACT_SIGNED: { label: "Đã ký hợp đồng", color: "success" },
   CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
-  WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
+  CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
+  CONTRACT_CONFIRMED: { label: "Đã xác nhận hợp đồng", color: "success" },
+  DEPOSITED: { label: "Đã đặt cọc", color: "info" },
   IN_PROGRESS: { label: "Đang thực hiện", color: "info" },
   PRODUCING: { label: "Đang sản xuất", color: "info" },
   PRODUCTION_COMPLETED: { label: "Hoàn thành sản xuất", color: "success" },
   DELIVERING: { label: "Đang giao hàng", color: "info" },
   INSTALLED: { label: "Đã lắp đặt", color: "success" },
   ORDER_COMPLETED: { label: "Đơn hàng đã hoàn tất", color: "success" },
-  NEED_DEPOSIT_DESIGN: { label: "Cần đặt cọc thiết kế", color: "warning" },
-  NEED_FULLY_PAID_DESIGN: {
-    label: "Cần thanh toán đủ thiết kế",
-    color: "error",
-  },
+  CANCELLED: { label: "Đã bị hủy", color: "error" },
+
+  // Status cũ cho tương thích ngược (nếu vẫn có trong hệ thống)
+  APPROVED: { label: "Đã xác nhận", color: "success" },
+  CONFIRMED: { label: "Đã xác nhận", color: "success" },
+  REJECTED: { label: "Bị từ chối", color: "error" },
+  PENDING: { label: "Chờ xác nhận", color: "warning" },
+  NEGOTIATING: { label: "Đang thương lượng", color: "warning" },
+  COMPLETED: { label: "Hoàn tất", color: "primary" },
+  FULLY_PAID: { label: "Đã thanh toán", color: "success" },
+  WAITING_FULL_PAYMENT: { label: "Đang chờ thanh toán", color: "warning" },
 
   // Status cho custom design requests (đơn thiết kế thủ công)
   PRICING_NOTIFIED: { label: "Đã gửi báo giá", color: "info" },
