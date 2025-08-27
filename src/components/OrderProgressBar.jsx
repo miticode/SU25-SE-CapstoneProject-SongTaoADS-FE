@@ -11,131 +11,100 @@ import {
 } from '@mui/icons-material';
 
 const OrderProgressBar = ({ status, order, compact = false }) => {
-  // Định nghĩa các bước trong quá trình đơn hàng
-  const steps = [
-    { 
-      key: 'PENDING_CONTRACT', 
-      label: compact ? 'Chờ HĐ' : 'Chờ hợp đồng',
-      shortLabel: 'Chờ HĐ',
-      description: 'Đơn hàng đang chờ tạo hợp đồng',
-      icon: Assignment
-    },
-    { 
-      key: 'CONTRACT_SENT', 
-      label: compact ? 'Đã gửi HĐ' : 'Đã gửi hợp đồng',
-      shortLabel: 'Đã gửi',
-      description: 'Hợp đồng đã được gửi cho khách hàng',
-      icon: Send
-    },
-    { 
-      key: 'CONTRACT_SIGNED', 
+  // Xây dựng steps động theo yêu cầu: 
+  // - Khi CONTRACT_DISCUSS: vòng "Đang xử lý" (đàm phán) nằm TRƯỚC "Đã ký HĐ".
+  // - Khi CONTRACT_RESIGNED: vòng "Ký lại" nằm SAU "Đã ký HĐ".
+  const buildSteps = () => {
+    const base = [
+      {
+        key: 'PENDING_CONTRACT',
+        label: compact ? 'Chờ HĐ' : 'Chờ hợp đồng',
+        shortLabel: 'Chờ HĐ',
+        description: 'Đơn hàng đang chờ tạo hợp đồng',
+        icon: Assignment,
+      },
+      {
+        key: 'CONTRACT_SENT',
+        label: compact ? 'Đã gửi HĐ' : 'Đã gửi hợp đồng',
+        shortLabel: 'Đã gửi',
+        description: 'Hợp đồng đã được gửi cho khách hàng',
+        icon: Send,
+      },
+    ];
+
+    // Thêm bước đàm phán trước ký nếu đang ở trạng thái đàm phán
+    if (status === 'CONTRACT_DISCUSS') {
+      base.push({
+        key: 'CONTRACT_DISCUSS',
+        label: compact ? 'Đàm phán' : 'Đàm phán hợp đồng',
+        shortLabel: 'Đàm phán',
+        description: 'Đang thương lượng điều khoản hợp đồng',
+        icon: Forum,
+      });
+    }
+
+    // Luôn có bước ký hợp đồng
+    base.push({
+      key: 'CONTRACT_SIGNED',
       label: compact ? 'Đã ký HĐ' : 'Đã ký hợp đồng',
       shortLabel: 'Đã ký',
       description: 'Khách hàng đã ký hợp đồng',
-      icon: Create
-    },
-    { 
-      key: 'CONTRACT_PROCESSING', // Gom CONTRACT_DISCUSS và CONTRACT_RESIGNED
-      label: compact ? 'Đang xử lý' : 'Đang xử lý hợp đồng',
-      shortLabel: 'Đang xử lý',
-      description: 'Đang xử lý và thảo luận điều khoản hợp đồng',
-      icon: Forum
-    },
-    { 
-      key: 'CONTRACT_CONFIRMED', 
-      label: compact ? 'Xác nhận HĐ' : 'Xác nhận hợp đồng',
-      shortLabel: 'Xác nhận',
-      description: 'Hợp đồng đã được xác nhận',
-      icon: CheckCircle
-    },
-    { 
-      key: 'DEPOSITED', 
-      label: compact ? 'Đã cọc' : 'Đã đặt cọc',
-      shortLabel: 'Đã cọc',
-      description: 'Khách hàng đã thanh toán cọc',
-      icon: AccountBalance
-    },
-    { 
-      key: 'IN_PROGRESS', 
-      label: compact ? 'Thi công' : 'Bắt đầu thực hiện',
-      shortLabel: 'Bắt đầu ',
-      description: 'Đơn hàng bắt đầu được thực hiện',
-      icon: PlayArrow
-    },
-  ];
+      icon: Create,
+    });
 
-  // Tìm index của trạng thái hiện tại
-  const getCurrentStepKey = () => {
-    // Map CONTRACT_DISCUSS và CONTRACT_RESIGNED thành CONTRACT_PROCESSING
-    if (status === 'CONTRACT_DISCUSS' || status === 'CONTRACT_RESIGNED') {
-      return 'CONTRACT_PROCESSING';
+    // Khi ở trạng thái yêu cầu ký lại: hiển thị bước này SAU ký
+    if (status === 'CONTRACT_RESIGNED') {
+      base.push({
+        key: 'CONTRACT_RESIGNED',
+        label: compact ? 'Ký lại' : 'Yêu cầu ký lại',
+        shortLabel: 'Ký lại',
+        description: 'Yêu cầu ký lại hợp đồng sau điều chỉnh',
+        icon: Refresh,
+      });
     }
-    return status;
+
+    // Các bước sau
+    base.push(
+      {
+        key: 'CONTRACT_CONFIRMED',
+        label: compact ? 'Xác nhận HĐ' : 'Xác nhận hợp đồng',
+        shortLabel: 'Xác nhận',
+        description: 'Hợp đồng đã được xác nhận',
+        icon: CheckCircle,
+      },
+      {
+        key: 'DEPOSITED',
+        label: compact ? 'Đã cọc' : 'Đã đặt cọc',
+        shortLabel: 'Đã cọc',
+        description: 'Khách hàng đã thanh toán cọc',
+        icon: AccountBalance,
+      },
+      {
+        key: 'IN_PROGRESS',
+        label: compact ? 'Thi công' : 'Bắt đầu thực hiện',
+        shortLabel: 'Bắt đầu',
+        description: 'Đơn hàng bắt đầu được thực hiện',
+        icon: PlayArrow,
+      }
+    );
+
+    return base;
   };
 
-  const currentStepKey = getCurrentStepKey();
-  const currentStepIndex = steps.findIndex(step => step.key === currentStepKey);
-  
-  // Nếu không tìm thấy trạng thái trong danh sách, không hiển thị progress bar
-  if (currentStepIndex === -1) return null;
+  const visibleSteps = buildSteps();
+  const currentStepKey = status;
+  const activeStepIndex = visibleSteps.findIndex((s) => s.key === currentStepKey);
 
-  // Xử lý logic hiển thị cho các trạng thái đặc biệt
-  const getVisibleSteps = () => {
-    // Trả về tất cả steps vì đã gom CONTRACT_DISCUSS và CONTRACT_RESIGNED
-    return [...steps];
-  };
+  // Nếu trạng thái hiện tại không nằm trong danh sách (vd: PENDING_CONTRACT vẫn hiển thị), xử lý fallback
+  if (activeStepIndex === -1) {
+    // Cho phép vẫn hiển thị khi nằm trong các trạng thái trước nhưng chưa thêm (vd: CONTRACT_DISCUSS / CONTRACT_RESIGNED được xử lý ở trên)
+    return null;
+  }
 
-  const visibleSteps = getVisibleSteps();
-  const activeStepIndex = visibleSteps.findIndex(step => step.key === currentStepKey);
-
-  // Xác định các step đã hoàn thành
-  const getCompletedSteps = () => {
-    const completed = new Set();
-    
-    switch (currentStepKey) {
-      case 'PENDING_CONTRACT':
-        break;
-      case 'CONTRACT_SENT':
-        completed.add('PENDING_CONTRACT');
-        break;
-      case 'CONTRACT_SIGNED':
-        completed.add('PENDING_CONTRACT');
-        completed.add('CONTRACT_SENT');
-        break;
-      case 'CONTRACT_PROCESSING': // Bao gồm CONTRACT_DISCUSS và CONTRACT_RESIGNED
-        completed.add('PENDING_CONTRACT');
-        completed.add('CONTRACT_SENT');
-        break;
-      case 'CONTRACT_CONFIRMED':
-        // Khi đã xác nhận hợp đồng, tất cả các bước trước đó đều được coi là hoàn thành
-        completed.add('PENDING_CONTRACT');
-        completed.add('CONTRACT_SENT');
-        completed.add('CONTRACT_SIGNED');
-        completed.add('CONTRACT_PROCESSING');
-        break;
-      case 'DEPOSITED':
-        completed.add('PENDING_CONTRACT');
-        completed.add('CONTRACT_SENT');
-        completed.add('CONTRACT_SIGNED');
-        completed.add('CONTRACT_PROCESSING');
-        completed.add('CONTRACT_CONFIRMED');
-        break;
-      case 'IN_PROGRESS':
-        completed.add('PENDING_CONTRACT');
-        completed.add('CONTRACT_SENT');
-        completed.add('CONTRACT_SIGNED');
-        completed.add('CONTRACT_PROCESSING');
-        completed.add('CONTRACT_CONFIRMED');
-        completed.add('DEPOSITED');
-        break;
-      default:
-        break;
-    }
-    
-    return completed;
-  };
-
-  const completedSteps = getCompletedSteps();
+  // Xác định các step đã hoàn thành: tất cả bước đứng trước current
+  const completedSteps = new Set(
+    visibleSteps.slice(0, activeStepIndex).map((s) => s.key)
+  );
 
   // Render step circle
   const renderStepCircle = (step, index, isCompleted, isActive) => {

@@ -4,7 +4,7 @@ import {
   getSizeByIdApi,
   addSizeApi,
   updateSizeApi,
-  deleteSizeApi,
+  toggleSizeStatusApi,
 } from "../../../api/sizeService";
 
 const initialState = {
@@ -50,12 +50,12 @@ export const updateSize = createAsyncThunk(
   }
 );
 
-export const deleteSize = createAsyncThunk(
-  "size/deleteSize",
-  async (id, { rejectWithValue }) => {
-    const response = await deleteSizeApi(id);
-    if (!response.success) return rejectWithValue(response.error || "Failed to delete size");
-    return { id };
+export const toggleSizeStatus = createAsyncThunk(
+  "size/toggleStatus",
+  async ({ id, sizeData }, { rejectWithValue }) => {
+    const response = await toggleSizeStatusApi(id, sizeData);
+    if (!response.success) return rejectWithValue(response.error || "Failed to toggle size status");
+    return response.data;
   }
 );
 
@@ -87,8 +87,9 @@ const sizeSlice = createSlice({
         const idx = state.sizes.findIndex((s) => s.id === action.payload.id);
         if (idx !== -1) state.sizes[idx] = action.payload;
       })
-      .addCase(deleteSize.fulfilled, (state, action) => {
-        state.sizes = state.sizes.filter((s) => s.id !== action.payload.id);
+      .addCase(toggleSizeStatus.fulfilled, (state, action) => {
+        const idx = state.sizes.findIndex((s) => s.id === action.payload.id);
+        if (idx !== -1) state.sizes[idx] = action.payload;
       });
   },
 });

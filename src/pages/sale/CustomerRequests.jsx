@@ -739,6 +739,7 @@ const CustomerRequests = () => {
     open: false,
     contract: null,
     orderId: null,
+    orderCode: null, // Lưu orderCode để hiển thị trong dialog
   });
   const [updateDialog, setUpdateDialog] = useState({
     open: false,
@@ -1023,10 +1024,21 @@ const CustomerRequests = () => {
     try {
       const response = await getOrderContractApi(orderId);
       if (response.success && response.data) {
+        // Tìm order tương ứng để lấy orderCode (vì API hợp đồng không trả về orderCode)
+        let foundOrder = null;
+        try {
+          // Kết hợp cả danh sách customDesignOrders và allOrders để chắc chắn tìm thấy
+            const combinedOrders = [...(customDesignOrders || []), ...(allOrders || [])];
+            foundOrder = combinedOrders.find(o => o.id === orderId) || null;
+        } catch (e) {
+          console.warn('Không thể tìm order để lấy orderCode:', e);
+        }
+
         setContractDialog({
           open: true,
           contract: response.data,
           orderId: orderId,
+          orderCode: foundOrder?.orderCode || null,
         });
       } else {
         setNotification({
@@ -1051,6 +1063,7 @@ const CustomerRequests = () => {
       open: false,
       contract: null,
       orderId: null,
+      orderCode: null,
     });
   };
   const handleViewContractFile = async (contractUrl, type) => {
@@ -2033,6 +2046,112 @@ const CustomerRequests = () => {
       depositAmount:
         proposal.depositAmountOffer || proposal.depositAmount || "",
     });
+  };
+
+  // Function để chấp nhận offer và tự động tạo báo giá mới
+  const handleAcceptOffer = async (proposal) => {
+    if (!proposal.totalPriceOffer || !proposal.depositAmountOffer) {
+      setNotification({
+        open: true,
+        message: "Không tìm thấy thông tin offer từ khách hàng!",
+        severity: "error",
+      });
+      return;
+    }
+
+    if (!selectedRequest) {
+      setNotification({
+        open: true,
+        message: "Không tìm thấy thông tin yêu cầu thiết kế!",
+        severity: "error",
+      });
+      return;
+    }
+
+    setCreatingProposal(true);
+    try {
+      const data = {
+        totalPrice: Number(proposal.totalPriceOffer),
+        depositAmount: Number(proposal.depositAmountOffer),
+      };
+
+      const resultAction = await dispatch(
+        createProposal({
+          customDesignRequestId: selectedRequest.id,
+          data,
+        })
+      );
+
+      if (createProposal.fulfilled.match(resultAction)) {
+        setNotification({
+          open: true,
+          message: "Đã chấp nhận offer và tạo báo giá mới thành công!",
+          severity: "success",
+        });
+
+        // Cập nhật status của selectedRequest ngay lập tức để UI hiển thị đúng
+        setSelectedRequest((prevRequest) => ({
+          ...prevRequest,
+          status: "PRICING_NOTIFIED",
+        }));
+
+        // Reset form báo giá (ẩn form)
+        setPriceForm({ totalPrice: "", depositAmount: "" });
+
+        // Reload proposals to show the new one
+        getPriceProposals(selectedRequest.id).then((res) => {
+          if (res.success) {
+            setPriceProposals(res.result);
+          }
+        });
+
+        // Refresh design requests data
+        await refreshDesignRequestsData();
+      } else {
+        setNotification({
+          open: true,
+          message: resultAction.payload || "Không thể tạo báo giá",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Có lỗi xảy ra khi tạo báo giá",
+        severity: "error",
+      });
+    }
+    setCreatingProposal(false);
+  };
+
+  // Helper function để kiểm tra xem có phải proposal mới nhất có offer và chưa được chấp nhận không
+  const isLatestProposalWithOffer = (proposal) => {
+    // Tìm tất cả proposals có offer
+    const proposalsWithOffer = priceProposals.filter(
+      (p) => p.totalPriceOffer && p.depositAmountOffer
+    );
+
+    // Nếu không có proposal nào có offer thì return false
+    if (proposalsWithOffer.length === 0) return false;
+
+    // Sắp xếp theo thời gian tạo (mới nhất trước)
+    proposalsWithOffer.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    // Kiểm tra xem proposal hiện tại có phải là proposal mới nhất có offer không
+    const isLatestWithOffer = proposalsWithOffer[0].id === proposal.id;
+
+    // Kiểm tra xem có proposal nào được tạo sau proposal có offer này không
+    // (nghĩa là offer này đã được chấp nhận và tạo báo giá mới)
+    const hasNewerProposal = priceProposals.some(
+      (p) =>
+        new Date(p.createdAt) > new Date(proposal.createdAt) &&
+        !p.totalPriceOffer // Proposal mới không có offer (nghĩa là do sale tạo)
+    );
+
+    // Chỉ hiển thị nút nếu là proposal mới nhất có offer VÀ chưa có proposal mới nào được tạo sau nó
+    return isLatestWithOffer && !hasNewerProposal;
   };
 
   const handleCloseUpdateDialog = () => {
@@ -3020,33 +3139,187 @@ const CustomerRequests = () => {
                               </Stack>
                             </TableCell>
                             <TableCell align="center">
-                              <Tooltip
-                                title={
-                                  order.status === "DEPOSITED"
-                                    ? "Báo ngày giao dự kiến"
-                                    : "Xem chi tiết"
-                                }
-                                placement="top"
+                              <Button
+                                variant="contained"
+                                color={order.status === 'DEPOSITED' ? 'info' : 'primary'}
+                                size="small"
+                                onClick={() => handleViewDetail(order.id)}
+                                startIcon={order.status === 'DEPOSITED' ? <ShippingIcon /> : undefined}
+                                sx={{
+                                  borderRadius: 2,
+                                  textTransform: 'none',
+                                  fontWeight: 'medium',
+                                  fontSize: '0.70rem',
+                                  px: 1.5,
+                                  py: 0.6,
+                                  minWidth: order.status === 'DEPOSITED' ? 110 : 78,
+                                  boxShadow: 2,
+                                  background: order.status === 'DEPOSITED'
+                                    ? 'linear-gradient(135deg,#0284c7 0%,#0ea5e9 100%)'
+                                    : 'linear-gradient(135deg,#1565c0 0%,#1976d2 100%)',
+                                  '&:hover': {
+                                    boxShadow: 4,
+                                    transform: 'translateY(-1px)',
+                                    background: order.status === 'DEPOSITED'
+                                      ? 'linear-gradient(135deg,#026799 0%,#0284c7 100%)'
+                                      : 'linear-gradient(135deg,#0d47a1 0%,#1565c0 100%)'
+                                  }
+                                }}
                               >
-                                <IconButton
-                                  color="primary"
-                                  onClick={() => handleViewDetail(order.id)}
-                                  sx={{
-                                    "&:hover": {
-                                      backgroundColor:
-                                        "rgba(25, 118, 210, 0.1)",
-                                      transform: "scale(1.1)",
-                                      transition: "all 0.2s ease",
-                                    },
-                                  }}
-                                >
-                                  {order.status === "DEPOSITED" ? (
-                                    <ShippingIcon />
-                                  ) : (
-                                    <VisibilityIcon />
+                                {order.status === 'DEPOSITED' ? 'Báo giao hàng' : 'Xem chi tiết'}
+                              </Button>
+                              {/* Các nút hành động hợp đồng (áp dụng cho đơn hàng thiết kế tùy chỉnh từ trạng thái PENDING_CONTRACT trở đi) */}
+                              {[
+                                "PENDING_CONTRACT",
+                                "CONTRACT_SENT",
+                                "CONTRACT_DISCUSS",
+                                "CONTRACT_SIGNED",
+                                "CONTRACT_RESIGNED",
+                                "CONTRACT_CONFIRMED",
+                                "DEPOSITED",
+                                "IN_PROGRESS",
+                                "PRODUCING",
+                                "PRODUCTION_COMPLETED",
+                                "DELIVERING",
+                                "INSTALLED",
+                                "ORDER_COMPLETED",
+                              ].includes(order.status) && (
+                                <Box sx={(theme) => {
+                                  const verticalStatuses = [
+                                    'CONTRACT_DISCUSS',
+                                    'CONTRACT_SIGNED',
+                                    'CONTRACT_RESIGNED',
+                                    'CONTRACT_CONFIRMED',
+                                    'DEPOSITED',
+                                    'IN_PROGRESS',
+                                    'PRODUCING',
+                                    'PRODUCTION_COMPLETED',
+                                    'DELIVERING',
+                                    'INSTALLED',
+                                    'ORDER_COMPLETED'
+                                  ];
+                                  const isVertical = verticalStatuses.includes(order.status);
+                                  return {
+                                    display: 'flex',
+                                    flexDirection: isVertical ? 'column' : 'row',
+                                    alignItems: isVertical ? 'stretch' : 'center',
+                                    gap: 0.75,
+                                    mt: 1,
+                                    justifyContent: 'center',
+                                    // Full width buttons when vertical
+                                    '& > *': isVertical ? { width: '100%' } : {},
+                                  };
+                                }}>
+                                  {/* Gửi hợp đồng */}
+                                  {order.status === 'PENDING_CONTRACT' && (
+                                    <Button
+                                      variant="contained"
+                                      size="small"
+                                      startIcon={<UploadIcon />}
+                                      onClick={() => { setSelectedOrder(order); setOpenContractUpload(true); }}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.65rem',
+                                        borderRadius: 2,
+                                        px: 1.5,
+                                        py: 0.4,
+                                        background: 'linear-gradient(135deg,#2e7d32 0%,#43a047 100%)',
+                                        boxShadow: '0 3px 10px rgba(46,125,50,0.35)',
+                                        '&:hover': {
+                                          background: 'linear-gradient(135deg,#27672b 0%,#3b8a3f 100%)',
+                                          boxShadow: '0 5px 16px rgba(46,125,50,0.5)',
+                                          transform: 'translateY(-1px)'
+                                        },
+                                        '&:active': { transform: 'scale(.95)' }
+                                      }}
+                                    >
+                                      Gửi hợp đồng
+                                    </Button>
                                   )}
-                                </IconButton>
-                              </Tooltip>
+                                  {/* Gửi lại hợp đồng */}
+                                  {order.status === 'CONTRACT_DISCUSS' && (
+                                    <Button
+                                      variant="contained"
+                                      size="small"
+                                      startIcon={<UploadIcon />}
+                                      onClick={() => { setSelectedOrder(order); getContractIdForOrder(order.id); }}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.65rem',
+                                        borderRadius: 2,
+                                        px: 1.5,
+                                        py: 0.6,
+                                        background: 'linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%)',
+                                        color: '#222',
+                                        boxShadow: '0 3px 10px rgba(245,158,11,0.35)',
+                                        '&:hover': {
+                                          background: 'linear-gradient(135deg,#d98206 0%,#e6a814 100%)',
+                                          boxShadow: '0 5px 16px rgba(245,158,11,0.5)',
+                                          transform: 'translateY(-1px)'
+                                        },
+                                        '&:active': { transform: 'scale(.95)' },
+                                        width: '100%'
+                                      }}
+                                    >
+                                      Gửi lại hợp đồng
+                                    </Button>
+                                  )}
+                                  {/* Xem hợp đồng */}
+                                  {['CONTRACT_SIGNED','CONTRACT_SENT','CONTRACT_CONFIRMED','CONTRACT_DISCUSS','CONTRACT_RESIGNED','PRODUCTION_COMPLETED','ORDER_COMPLETED'].includes(order.status) && (
+                                    <Button
+                                      variant="contained"
+                                      size="small"
+                                      startIcon={contractViewLoading ? <CircularProgress size={14} /> : <DescriptionIcon />}
+                                      onClick={() => { setSelectedOrder(order); handleViewContract(order.id); }}
+                                      disabled={contractViewLoading}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.65rem',
+                                        borderRadius: 2,
+                                        px: 1.5,
+                                        py: 0.4,
+                                        background: 'linear-gradient(135deg,#1976d2 0%,#2196f3 100%)',
+                                        boxShadow: '0 3px 10px rgba(25,118,210,0.35)',
+                                        '&:hover': {
+                                          background: 'linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)',
+                                          boxShadow: '0 5px 16px rgba(25,118,210,0.5)',
+                                          transform: 'translateY(-1px)'
+                                        },
+                                        '&:active': { transform: 'scale(.95)' }
+                                      }}
+                                    >
+                                      {contractViewLoading ? 'Đang tải...' : 'Xem hợp đồng'}
+                                    </Button>
+                                  )}
+                                  {/* Xác nhận hoàn tất khi khách đã ký */}
+                                  {order.status === 'CONTRACT_SIGNED' && (
+                                    <Button
+                                      variant="contained"
+                                      size="small"
+                                      startIcon={<DescriptionIcon />}
+                                      onClick={() => { setSelectedOrder(order); handleContractSigned(order.id); }}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.65rem',
+                                        borderRadius: 2,
+                                        px: 1.5,
+                                        py: 0.4,
+                                        background: 'linear-gradient(135deg,#388e3c 0%,#4caf50 100%)',
+                                        boxShadow: '0 3px 10px rgba(56,142,60,0.35)',
+                                        '&:hover': {
+                                          background: 'linear-gradient(135deg,#2e7d32 0%,#43a047 100%)',
+                                          boxShadow: '0 5px 16px rgba(56,142,60,0.5)',
+                                          transform: 'translateY(-1px)'
+                                        },
+                                        '&:active': { transform: 'scale(.95)' }
+                                      }}
+                                    >
+                                      Xác nhận hoàn tất
+                                    </Button>
+                                  )}
+                                  {/* Nút "Yêu cầu ký lại" được chuyển vào dialog Xem hợp đồng */}
+                                </Box>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -4138,7 +4411,17 @@ const CustomerRequests = () => {
                               <Grid
                                 item
                                 xs={6}
-                                sm={proposal.totalPriceOffer ? 1 : 2}
+                                sm={
+                                  proposal.totalPriceOffer &&
+                                  proposal.depositAmountOffer &&
+                                  (proposal.status === "NEGOTIATING" ||
+                                    proposal.status === "REJECTED") &&
+                                  isLatestProposalWithOffer(proposal)
+                                    ? 0.5
+                                    : proposal.totalPriceOffer
+                                    ? 1
+                                    : 2
+                                }
                               >
                                 <Typography
                                   variant="caption"
@@ -4153,7 +4436,16 @@ const CustomerRequests = () => {
 
                               {/* Action button */}
                               {proposal.status === "PENDING" && (
-                                <Grid item xs={12} sm={1}>
+                                <Grid
+                                  item
+                                  xs={12}
+                                  sm={
+                                    proposal.totalPriceOffer &&
+                                    proposal.depositAmountOffer
+                                      ? 1.5
+                                      : 1
+                                  }
+                                >
                                   <Button
                                     size="small"
                                     variant="outlined"
@@ -4175,6 +4467,40 @@ const CustomerRequests = () => {
                                   </Button>
                                 </Grid>
                               )}
+
+                              {/* Nút chấp nhận offer - chỉ hiển thị cho proposal mới nhất có offer và chưa được chấp nhận */}
+                              {proposal.totalPriceOffer &&
+                                proposal.depositAmountOffer &&
+                                (proposal.status === "NEGOTIATING" ||
+                                  proposal.status === "REJECTED") &&
+                                isLatestProposalWithOffer(proposal) && (
+                                  <Grid item xs={12} sm={2}>
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      color="success"
+                                      onClick={() =>
+                                        handleAcceptOffer(proposal)
+                                      }
+                                      startIcon={
+                                        <CheckCircleIcon fontSize="small" />
+                                      }
+                                      sx={{
+                                        fontSize: "0.7rem",
+                                        py: 0.5,
+                                        px: 1,
+                                        minWidth: "auto",
+                                        transition: "all 0.2s ease",
+                                        "&:hover": {
+                                          transform: "scale(1.05)",
+                                          bgcolor: "success.dark",
+                                        },
+                                      }}
+                                    >
+                                      Chấp nhận offer
+                                    </Button>
+                                  </Grid>
+                                )}
                             </Grid>
 
                             {/* Lý do từ chối hoặc ghi chú */}
@@ -4490,7 +4816,11 @@ const CustomerRequests = () => {
           fullWidth
         >
           <DialogTitle>
-            Thông tin hợp đồng - Đơn hàng #{contractDialog.orderId}
+            {(() => {
+              // Hiển thị orderCode nếu có (ưu tiên), fallback ID
+              const orderLabel = contractDialog.orderCode || contractDialog.contract?.orderCode || contractDialog.orderId;
+              return `Thông tin hợp đồng - Đơn hàng ${orderLabel ? '#' + orderLabel : ''}`;
+            })()}
             <IconButton
               aria-label="close"
               onClick={handleCloseContractDialog}
@@ -4529,17 +4859,29 @@ const CustomerRequests = () => {
                     <Typography variant="subtitle2" color="text.secondary">
                       Trạng thái
                     </Typography>
-                    <Chip
-                      label={contractDialog.contract.status}
-                      color={
-                        contractDialog.contract.status === "SIGNED"
-                          ? "success"
-                          : contractDialog.contract.status === "SENT"
-                          ? "info"
-                          : "default"
-                      }
-                      size="small"
-                    />
+                    {(() => {
+                      const status = contractDialog.contract.status;
+                      // Bản đồ dịch trạng thái hợp đồng sang tiếng Việt
+                      const viMap = {
+                        SENT: 'Đã gửi',
+                        SIGNED: 'Đã ký',
+                        REVISED: 'Đã chỉnh sửa',
+                        RESIGNED: 'Đã ký lại',
+                        PENDING: 'Đang chờ',
+                        DISCUSSING: 'Đang thảo luận',
+                        NEED_RESIGNED: 'Cần ký lại',
+                        CONFIRMED: 'Đã xác nhận',
+                      };
+                      const chipLabel = viMap[status] || status;
+                      let chipColor = 'default';
+                      if (status === 'SIGNED') chipColor = 'success';
+                      else if (status === 'SENT') chipColor = 'info';
+                      else if (status === 'DISCUSSING') chipColor = 'warning';
+                      else if (status === 'NEED_RESIGNED') chipColor = 'warning';
+                      else if (status === 'RESIGNED') chipColor = 'secondary';
+                      else if (status === 'CONFIRMED') chipColor = 'success';
+                      return <Chip label={chipLabel} color={chipColor} size="small" />;
+                    })()}
                   </Grid>
 
                   <Grid item xs={12} sm={6}>
@@ -4657,6 +4999,33 @@ const CustomerRequests = () => {
                         ? "Đang tải..."
                         : "Xem hợp đồng đã ký"}
                     </Button>
+                    {/* Yêu cầu ký lại nằm trong dialog nếu hợp đồng ở trạng thái đã ký trong hệ thống */}
+                    {selectedOrder && selectedOrder.status === 'CONTRACT_SIGNED' && (
+                      <Button
+                        variant="contained"
+                        color="warning"
+                        onClick={() => handleContractResign(selectedOrder.id)}
+                        sx={{
+                          ml: 2,
+                          textTransform: 'none',
+                          fontSize: '0.7rem',
+                          borderRadius: 2,
+                          px: 1.5,
+                          py: 0.6,
+                          background: 'linear-gradient(135deg,#ed6c02 0%,#ff9800 100%)',
+                          color: '#222',
+                          boxShadow: '0 3px 10px rgba(237,108,2,0.35)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg,#d35400 0%,#fb8c00 100%)',
+                            boxShadow: '0 5px 16px rgba(237,108,2,0.5)',
+                            transform: 'translateY(-1px)'
+                          },
+                          '&:active': { transform: 'scale(.95)' }
+                        }}
+                      >
+                        Yêu cầu ký lại
+                      </Button>
+                    )}
                   </Box>
                 )}
 
@@ -5596,8 +5965,8 @@ const CustomerRequests = () => {
                   </Box>
                 )}
 
-                {/* Update Status Section */}
-                {selectedOrder && (
+                {/* Update Status Section (ẩn nếu trạng thái trước đàm phán hoặc từ đàm phán trở đi theo yêu cầu mới) */}
+                {selectedOrder && !['PENDING_CONTRACT','CONTRACT_SENT','CONTRACT_DISCUSS','CONTRACT_SIGNED','CONTRACT_RESIGNED','CONTRACT_CONFIRMED','IN_PROGRESS'].includes(selectedOrder.status) && (
                   <Box sx={{ mt: 4 }}>
                     <Typography variant="h6" gutterBottom>
                       Trạng thái đơn hàng
@@ -5642,23 +6011,7 @@ const CustomerRequests = () => {
                             <Box
                               sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
                             >
-                              {selectedOrder.status === "PENDING_CONTRACT" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    startIcon={<CloudUploadIcon />}
-                                    disabled={actionLoading}
-                                    onClick={() => setOpenContractUpload(true)}
-                                    sx={{ mr: 1 }}
-                                  >
-                                    Tải lên hợp đồng
-                                  </Button>
-
-                                  {/* Đã loại bỏ nút Đánh dấu đã gửi hợp đồng theo yêu cầu */}
-                                </>
-                              )}
+                              {/* Đã ẩn nút tải lên hợp đồng cho trạng thái PENDING_CONTRACT theo yêu cầu */}
 
                               {selectedOrder.status === "CONTRACT_SENT" && (
                                 <>

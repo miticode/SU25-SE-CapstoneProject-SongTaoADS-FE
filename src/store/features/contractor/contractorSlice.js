@@ -5,7 +5,7 @@ import {
   createContractor,
   updateContractor,
   updateContractorLogo,
-  deleteContractor
+  toggleContractorStatus
 } from '../../../api/contractorService';
 
 // Lấy tất cả đơn vị thi công với phân trang và filter
@@ -76,13 +76,13 @@ export const updateContractorLogoThunk = createAsyncThunk(
   }
 );
 
-// Xóa đơn vị thi công (không dùng - theo API doc)
-export const deleteContractorThunk = createAsyncThunk(
-  'contractor/delete',
-  async (contractorId, { rejectWithValue }) => {
-    const response = await deleteContractor(contractorId);
+// Toggle trạng thái hoạt động của đơn vị thi công
+export const toggleContractorStatusThunk = createAsyncThunk(
+  'contractor/toggleStatus',
+  async ({ contractorId, contractorData }, { rejectWithValue }) => {
+    const response = await toggleContractorStatus(contractorId, contractorData);
     if (response.success) {
-      return contractorId;
+      return response.data;
     } else {
       return rejectWithValue(response.error);
     }
@@ -197,16 +197,24 @@ const contractorSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Xử lý xóa đơn vị thi công
-      .addCase(deleteContractorThunk.pending, (state) => {
+      // Xử lý toggle trạng thái hoạt động
+      .addCase(toggleContractorStatusThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(deleteContractorThunk.fulfilled, (state, action) => {
+      .addCase(toggleContractorStatusThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.contractors = state.contractors.filter(c => c.id !== action.payload);
+        // Cập nhật contractor trong mảng nếu tồn tại
+        const idx = state.contractors.findIndex(c => c.id === action.payload.id);
+        if (idx !== -1) {
+          state.contractors[idx] = action.payload;
+        }
+        // Nếu contractorDetail đang xem trùng thì cũng cập nhật
+        if (state.contractorDetail && state.contractorDetail.id === action.payload.id) {
+          state.contractorDetail = action.payload;
+        }
       })
-      .addCase(deleteContractorThunk.rejected, (state, action) => {
+      .addCase(toggleContractorStatusThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

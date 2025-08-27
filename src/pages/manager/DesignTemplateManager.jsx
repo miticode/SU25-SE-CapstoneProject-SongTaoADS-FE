@@ -38,9 +38,10 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   Image as ImageIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
 } from "@mui/icons-material";
 import {
   fetchAllDesignTemplates,
@@ -48,8 +49,7 @@ import {
   createDesignTemplate,
   updateDesignTemplateInfo,
   updateDesignTemplateImage,
-  deleteDesignTemplateById,
-  removeDesignTemplateOptimistically,
+  toggleDesignTemplateStatus,
   selectAllDesignTemplates,
   selectDesignTemplateStatus,
   selectDesignTemplateError,
@@ -74,13 +74,18 @@ const DesignTemplateManager = () => {
   const productTypeStatus = useSelector(selectProductTypeStatus);
   const s3Images = useSelector((state) => state.s3.images);
   // Lấy pagination từ Redux state
-  const reduxPagination = useSelector((state) => state.designTemplate.suggestionsPagination);
+  const reduxPagination = useSelector(
+    (state) => state.designTemplate.suggestionsPagination
+  );
 
   // State local
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("all");
   const [openDetail, setOpenDetail] = useState(false);
   const [openForm, setOpenForm] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
+  const [toggleDialog, setToggleDialog] = useState({
+    open: false,
+    template: null,
+  });
   const [formMode, setFormMode] = useState("create"); // "create" | "edit"
   const [formData, setFormData] = useState({
     name: "",
@@ -100,7 +105,7 @@ const DesignTemplateManager = () => {
     currentPage: 1,
     totalPages: 1,
     pageSize: 10,
-    totalElements: 0
+    totalElements: 0,
   });
 
   // Lấy danh sách loại sản phẩm khi mount
@@ -116,15 +121,23 @@ const DesignTemplateManager = () => {
   // Lấy danh sách design template với pagination
   const loadDesignTemplates = async (page = 1, size = 10) => {
     try {
-      const aspectRatioParam = selectedAspectRatio === "all" ? undefined : selectedAspectRatio;
-      const response = await dispatch(fetchAllDesignTemplates({ page, size, aspectRatio: aspectRatioParam }));
+      const aspectRatioParam =
+        selectedAspectRatio === "all" ? undefined : selectedAspectRatio;
+      const response = await dispatch(
+        fetchAllDesignTemplates({ page, size, aspectRatio: aspectRatioParam })
+      );
       if (response.meta.requestStatus === "fulfilled") {
-        const { currentPage, totalPages, pageSize: size, totalElements } = response.payload.pagination;
+        const {
+          currentPage,
+          totalPages,
+          pageSize: size,
+          totalElements,
+        } = response.payload.pagination;
         setApiPagination({
           currentPage,
           totalPages,
           pageSize: size,
-          totalElements
+          totalElements,
         });
         setCurrentPage(currentPage);
       }
@@ -140,7 +153,7 @@ const DesignTemplateManager = () => {
         currentPage: reduxPagination.currentPage,
         totalPages: reduxPagination.totalPages,
         pageSize: reduxPagination.pageSize,
-        totalElements: reduxPagination.totalElements
+        totalElements: reduxPagination.totalElements,
       });
       setCurrentPage(reduxPagination.currentPage);
     }
@@ -244,15 +257,31 @@ const DesignTemplateManager = () => {
     setOpenForm(false);
   };
 
-  // Đóng modal xóa
-  const handleCloseDelete = () => {
-    setOpenDelete(false);
+  // Mở modal toggle trạng thái
+  const handleToggleStatus = (template) => {
+    setToggleDialog({ open: true, template });
   };
 
-  // Mở modal xác nhận xóa
-  const handleOpenDelete = (template) => {
-    setFormData({ id: template.id });
-    setOpenDelete(true);
+  // Xử lý xác nhận toggle trạng thái
+  const handleConfirmToggleStatus = async () => {
+    const template = toggleDialog.template;
+    setToggleDialog({ open: false, template: null });
+
+    const res = await dispatch(
+      toggleDesignTemplateStatus({
+        designTemplateId: template.id,
+        templateData: {
+          name: template.name,
+          description: template.description,
+          aspectRatio: template.aspectRatio,
+          isAvailable: template.isAvailable,
+        },
+      })
+    );
+
+    if (res.meta.requestStatus === "rejected") {
+      console.error("Failed to toggle template status:", res.payload);
+    }
   };
 
   // Xử lý submit form tạo/sửa
@@ -319,21 +348,6 @@ const DesignTemplateManager = () => {
       } else {
         setFormError(updateRes.payload || "Cập nhật thất bại");
       }
-    }
-  };
-
-  // Xử lý xóa
-  const handleDelete = async () => {
-    setOpenDelete(false);
-    const templateId = formData.id;
-
-    // Optimistic update - xóa ngay lập tức khỏi UI
-    dispatch(removeDesignTemplateOptimistically(templateId));
-
-    const res = await dispatch(deleteDesignTemplateById(templateId));
-    if (res.meta.requestStatus === "rejected") {
-      // Nếu xóa thất bại, refresh lại danh sách để khôi phục
-      reloadDesignTemplates();
     }
   };
 
@@ -406,9 +420,11 @@ const DesignTemplateManager = () => {
         </Box>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="body2" color="text.secondary">
-            Hiển thị {designTemplates.length} / {apiPagination.totalElements || reduxPagination?.totalElements || 0}{" "}
+            Hiển thị {designTemplates.length} /{" "}
+            {apiPagination.totalElements || reduxPagination?.totalElements || 0}{" "}
             mẫu thiết kế
-            {apiPagination.totalPages > 1 && ` (Trang ${apiPagination.currentPage} / ${apiPagination.totalPages})`}
+            {apiPagination.totalPages > 1 &&
+              ` (Trang ${apiPagination.currentPage} / ${apiPagination.totalPages})`}
           </Typography>
           <Button
             variant="contained"
@@ -474,11 +490,7 @@ const DesignTemplateManager = () => {
               >
                 <CardMedia
                   component="img"
-                  image={
-                    template.image
-                      ? s3Images[template.image] || ""
-                      : ""
-                  }
+                  image={template.image ? s3Images[template.image] || "" : ""}
                   alt={template.name}
                   sx={{
                     width: "100%",
@@ -506,12 +518,7 @@ const DesignTemplateManager = () => {
                   >
                     {template.productTypes?.name}
                   </Typography>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    mt={1}
-                  >
+                  <Stack direction="row" spacing={1} alignItems="center" mt={1}>
                     <Chip
                       label={template.isAvailable ? "Hiển thị" : "Ẩn"}
                       color={template.isAvailable ? "success" : "default"}
@@ -541,12 +548,16 @@ const DesignTemplateManager = () => {
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Xóa">
+                  <Tooltip title={template.isAvailable ? "Tạm ẩn" : "Hiển thị"}>
                     <IconButton
-                      color="error"
-                      onClick={() => handleOpenDelete(template)}
+                      color={template.isAvailable ? "error" : "success"}
+                      onClick={() => handleToggleStatus(template)}
                     >
-                      <DeleteIcon />
+                      {template.isAvailable ? (
+                        <ToggleOffIcon />
+                      ) : (
+                        <ToggleOnIcon />
+                      )}
                     </IconButton>
                   </Tooltip>
                 </CardActions>
@@ -558,23 +569,25 @@ const DesignTemplateManager = () => {
       <Box mt={3} display="flex" justifyContent="center">
         <TablePagination
           component="div"
-          count={apiPagination.totalElements || reduxPagination?.totalElements || 0}
+          count={
+            apiPagination.totalElements || reduxPagination?.totalElements || 0
+          }
           page={currentPage - 1}
           onPageChange={handlePageChange}
           rowsPerPage={pageSize}
           onRowsPerPageChange={handlePageSizeChange}
           rowsPerPageOptions={[5, 10, 20, 50]}
-          labelDisplayedRows={({ from, to, count }) => 
+          labelDisplayedRows={({ from, to, count }) =>
             `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
           }
           labelRowsPerPage="Hiển thị:"
           sx={{
-            '& .MuiTablePagination-selectLabel': {
+            "& .MuiTablePagination-selectLabel": {
               margin: 0,
             },
-            '& .MuiTablePagination-displayedRows': {
+            "& .MuiTablePagination-displayedRows": {
               margin: 0,
-            }
+            },
           }}
         />
       </Box>
@@ -714,22 +727,125 @@ const DesignTemplateManager = () => {
         </form>
       </Dialog>
 
-      {/* Modal xác nhận xóa */}
+      {/* Modal xác nhận toggle trạng thái với Tailwind CSS */}
       <Dialog
-        open={openDelete}
-        onClose={handleCloseDelete}
+        open={toggleDialog.open}
+        onClose={() => setToggleDialog({ open: false, template: null })}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          className: "rounded-2xl shadow-2xl",
+        }}
       >
-        <DialogTitle>Xác nhận xóa</DialogTitle>
-        <DialogContent>
-          <Typography>Bạn có chắc chắn muốn xóa thiết kế mẫu này?</Typography>
+        <DialogTitle
+          className={`text-white ${
+            toggleDialog.template?.isAvailable
+              ? "bg-gradient-to-r from-red-500 to-pink-500"
+              : "bg-gradient-to-r from-green-500 to-emerald-500"
+          }`}
+        >
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              {toggleDialog.template?.isAvailable ? (
+                <ToggleOffIcon />
+              ) : (
+                <ToggleOnIcon />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">
+                {toggleDialog.template?.isAvailable
+                  ? "Ẩn thiết kế mẫu"
+                  : "Hiển thị thiết kế mẫu"}
+              </h2>
+              <p
+                className={`text-sm ${
+                  toggleDialog.template?.isAvailable
+                    ? "text-red-100"
+                    : "text-green-100"
+                }`}
+              >
+                Thay đổi trạng thái hiển thị
+              </p>
+            </div>
+          </div>
+        </DialogTitle>
+
+        <DialogContent className="p-6 bg-white">
+          {toggleDialog.template && (
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                  toggleDialog.template.isAvailable
+                    ? "bg-red-100"
+                    : "bg-green-100"
+                }`}
+              >
+                {toggleDialog.template.isAvailable ? (
+                  <ToggleOffIcon
+                    className="text-red-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                ) : (
+                  <ToggleOnIcon
+                    className="text-green-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Typography className="text-lg font-semibold text-gray-800">
+                  Bạn có chắc chắn muốn{" "}
+                  {toggleDialog.template.isAvailable ? "ẩn" : "hiển thị"}
+                  thiết kế mẫu "<strong>{toggleDialog.template.name}</strong>"?
+                </Typography>
+                <Typography
+                  className={`text-sm p-3 rounded-lg ${
+                    toggleDialog.template.isAvailable
+                      ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
+                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                  }`}
+                >
+                  {toggleDialog.template.isAvailable
+                    ? "⚠️ Thiết kế mẫu sẽ được ẩn khỏi danh sách hiển thị cho người dùng."
+                    : "ℹ️ Thiết kế mẫu sẽ được hiển thị trở lại cho người dùng."}
+                </Typography>
+              </div>
+            </div>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDelete}>Hủy</Button>
-          <Button onClick={handleDelete} color="error" variant="contained">
-            Xóa
-          </Button>
+
+        <DialogActions className="bg-gray-50 p-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row w-full space-y-3 sm:space-y-0 sm:space-x-3">
+            <Button
+              onClick={() => setToggleDialog({ open: false, template: null })}
+              variant="outlined"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleConfirmToggleStatus}
+              variant="contained"
+              className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
+                toggleDialog.template?.isAvailable
+                  ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              }`}
+              startIcon={
+                toggleDialog.template?.isAvailable ? (
+                  <ToggleOffIcon />
+                ) : (
+                  <ToggleOnIcon />
+                )
+              }
+            >
+              {toggleDialog.template?.isAvailable
+                ? "Ẩn thiết kế mẫu"
+                : "Hiển thị thiết kế mẫu"}
+            </Button>
+          </div>
         </DialogActions>
       </Dialog>
     </Box>

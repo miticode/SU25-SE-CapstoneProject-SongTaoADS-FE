@@ -68,15 +68,25 @@ export const updateSizeApi = async (id, data) => {
     return { success: false, error: error.response?.data?.message || "Failed to update size" };
   }
 };
-// xóa kích thước
-export const deleteSizeApi = async (id) => {
+// Toggle trạng thái hoạt động của kích thước
+export const toggleSizeStatusApi = async (id, sizeData) => {
   try {
-    const response = await sizeService.delete(`/api/sizes/${id}`);
+    // Tạo request body đầy đủ với trạng thái mới
+    const requestBody = {
+      name: sizeData.name,
+      description: sizeData.description,
+      isAvailable: !sizeData.isAvailable // Toggle trạng thái
+    };
+
+    const response = await sizeService.put(`/api/sizes/${id}`, requestBody);
     const { success, result, message } = response.data;
     if (success) return { success, data: result };
     return { success: false, error: message || "Invalid response format" };
   } catch (error) {
-    return { success: false, error: error.response?.data?.message || "Failed to delete size" };
+    return { 
+      success: false, 
+      error: error.response?.data?.message || "Failed to toggle size status" 
+    };
   }
 };
 

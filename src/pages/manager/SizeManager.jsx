@@ -4,7 +4,7 @@ import {
   fetchSizes,
   addSize,
   updateSize,
-  deleteSize,
+  toggleSizeStatus,
   selectAllSizes,
   selectSizeStatus,
   selectSizeError,
@@ -21,11 +21,13 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Chip,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
 
@@ -39,8 +41,10 @@ const SizeManager = () => {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
   const [selectedId, setSelectedId] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [toggleDialog, setToggleDialog] = useState({
+    open: false,
+    size: null,
+  });
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -93,29 +97,36 @@ const SizeManager = () => {
     handleCloseDialog();
   };
 
-  const handleDelete = (id) => {
-    setDeleteId(id);
-    setConfirmDelete(true);
+  const handleToggleStatus = (size) => {
+    setToggleDialog({
+      open: true,
+      size: size,
+    });
   };
 
-  const handleConfirmDelete = () => {
-    dispatch(deleteSize(deleteId));
+  const handleConfirmToggleStatus = () => {
+    const size = toggleDialog.size;
+    dispatch(toggleSizeStatus({ id: size.id, sizeData: size }));
     setSnackbar({
       open: true,
-      message: "Xóa thành công!",
+      message: `Đã ${
+        size.isAvailable ? "tạm ngưng" : "kích hoạt"
+      } kích thước thành công!`,
       severity: "success",
     });
-    setConfirmDelete(false);
-    setDeleteId(null);
+    setToggleDialog({ open: false, size: null });
   };
 
   return (
-  <div className="p-6 bg-gradient-to-br from-gray-50 via-green-50 to-green-100 min-h-full">
+    <div className="p-6 bg-gradient-to-br from-gray-50 via-green-50 to-green-100 min-h-full">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+            <Typography
+              variant="h4"
+              className="!font-bold !text-gray-800 !mb-2"
+            >
               📏 Quản lý kích thước
             </Typography>
             <Typography variant="body1" className="!text-gray-600">
@@ -135,10 +146,12 @@ const SizeManager = () => {
         {status === "loading" && (
           <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <CircularProgress size={20} className="text-blue-600" />
-            <Typography className="!text-blue-700">Đang tải dữ liệu...</Typography>
+            <Typography className="!text-blue-700">
+              Đang tải dữ liệu...
+            </Typography>
           </div>
         )}
-        
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
             <Typography className="!text-red-700">{error}</Typography>
@@ -152,22 +165,44 @@ const SizeManager = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
-                <TableCell className="!font-bold !text-gray-700 !py-4">Tên kích thước</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4">Mô tả</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4 !text-right">Thao tác</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Tên kích thước
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Mô tả
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Trạng thái
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4 !text-right">
+                  Thao tác
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {sizes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} align="center" className="!py-16">
+                  <TableCell colSpan={4} align="center" className="!py-16">
                     <div className="flex flex-col items-center">
                       <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6M9 16h6M9 8h6M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                        <svg
+                          className="w-12 h-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 12h6M9 16h6M9 8h6M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"
+                          />
                         </svg>
                       </div>
-                      <Typography variant="h6" className="!font-bold !text-gray-500 !mb-2">
+                      <Typography
+                        variant="h6"
+                        className="!font-bold !text-gray-500 !mb-2"
+                      >
                         Chưa có kích thước nào
                       </Typography>
                       <Typography className="!text-gray-400 !mb-4">
@@ -198,6 +233,14 @@ const SizeManager = () => {
                         {size.description || "—"}
                       </Typography>
                     </TableCell>
+                    <TableCell className="!py-4">
+                      <Chip
+                        label={size.isAvailable ? "Hoạt động" : "Tạm ngưng"}
+                        color={size.isAvailable ? "success" : "error"}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
                     <TableCell align="right" className="!py-4">
                       <div className="flex items-center gap-2 justify-end">
                         <button
@@ -208,11 +251,19 @@ const SizeManager = () => {
                           <EditIcon className="!text-sm" />
                         </button>
                         <button
-                          onClick={() => handleDelete(size.id)}
-                          className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-colors duration-200"
-                          title="Xóa"
+                          onClick={() => handleToggleStatus(size)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
+                            size.isAvailable
+                              ? "bg-red-100 hover:bg-red-200 text-red-600"
+                              : "bg-green-100 hover:bg-green-200 text-green-600"
+                          }`}
+                          title={size.isAvailable ? "Tạm ngưng" : "Kích hoạt"}
                         >
-                          <DeleteIcon className="!text-sm" />
+                          {size.isAvailable ? (
+                            <ToggleOnIcon className="!text-sm" />
+                          ) : (
+                            <ToggleOffIcon className="!text-sm" />
+                          )}
                         </button>
                       </div>
                     </TableCell>
@@ -230,16 +281,18 @@ const SizeManager = () => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          className: "!rounded-2xl !shadow-2xl !max-h-[90vh]"
+          className: "!rounded-2xl !shadow-2xl !max-h-[90vh]",
         }}
       >
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5 border-b border-gray-200 relative">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              editMode 
-                ? 'bg-blue-100 text-blue-600' 
-                : 'bg-emerald-100 text-emerald-600'
-            }`}>
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                editMode
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-emerald-100 text-emerald-600"
+              }`}
+            >
               {editMode ? <EditIcon /> : <AddIcon />}
             </div>
             <div>
@@ -247,13 +300,13 @@ const SizeManager = () => {
                 {editMode ? "✏️ Sửa kích thước" : "🎯 Thêm kích thước"}
               </Typography>
               <Typography variant="body2" className="!text-gray-600 !mt-1">
-                {editMode 
+                {editMode
                   ? "Cập nhật thông tin kích thước đã chọn"
                   : "Tạo mới kích thước cho hệ thống"}
               </Typography>
             </div>
           </div>
-          
+
           <button
             onClick={handleCloseDialog}
             className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors duration-200"
@@ -311,64 +364,115 @@ const SizeManager = () => {
               disabled={!form.name.trim()}
               className="order-1 sm:order-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editMode ? <EditIcon className="!text-sm" /> : <AddIcon className="!text-sm" />}
+              {editMode ? (
+                <EditIcon className="!text-sm" />
+              ) : (
+                <AddIcon className="!text-sm" />
+              )}
               {editMode ? "Lưu thay đổi" : "Thêm kích thước"}
             </button>
           </div>
         </div>
       </Dialog>
 
-      {/* Confirm Delete Dialog */}
+      {/* Confirm Toggle Status Dialog */}
       <Dialog
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
+        open={toggleDialog.open}
+        onClose={() => setToggleDialog({ open: false, size: null })}
         maxWidth="sm"
         fullWidth
         PaperProps={{
-          className: "!rounded-2xl !shadow-2xl"
+          className: "!rounded-2xl !shadow-2xl",
         }}
       >
-        <div className="bg-gradient-to-r from-red-50 to-pink-50 px-6 py-5 border-b border-gray-200">
+        <div
+          className={`px-6 py-5 border-b border-gray-200 ${
+            toggleDialog.size?.isAvailable
+              ? "bg-gradient-to-r from-red-50 to-pink-50"
+              : "bg-gradient-to-r from-green-50 to-emerald-50"
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
-              <DeleteIcon />
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                toggleDialog.size?.isAvailable
+                  ? "bg-red-100 text-red-600"
+                  : "bg-green-100 text-green-600"
+              }`}
+            >
+              {toggleDialog.size?.isAvailable ? (
+                <ToggleOffIcon />
+              ) : (
+                <ToggleOnIcon />
+              )}
             </div>
             <div>
               <Typography variant="h6" className="!font-bold !text-gray-800">
-                🗑️ Xác nhận xóa
+                {toggleDialog.size?.isAvailable
+                  ? "� Tạm ngưng kích thước"
+                  : "🟢 Kích hoạt kích thước"}
               </Typography>
               <Typography variant="body2" className="!text-gray-600 !mt-1">
-                Thao tác này không thể hoàn tác
+                Thay đổi trạng thái hoạt động
               </Typography>
             </div>
           </div>
         </div>
 
         <div className="p-6 bg-white">
-          <Typography className="!text-gray-700 !text-lg">
-            Bạn có chắc chắn muốn xóa kích thước này không?
-          </Typography>
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <Typography variant="body2" className="!text-yellow-800">
-              ⚠️ <strong>Lưu ý:</strong> Việc xóa kích thước có thể ảnh hưởng đến các sản phẩm đang sử dụng kích thước này.
-            </Typography>
-          </div>
+          {toggleDialog.size && (
+            <>
+              <Typography className="!text-gray-700 !text-lg">
+                Bạn có chắc chắn muốn{" "}
+                {toggleDialog.size.isAvailable ? "tạm ngưng" : "kích hoạt"}
+                kích thước "<strong>{toggleDialog.size.name}</strong>" không?
+              </Typography>
+              <div
+                className={`mt-4 p-4 border rounded-xl ${
+                  toggleDialog.size.isAvailable
+                    ? "bg-yellow-50 border-yellow-200"
+                    : "bg-blue-50 border-blue-200"
+                }`}
+              >
+                <Typography
+                  variant="body2"
+                  className={
+                    toggleDialog.size.isAvailable
+                      ? "!text-yellow-800"
+                      : "!text-blue-800"
+                  }
+                >
+                  {toggleDialog.size.isAvailable
+                    ? "⚠️ Kích thước sẽ được tạm ngưng và không hiển thị trong hệ thống."
+                    : "ℹ️ Kích thước sẽ được kích hoạt và có thể sử dụng trong hệ thống."}
+                </Typography>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-2xl">
           <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button
-              onClick={() => setConfirmDelete(false)}
+              onClick={() => setToggleDialog({ open: false, size: null })}
               className="order-2 sm:order-1 w-full sm:w-auto px-6 py-2.5 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-100 transition-all duration-200 font-medium"
             >
               Hủy bỏ
             </button>
             <button
-              onClick={handleConfirmDelete}
-              className="order-1 sm:order-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2"
+              onClick={handleConfirmToggleStatus}
+              className={`order-1 sm:order-2 w-full sm:w-auto px-6 py-3 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 ${
+                toggleDialog.size?.isAvailable
+                  ? "bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700"
+                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              }`}
             >
-              <DeleteIcon className="!text-sm" />
-              Xóa kích thước
+              {toggleDialog.size?.isAvailable ? (
+                <ToggleOffIcon className="!text-sm" />
+              ) : (
+                <ToggleOnIcon className="!text-sm" />
+              )}
+              {toggleDialog.size?.isAvailable ? "Tạm ngưng" : "Kích hoạt"}
             </button>
           </div>
         </div>

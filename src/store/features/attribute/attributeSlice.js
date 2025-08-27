@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getAttributesByProductTypeIdApi, getAttributeValuesByAttributeIdApi, getAttributeByIdApi, updateAttributeApi, deleteAttributeApi, createAttributeApi } from '../../../api/attributeService';
+import { getAttributesByProductTypeIdApi, getAttributeValuesByAttributeIdApi, getAttributeByIdApi, updateAttributeApi, toggleAttributeStatusApi, createAttributeApi } from '../../../api/attributeService';
 
 // Initial state
 const initialState = {
@@ -57,15 +57,15 @@ export const updateAttribute = createAsyncThunk(
     return response.data;
   }
 );
-// Thunk xóa attribute
-export const deleteAttribute = createAsyncThunk(
-  'attribute/deleteAttribute',
-  async (attributeId, { rejectWithValue }) => {
-    const response = await deleteAttributeApi(attributeId);
+// Thunk toggle trạng thái attribute
+export const toggleAttributeStatus = createAsyncThunk(
+  'attribute/toggleAttributeStatus',
+  async ({ attributeId, attributeData }, { rejectWithValue }) => {
+    const response = await toggleAttributeStatusApi(attributeId, attributeData);
     if (!response.success) {
-      return rejectWithValue(response.error || 'Failed to delete attribute');
+      return rejectWithValue(response.error || 'Failed to toggle attribute status');
     }
-    return attributeId;
+    return response.data;
   }
 );
 // Thunk lấy chi tiết attribute
@@ -154,16 +154,19 @@ const attributeSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Thêm xử lý cho deleteAttribute
-      .addCase(deleteAttribute.pending, (state) => {
+      // Thêm xử lý cho toggleAttributeStatus
+      .addCase(toggleAttributeStatus.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(deleteAttribute.fulfilled, (state, action) => {
+      .addCase(toggleAttributeStatus.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.attributes = state.attributes.filter(attr => attr.id !== action.payload);
+        const idx = state.attributes.findIndex(attr => attr.id === action.payload.id);
+        if (idx !== -1) {
+          state.attributes[idx] = action.payload;
+        }
         state.error = null;
       })
-      .addCase(deleteAttribute.rejected, (state, action) => {
+      .addCase(toggleAttributeStatus.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       })
