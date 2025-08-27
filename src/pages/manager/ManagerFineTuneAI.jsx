@@ -975,7 +975,7 @@ const ManagerFineTuneAI = () => {
 
         showAlertDialog(
           "Không thể xóa chủ đề",
-          `Chủ đề này đang được sử dụng trong các model chat: ${modelNames}. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.`
+          `Chủ đề này đang được sử dụng trong các model chat. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.`
         );
         return;
       }
