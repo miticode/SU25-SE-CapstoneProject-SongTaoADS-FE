@@ -39,14 +39,8 @@ import {
   CurrencyDollarIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
   EllipsisVerticalIcon,
   ExclamationTriangleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import {
   BarChart,
@@ -57,95 +51,30 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
 } from "recharts";
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+import { Button, Popover, CircularProgress } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { CalendarMonth as CalendarIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 
 const COLORS = ["#4caf50", "#2196f3", "#f44336"];
-
-// Mock orders data with more details
-const ordersData = [
-  {
-    id: "#ORD-001",
-    customer: "John Doe",
-    date: "2025-05-28",
-    status: "Đã Hoàn Thành",
-    amount: "299.99đ",
-    items: 2,
-    paymentMethod: "Thẻ Tín Dụng",
-  },
-  {
-    id: "#ORD-002",
-    customer: "Jane Smith",
-    date: "2025-05-27",
-    status: "Đang Xử Lý",
-    amount: "149.50đ",
-    items: 1,
-    paymentMethod: "PayPal",
-  },
-  {
-    id: "#ORD-003",
-    customer: "Michael Johnson",
-    date: "2025-05-26",
-    status: "Đã Hoàn Thành",
-    amount: "499.99đ",
-    items: 3,
-    paymentMethod: "Thẻ Tín Dụng",
-  },
-  {
-    id: "#ORD-004",
-    customer: "Emily Davis",
-    date: "2025-05-26",
-    status: "Đã Hủy",
-    amount: "89.99đ",
-    items: 1,
-    paymentMethod: "Chuyển Khoản Ngân Hàng",
-  },
-  {
-    id: "#ORD-005",
-    customer: "David Wilson",
-    date: "2025-05-25",
-    status: "Đã Hoàn Thành",
-    amount: "199.99đ",
-    items: 2,
-    paymentMethod: "PayPal",
-  },
-  {
-    id: "#ORD-006",
-    customer: "Sarah Brown",
-    date: "2025-05-25",
-    status: "Đang Xử Lý",
-    amount: "349.99đ",
-    items: 2,
-    paymentMethod: "Thẻ Tín Dụng",
-  },
-  {
-    id: "#ORD-007",
-    customer: "Robert Miller",
-    date: "2025-05-24",
-    status: "Đã Hoàn Thành",
-    amount: "129.99đ",
-    items: 1,
-    paymentMethod: "Thẻ Tín Dụng",
-  },
-  {
-    id: "#ORD-008",
-    customer: "Jennifer Garcia",
-    date: "2025-05-24",
-    status: "Đã Hủy",
-    amount: "79.99đ",
-    items: 1,
-    paymentMethod: "PayPal",
-  },
-];
 
 const AdminDashboard = () => {
   // Get active tab from outlet context
   const { activeTab } = useOutletContext();
-  const [paymentsTimeFilter, setPaymentsTimeFilter] = useState("30days");
+  const [startDate, setStartDate] = useState(dayjs().subtract(30, 'day'));
+  const [endDate, setEndDate] = useState(dayjs());
+  const [datePickerAnchor, setDatePickerAnchor] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showPaymentDetails, setShowPaymentDetails] = useState(false);
+  dayjs.locale('vi');
   
   const dispatch = useDispatch();
 
@@ -183,54 +112,12 @@ const AdminDashboard = () => {
   // Fetch admin dashboard data when component mounts or when dashboard tab is active
   useEffect(() => {
     if (activeTab === "dashboard") {
-      dispatch(fetchAdminDashboard());
-      
-      // Calculate date range based on filter
-      const endDate = new Date();
-      const startDate = new Date();
-      
-      switch(paymentsTimeFilter) {
-        case "7days":
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-        case "30days":
-          startDate.setDate(startDate.getDate() - 30);
-          break;
-        case "90days":
-          startDate.setDate(startDate.getDate() - 90);
-          break;
-        case "1year":
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
-        default:
-          startDate.setDate(startDate.getDate() - 30);
-      }
-      
-      // Set start date to beginning of day
-      startDate.setHours(0, 0, 0, 0);
-      // Set end date to end of day
-      endDate.setHours(23, 59, 59, 999);
-      // Format dates as LocalDateTime (YYYY-MM-DDTHH:mm:ss)
-      const formatDateTime = (date) => {
-        // Use ISO string and remove timezone info for LocalDateTime
-        return date.toISOString().slice(0, 19);
-      };
-      
-      const formattedStartDate = formatDateTime(startDate);
-      const formattedEndDate = formatDateTime(endDate);
-      
-      console.log('Payments API request:', {
-        startDate: formattedStartDate,
-        endDate: formattedEndDate,
-        filter: paymentsTimeFilter
-      });
-      
-      dispatch(fetchPaymentsStats({
-        startDate: formattedStartDate,
-        endDate: formattedEndDate
-      }));
+      const formattedStartDate = startDate.toISOString();
+      const formattedEndDate = endDate.toISOString();
+      dispatch(fetchAdminDashboard({ startDate: formattedStartDate, endDate: formattedEndDate }));
+      dispatch(fetchPaymentsStats({ startDate: formattedStartDate, endDate: formattedEndDate }));
     }
-  }, [activeTab, paymentsTimeFilter, dispatch]);
+  }, [activeTab, startDate, endDate, dispatch]);
 
   // Generate revenue data based on API data
   const getRevenueData = () => {
@@ -353,19 +240,28 @@ const AdminDashboard = () => {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Tổng Quan Dashboard
         </h1>
-        <div className="relative">
-          <select
-            value={paymentsTimeFilter}
-            onChange={(e) => setPaymentsTimeFilter(e.target.value)}
-            className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant='outlined'
+            startIcon={<CalendarIcon />}
+            onClick={(e)=> setDatePickerAnchor(e.currentTarget)}
+            className='!rounded-xl !border-2 !border-indigo-200 !text-indigo-600 hover:!bg-indigo-50 hover:!border-indigo-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md !cursor-pointer'
+            size='small'
           >
-            <option value="7days">7 Ngày Qua</option>
-            <option value="30days">30 Ngày Qua</option>
-            <option value="90days">90 Ngày Qua</option>
-            <option value="1year">1 Năm Qua</option>
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-            <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+            Lọc ngày
+          </Button>
+          <Button
+            variant='outlined'
+            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={refreshing || dashboardStatus === 'loading'}
+            className='!rounded-xl !border-2 !border-blue-200 !text-blue-600 hover:!bg-blue-50 hover:!border-blue-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md !cursor-pointer disabled:!cursor-not-allowed'
+            size='small'
+          >
+            {refreshing ? 'Đang làm mới...' : 'Làm mới'}
+          </Button>
+          <div className='px-3 py-2 bg-white rounded-lg border text-xs text-gray-600 font-medium'>
+            {startDate.format('DD/MM/YYYY')} - {endDate.format('DD/MM/YYYY')}
           </div>
         </div>
       </div>
@@ -378,423 +274,67 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Stats Cards - Người Dùng & Vai Trò */}
+      {/* Stats Cards - Người Dùng & Vai Trò (Compact) */}
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">👥 Quản Lý Người Dùng</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6">
-          {/* Total Users Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-blue-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-blue-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-blue-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+5.2%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              ) : (
-                totalUsers?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Tổng Người Dùng</p>
-          </div>
-
-          {/* Total Customers Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-indigo-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-indigo-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-indigo-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+8.3%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-              ) : (
-                totalCustomer?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Khách Hàng</p>
-          </div>
-
-          {/* Banned Users Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-red-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-red-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-red-600" />
-              </div>
-              <div className="flex items-center text-red-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+2.1%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
-              ) : (
-                totalBannedUsers?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Người Dùng Bị Khóa</p>
-          </div>
-
-          {/* Total Sale Staff Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-pink-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-pink-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-pink-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+1.5%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-600"></div>
-              ) : (
-                totalSale?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Nhân Viên Sale</p>
-          </div>
-
-          {/* Total Staff Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-teal-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-teal-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-teal-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+0.8%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
-              ) : (
-                totalStaff?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Nhân Viên</p>
-          </div>
-
-          {/* Total Designers Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-amber-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-amber-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-amber-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+3.2%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600"></div>
-              ) : (
-                totalDesigner?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Thiết Kế Viên</p>
-          </div>
-
-          {/* Total Admins Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-gray-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gray-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-gray-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+0.0%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600"></div>
-              ) : (
-                totalAdmin?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Quản Trị Viên</p>
-          </div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-700 flex items-center gap-2">👥 Quản Lý Người Dùng</h2>
+          <button
+            onClick={() => setShowUserDetails(v => !v)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 font-medium text-gray-600 shadow-sm cursor-pointer"
+          >{showUserDetails ? 'Thu gọn' : 'Chi tiết'}</button>
         </div>
+        {/* Summary row */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[{label:'Người Dùng',value:totalUsers,color:'blue'},{label:'Khách Hàng',value:totalCustomer,color:'indigo'},{label:'Sale',value:totalSale,color:'pink'},{label:'Nhân Viên',value:totalStaff,color:'teal'},{label:'Designer',value:totalDesigner,color:'amber'},{label:'Bị Khóa',value:totalBannedUsers,color:'red'}].map((m,i)=>(
+            <div key={i} className={`relative overflow-hidden rounded-xl p-3 bg-white border-l-4 shadow-sm hover:shadow-md transition-all border-${m.color}-500`}> 
+              <div className="text-xs font-medium text-gray-500 mb-1">{m.label}</div>
+              <div className={`text-lg font-bold text-gray-800`}>{dashboardStatus==='loading'?<div className={`animate-spin rounded-full h-4 w-4 border-b-2 border-${m.color}-600`}></div>: (m.value?.toLocaleString()||'0')}</div>
+            </div>
+          ))}
+        </div>
+        {showUserDetails && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {/* Detailed original cards condensed (Admins & ChatBot usage) */}
+            <div className="bg-white rounded-xl shadow p-4 relative overflow-hidden border-t-4 border-gray-500">
+              <div className="text-sm font-semibold text-gray-700 mb-1">Quản Trị Viên</div>
+              <div className="text-2xl font-bold text-gray-900">{dashboardStatus==='loading'? '...' : (totalAdmin?.toLocaleString()||'0')}</div>
+            </div>
+            <div className="bg-white rounded-xl shadow p-4 relative overflow-hidden border-t-4 border-cyan-500">
+              <div className="text-sm font-semibold text-gray-700 mb-1">Lượt ChatBot</div>
+              <div className="text-2xl font-bold text-gray-900">{dashboardStatus==='loading'? '...' : (totalChatBotUsed?.toLocaleString()||'0')}</div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Stats Cards - Thống Kê Thanh Toán */}
+      {/* Stats Cards - Thống Kê Thanh Toán (Compact) */}
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">💰 Thống Kê Thanh Toán</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-          {/* Total Revenue Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-green-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-green-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+12.5%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-              ) : (
-                `${totalPaymentSuccessAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Tổng Doanh Thu</p>
-          </div>
-
-          {/* Payment Transactions Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-orange-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-orange-100 rounded-full flex items-center justify-center">
-                <ShoppingCartIcon className="w-6 h-6 lg:w-8 lg:h-8 text-orange-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+8.4%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-              ) : (
-                totalPaymentTransactionCreated?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Tổng Giao Dịch</p>
-          </div>
-
-          {/* Successful Payments Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-purple-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-purple-100 rounded-full flex items-center justify-center">
-                <ArrowTrendingUpIcon className="w-6 h-6 lg:w-8 lg:h-8 text-purple-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+15.3%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-              ) : (
-                totalPaymentSuccess?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Thanh Toán Thành Công</p>
-          </div>
-
-          {/* Failed Payments Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-rose-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-rose-100 rounded-full flex items-center justify-center">
-                <ArrowTrendingUpIcon className="w-6 h-6 lg:w-8 lg:h-8 text-rose-600" />
-              </div>
-              <div className="flex items-center text-red-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+2.1%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-rose-600"></div>
-              ) : (
-                totalPaymentFailure?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Thanh Toán Thất Bại</p>
-          </div>
-
-          {/* Cancelled Payments Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-yellow-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-yellow-100 rounded-full flex items-center justify-center">
-                <ArrowTrendingUpIcon className="w-6 h-6 lg:w-8 lg:h-8 text-yellow-600" />
-              </div>
-              <div className="flex items-center text-yellow-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+1.2%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
-              ) : (
-                totalPaymentCancelled?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Thanh Toán Đã Hủy</p>
-          </div>
-
-          {/* Payment Failure Amount Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-red-600 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-red-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-red-600" />
-              </div>
-              <div className="flex items-center text-red-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+1.8%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
-              ) : (
-                `${totalPaymentFailureAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Số Tiền TT Thất Bại</p>
-          </div>
-
-          {/* Payment Cancelled Amount Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-yellow-600 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-yellow-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-yellow-600" />
-              </div>
-              <div className="flex items-center text-yellow-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+0.5%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
-              ) : (
-                `${totalPaymentCancelledAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Số Tiền TT Đã Hủy</p>
-          </div>
-
-          {/* Total Cast Amount Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-violet-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-violet-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-violet-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+22.1%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-600"></div>
-              ) : (
-                `${totalCastAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Tổng Tiền Mặt</p>
-          </div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-700 flex items-center gap-2">💰 Thống Kê Thanh Toán</h2>
+          <button
+            onClick={() => setShowPaymentDetails(v => !v)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 font-medium text-gray-600 shadow-sm cursor-pointer"
+          >{showPaymentDetails ? 'Thu gọn' : 'Chi tiết'}</button>
         </div>
-      </div>
-
-      {/* Stats Cards - PayOS & Hệ Thống */}
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">🔧 PayOS & Hệ Thống</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-          {/* PayOS Success Amount Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-emerald-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-emerald-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+18.2%</span>
-              </div>
+        {/* Summary metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[{label:'Doanh Thu',value:totalPaymentSuccessAmount,suffix:'đ',color:'green'},{label:'Giao Dịch',value:totalPaymentTransactionCreated,color:'orange'},{label:'Thành Công',value:totalPaymentSuccess,color:'purple'},{label:'Thất Bại',value:totalPaymentFailure,color:'rose'},{label:'Đã Hủy',value:totalPaymentCancelled,color:'yellow'},{label:'Tiền Mặt',value:totalCastAmount,suffix:'đ',color:'violet'}].map((m,i)=>(
+            <div key={i} className={`relative overflow-hidden rounded-xl p-3 bg-white border-l-4 shadow-sm hover:shadow-md transition-all border-${m.color}-500`}>
+              <div className="text-xs font-medium text-gray-500 mb-1">{m.label}</div>
+              <div className="text-lg font-bold text-gray-900">{paymentsStatsStatus==='loading'? '...' : `${m.value?.toLocaleString()||'0'}${m.suffix||''}`}</div>
             </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
-              ) : (
-                `${totalPayOSSuccessAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">PayOS Thành Công</p>
-          </div>
-
-          {/* PayOS Failure Amount Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-red-700 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-red-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-red-700" />
-              </div>
-              <div className="flex items-center text-red-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+0.8%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-700"></div>
-              ) : (
-                `${totalPayOSFailureAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">PayOS Thất Bại</p>
-          </div>
-
-          {/* PayOS Cancelled Amount Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-orange-600 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-orange-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-orange-600" />
-              </div>
-              <div className="flex items-center text-orange-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+1.1%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-              ) : (
-                `${totalPayOSCancelledAmount?.toLocaleString() || "0"}đ`
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">PayOS Đã Hủy</p>
-          </div>
-
-          {/* ChatBot Usage Card */}
-          <div className="bg-white rounded-xl shadow-lg p-4 lg:p-6 relative overflow-hidden border-t-4 border-cyan-500 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 lg:w-14 lg:h-14 bg-cyan-100 rounded-full flex items-center justify-center">
-                <ChartBarIcon className="w-6 h-6 lg:w-8 lg:h-8 text-cyan-600" />
-              </div>
-              <div className="flex items-center text-green-600">
-                <ChevronUpIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">+7.8%</span>
-              </div>
-            </div>
-            <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {dashboardStatus === "loading" ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
-              ) : (
-                totalChatBotUsed?.toLocaleString() || "0"
-              )}
-            </div>
-            <p className="text-gray-600 text-sm">Lượt Sử Dụng ChatBot</p>
-          </div>
+          ))}
         </div>
+        {showPaymentDetails && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {[{label:'TT Thất Bại (đ)',value:totalPaymentFailureAmount,color:'red-600'},{label:'TT Đã Hủy (đ)',value:totalPaymentCancelledAmount,color:'yellow-600'},{label:'PayOS Thành Công (đ)',value:totalPayOSSuccessAmount,color:'emerald-600'},{label:'PayOS Thất Bại (đ)',value:totalPayOSFailureAmount,color:'red-700'},{label:'PayOS Đã Hủy (đ)',value:totalPayOSCancelledAmount,color:'orange-600'}].map((m,i)=>(
+              <div key={i} className={`bg-white rounded-xl shadow p-4 border-t-4 border-${m.color}`}>
+                <div className="text-sm font-semibold text-gray-700 mb-1">{m.label}</div>
+                <div className="text-xl font-bold text-gray-900">{paymentsStatsStatus==='loading' ? '...' : (m.value?.toLocaleString()||'0')}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-6">
         {/* Revenue Chart */}
@@ -807,7 +347,7 @@ const AdminDashboard = () => {
               {paymentsStatsStatus === "loading" && (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
               )}
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
                 <EllipsisVerticalIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -874,7 +414,7 @@ const AdminDashboard = () => {
             <h3 className="text-lg lg:text-xl font-semibold text-gray-900">
               Trạng Thái Thanh Toán
             </h3>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
               <EllipsisVerticalIcon className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -987,10 +527,7 @@ const AdminDashboard = () => {
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
               )}
               <span className="text-xs text-gray-500">
-                {paymentsTimeFilter === "7days" ? "7 ngày qua" :
-                 paymentsTimeFilter === "30days" ? "30 ngày qua" :
-                 paymentsTimeFilter === "90days" ? "90 ngày qua" :
-                 paymentsTimeFilter === "1year" ? "1 năm qua" : ""}
+                {selectedRangeLabel}
               </span>
             </div>
           </div>
@@ -1075,178 +612,113 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // Orders Management Content
-  const renderOrdersContent = () => (
-    <div>
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900">
-          Quản Lý Đơn Hàng
-        </h2>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
-          <PlusIcon className="w-5 h-5" />
-          Tạo Đơn Hàng
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-4 lg:p-6 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-          <div className="flex-1">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm đơn hàng..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors min-w-32">
-              <option value="all">Tất Cả Trạng Thái</option>
-              <option value="Đã Hoàn Thành">Đã Hoàn Thành</option>
-              <option value="Đang Xử Lý">Đang Xử Lý</option>
-              <option value="Đã Hủy">Đã Hủy</option>
-            </select>
-            <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors min-w-40">
-              <option value="all">Tất Cả Thời Gian</option>
-              <option value="today">Hôm Nay</option>
-              <option value="week">7 Ngày Gần Đây</option>
-              <option value="month">30 Ngày Gần Đây</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-y border-gray-200">
-              <tr>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mã Đơn Hàng
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Khách Hàng
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ngày
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trạng Thái
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Số Lượng
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Phương Thức TT
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Số Tiền
-                </th>
-                <th className="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hành Động
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {ordersData.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                    <div className="font-semibold text-gray-900">{order.id}</div>
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900">
-                    {order.customer}
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900">
-                    {order.date}
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      order.status === "Đã Hoàn Thành"
-                        ? "bg-green-100 text-green-800"
-                        : order.status === "Đang Xử Lý"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-red-100 text-red-800"
-                    }`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900">
-                    {order.items}
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900">
-                    {order.paymentMethod}
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
-                    {order.amount}
-                  </td>
-                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                      <button className="p-1 text-blue-600 hover:text-blue-800 transition-colors">
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button className="p-1 text-red-600 hover:text-red-800 transition-colors">
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination */}
-        <div className="border-t border-gray-200 bg-white px-4 py-3 flex items-center justify-between sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-              Trước
-            </button>
-            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-              Sau
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Hiển thị <span className="font-medium">1</span> đến{' '}
-                <span className="font-medium">5</span> trong{' '}
-                <span className="font-medium">{ordersData.length}</span> kết quả
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-                  <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">
-                  1
-                </button>
-                <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-                  <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Render different content based on active tab
-  const renderContent = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return renderDashboardContent();
-      case "orders":
-        return renderOrdersContent();
-      default:
-        return renderDashboardContent();
-    }
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(fetchAdminDashboard({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })).unwrap();
+      await dispatch(fetchPaymentsStats({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })).unwrap();
+    } catch (e) {
+      console.error('Refresh admin dashboard failed:', e);
+    } finally { setRefreshing(false); }
   };
+  const handleDateChange = () => {
+    dispatch(fetchAdminDashboard({ startDate: startDate.toISOString(), endDate: endDate.toISOString() }));
+    dispatch(fetchPaymentsStats({ startDate: startDate.toISOString(), endDate: endDate.toISOString() }));
+    setDatePickerAnchor(null);
+  };
+  const handleQuickDateSelect = (days) => {
+    setStartDate(dayjs().subtract(days, 'day'));
+    setEndDate(dayjs());
+  };
+  const selectedRangeLabel = (() => {
+    const diff = endDate.startOf('day').diff(startDate.startOf('day'), 'day') + 1;
+    if (diff === 7) return '7 ngày qua';
+    if (diff === 30) return '30 ngày qua';
+    if (diff === 90) return '90 ngày qua';
+    if (diff >= 365) return '1 năm qua';
+    return `${diff} ngày`; })();
 
   return (
-    <div>
-      {renderContent()}
-    </div>
+    <>
+      {renderDashboardContent()}
+      {/* Popover */}
+      <Popover
+        open={Boolean(datePickerAnchor)}
+        anchorEl={datePickerAnchor}
+        onClose={() => setDatePickerAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { className: 'rounded-xl shadow-xl border border-gray-200' }}}
+      >
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale='vi'>
+          <div className='p-4 sm:p-5 w-[320px] sm:w-[380px] md:w-[420px] max-w-full'>
+            <div className='flex items-start justify-between mb-4'>
+              <h2 className='text-lg font-bold text-gray-800'>Chọn khoảng thời gian</h2>
+              <button
+                onClick={()=> setDatePickerAnchor(null)}
+                className='ml-2 p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer'
+                aria-label='Đóng'
+              >
+                <span className='block leading-none'>×</span>
+              </button>
+            </div>
+
+            {/* Quick ranges */}
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-2 mb-5'>
+              {[{d:7,l:'7 ngày'},{d:30,l:'30 ngày'},{d:90,l:'3 tháng'},{d:365,l:'1 năm'}].map(r=> (
+                <button
+                  key={r.d}
+                  onClick={()=>handleQuickDateSelect(r.d)}
+                  className={`text-xs sm:text-sm font-medium rounded-lg border px-2 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 cursor-pointer ${
+                    startDate.isSame(dayjs().subtract(r.d,'day'),'day') && endDate.isSame(dayjs(),'day')
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow'
+                      : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >{r.l}</button>
+              ))}
+            </div>
+
+            {/* Date pickers */}
+            <div className='space-y-4 mb-5'>
+              <div>
+                <label className='block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide'>Từ ngày</label>
+                <DatePicker 
+                  value={startDate} 
+                  onChange={(v)=> setStartDate(v)} 
+                  slotProps={{ textField: { size: 'small', fullWidth: true, className: '!bg-white !rounded-lg [&_input]:!text-sm' }}} 
+                />
+              </div>
+              <div>
+                <label className='block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide'>Đến ngày</label>
+                <DatePicker 
+                  value={endDate} 
+                  onChange={(v)=> setEndDate(v)} 
+                  slotProps={{ textField: { size: 'small', fullWidth: true, className: '!bg-white !rounded-lg [&_input]:!text-sm' }}} 
+                />
+              </div>
+            </div>
+
+            <div className='flex flex-col sm:flex-row gap-3'>
+              <button
+                onClick={handleDateChange}
+                disabled={dashboardStatus === 'loading'}
+                className='flex-1 inline-flex justify-center items-center gap-2 rounded-lg bg-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-indigo-700 text-white font-semibold text-sm py-2.5 shadow focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-colors cursor-pointer'
+              >
+                {dashboardStatus === 'loading' ? 'Đang tải...' : 'Áp dụng'}
+              </button>
+              <button
+                onClick={()=> setDatePickerAnchor(null)}
+                className='flex-1 inline-flex justify-center items-center gap-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium text-sm py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-300 transition-colors cursor-pointer'
+              >Đóng</button>
+            </div>
+            <div className='mt-4 text-[11px] sm:text-xs text-gray-500 font-medium flex items-center justify-between'>
+              <span>Phạm vi: {selectedRangeLabel}</span>
+              <span className='text-gray-400'>Từ {startDate.format('DD/MM/YYYY')} • Đến {endDate.format('DD/MM/YYYY')}</span>
+            </div>
+          </div>
+        </LocalizationProvider>
+      </Popover>
+    </>
   );
 };
 

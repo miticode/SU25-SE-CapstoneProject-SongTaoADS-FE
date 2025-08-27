@@ -58,17 +58,18 @@ export const fetchStaffDashboardApi = async (startDate, endDate) => {
   }
 };
 
-// API to fetch admin dashboard data
-export const fetchAdminDashboardApi = async () => {
+// API to fetch admin dashboard data (updated: POST with date range body)
+export const fetchAdminDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/admin');
-
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const body = { start: defaultStart, end: defaultEnd };
+    const response = await dashboardService.post('/api/dashboard/admin', body);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching admin dashboard:', error);
