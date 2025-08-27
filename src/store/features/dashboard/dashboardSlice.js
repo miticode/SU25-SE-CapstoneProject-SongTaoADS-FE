@@ -203,14 +203,12 @@ export const fetchAdminDashboard = createAsyncThunk(
 // Async thunk for fetching sale dashboard data
 export const fetchSaleDashboard = createAsyncThunk(
   'dashboard/fetchSaleDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchSaleDashboardApi();
-
+      const response = await fetchSaleDashboardApi(startDate, endDate);
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch sale dashboard');
       }
-
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
@@ -524,7 +522,7 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchSaleDashboard.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.saleDashboard = action.payload;
+        state.saleDashboard = { ...state.saleDashboard, ...action.payload };
         state.lastUpdated = new Date().toISOString();
         state.error = null;
       })
