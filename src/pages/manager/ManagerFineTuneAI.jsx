@@ -110,6 +110,7 @@ import {
   selectSelectedModelChatBotTopics,
   selectSelectedModelChatBotTopicsStatus,
   selectSelectedModelForTopics,
+  assignTopicToModelChat,
 } from "../../store/features/chat/chatSlice";
 import { downloadFile } from "../../api/s3Service";
 import { getFineTunedModelsModelChatApi } from "../../api/chatService";
@@ -144,7 +145,6 @@ import {
   fetchChatBotTopicsByTopic,
   addTopicToModelChatBot,
   addTopicFromExistingModel,
-  copyTopicsFromPreviousModel,
   deleteChatBotTopicById,
   selectChatBotTopicsByModel,
   selectChatBotTopicsByTopic,
@@ -625,6 +625,38 @@ const ManagerFineTuneAI = () => {
       }
     };
   }, [fineTuningJobId, trainingStatus, dispatch]);
+
+  // Refresh topics khi dialog được mở lại
+  useEffect(() => {
+    if (showTopicsDialog && selectedModelId) {
+      console.log(
+        "Dialog opened, refreshing topics for model:",
+        selectedModelId
+      );
+      // Chỉ refresh nếu selectedModelForTopics khác với selectedModelId để tránh duplicate calls
+      if (selectedModelForTopics !== selectedModelId) {
+        dispatch(fetchChatBotTopicsByModelId(selectedModelId));
+      }
+    }
+  }, [showTopicsDialog, selectedModelId, selectedModelForTopics, dispatch]);
+
+  // Debug log để theo dõi selectedModelChatBotTopics changes
+  useEffect(() => {
+    console.log(
+      "selectedModelChatBotTopics changed:",
+      selectedModelChatBotTopics
+    );
+  }, [selectedModelChatBotTopics]);
+
+  // Đảm bảo form state được sync với selectedModelId
+  useEffect(() => {
+    if (selectedModelId && showTopicsDialog) {
+      setChatBotTopicForm((prev) => ({
+        ...prev,
+        modelChatBotId: selectedModelId,
+      }));
+    }
+  }, [selectedModelId, showTopicsDialog]);
 
   const handleTrainingFileChange = (e) => {
     setTrainingFile(e.target.files[0]);
@@ -1177,10 +1209,29 @@ const ManagerFineTuneAI = () => {
       return;
     }
 
+    // Kiểm tra xem topic đã được gán cho model này chưa
+    // Sử dụng data từ selectedModelChatBotTopics (cho tab 5) hoặc chatBotTopicsByModel (cho dialog chính)
+    const existingTopics =
+      selectedModelChatBotTopics?.length > 0
+        ? selectedModelChatBotTopics
+        : chatBotTopicsByModel[chatBotTopicForm.modelChatBotId] || [];
+
+    const isTopicAlreadyAssigned = existingTopics.some(
+      (topic) => topic.topicId === chatBotTopicForm.topicId
+    );
+
+    if (isTopicAlreadyAssigned) {
+      setChatBotTopicAlert({
+        type: "error",
+        message: "Topic này đã được gán cho model này trước đó!",
+      });
+      return;
+    }
+
     try {
       if (chatBotTopicDialogMode === "create") {
         await dispatch(
-          addTopicToModelChatBot({
+          assignTopicToModelChat({
             modelChatBotId: chatBotTopicForm.modelChatBotId,
             topicId: chatBotTopicForm.topicId,
           })
@@ -1258,6 +1309,7 @@ const ManagerFineTuneAI = () => {
 
   // Management handlers for tab 5
   const handleViewModelTopics = async (modelId) => {
+    console.log("Opening topics dialog for model:", modelId);
     setSelectedModelId(modelId);
     // Setup form for adding topics to this model
     setChatBotTopicForm({
@@ -1265,52 +1317,233 @@ const ManagerFineTuneAI = () => {
       topicId: "",
       description: "",
     });
-    await dispatch(fetchChatBotTopicsByModelId(modelId));
+
+    // Đảm bảo fetch topics mới nhất từ server
+    try {
+      const result = await dispatch(
+        fetchChatBotTopicsByModelId(modelId)
+      ).unwrap();
+      console.log("Fetched topics for model:", modelId, result);
+    } catch (error) {
+      console.error("Error fetching topics:", error);
+      showSnackbar("Không thể tải danh sách topics", "error");
+    }
+
     setShowTopicsDialog(true);
   };
 
   const handleCloseTopicsDialog = () => {
     setShowTopicsDialog(false);
-    setSelectedModelId(null);
-    // Reset form
+    // Không reset selectedModelId để giữ context
+    // setSelectedModelId(null);
+
+    // Reset form nhưng giữ selectedModelId
     setChatBotTopicForm({
       modelChatBotId: "",
       topicId: "",
       description: "",
     });
+
+    // Clear alert
+    setChatBotTopicAlert(null);
+  };
+
+  // Helper function để parse API response thành array an toàn
+  const parseTopicsResponse = (response, context = "") => {
+    console.log(`🔍 Parsing ${context} response:`, response);
+
+    if (Array.isArray(response)) {
+      console.log(`✅ ${context} - Direct array with ${response.length} items`);
+      return response;
+    } else if (response && Array.isArray(response.result)) {
+      console.log(
+        `✅ ${context} - Array in result property with ${response.result.length} items`
+      );
+      return response.result;
+    } else if (response && Array.isArray(response.data)) {
+      console.log(
+        `✅ ${context} - Array in data property with ${response.data.length} items`
+      );
+      return response.data;
+    } else if (response && Array.isArray(response.topics)) {
+      console.log(
+        `✅ ${context} - Array in topics property with ${response.topics.length} items`
+      );
+      return response.topics;
+    } else {
+      console.warn(
+        `⚠️ ${context} - Unexpected response structure, returning empty array:`,
+        response
+      );
+      return [];
+    }
   };
 
   // Handler for copying topics from previous model
   const handleCopyTopicsFromPreviousModel = async () => {
     if (!selectedModelId) return;
 
-    // Tìm model trước đó trong danh sách (model được tạo trước model hiện tại)
-    const currentModelIndex = managementFineTunedModels.findIndex(
+    // Tìm model hiện tại
+    const currentModel = managementFineTunedModels.find(
       (model) => model.id === selectedModelId
     );
 
-    if (currentModelIndex <= 0) {
-      // Không có model trước đó
-      console.log("Không có model trước đó để copy topics");
+    if (!currentModel) {
+      showSnackbar("Không tìm thấy model hiện tại", "error");
       return;
     }
 
-    const previousModel = managementFineTunedModels[currentModelIndex - 1];
+    // Tìm model trước đó (model được tạo trước model hiện tại theo thời gian)
+    const previousModels = managementFineTunedModels
+      .filter(
+        (model) =>
+          model.id !== selectedModelId &&
+          new Date(model.createdAt) < new Date(currentModel.createdAt)
+      )
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sắp xếp theo thời gian giảm dần
+
+    if (previousModels.length === 0) {
+      showSnackbar(
+        "Không có model nào được tạo trước model này để copy topics",
+        "warning"
+      );
+      return;
+    }
+
+    const previousModel = previousModels[0]; // Lấy model gần nhất được tạo trước đó
 
     try {
-      await dispatch(
-        copyTopicsFromPreviousModel({
-          targetModelId: selectedModelId,
-          sourceModelId: previousModel.id,
-        })
+      // Luôn fetch fresh data để đảm bảo accuracy trong copy process
+      console.log("Fetching fresh topics for copy process...");
+
+      // Lấy danh sách topics hiện tại của model (fresh fetch)
+      const currentTopicsResponse = await dispatch(
+        fetchChatBotTopicsByModelId(selectedModelId)
       ).unwrap();
 
-      // Refresh topics for current model
-      await dispatch(fetchChatBotTopicsByModelId(selectedModelId));
+      console.log("Raw current topics response:", currentTopicsResponse);
 
-      console.log(`Đã copy topics từ model: ${previousModel.modelName}`);
+      // Parse current topics response safely
+      const currentTopics = parseTopicsResponse(
+        currentTopicsResponse,
+        "current topics"
+      );
+      const currentTopicIds = currentTopics
+        .map((topic) => topic.topicId || topic.id)
+        .filter(Boolean);
+
+      console.log(
+        "Current topics for model",
+        selectedModelId,
+        ":",
+        currentTopics
+      );
+      console.log("Current topic IDs:", currentTopicIds);
+
+      // Lấy danh sách topics của model trước đó
+      const previousModelTopicsResponse = await dispatch(
+        fetchChatBotTopicsByModelId(previousModel.id)
+      ).unwrap();
+
+      console.log("Raw previous topics response:", previousModelTopicsResponse);
+
+      // Parse previous model topics response safely
+      const previousModelTopics = parseTopicsResponse(
+        previousModelTopicsResponse,
+        "previous model topics"
+      );
+
+      console.log("Previous model topics:", previousModelTopics);
+
+      // Lọc ra những topics chưa tồn tại trong model hiện tại
+      const topicsToAdd = previousModelTopics.filter((topic) => {
+        const topicId = topic.topicId || topic.id;
+        const exists = currentTopicIds.includes(topicId);
+        console.log(
+          `🔍 Topic ${topicId}: exists=${exists}, will copy=${!exists}`
+        );
+        return topicId && !exists;
+      });
+
+      console.log(`📋 Topics filter result:`);
+      console.log(`  - Previous model topics: ${previousModelTopics.length}`);
+      console.log(`  - Current model topics: ${currentTopics.length}`);
+      console.log(`  - Topics to copy: ${topicsToAdd.length}`);
+      console.log(
+        `  - Topics to add:`,
+        topicsToAdd.map((t) => t.topicId || t.id)
+      );
+
+      if (topicsToAdd.length === 0) {
+        showSnackbar(
+          `Model hiện tại đã có tất cả topics từ model ${previousModel.modelName}. Không có topic nào để copy.`,
+          "info"
+        );
+        return;
+      }
+
+      // Copy từng topic một cách tuần tự để tránh conflict
+      let successCount = 0;
+      let errorCount = 0;
+
+      console.log(`Starting to copy ${topicsToAdd.length} topics...`);
+
+      for (const topic of topicsToAdd) {
+        const topicId = topic.topicId || topic.id;
+        console.log(`Copying topic ${topicId}...`);
+
+        try {
+          const result = await dispatch(
+            assignTopicToModelChat({
+              modelChatBotId: selectedModelId,
+              topicId: topicId,
+            })
+          ).unwrap();
+
+          console.log(`✅ Successfully copied topic ${topicId}:`, result);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Failed to copy topic ${topicId}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Chờ một chút để server cập nhật
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Refresh topics một lần duy nhất để cập nhật UI
+      if (successCount > 0) {
+        try {
+          await dispatch(fetchChatBotTopicsByModelId(selectedModelId)).unwrap();
+          console.log("Refreshed topics successfully after copy");
+        } catch (refreshError) {
+          console.error("Error refreshing topics after copy:", refreshError);
+        }
+      }
+
+      // Hiển thị kết quả
+      if (successCount > 0 && errorCount === 0) {
+        showSnackbar(
+          `Đã copy thành công ${successCount} topics từ model: ${previousModel.modelName}`,
+          "success"
+        );
+      } else if (successCount > 0 && errorCount > 0) {
+        showSnackbar(
+          `Copy hoàn tất: ${successCount} thành công, ${errorCount} thất bại từ model: ${previousModel.modelName}`,
+          "warning"
+        );
+      } else {
+        showSnackbar(
+          `Không thể copy topics từ model ${previousModel.modelName}`,
+          "error"
+        );
+      }
     } catch (error) {
       console.error("Error copying topics:", error);
+      showSnackbar(
+        `Lỗi khi copy topics từ model ${previousModel.modelName}: ${error}`,
+        "error"
+      );
     }
   };
 
@@ -3972,7 +4205,7 @@ const ManagerFineTuneAI = () => {
                   <Typography variant="body2" color="text.secondary">
                     Model:{" "}
                     {managementFineTunedModels.find(
-                      (m) => m.id === selectedModelForTopics
+                      (m) => m.id === selectedModelId
                     )?.modelName || "Không xác định"}
                   </Typography>
                 </Box>
@@ -4000,6 +4233,20 @@ const ManagerFineTuneAI = () => {
                     <Typography variant="h6" gutterBottom>
                       Gán Topic cho Model
                     </Typography>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        <strong>Lưu ý:</strong> Các topic đã được gán cho model
+                        này sẽ bị vô hiệu hóa và hiển thị nhãn "Đã gán". Bạn
+                        không thể gán lại topic đã được gán trước đó.
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        <strong>Copy từ model trước đó:</strong> Nút này sẽ copy
+                        chỉ những topics chưa có từ model gần nhất được tạo
+                        trước model hiện tại theo thời gian. Tự động bỏ qua các
+                        topics đã tồn tại để tránh trùng lặp. Nút sẽ bị vô hiệu
+                        nếu không có model nào được tạo trước đó.
+                      </Typography>
+                    </Alert>
                     <Box
                       display="flex"
                       gap={2}
@@ -4019,11 +4266,36 @@ const ManagerFineTuneAI = () => {
                           }
                         >
                           {topics &&
-                            topics.map((topic) => (
-                              <MenuItem key={topic.id} value={topic.id}>
-                                {topic.title}
-                              </MenuItem>
-                            ))}
+                            topics.map((topic) => {
+                              const isAssigned =
+                                selectedModelChatBotTopics.some(
+                                  (assignedTopic) =>
+                                    assignedTopic.topicId === topic.id
+                                );
+                              return (
+                                <MenuItem
+                                  key={topic.id}
+                                  value={topic.id}
+                                  disabled={isAssigned}
+                                  sx={{
+                                    opacity: isAssigned ? 0.5 : 1,
+                                    color: isAssigned
+                                      ? "text.disabled"
+                                      : "inherit",
+                                  }}
+                                >
+                                  {topic.title}
+                                  {isAssigned && (
+                                    <Chip
+                                      label="Đã gán"
+                                      size="small"
+                                      color="default"
+                                      sx={{ ml: 1, fontSize: "0.7rem" }}
+                                    />
+                                  )}
+                                </MenuItem>
+                              );
+                            })}
                         </Select>
                       </FormControl>
                       <Button
@@ -4042,26 +4314,76 @@ const ManagerFineTuneAI = () => {
                       >
                         Gán Topic
                       </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={handleCopyTopicsFromPreviousModel}
-                        color="secondary"
-                        disabled={
-                          chatBotTopicCreateLoading ||
-                          managementFineTunedModels.findIndex(
-                            (m) => m.id === selectedModelId
-                          ) <= 0
-                        }
-                        startIcon={
-                          chatBotTopicCreateLoading ? (
-                            <CircularProgress size={16} />
-                          ) : (
-                            <CopyAllIcon />
-                          )
-                        }
+                      <Tooltip
+                        title={(() => {
+                          const currentModel = managementFineTunedModels.find(
+                            (model) => model.id === selectedModelId
+                          );
+                          if (!currentModel)
+                            return "Không tìm thấy model hiện tại";
+
+                          const previousModels = managementFineTunedModels
+                            .filter(
+                              (model) =>
+                                model.id !== selectedModelId &&
+                                new Date(model.createdAt) <
+                                  new Date(currentModel.createdAt)
+                            )
+                            .sort(
+                              (a, b) =>
+                                new Date(b.createdAt) - new Date(a.createdAt)
+                            );
+
+                          if (previousModels.length === 0) {
+                            return "Không có model nào được tạo trước model này";
+                          }
+
+                          return `Copy các topics chưa có từ model: ${
+                            previousModels[0].modelName
+                          } (${new Date(
+                            previousModels[0].createdAt
+                          ).toLocaleString(
+                            "vi-VN"
+                          )}) - Tự động bỏ qua topics đã tồn tại`;
+                        })()}
                       >
-                        Copy từ model trước đó
-                      </Button>
+                        <span>
+                          <Button
+                            variant="outlined"
+                            onClick={handleCopyTopicsFromPreviousModel}
+                            color="secondary"
+                            disabled={
+                              chatBotTopicCreateLoading ||
+                              (() => {
+                                // Kiểm tra xem có model nào được tạo trước model hiện tại không
+                                const currentModel =
+                                  managementFineTunedModels.find(
+                                    (model) => model.id === selectedModelId
+                                  );
+                                if (!currentModel) return true;
+
+                                const hasEarlierModels =
+                                  managementFineTunedModels.some(
+                                    (model) =>
+                                      model.id !== selectedModelId &&
+                                      new Date(model.createdAt) <
+                                        new Date(currentModel.createdAt)
+                                  );
+                                return !hasEarlierModels;
+                              })()
+                            }
+                            startIcon={
+                              chatBotTopicCreateLoading ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <CopyAllIcon />
+                              )
+                            }
+                          >
+                            Copy từ model trước đó
+                          </Button>
+                        </span>
+                      </Tooltip>
                     </Box>
                   </Box>
 
@@ -4607,33 +4929,67 @@ const ManagerFineTuneAI = () => {
                     },
                   }}
                 >
-                  {topics?.map((topic) => (
-                    <MenuItem key={topic.id} value={topic.id}>
-                      <Box
+                  {topics?.map((topic) => {
+                    // Tìm danh sách topics đã được gán cho model được chọn
+                    // Sử dụng selectedModelChatBotTopics nếu có (tab 5) hoặc chatBotTopicsByModel (dialog chính)
+                    const modelTopics =
+                      selectedModelChatBotTopics?.length > 0
+                        ? selectedModelChatBotTopics
+                        : chatBotTopicsByModel[
+                            chatBotTopicForm.modelChatBotId
+                          ] || [];
+
+                    const isAssigned = modelTopics.some(
+                      (assignedTopic) => assignedTopic.topicId === topic.id
+                    );
+
+                    return (
+                      <MenuItem
+                        key={topic.id}
+                        value={topic.id}
+                        disabled={isAssigned}
                         sx={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: 2,
+                          opacity: isAssigned ? 0.5 : 1,
+                          color: isAssigned ? "text.disabled" : "inherit",
                         }}
                       >
-                        <TopicIcon
+                        <Box
                           sx={{
-                            color: "#1976d2",
-                            fontSize: 20,
-                            mt: 0.5,
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 2,
                           }}
-                        />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body1" fontWeight={600}>
-                            {topic.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {topic.description || "Không có mô tả"}
-                          </Typography>
+                        >
+                          <TopicIcon
+                            sx={{
+                              color: "#1976d2",
+                              fontSize: 20,
+                              mt: 0.5,
+                            }}
+                          />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body1" fontWeight={600}>
+                              {topic.title}
+                              {isAssigned && (
+                                <Chip
+                                  label="Đã gán"
+                                  size="small"
+                                  color="default"
+                                  sx={{ ml: 1, fontSize: "0.7rem" }}
+                                />
+                              )}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {topic.description || "Không có mô tả"}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    </MenuItem>
-                  ))}
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Box>
