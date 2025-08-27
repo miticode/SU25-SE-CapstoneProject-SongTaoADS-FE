@@ -308,7 +308,6 @@ const ManagerFineTuneAI = () => {
   const [topicForm, setTopicForm] = useState({ title: "", description: "" });
   const [questionForm, setQuestionForm] = useState({
     question: "",
-    answer: "",
   });
   const [topicFilter, setTopicFilter] = useState("");
   const [questionFilter, setQuestionFilter] = useState("");
@@ -975,7 +974,7 @@ const ManagerFineTuneAI = () => {
 
         showAlertDialog(
           "Không thể xóa chủ đề",
-          `Chủ đề này đang được sử dụng trong các model chat. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.`
+          `Chủ đề này đang được sử dụng trong các model chat: ${modelNames}. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.`
         );
         return;
       }
@@ -1046,7 +1045,7 @@ const ManagerFineTuneAI = () => {
       ).unwrap();
       setTopicAlert({ type: "success", message: "Tạo câu hỏi thành công!" });
       setOpenQuestionDialog(false);
-      setQuestionForm({ question: "", answer: "" });
+      setQuestionForm({ question: "" });
       dispatch(fetchQuestionsByTopic(topicId));
     } catch (error) {
       setTopicAlert({ type: "error", message: error || "Lỗi khi tạo câu hỏi" });
@@ -1072,7 +1071,7 @@ const ManagerFineTuneAI = () => {
       });
       setOpenQuestionDialog(false);
       setEditingQuestion(null);
-      setQuestionForm({ question: "", answer: "" });
+      setQuestionForm({ question: "" });
       if (topicId) {
         dispatch(fetchQuestionsByTopic(topicId));
       }
@@ -1109,7 +1108,6 @@ const ManagerFineTuneAI = () => {
     setEditingQuestion(question);
     setQuestionForm({
       question: question.question,
-      answer: question.answer || "",
     });
     setOpenQuestionDialog(true);
   };
@@ -3142,7 +3140,7 @@ const ManagerFineTuneAI = () => {
                     variant="contained"
                     onClick={() => {
                       setEditingQuestion(null);
-                      setQuestionForm({ question: "", answer: "" });
+                      setQuestionForm({ question: "" });
                       setOpenQuestionDialog(true);
                     }}
                     sx={{ borderRadius: 2 }}
@@ -3342,25 +3340,13 @@ const ManagerFineTuneAI = () => {
                 fullWidth
                 variant="outlined"
                 multiline
-                rows={2}
+                rows={3}
                 value={questionForm.question}
                 onChange={(e) =>
                   setQuestionForm({ ...questionForm, question: e.target.value })
                 }
+                placeholder="Nhập câu hỏi cho chủ đề này..."
                 sx={{ mb: 2 }}
-              />
-              <TextField
-                margin="dense"
-                label="Câu trả lời (tùy chọn)"
-                fullWidth
-                variant="outlined"
-                multiline
-                rows={4}
-                value={questionForm.answer}
-                onChange={(e) =>
-                  setQuestionForm({ ...questionForm, answer: e.target.value })
-                }
-                placeholder="Nhập câu trả lời mẫu cho câu hỏi này..."
               />
             </DialogContent>
             <DialogActions>
