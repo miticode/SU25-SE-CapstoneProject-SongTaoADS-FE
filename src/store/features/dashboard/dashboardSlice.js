@@ -219,9 +219,9 @@ export const fetchSaleDashboard = createAsyncThunk(
 // Async thunk for fetching designer dashboard data
 export const fetchDesignerDashboard = createAsyncThunk(
   'dashboard/fetchDesignerDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchDesignerDashboardApi();
+      const response = await fetchDesignerDashboardApi(startDate, endDate);
 
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch designer dashboard');
