@@ -104,19 +104,24 @@ export const updateAttributeApi = async (attributeId, data) => {
     };
   }
 };
-// Xóa attribute
-export const deleteAttributeApi = async (attributeId) => {
+// Toggle trạng thái thuộc tính (ẩn/hiện)
+export const toggleAttributeStatusApi = async (attributeId, attributeData) => {
   try {
-    const response = await attributeService.delete(`/api/attributes/${attributeId}`);
-    const { success, message } = response.data;
+    const response = await attributeService.put(`/api/attributes/${attributeId}`, {
+      name: attributeData.name,
+      calculateFormula: attributeData.calculateFormula,
+      isAvailable: !attributeData.isAvailable, // Toggle trạng thái
+      isCore: attributeData.isCore
+    });
+    const { success, result, message } = response.data;
     if (success) {
-      return { success };
+      return { success, data: result };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to delete attribute'
+      error: error.response?.data?.message || 'Failed to toggle attribute status'
     };
   }
 };

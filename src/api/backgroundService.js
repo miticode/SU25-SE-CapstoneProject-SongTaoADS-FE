@@ -273,19 +273,26 @@ export const fetchAllBackgroundsApi = async (page = 1, size = 10) => {
   }
 };
 
-// Xóa background
-export const deleteBackgroundByIdApi = async (backgroundId) => {
+// Toggle trạng thái hoạt động của background
+export const toggleBackgroundStatusApi = async (backgroundId, backgroundData) => {
   try {
-    const response = await backgroundService.delete(`/api/backgrounds/${backgroundId}`);
+    // Tạo request body đầy đủ với trạng thái mới
+    const requestBody = {
+      name: backgroundData.name,
+      description: backgroundData.description,
+      isAvailable: !backgroundData.isAvailable // Toggle trạng thái
+    };
+
+    const response = await backgroundService.patch(`/api/backgrounds/${backgroundId}/information`, requestBody);
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };
     }
-    return { success: false, error: message || 'Lỗi xóa background' };
+    return { success: false, error: message || 'Lỗi toggle trạng thái background' };
   } catch (error) {
     return {
       success: false,
-      error: error.response?.data?.message || 'Lỗi xóa background'
+      error: error.response?.data?.message || 'Lỗi toggle trạng thái background'
     };
   }
 };

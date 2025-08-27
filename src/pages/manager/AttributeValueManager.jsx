@@ -40,15 +40,16 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Search as SearchIcon,
   Close as CloseIcon,
   InfoOutlined as InfoOutlinedIcon,
   Visibility as VisibilityIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
 } from "@mui/icons-material";
 import {
   createAttributeValue,
-  deleteAttributeValue,
+  toggleAttributeValueStatus,
   getAttributeValuesByAttributeId,
   updateAttributeValue,
 } from "../../store/features/attribute/attributeValueSlice";
@@ -81,8 +82,10 @@ const AttributeValueManager = () => {
   const { attributeValues, isLoading, isSuccess, isError, message } =
     useSelector((state) => state.attributeValue);
   const [selectedId, setSelectedId] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
+  const [toggleDialog, setToggleDialog] = useState({
+    open: false,
+    attributeValue: null,
+  });
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -154,7 +157,8 @@ const AttributeValueManager = () => {
   const handleOpenEdit = (value) => {
     setEditMode(true);
     setForm({
-      attributeId: value.attributeId || value.attributesId?.id || value.attributesId, // Handle different response formats
+      attributeId:
+        value.attributeId || value.attributesId?.id || value.attributesId, // Handle different response formats
       name: value.name,
       unit: value.unit,
       materialPrice: value.materialPrice,
@@ -168,14 +172,14 @@ const AttributeValueManager = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setForm({ 
-      attributeId: "", 
-      name: "", 
-      unit: "", 
-      materialPrice: 0, 
-      unitPrice: 0, 
-      isAvailable: true, 
-      isMultiplier: false 
+    setForm({
+      attributeId: "",
+      name: "",
+      unit: "",
+      materialPrice: 0,
+      unitPrice: 0,
+      isAvailable: true,
+      isMultiplier: false,
     });
     setSelectedId(null);
   };
@@ -282,17 +286,31 @@ const AttributeValueManager = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    setDeleteId(id);
-    setConfirmDelete(true);
+  const handleToggleStatus = (attributeValue) => {
+    setToggleDialog({ open: true, attributeValue });
   };
 
-  const handleConfirmDelete = () => {
-    // Call the delete API
-    dispatch(deleteAttributeValue(deleteId))
+  const handleConfirmToggleStatus = () => {
+    const attributeValue = toggleDialog.attributeValue;
+    setToggleDialog({ open: false, attributeValue: null });
+
+    // Call the toggle API
+    dispatch(
+      toggleAttributeValueStatus({
+        attributeValueId: attributeValue.id,
+        attributeValueData: {
+          name: attributeValue.name,
+          unit: attributeValue.unit,
+          materialPrice: attributeValue.materialPrice,
+          unitPrice: attributeValue.unitPrice,
+          isAvailable: attributeValue.isAvailable,
+          isMultiplier: attributeValue.isMultiplier,
+        },
+      })
+    )
       .unwrap()
       .then(() => {
-        // After successful deletion, refresh the attribute values list
+        // After successful toggle, refresh the attribute values list
         if (selectedAttributeId) {
           dispatch(
             getAttributeValuesByAttributeId({
@@ -305,21 +323,19 @@ const AttributeValueManager = () => {
 
         setSnackbar({
           open: true,
-          message: "Xóa giá trị thuộc tính thành công!",
+          message: `${
+            attributeValue.isAvailable ? "Ẩn" : "Hiển thị"
+          } giá trị thuộc tính thành công!`,
           severity: "success",
         });
       })
       .catch((error) => {
-        console.error("Error deleting attribute value:", error);
+        console.error("Error toggling attribute value status:", error);
         setSnackbar({
           open: true,
           message: `Lỗi: ${error}`,
           severity: "error",
         });
-      })
-      .finally(() => {
-        setConfirmDelete(false);
-        setDeleteId(null);
       });
   };
   const handleViewAttributeValues = (attributeId, attributeName) => {
@@ -578,7 +594,9 @@ const AttributeValueManager = () => {
                   </div>
                 )}
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {editMode ? "Sửa giá trị thuộc tính" : "Thêm giá trị thuộc tính"}
+                  {editMode
+                    ? "Sửa giá trị thuộc tính"
+                    : "Thêm giá trị thuộc tính"}
                 </h2>
               </div>
               <button
@@ -609,17 +627,17 @@ const AttributeValueManager = () => {
                         onChange={handleChange}
                         displayEmpty
                         className="rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
-                        sx={{ 
-                          borderRadius: '12px',
-                          '& .MuiOutlinedInput-root': {
-                            '& fieldset': {
-                              borderColor: '#d1d5db',
+                        sx={{
+                          borderRadius: "12px",
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": {
+                              borderColor: "#d1d5db",
                             },
-                            '&:hover fieldset': {
-                              borderColor: '#3b82f6',
+                            "&:hover fieldset": {
+                              borderColor: "#3b82f6",
                             },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#3b82f6',
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#3b82f6",
                             },
                           },
                         }}
@@ -654,14 +672,14 @@ const AttributeValueManager = () => {
                     InputProps={{
                       className: "rounded-xl shadow-sm",
                       sx: {
-                        '& fieldset': {
-                          borderColor: '#d1d5db',
+                        "& fieldset": {
+                          borderColor: "#d1d5db",
                         },
-                        '&:hover fieldset': {
-                          borderColor: '#3b82f6',
+                        "&:hover fieldset": {
+                          borderColor: "#3b82f6",
                         },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#3b82f6',
+                        "&.Mui-focused fieldset": {
+                          borderColor: "#3b82f6",
                         },
                       },
                     }}
@@ -685,14 +703,14 @@ const AttributeValueManager = () => {
                     InputProps={{
                       className: "rounded-xl shadow-sm",
                       sx: {
-                        '& fieldset': {
-                          borderColor: '#d1d5db',
+                        "& fieldset": {
+                          borderColor: "#d1d5db",
                         },
-                        '&:hover fieldset': {
-                          borderColor: '#3b82f6',
+                        "&:hover fieldset": {
+                          borderColor: "#3b82f6",
                         },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#3b82f6',
+                        "&.Mui-focused fieldset": {
+                          borderColor: "#3b82f6",
                         },
                       },
                     }}
@@ -721,16 +739,18 @@ const AttributeValueManager = () => {
                       className="rounded-xl"
                       InputProps={{
                         className: "rounded-xl shadow-sm",
-                        startAdornment: <span className="text-gray-500 mr-2">₫</span>,
+                        startAdornment: (
+                          <span className="text-gray-500 mr-2">₫</span>
+                        ),
                         sx: {
-                          '& fieldset': {
-                            borderColor: '#d1d5db',
+                          "& fieldset": {
+                            borderColor: "#d1d5db",
                           },
-                          '&:hover fieldset': {
-                            borderColor: '#3b82f6',
+                          "&:hover fieldset": {
+                            borderColor: "#3b82f6",
                           },
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#3b82f6',
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#3b82f6",
                           },
                         },
                       }}
@@ -757,16 +777,18 @@ const AttributeValueManager = () => {
                       className="rounded-xl"
                       InputProps={{
                         className: "rounded-xl shadow-sm",
-                        startAdornment: <span className="text-gray-500 mr-2">₫</span>,
+                        startAdornment: (
+                          <span className="text-gray-500 mr-2">₫</span>
+                        ),
                         sx: {
-                          '& fieldset': {
-                            borderColor: '#d1d5db',
+                          "& fieldset": {
+                            borderColor: "#d1d5db",
                           },
-                          '&:hover fieldset': {
-                            borderColor: '#3b82f6',
+                          "&:hover fieldset": {
+                            borderColor: "#3b82f6",
                           },
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#3b82f6',
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#3b82f6",
                           },
                         },
                       }}
@@ -782,19 +804,25 @@ const AttributeValueManager = () => {
                   <div className="flex items-center space-x-3 mb-4">
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })}
+                      onClick={() =>
+                        setForm({ ...form, isAvailable: !form.isAvailable })
+                      }
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                        form.isAvailable ? 'bg-green-500' : 'bg-gray-300'
+                        form.isAvailable ? "bg-green-500" : "bg-gray-300"
                       }`}
                     >
                       <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                          form.isAvailable ? 'translate-x-6' : 'translate-x-1'
+                          form.isAvailable ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
                     </button>
-                    <span className={`text-sm font-medium ${form.isAvailable ? 'text-green-600' : 'text-gray-500'}`}>
-                      {form.isAvailable ? 'Khả dụng' : 'Không khả dụng'}
+                    <span
+                      className={`text-sm font-medium ${
+                        form.isAvailable ? "text-green-600" : "text-gray-500"
+                      }`}
+                    >
+                      {form.isAvailable ? "Khả dụng" : "Không khả dụng"}
                     </span>
                   </div>
 
@@ -802,19 +830,27 @@ const AttributeValueManager = () => {
                   <div className="flex items-center space-x-3">
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, isMultiplier: !form.isMultiplier })}
+                      onClick={() =>
+                        setForm({ ...form, isMultiplier: !form.isMultiplier })
+                      }
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-                        form.isMultiplier ? 'bg-purple-500' : 'bg-gray-300'
+                        form.isMultiplier ? "bg-purple-500" : "bg-gray-300"
                       }`}
                     >
                       <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                          form.isMultiplier ? 'translate-x-6' : 'translate-x-1'
+                          form.isMultiplier ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
                     </button>
-                    <span className={`text-sm font-medium ${form.isMultiplier ? 'text-purple-600' : 'text-gray-500'}`}>
-                      {form.isMultiplier ? 'Là hệ số nhân' : 'Không phải hệ số nhân'}
+                    <span
+                      className={`text-sm font-medium ${
+                        form.isMultiplier ? "text-purple-600" : "text-gray-500"
+                      }`}
+                    >
+                      {form.isMultiplier
+                        ? "Là hệ số nhân"
+                        : "Không phải hệ số nhân"}
                     </span>
                   </div>
                 </div>
@@ -828,14 +864,19 @@ const AttributeValueManager = () => {
                   <InfoOutlinedIcon className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-2">Thông tin quan trọng</h4>
+                  <h4 className="font-semibold text-blue-900 mb-2">
+                    Thông tin quan trọng
+                  </h4>
                   <div className="space-y-2">
                     <p className="text-sm text-blue-700 leading-relaxed">
-                      Giá trị thuộc tính được sử dụng để cung cấp các tùy chọn khi tạo biển hiệu. 
-                      Hãy nhập đầy đủ thông tin về giá vật liệu và đơn giá để hệ thống tính toán chi phí chính xác.
+                      Giá trị thuộc tính được sử dụng để cung cấp các tùy chọn
+                      khi tạo biển hiệu. Hãy nhập đầy đủ thông tin về giá vật
+                      liệu và đơn giá để hệ thống tính toán chi phí chính xác.
                     </p>
                     <p className="text-sm text-blue-700 leading-relaxed">
-                      <strong>Hệ số nhân:</strong> Khi bật tính năng này, giá trị sẽ được sử dụng như một hệ số nhân trong tính toán thay vì giá trị cố định.
+                      <strong>Hệ số nhân:</strong> Khi bật tính năng này, giá
+                      trị sẽ được sử dụng như một hệ số nhân trong tính toán
+                      thay vì giá trị cố định.
                     </p>
                   </div>
                 </div>
@@ -854,13 +895,15 @@ const AttributeValueManager = () => {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isLoading || !form.attributeId || !form.name || !form.unit}
+                disabled={
+                  isLoading || !form.attributeId || !form.name || !form.unit
+                }
                 className={`w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   isLoading || !form.attributeId || !form.name || !form.unit
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : editMode
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl'
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl"
+                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl"
                 }`}
               >
                 {isLoading ? (
@@ -1034,12 +1077,18 @@ const AttributeValueManager = () => {
                           <Button
                             variant="outlined"
                             size="small"
-                            startIcon={<DeleteIcon />}
-                            color="error"
-                            onClick={() => handleDelete(value.id)}
+                            startIcon={
+                              value.isAvailable ? (
+                                <ToggleOffIcon />
+                              ) : (
+                                <ToggleOnIcon />
+                              )
+                            }
+                            color={value.isAvailable ? "error" : "success"}
+                            onClick={() => handleToggleStatus(value)}
                             sx={{ borderRadius: 2, textTransform: "none" }}
                           >
-                            Xóa
+                            {value.isAvailable ? "Ẩn" : "Hiển thị"}
                           </Button>
                         </Box>
                       </TableCell>
@@ -1066,44 +1115,128 @@ const AttributeValueManager = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      {/* Confirm Delete Dialog */}
+      {/* Modal xác nhận toggle trạng thái với Tailwind CSS */}
       <Dialog
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
+        open={toggleDialog.open}
+        onClose={() => setToggleDialog({ open: false, attributeValue: null })}
         maxWidth="xs"
         fullWidth
         PaperProps={{
-          sx: {
-            borderRadius: 2,
-          },
+          className: "rounded-2xl shadow-2xl",
         }}
       >
-        <DialogTitle sx={{ fontWeight: 600 }}>Xác nhận xóa</DialogTitle>
-        <DialogContent>
-          <Typography>Bạn có chắc muốn xóa giá trị thuộc tính này?</Typography>
+        <DialogTitle
+          className={`text-white ${
+            toggleDialog.attributeValue?.isAvailable
+              ? "bg-gradient-to-r from-red-500 to-pink-500"
+              : "bg-gradient-to-r from-green-500 to-emerald-500"
+          }`}
+        >
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              {toggleDialog.attributeValue?.isAvailable ? (
+                <ToggleOffIcon />
+              ) : (
+                <ToggleOnIcon />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">
+                {toggleDialog.attributeValue?.isAvailable
+                  ? "Ẩn giá trị thuộc tính"
+                  : "Hiển thị giá trị thuộc tính"}
+              </h2>
+              <p
+                className={`text-sm ${
+                  toggleDialog.attributeValue?.isAvailable
+                    ? "text-red-100"
+                    : "text-green-100"
+                }`}
+              >
+                Thay đổi trạng thái hiển thị
+              </p>
+            </div>
+          </div>
+        </DialogTitle>
+
+        <DialogContent className="p-6 bg-white">
+          {toggleDialog.attributeValue && (
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                  toggleDialog.attributeValue.isAvailable
+                    ? "bg-red-100"
+                    : "bg-green-100"
+                }`}
+              >
+                {toggleDialog.attributeValue.isAvailable ? (
+                  <ToggleOffIcon
+                    className="text-red-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                ) : (
+                  <ToggleOnIcon
+                    className="text-green-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Typography className="text-lg font-semibold text-gray-800">
+                  Bạn có chắc chắn muốn{" "}
+                  {toggleDialog.attributeValue.isAvailable ? "ẩn" : "hiển thị"}
+                  giá trị thuộc tính "
+                  <strong>{toggleDialog.attributeValue.name}</strong>"?
+                </Typography>
+                <Typography
+                  className={`text-sm p-3 rounded-lg ${
+                    toggleDialog.attributeValue.isAvailable
+                      ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
+                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                  }`}
+                >
+                  {toggleDialog.attributeValue.isAvailable
+                    ? "⚠️ Giá trị thuộc tính sẽ được ẩn khỏi danh sách hiển thị cho người dùng."
+                    : "ℹ️ Giá trị thuộc tính sẽ được hiển thị trở lại cho người dùng."}
+                </Typography>
+              </div>
+            </div>
+          )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={() => setConfirmDelete(false)}
-            sx={{
-              borderRadius: 1.5,
-              textTransform: "none",
-            }}
-          >
-            Hủy
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color="error"
-            variant="contained"
-            sx={{
-              borderRadius: 1.5,
-              textTransform: "none",
-              fontWeight: 500,
-            }}
-          >
-            Xóa
-          </Button>
+
+        <DialogActions className="bg-gray-50 p-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row w-full space-y-3 sm:space-y-0 sm:space-x-3">
+            <Button
+              onClick={() =>
+                setToggleDialog({ open: false, attributeValue: null })
+              }
+              variant="outlined"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleConfirmToggleStatus}
+              variant="contained"
+              className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
+                toggleDialog.attributeValue?.isAvailable
+                  ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              }`}
+              startIcon={
+                toggleDialog.attributeValue?.isAvailable ? (
+                  <ToggleOffIcon />
+                ) : (
+                  <ToggleOnIcon />
+                )
+              }
+            >
+              {toggleDialog.attributeValue?.isAvailable
+                ? "Ẩn giá trị thuộc tính"
+                : "Hiển thị giá trị thuộc tính"}
+            </Button>
+          </div>
         </DialogActions>
       </Dialog>
 

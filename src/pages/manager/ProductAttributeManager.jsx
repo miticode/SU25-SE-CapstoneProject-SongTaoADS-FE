@@ -4,7 +4,7 @@ import {
   fetchAttributesByProductTypeId,
   createAttribute,
   updateAttribute,
-  deleteAttribute,
+  toggleAttributeStatus,
   selectAllAttributes,
   selectAttributeStatus,
   resetAttributeStatus,
@@ -41,16 +41,18 @@ import {
   ListItem, // <-- Also add this import
   ListItemText, // <-- Also add this import
   Menu,
+  Chip,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Search as SearchIcon,
   ArrowDropDown as ArrowDropDownIcon,
   ArrowDropUp as ArrowDropUpIcon,
   Close as CloseIcon,
   InfoOutlined as InfoOutlinedIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
 } from "@mui/icons-material";
 import {
   fetchProductTypeSizesByProductTypeId,
@@ -89,8 +91,10 @@ const ProductAttributeManager = () => {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: "", calculateFormula: "" });
   const [selectedId, setSelectedId] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
+  const [toggleDialog, setToggleDialog] = useState({
+    open: false,
+    attribute: null,
+  });
   const productTypeSizes = useSelector(selectProductTypeSizes);
   const sizesStatus = useSelector(selectProductTypeSizesStatus);
   const sizesError = useSelector(selectProductTypeSizesError);
@@ -369,26 +373,38 @@ const ProductAttributeManager = () => {
     handleCloseDialog();
   };
 
-  const handleDelete = (id) => {
-    setDeleteId(id);
-    setConfirmDelete(true);
+  const handleToggleStatus = (attribute) => {
+    setToggleDialog({ open: true, attribute });
   };
 
-  const handleConfirmDelete = () => {
-    dispatch(deleteAttribute(deleteId))
+  const handleConfirmToggleStatus = () => {
+    const attribute = toggleDialog.attribute;
+    setToggleDialog({ open: false, attribute: null });
+
+    dispatch(
+      toggleAttributeStatus({
+        attributeId: attribute.id,
+        attributeData: {
+          name: attribute.name,
+          calculateFormula: attribute.calculateFormula,
+          isAvailable: attribute.isAvailable,
+          isCore: attribute.isCore,
+        },
+      })
+    )
       .unwrap()
       .then(() =>
         setSnackbar({
           open: true,
-          message: "Xóa thành công!",
+          message: `${
+            attribute.isAvailable ? "Ẩn" : "Hiển thị"
+          } thuộc tính thành công!`,
           severity: "success",
         })
       )
       .catch((err) =>
         setSnackbar({ open: true, message: err, severity: "error" })
       );
-    setConfirmDelete(false);
-    setDeleteId(null);
   };
 
   return (
@@ -518,6 +534,7 @@ const ProductAttributeManager = () => {
                 <TableRow sx={{ backgroundColor: "#e8f5e9" }}>
                   <TableCell sx={{ fontWeight: 700 }}>Tên thuộc tính</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Công thức tính</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
                     Thao tác
                   </TableCell>
@@ -526,7 +543,7 @@ const ProductAttributeManager = () => {
               <TableBody>
                 {attributes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} align="center">
+                    <TableCell colSpan={4} align="center">
                       <Box py={4}>
                         <img
                           src="https://cdn.dribbble.com/users/1162077/screenshots/3848914/sleeping_kitty.png"
@@ -551,6 +568,13 @@ const ProductAttributeManager = () => {
                     >
                       <TableCell>{attr.name}</TableCell>
                       <TableCell>{attr.calculateFormula}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={attr.isAvailable ? "Hiển thị" : "Ẩn"}
+                          color={attr.isAvailable ? "success" : "default"}
+                          size="small"
+                        />
+                      </TableCell>
                       <TableCell align="center">
                         <Tooltip title="Sửa">
                           <IconButton
@@ -561,13 +585,19 @@ const ProductAttributeManager = () => {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Xóa">
+                        <Tooltip
+                          title={attr.isAvailable ? "Tạm ẩn" : "Hiển thị"}
+                        >
                           <IconButton
-                            color="error"
-                            onClick={() => handleDelete(attr.id)}
+                            color={attr.isAvailable ? "error" : "success"}
+                            onClick={() => handleToggleStatus(attr)}
                             sx={{ borderRadius: 2 }}
                           >
-                            <DeleteIcon fontSize="small" />
+                            {attr.isAvailable ? (
+                              <ToggleOffIcon fontSize="small" />
+                            ) : (
+                              <ToggleOnIcon fontSize="small" />
+                            )}
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -638,14 +668,14 @@ const ProductAttributeManager = () => {
                   InputProps={{
                     className: "rounded-xl shadow-sm",
                     sx: {
-                      '& fieldset': {
-                        borderColor: '#d1d5db',
+                      "& fieldset": {
+                        borderColor: "#d1d5db",
                       },
-                      '&:hover fieldset': {
-                        borderColor: '#10b981',
+                      "&:hover fieldset": {
+                        borderColor: "#10b981",
                       },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#10b981',
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#10b981",
                       },
                     },
                   }}
@@ -676,14 +706,17 @@ const ProductAttributeManager = () => {
                   InputProps={{
                     className: "rounded-xl shadow-sm font-mono",
                     sx: {
-                      '& fieldset': {
-                        borderColor: formulaErrors.length > 0 ? '#ef4444' : '#d1d5db',
+                      "& fieldset": {
+                        borderColor:
+                          formulaErrors.length > 0 ? "#ef4444" : "#d1d5db",
                       },
-                      '&:hover fieldset': {
-                        borderColor: formulaErrors.length > 0 ? '#dc2626' : '#10b981',
+                      "&:hover fieldset": {
+                        borderColor:
+                          formulaErrors.length > 0 ? "#dc2626" : "#10b981",
                       },
-                      '&.Mui-focused fieldset': {
-                        borderColor: formulaErrors.length > 0 ? '#dc2626' : '#10b981',
+                      "&.Mui-focused fieldset": {
+                        borderColor:
+                          formulaErrors.length > 0 ? "#dc2626" : "#10b981",
                       },
                     },
                   }}
@@ -696,11 +729,17 @@ const ProductAttributeManager = () => {
                       <div className="flex items-start space-x-2">
                         <div className="w-5 h-5 text-red-500 mt-0.5">
                           <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </div>
                         <div>
-                          <h4 className="text-sm font-medium text-red-800">Lỗi công thức</h4>
+                          <h4 className="text-sm font-medium text-red-800">
+                            Lỗi công thức
+                          </h4>
                           <ul className="text-sm text-red-700 mt-1 list-disc list-inside space-y-0.5">
                             {formulaErrors.map((error, index) => (
                               <li key={index}>{error}</li>
@@ -721,8 +760,18 @@ const ProductAttributeManager = () => {
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 lg:p-6">
                 <h3 className="text-sm font-semibold text-blue-900 mb-4 flex items-center">
                   <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <svg
+                      className="w-4 h-4 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
                     </svg>
                   </div>
                   Công cụ hỗ trợ
@@ -735,8 +784,8 @@ const ProductAttributeManager = () => {
                     onClick={() => setShowSizesList(!showSizesList)}
                     className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium ${
                       showSizesList
-                        ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-md'
-                        : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300'
+                        ? "bg-blue-100 border-blue-300 text-blue-700 shadow-md"
+                        : "bg-white border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
                     }`}
                   >
                     {showSizesList ? (
@@ -762,7 +811,8 @@ const ProductAttributeManager = () => {
                       open={Boolean(anchorEl)}
                       onClose={() => setAnchorEl(null)}
                       PaperProps={{
-                        className: "!shadow-2xl !border !border-gray-100 !rounded-2xl !mt-2"
+                        className:
+                          "!shadow-2xl !border !border-gray-100 !rounded-2xl !mt-2",
                       }}
                     >
                       <MenuItem
@@ -772,7 +822,9 @@ const ProductAttributeManager = () => {
                         }}
                         className="!py-3 hover:!bg-green-50"
                       >
-                        <Typography className="!font-mono !font-bold">+ (Cộng)</Typography>
+                        <Typography className="!font-mono !font-bold">
+                          + (Cộng)
+                        </Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
@@ -781,7 +833,9 @@ const ProductAttributeManager = () => {
                         }}
                         className="!py-3 hover:!bg-red-50"
                       >
-                        <Typography className="!font-mono !font-bold">- (Trừ)</Typography>
+                        <Typography className="!font-mono !font-bold">
+                          - (Trừ)
+                        </Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
@@ -790,7 +844,9 @@ const ProductAttributeManager = () => {
                         }}
                         className="!py-3 hover:!bg-blue-50"
                       >
-                        <Typography className="!font-mono !font-bold">* (Nhân)</Typography>
+                        <Typography className="!font-mono !font-bold">
+                          * (Nhân)
+                        </Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
@@ -799,7 +855,9 @@ const ProductAttributeManager = () => {
                         }}
                         className="!py-3 hover:!bg-orange-50"
                       >
-                        <Typography className="!font-mono !font-bold">/ (Chia)</Typography>
+                        <Typography className="!font-mono !font-bold">
+                          / (Chia)
+                        </Typography>
                       </MenuItem>
                       <Divider />
                       <MenuItem
@@ -809,7 +867,9 @@ const ProductAttributeManager = () => {
                         }}
                         className="!py-3 hover:!bg-gray-50"
                       >
-                        <Typography className="!font-mono !font-bold">(</Typography>
+                        <Typography className="!font-mono !font-bold">
+                          (
+                        </Typography>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
@@ -818,7 +878,9 @@ const ProductAttributeManager = () => {
                         }}
                         className="!py-3 hover:!bg-gray-50"
                       >
-                        <Typography className="!font-mono !font-bold">)</Typography>
+                        <Typography className="!font-mono !font-bold">
+                          )
+                        </Typography>
                       </MenuItem>
                     </Menu>
                   </div>
@@ -831,8 +893,13 @@ const ProductAttributeManager = () => {
                   <div className="max-h-64 overflow-y-auto">
                     {sizesStatus === "loading" && (
                       <div className="flex items-center justify-center p-8">
-                        <CircularProgress size={24} className="text-blue-600 mr-3" />
-                        <Typography className="!text-blue-700">Đang tải kích thước...</Typography>
+                        <CircularProgress
+                          size={24}
+                          className="text-blue-600 mr-3"
+                        />
+                        <Typography className="!text-blue-700">
+                          Đang tải kích thước...
+                        </Typography>
                       </div>
                     )}
 
@@ -846,41 +913,55 @@ const ProductAttributeManager = () => {
                       </div>
                     )}
 
-                    {sizesStatus === "succeeded" && productTypeSizes.length === 0 && (
-                      <div className="p-8 text-center">
-                        <Typography className="!text-blue-600">
-                          Không có kích thước cho loại biển hiệu này
-                        </Typography>
-                      </div>
-                    )}
+                    {sizesStatus === "succeeded" &&
+                      productTypeSizes.length === 0 && (
+                        <div className="p-8 text-center">
+                          <Typography className="!text-blue-600">
+                            Không có kích thước cho loại biển hiệu này
+                          </Typography>
+                        </div>
+                      )}
 
-                    {sizesStatus === "succeeded" && productTypeSizes.length > 0 && (
-                      <div className="divide-y divide-blue-100">
-                        {productTypeSizes.map((sizeItem) => (
-                          <div
-                            key={sizeItem.id}
-                            onClick={() => insertSizeToFormula(sizeItem)}
-                            className="p-4 cursor-pointer hover:bg-blue-100 transition-colors duration-200 flex items-center justify-between"
-                          >
-                            <div>
-                              <Typography className="!font-medium !text-blue-800">
-                                {sizeItem.sizes?.name || "Không có tên"}
-                              </Typography>
-                              <Typography className="!text-sm !text-blue-600 !mt-1">
-                                {sizeItem.sizes
-                                  ? `${sizeItem.sizes.width || "N/A"} × ${sizeItem.sizes.height || "N/A"} ${sizeItem.sizes.unit || "cm"}`
-                                  : "Không có thông tin kích thước"}
-                              </Typography>
+                    {sizesStatus === "succeeded" &&
+                      productTypeSizes.length > 0 && (
+                        <div className="divide-y divide-blue-100">
+                          {productTypeSizes.map((sizeItem) => (
+                            <div
+                              key={sizeItem.id}
+                              onClick={() => insertSizeToFormula(sizeItem)}
+                              className="p-4 cursor-pointer hover:bg-blue-100 transition-colors duration-200 flex items-center justify-between"
+                            >
+                              <div>
+                                <Typography className="!font-medium !text-blue-800">
+                                  {sizeItem.sizes?.name || "Không có tên"}
+                                </Typography>
+                                <Typography className="!text-sm !text-blue-600 !mt-1">
+                                  {sizeItem.sizes
+                                    ? `${sizeItem.sizes.width || "N/A"} × ${
+                                        sizeItem.sizes.height || "N/A"
+                                      } ${sizeItem.sizes.unit || "cm"}`
+                                    : "Không có thông tin kích thước"}
+                                </Typography>
+                              </div>
+                              <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
+                                <svg
+                                  className="w-4 h-4 text-blue-600"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                  />
+                                </svg>
+                              </div>
                             </div>
-                            <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
                   </div>
                 </div>
               </Collapse>
@@ -892,7 +973,9 @@ const ProductAttributeManager = () => {
                     <InfoOutlinedIcon className="w-5 h-5 text-green-600" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-green-900 mb-3">💡 Ví dụ công thức</h4>
+                    <h4 className="font-semibold text-green-900 mb-3">
+                      💡 Ví dụ công thức
+                    </h4>
                     <div className="flex flex-wrap gap-2">
                       <span className="px-3 py-2 bg-green-100 rounded-lg font-mono text-sm text-green-700 border border-green-200">
                         #ĐƠN_GIÁ * #CHIỀU_CAO * #CHIỀU_RỘNG
@@ -924,10 +1007,10 @@ const ProductAttributeManager = () => {
                 disabled={formulaErrors.length > 0 || !form.name.trim()}
                 className={`w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
                   formulaErrors.length > 0 || !form.name.trim()
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : editMode
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl'
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl"
+                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl"
                 }`}
               >
                 {editMode ? "Lưu thay đổi" : "Thêm thuộc tính"}
@@ -936,26 +1019,125 @@ const ProductAttributeManager = () => {
           </div>
         </div>
       </Dialog>
-      {/* Confirm Delete Dialog */}
+      {/* Modal xác nhận toggle trạng thái với Tailwind CSS */}
       <Dialog
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
+        open={toggleDialog.open}
+        onClose={() => setToggleDialog({ open: false, attribute: null })}
         maxWidth="xs"
         fullWidth
+        PaperProps={{
+          className: "rounded-2xl shadow-2xl",
+        }}
       >
-        <DialogTitle>Xác nhận xóa</DialogTitle>
-        <DialogContent>
-          <Typography>Bạn có chắc muốn xóa thuộc tính này?</Typography>
+        <DialogTitle
+          className={`text-white ${
+            toggleDialog.attribute?.isAvailable
+              ? "bg-gradient-to-r from-red-500 to-pink-500"
+              : "bg-gradient-to-r from-green-500 to-emerald-500"
+          }`}
+        >
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              {toggleDialog.attribute?.isAvailable ? (
+                <ToggleOffIcon />
+              ) : (
+                <ToggleOnIcon />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">
+                {toggleDialog.attribute?.isAvailable
+                  ? "Ẩn thuộc tính"
+                  : "Hiển thị thuộc tính"}
+              </h2>
+              <p
+                className={`text-sm ${
+                  toggleDialog.attribute?.isAvailable
+                    ? "text-red-100"
+                    : "text-green-100"
+                }`}
+              >
+                Thay đổi trạng thái hiển thị
+              </p>
+            </div>
+          </div>
+        </DialogTitle>
+
+        <DialogContent className="p-6 bg-white">
+          {toggleDialog.attribute && (
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                  toggleDialog.attribute.isAvailable
+                    ? "bg-red-100"
+                    : "bg-green-100"
+                }`}
+              >
+                {toggleDialog.attribute.isAvailable ? (
+                  <ToggleOffIcon
+                    className="text-red-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                ) : (
+                  <ToggleOnIcon
+                    className="text-green-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Typography className="text-lg font-semibold text-gray-800">
+                  Bạn có chắc chắn muốn{" "}
+                  {toggleDialog.attribute.isAvailable ? "ẩn" : "hiển thị"}
+                  thuộc tính "<strong>{toggleDialog.attribute.name}</strong>"?
+                </Typography>
+                <Typography
+                  className={`text-sm p-3 rounded-lg ${
+                    toggleDialog.attribute.isAvailable
+                      ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
+                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                  }`}
+                >
+                  {toggleDialog.attribute.isAvailable
+                    ? "⚠️ Thuộc tính sẽ được ẩn khỏi danh sách hiển thị cho người dùng."
+                    : "ℹ️ Thuộc tính sẽ được hiển thị trở lại cho người dùng."}
+                </Typography>
+              </div>
+            </div>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>Hủy</Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color="error"
-            variant="contained"
-          >
-            Xóa
-          </Button>
+
+        <DialogActions className="bg-gray-50 p-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row w-full space-y-3 sm:space-y-0 sm:space-x-3">
+            <Button
+              onClick={() => setToggleDialog({ open: false, attribute: null })}
+              variant="outlined"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              onClick={handleConfirmToggleStatus}
+              variant="contained"
+              className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
+                toggleDialog.attribute?.isAvailable
+                  ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              }`}
+              startIcon={
+                toggleDialog.attribute?.isAvailable ? (
+                  <ToggleOffIcon />
+                ) : (
+                  <ToggleOnIcon />
+                )
+              }
+            >
+              {toggleDialog.attribute?.isAvailable
+                ? "Ẩn thuộc tính"
+                : "Hiển thị thuộc tính"}
+            </Button>
+          </div>
         </DialogActions>
       </Dialog>
       <Snackbar

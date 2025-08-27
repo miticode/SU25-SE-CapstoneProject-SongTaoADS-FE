@@ -32,7 +32,8 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
   Visibility as VisibilityIcon,
   Image as ImageIcon,
   Clear as ClearIcon,
@@ -42,7 +43,7 @@ import {
   createBackgroundByAttributeValueId,
   updateBackgroundInfo,
   updateBackgroundImage,
-  deleteBackgroundById,
+  toggleBackgroundStatus,
   selectAllBackgroundSuggestions,
   selectBackgroundStatus,
   selectBackgroundError,
@@ -133,9 +134,15 @@ const BackgroundManager = () => {
   const [formError, setFormError] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [openDetail, setOpenDetail] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
+  const [toggleDialog, setToggleDialog] = useState({
+    open: false,
+    background: null,
+  });
   const FIXED_PAGE_SIZE = 10; // số item mỗi trang cố định
-  const [pagination, setPagination] = useState({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
+  const [pagination, setPagination] = useState({
+    page: 0,
+    rowsPerPage: FIXED_PAGE_SIZE,
+  });
 
   // Thêm state để biết có đang ở chế độ tất cả không
   const [showAll, setShowAll] = useState(false);
@@ -226,8 +233,8 @@ const BackgroundManager = () => {
       setFilterAttributeValue("");
       setFilterAttributes([]);
       setFilterAttributeValues([]);
-  setPagination({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
-  await dispatch(fetchAllBackgrounds({ page: 1, size: FIXED_PAGE_SIZE }));
+      setPagination({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
+      await dispatch(fetchAllBackgrounds({ page: 1, size: FIXED_PAGE_SIZE }));
     };
 
     initializeData();
@@ -236,20 +243,44 @@ const BackgroundManager = () => {
   // Lấy danh sách background khi chọn attribute value
   useEffect(() => {
     if (filterAttributeValue) {
-      dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: pagination.page + 1, size: pagination.rowsPerPage }));
+      dispatch(
+        fetchBackgroundsByAttributeValueId({
+          attributeValueId: filterAttributeValue,
+          page: pagination.page + 1,
+          size: pagination.rowsPerPage,
+        })
+      );
     } else if (showAll) {
-      dispatch(fetchAllBackgrounds({ page: pagination.page + 1, size: pagination.rowsPerPage }));
+      dispatch(
+        fetchAllBackgrounds({
+          page: pagination.page + 1,
+          size: pagination.rowsPerPage,
+        })
+      );
     }
-  }, [dispatch, filterAttributeValue, pagination.page, pagination.rowsPerPage, showAll]);
+  }, [
+    dispatch,
+    filterAttributeValue,
+    pagination.page,
+    pagination.rowsPerPage,
+    showAll,
+  ]);
 
   // Clamp current page in showAll mode when data length changes (e.g. after delete) or page size changes
   // Clamp when totalPages from server changes
   useEffect(() => {
-    const totalPages = showAll ? allBackgroundsPagination.totalPages : backgroundPagination.totalPages;
+    const totalPages = showAll
+      ? allBackgroundsPagination.totalPages
+      : backgroundPagination.totalPages;
     if (pagination.page > totalPages - 1) {
-      setPagination(prev => ({ ...prev, page: Math.max(0, totalPages - 1) }));
+      setPagination((prev) => ({ ...prev, page: Math.max(0, totalPages - 1) }));
     }
-  }, [showAll, allBackgroundsPagination.totalPages, backgroundPagination.totalPages, pagination.page]);
+  }, [
+    showAll,
+    allBackgroundsPagination.totalPages,
+    backgroundPagination.totalPages,
+    pagination.page,
+  ]);
 
   // Hàm xử lý khi bấm nút TẤT CẢ
   const handleShowAll = async () => {
@@ -261,8 +292,8 @@ const BackgroundManager = () => {
     setFilterAttributeValues([]);
     setIsLoadingFilterAttributes(false);
     setIsLoadingFilterAttributeValues(false);
-  setPagination({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
-  await dispatch(fetchAllBackgrounds({ page: 1, size: FIXED_PAGE_SIZE }));
+    setPagination({ page: 0, rowsPerPage: FIXED_PAGE_SIZE });
+    await dispatch(fetchAllBackgrounds({ page: 1, size: FIXED_PAGE_SIZE }));
   };
 
   // Hàm xử lý khi product type thay đổi
@@ -375,11 +406,19 @@ const BackgroundManager = () => {
 
     // Tự động fetch backgrounds theo attribute value được chọn
     if (selectedValue) {
-      dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: selectedValue, page: 1, size: pagination.rowsPerPage }));
+      dispatch(
+        fetchBackgroundsByAttributeValueId({
+          attributeValueId: selectedValue,
+          page: 1,
+          size: pagination.rowsPerPage,
+        })
+      );
     } else {
       // If cleared selection switch to all mode page 1
       if (showAll) {
-        dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+        dispatch(
+          fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage })
+        );
       }
     }
   };
@@ -454,14 +493,43 @@ const BackgroundManager = () => {
   const handleCloseForm = () => {
     setOpenForm(false);
   };
-  // Đóng modal xóa
-  const handleCloseDelete = () => {
-    setOpenDelete(false);
+  // Toggle trạng thái background
+  const handleToggleStatus = (bg) => {
+    setToggleDialog({
+      open: true,
+      background: bg,
+    });
   };
-  // Mở modal xác nhận xóa
-  const handleOpenDelete = (bg) => {
-    setFormData({ id: bg.id });
-    setOpenDelete(true);
+
+  const handleConfirmToggleStatus = async () => {
+    const background = toggleDialog.background;
+    const res = await dispatch(
+      toggleBackgroundStatus({
+        backgroundId: background.id,
+        backgroundData: background,
+      })
+    );
+
+    if (res.meta.requestStatus === "fulfilled") {
+      // Refresh lại danh sách
+      if (showAll) {
+        dispatch(
+          fetchAllBackgrounds({
+            page: pagination.page + 1,
+            size: pagination.rowsPerPage,
+          })
+        );
+      } else if (filterAttributeValue) {
+        dispatch(
+          fetchBackgroundsByAttributeValueId({
+            attributeValueId: filterAttributeValue,
+            page: pagination.page + 1,
+            size: pagination.rowsPerPage,
+          })
+        );
+      }
+    }
+    setToggleDialog({ open: false, background: null });
   };
   // Xử lý submit form tạo/sửa
   const handleSubmitForm = async (e) => {
@@ -504,16 +572,26 @@ const BackgroundManager = () => {
         // Tự động làm mới danh sách backgrounds để hiển thị background mới
         if (showAll) {
           // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
-          await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+          await dispatch(
+            fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage })
+          );
         } else if (filterAttributeValue) {
           // Nếu có filter theo attribute value, refresh theo filter đó (reset to page 1)
-          dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: 1, size: pagination.rowsPerPage }));
+          dispatch(
+            fetchBackgroundsByAttributeValueId({
+              attributeValueId: filterAttributeValue,
+              page: 1,
+              size: pagination.rowsPerPage,
+            })
+          );
           setPagination((prev) => ({ ...prev, page: 0 }));
         } else {
           // Mặc định chuyển về chế độ hiển thị tất cả và refresh
           setShowAll(true);
           setFilterAttributeValue("");
-          await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+          await dispatch(
+            fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage })
+          );
           setPagination((prev) => ({ ...prev, page: 0 }));
         }
       } else {
@@ -542,38 +620,31 @@ const BackgroundManager = () => {
         // Tự động làm mới danh sách backgrounds sau khi cập nhật
         if (showAll) {
           // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
-          await dispatch(fetchAllBackgrounds({ page: pagination.page + 1, size: pagination.rowsPerPage }));
+          await dispatch(
+            fetchAllBackgrounds({
+              page: pagination.page + 1,
+              size: pagination.rowsPerPage,
+            })
+          );
         } else if (filterAttributeValue) {
-          dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: pagination.page + 1, size: pagination.rowsPerPage }));
+          dispatch(
+            fetchBackgroundsByAttributeValueId({
+              attributeValueId: filterAttributeValue,
+              page: pagination.page + 1,
+              size: pagination.rowsPerPage,
+            })
+          );
         } else {
           // Mặc định chuyển về chế độ hiển thị tất cả và refresh
           setShowAll(true);
           setFilterAttributeValue("");
-          await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
+          await dispatch(
+            fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage })
+          );
           setPagination((prev) => ({ ...prev, page: 0 }));
         }
       } else {
         setFormError(res.payload || "Cập nhật thất bại");
-      }
-    }
-  };
-  // Xử lý xóa
-  const handleDelete = async () => {
-    setOpenDelete(false);
-    const res = await dispatch(deleteBackgroundById(formData.id));
-    if (res.meta.requestStatus === "fulfilled") {
-      // Tự động làm mới danh sách backgrounds sau khi xóa
-      if (showAll) {
-        // Nếu đang ở chế độ hiển thị tất cả, refresh toàn bộ danh sách
-  await dispatch(fetchAllBackgrounds({ page: pagination.page + 1, size: pagination.rowsPerPage }));
-      } else if (filterAttributeValue) {
-        dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: pagination.page + 1, size: pagination.rowsPerPage }));
-      } else {
-        // Mặc định chuyển về chế độ hiển thị tất cả và refresh
-        setShowAll(true);
-        setFilterAttributeValue("");
-  await dispatch(fetchAllBackgrounds({ page: 1, size: pagination.rowsPerPage }));
-        setPagination((prev) => ({ ...prev, page: 0 }));
       }
     }
   };
@@ -597,27 +668,35 @@ const BackgroundManager = () => {
     if (current <= maxLength - rightWidth - 1) {
       return [
         ...Array.from({ length: maxLength - 2 }, (_, i) => i + 1),
-        '...',
+        "...",
         total,
       ];
     }
     if (current >= total - (maxLength - leftWidth - 2)) {
       return [
         1,
-        '...',
-        ...Array.from({ length: maxLength - 2 }, (_, i) => total - (maxLength - 2) + i),
+        "...",
+        ...Array.from(
+          { length: maxLength - 2 },
+          (_, i) => total - (maxLength - 2) + i
+        ),
       ];
     }
     return [
       1,
-      '...',
-      ...Array.from({ length: leftWidth + rightWidth + 1 }, (_, i) => current - leftWidth + i),
-      '...',
+      "...",
+      ...Array.from(
+        { length: leftWidth + rightWidth + 1 },
+        (_, i) => current - leftWidth + i
+      ),
+      "...",
       total,
     ];
   };
 
-  const totalPages = showAll ? (allBackgroundsPagination.totalPages || 1) : (backgroundPagination.totalPages || 1);
+  const totalPages = showAll
+    ? allBackgroundsPagination.totalPages || 1
+    : backgroundPagination.totalPages || 1;
   const pageNumbers = getPageNumbers(pagination.page + 1, totalPages);
 
   // Render
@@ -850,77 +929,69 @@ const BackgroundManager = () => {
       ) : (
         <Grid container spacing={5} justifyContent="flex-start" width="100%">
           {filteredBackgrounds.map((bg) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={bg.id}>
-                <Card
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    boxShadow: 2,
-                  }}
-                >
-                  <BackgroundImage background={bg} />
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      gutterBottom
-                      noWrap
-                    >
-                      {bg.name}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                      noWrap
-                    >
-                      {bg.attributeValues?.name || ""}
-                    </Typography>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      mt={1}
-                    >
-                      <Chip
-                        label={bg.isAvailable ? "Hiển thị" : "Ẩn"}
-                        color={bg.isAvailable ? "success" : "default"}
-                        size="small"
-                      />
-                    </Stack>
-                  </CardContent>
-                  <CardActions
-                    sx={{ justifyContent: "space-between", px: 2, pb: 2 }}
+            <Grid item xs={12} sm={6} md={4} lg={3} key={bg.id}>
+              <Card
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  boxShadow: 2,
+                }}
+              >
+                <BackgroundImage background={bg} />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    gutterBottom
+                    noWrap
                   >
-                    <Tooltip title="Xem chi tiết">
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleOpenDetail(bg)}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Sửa">
-                      <IconButton
-                        color="info"
-                        onClick={() => handleOpenEdit(bg)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Xóa">
-                      <IconButton
-                        color="error"
-                        onClick={() => handleOpenDelete(bg)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
+                    {bg.name}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                    noWrap
+                  >
+                    {bg.attributeValues?.name || ""}
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+                    <Chip
+                      label={bg.isAvailable ? "Hiển thị" : "Ẩn"}
+                      color={bg.isAvailable ? "success" : "default"}
+                      size="small"
+                    />
+                  </Stack>
+                </CardContent>
+                <CardActions
+                  sx={{ justifyContent: "space-between", px: 2, pb: 2 }}
+                >
+                  <Tooltip title="Xem chi tiết">
+                    <IconButton
+                      color="primary"
+                      onClick={() => handleOpenDetail(bg)}
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Sửa">
+                    <IconButton color="info" onClick={() => handleOpenEdit(bg)}>
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={bg.isAvailable ? "Tạm ẩn" : "Hiển thị"}>
+                    <IconButton
+                      color={bg.isAvailable ? "error" : "success"}
+                      onClick={() => handleToggleStatus(bg)}
+                    >
+                      {bg.isAvailable ? <ToggleOnIcon /> : <ToggleOffIcon />}
+                    </IconButton>
+                  </Tooltip>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
         </Grid>
       )}
       <Box mt={4} display="flex" justifyContent="center">
@@ -934,7 +1005,13 @@ const BackgroundManager = () => {
                 const newPage = pagination.page - 1;
                 setPagination((prev) => ({ ...prev, page: newPage }));
                 if (!showAll && filterAttributeValue) {
-                  dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: newPage + 1, size: pagination.rowsPerPage }));
+                  dispatch(
+                    fetchBackgroundsByAttributeValueId({
+                      attributeValueId: filterAttributeValue,
+                      page: newPage + 1,
+                      size: pagination.rowsPerPage,
+                    })
+                  );
                 }
               }
             }}
@@ -942,29 +1019,42 @@ const BackgroundManager = () => {
             Trước
           </Button>
           {pageNumbers.map((p, idx) =>
-            p === '...'
-              ? (
-                <Button key={idx} variant="text" size="small" disabled sx={{ minWidth: 36 }}>…</Button>
-              ) : (
-                <Button
-                  key={idx}
-                  variant={p === pagination.page + 1 ? 'contained' : 'outlined'}
-                  color={p === pagination.page + 1 ? 'primary' : 'inherit'}
-                  size="small"
-                  sx={{ minWidth: 40 }}
-                  onClick={() => {
-                    const newPage = p - 1;
-                    if (newPage !== pagination.page) {
-                      setPagination((prev) => ({ ...prev, page: newPage }));
-                      if (!showAll && filterAttributeValue) {
-                        dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: newPage + 1, size: pagination.rowsPerPage }));
-                      }
+            p === "..." ? (
+              <Button
+                key={idx}
+                variant="text"
+                size="small"
+                disabled
+                sx={{ minWidth: 36 }}
+              >
+                …
+              </Button>
+            ) : (
+              <Button
+                key={idx}
+                variant={p === pagination.page + 1 ? "contained" : "outlined"}
+                color={p === pagination.page + 1 ? "primary" : "inherit"}
+                size="small"
+                sx={{ minWidth: 40 }}
+                onClick={() => {
+                  const newPage = p - 1;
+                  if (newPage !== pagination.page) {
+                    setPagination((prev) => ({ ...prev, page: newPage }));
+                    if (!showAll && filterAttributeValue) {
+                      dispatch(
+                        fetchBackgroundsByAttributeValueId({
+                          attributeValueId: filterAttributeValue,
+                          page: newPage + 1,
+                          size: pagination.rowsPerPage,
+                        })
+                      );
                     }
-                  }}
-                >
-                  {p}
-                </Button>
-              )
+                  }
+                }}
+              >
+                {p}
+              </Button>
+            )
           )}
           <Button
             variant="outlined"
@@ -975,7 +1065,13 @@ const BackgroundManager = () => {
                 const newPage = pagination.page + 1;
                 setPagination((prev) => ({ ...prev, page: newPage }));
                 if (!showAll && filterAttributeValue) {
-                  dispatch(fetchBackgroundsByAttributeValueId({ attributeValueId: filterAttributeValue, page: newPage + 1, size: pagination.rowsPerPage }));
+                  dispatch(
+                    fetchBackgroundsByAttributeValueId({
+                      attributeValueId: filterAttributeValue,
+                      page: newPage + 1,
+                      size: pagination.rowsPerPage,
+                    })
+                  );
                 }
               }
             }}
@@ -1498,63 +1594,123 @@ const BackgroundManager = () => {
           </DialogActions>
         </form>
       </Dialog>
-      {/* Modal xác nhận xóa với Tailwind CSS */}
+      {/* Modal xác nhận toggle trạng thái với Tailwind CSS */}
       <Dialog
-        open={openDelete}
-        onClose={handleCloseDelete}
+        open={toggleDialog.open}
+        onClose={() => setToggleDialog({ open: false, background: null })}
         maxWidth="xs"
         fullWidth
         PaperProps={{
           className: "rounded-2xl shadow-2xl",
         }}
       >
-        <DialogTitle className="bg-gradient-to-r from-red-500 to-pink-500 text-white">
+        <DialogTitle
+          className={`text-white ${
+            toggleDialog.background?.isAvailable
+              ? "bg-gradient-to-r from-red-500 to-pink-500"
+              : "bg-gradient-to-r from-green-500 to-emerald-500"
+          }`}
+        >
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-white/20 rounded-lg">
-              <DeleteIcon />
+              {toggleDialog.background?.isAvailable ? (
+                <ToggleOffIcon />
+              ) : (
+                <ToggleOnIcon />
+              )}
             </div>
             <div>
-              <h2 className="text-lg font-bold">Xác nhận xóa</h2>
-              <p className="text-red-100 text-sm">
-                Hành động này không thể hoàn tác
+              <h2 className="text-lg font-bold">
+                {toggleDialog.background?.isAvailable
+                  ? "Ẩn nền mẫu"
+                  : "Hiển thị nền mẫu"}
+              </h2>
+              <p
+                className={`text-sm ${
+                  toggleDialog.background?.isAvailable
+                    ? "text-red-100"
+                    : "text-green-100"
+                }`}
+              >
+                Thay đổi trạng thái hiển thị
               </p>
             </div>
           </div>
         </DialogTitle>
 
         <DialogContent className="p-6 bg-white">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-              <DeleteIcon className="text-red-500" sx={{ fontSize: 32 }} />
-            </div>
+          {toggleDialog.background && (
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                  toggleDialog.background.isAvailable
+                    ? "bg-red-100"
+                    : "bg-green-100"
+                }`}
+              >
+                {toggleDialog.background.isAvailable ? (
+                  <ToggleOffIcon
+                    className="text-red-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                ) : (
+                  <ToggleOnIcon
+                    className="text-green-500"
+                    sx={{ fontSize: 32 }}
+                  />
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Typography className="text-lg font-semibold text-gray-800">
-                Bạn có chắc chắn muốn xóa nền mẫu này?
-              </Typography>
-              <Typography className="text-sm text-gray-600">
-                Nền mẫu sẽ bị xóa vĩnh viễn và không thể khôi phục lại.
-              </Typography>
+              <div className="space-y-2">
+                <Typography className="text-lg font-semibold text-gray-800">
+                  Bạn có chắc chắn muốn{" "}
+                  {toggleDialog.background.isAvailable ? "ẩn" : "hiển thị"}
+                  nền mẫu "<strong>{toggleDialog.background.name}</strong>"?
+                </Typography>
+                <Typography
+                  className={`text-sm p-3 rounded-lg ${
+                    toggleDialog.background.isAvailable
+                      ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
+                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                  }`}
+                >
+                  {toggleDialog.background.isAvailable
+                    ? "⚠️ Nền mẫu sẽ được ẩn khỏi danh sách hiển thị cho người dùng."
+                    : "ℹ️ Nền mẫu sẽ được hiển thị trở lại cho người dùng."}
+                </Typography>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
 
         <DialogActions className="bg-gray-50 p-6 border-t border-gray-200">
           <div className="flex flex-col sm:flex-row w-full space-y-3 sm:space-y-0 sm:space-x-3">
             <Button
-              onClick={handleCloseDelete}
+              onClick={() => setToggleDialog({ open: false, background: null })}
               variant="outlined"
               className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
             >
               Hủy bỏ
             </Button>
             <Button
-              onClick={handleDelete}
+              onClick={handleConfirmToggleStatus}
               variant="contained"
-              className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300"
-              startIcon={<DeleteIcon />}
+              className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
+                toggleDialog.background?.isAvailable
+                  ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              }`}
+              startIcon={
+                toggleDialog.background?.isAvailable ? (
+                  <ToggleOffIcon />
+                ) : (
+                  <ToggleOnIcon />
+                )
+              }
             >
-              Xóa nền mẫu
+              {toggleDialog.background?.isAvailable
+                ? "Ẩn nền mẫu"
+                : "Hiển thị nền mẫu"}
             </Button>
           </div>
         </DialogActions>

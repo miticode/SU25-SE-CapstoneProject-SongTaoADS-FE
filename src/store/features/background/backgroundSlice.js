@@ -7,7 +7,7 @@ import {
   updateBackgroundInfoApi,
   updateBackgroundImageApi,
   fetchAllBackgroundsApi,
-  deleteBackgroundByIdApi,
+  toggleBackgroundStatusApi,
   fetchEditedDesignByIdApi,
   createBackgroundExtrasApi
 } from "../../../api/backgroundService";
@@ -211,13 +211,13 @@ export const updateBackgroundImage = createAsyncThunk(
     return response.data;
   }
 );
-// Thunk xóa background
-export const deleteBackgroundById = createAsyncThunk(
-  "background/deleteBackgroundById",
-  async (backgroundId, { rejectWithValue }) => {
-    const response = await deleteBackgroundByIdApi(backgroundId);
+// Thunk toggle trạng thái background
+export const toggleBackgroundStatus = createAsyncThunk(
+  "background/toggleStatus",
+  async ({ backgroundId, backgroundData }, { rejectWithValue }) => {
+    const response = await toggleBackgroundStatusApi(backgroundId, backgroundData);
     if (!response.success) return rejectWithValue(response.error);
-    return { id: backgroundId };
+    return response.data;
   }
 );
 
@@ -451,16 +451,17 @@ const backgroundSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
-      // Xóa background
-      .addCase(deleteBackgroundById.pending, (state) => {
+      // Toggle trạng thái background
+      .addCase(toggleBackgroundStatus.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(deleteBackgroundById.fulfilled, (state, action) => {
+      .addCase(toggleBackgroundStatus.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.backgroundSuggestions = state.backgroundSuggestions.filter(bg => bg.id !== action.payload.id);
+        const idx = state.backgroundSuggestions.findIndex(bg => bg.id === action.payload.id);
+        if (idx !== -1) state.backgroundSuggestions[idx] = action.payload;
         state.error = null;
       })
-      .addCase(deleteBackgroundById.rejected, (state, action) => {
+      .addCase(toggleBackgroundStatus.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       })

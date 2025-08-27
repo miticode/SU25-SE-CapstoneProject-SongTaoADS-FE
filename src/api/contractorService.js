@@ -164,20 +164,30 @@ export const updateContractorLogo = async (contractorId, logoFile) => {
   }
 };
 
-// Xóa đơn vị thi công (không dùng - theo API doc)
-export const deleteContractor = async (contractorId) => {
+// Toggle trạng thái hoạt động của đơn vị thi công
+export const toggleContractorStatus = async (contractorId, contractorData) => {
   try {
-    const response = await contractorService.delete(`/api/contractors/${contractorId}`);
+    // Tạo request body đầy đủ với trạng thái mới
+    const requestBody = {
+      name: contractorData.name,
+      address: contractorData.address,
+      phone: contractorData.phone,
+      email: contractorData.email,
+      isInternal: contractorData.isInternal,
+      isAvailable: !contractorData.isAvailable // Toggle trạng thái
+    };
+
+    const response = await contractorService.put(`/api/contractors/${contractorId}`, requestBody);
     const { success, result, message } = response.data;
     if (success) {
       return { success: true, data: result };
     }
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
-    console.error('Error deleting contractor:', error.response?.data || error);
+    console.error('Error toggling contractor status:', error.response?.data || error);
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to delete contractor',
+      error: error.response?.data?.message || 'Failed to toggle contractor status',
     };
   }
 };
