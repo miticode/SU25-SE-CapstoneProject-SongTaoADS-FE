@@ -80,6 +80,7 @@ import {
   assignDesignerToRequest,
   updateRequestStatus,
   CUSTOM_DESIGN_STATUS_MAP,
+  searchDesignRequestsSale,
 } from "../../store/features/customeDesign/customerDesignSlice";
 
 import { getUsersByRoleApi } from "../../api/userService";
@@ -89,7 +90,11 @@ import {
   updatePriceProposalPricing,
 } from "../../api/priceService";
 import orderService from "../../api/orderService";
-import { uploadOrderContractApi, uploadRevisedContractApi, getOrderContractApi } from "../../api/contractService";
+import {
+  uploadOrderContractApi,
+  uploadRevisedContractApi,
+  getOrderContractApi,
+} from "../../api/contractService";
 import {
   contractResignOrder,
   contractSignedOrder,
@@ -102,6 +107,7 @@ import {
   selectOrderStatus,
   selectCustomDesignOrders,
   updateOrderEstimatedDeliveryDate,
+  searchCustomDesignOrders,
 } from "../../store/features/order/orderSlice";
 
 import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
@@ -443,9 +449,6 @@ const CustomerRequests = () => {
   const status = useSelector(selectStatus);
   const error = useSelector(selectError);
 
-  // Filter design requests based on search query (will be defined after state declarations)
-  let designRequests = allDesignRequests;
-
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -573,6 +576,14 @@ const CustomerRequests = () => {
   const [selectedOrderStatus, setSelectedOrderStatus] = useState(""); // Mặc định là tất cả trạng thái
   const [searchQuery, setSearchQuery] = useState(""); // State cho search
   const [searchDesignRequests, setSearchDesignRequests] = useState(""); // State cho search design requests
+  const [activeSearchKeyword, setActiveSearchKeyword] = useState(""); // Keyword đang được search
+  const [searchKeyword, setSearchKeyword] = useState(""); // State cho keyword tạm thời trước khi search
+  const [isTabSwitching, setIsTabSwitching] = useState(false); // State để track tab switching
+
+  // State cho search orders
+  const [activeOrderSearchKeyword, setActiveOrderSearchKeyword] = useState(""); // Keyword đang được search cho orders
+  const [orderSearchKeyword, setOrderSearchKeyword] = useState(""); // State cho keyword tạm thời trước khi search orders
+  const [orderSearchLoading, setOrderSearchLoading] = useState(false); // Loading state cho order search
   const [notification, setNotification] = useState({
     open: false,
     message: "",
@@ -609,29 +620,64 @@ const CustomerRequests = () => {
   // ===== CÁC FUNCTION REFRESH =====
   const refreshDesignRequestsData = async () => {
     if (currentTab === 0) {
-      await dispatch(
-        fetchAllDesignRequests({
-          status: selectedStatus,
-          page: designRequestsPage,
-          size: 10,
-        })
-      ).then((action) => {
-        if (action.payload && action.payload.totalPages) {
-          setDesignRequestsTotalPages(action.payload.totalPages);
-        }
-      });
+      // Sử dụng search API nếu có activeSearchKeyword, ngược lại sử dụng fetchAllDesignRequests
+      if (activeSearchKeyword.trim()) {
+        await dispatch(
+          searchDesignRequestsSale({
+            keyword: activeSearchKeyword.trim(),
+            page: designRequestsPage,
+            size: 10,
+          })
+        ).then((action) => {
+          if (action.payload && action.payload.totalPages) {
+            setDesignRequestsTotalPages(action.payload.totalPages);
+          }
+        });
+      } else {
+        await dispatch(
+          fetchAllDesignRequests({
+            status: selectedStatus,
+            page: designRequestsPage,
+            size: 10,
+          })
+        ).then((action) => {
+          if (action.payload && action.payload.totalPages) {
+            setDesignRequestsTotalPages(action.payload.totalPages);
+          }
+        });
+      }
     }
   };
 
   const refreshOrdersData = async () => {
     if (currentTab === 1) {
-      await dispatch(
-        fetchCustomDesignOrders({
-          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-          page: ordersPage,
-          size: 10,
-        })
-      );
+      // Sử dụng search API nếu có activeOrderSearchKeyword, ngược lại sử dụng fetchCustomDesignOrders
+      if (activeOrderSearchKeyword.trim()) {
+        await dispatch(
+          searchCustomDesignOrders({
+            query: activeOrderSearchKeyword.trim(),
+            page: ordersPage,
+            size: 10,
+          })
+        ).then((action) => {
+          if (
+            action.payload &&
+            action.payload.pagination &&
+            action.payload.pagination.totalPages
+          ) {
+            setOrdersTotalPages(action.payload.pagination.totalPages);
+          }
+        });
+      } else {
+        await dispatch(
+          fetchCustomDesignOrders({
+            orderStatus:
+              selectedOrderStatus === "" ? null : selectedOrderStatus,
+            page: ordersPage,
+            size: 10,
+          })
+        );
+      }
     }
   };
 
@@ -643,24 +689,6 @@ const CustomerRequests = () => {
     }
   };
   // ===== KẾT THÚC CÁC FUNCTION REFRESH =====
-
-  // Apply filters after all states are declared
-  designRequests = allDesignRequests.filter((request) => {
-    if (!searchDesignRequests.trim()) return true;
-
-    const query = searchDesignRequests.toLowerCase().trim();
-    const code = (request.code || request.id || "").toLowerCase();
-    const companyName = (
-      request.customerDetail?.companyName || ""
-    ).toLowerCase();
-    const customerName = (request.customerDetail?.fullName || "").toLowerCase();
-
-    return (
-      code.includes(query) ||
-      companyName.includes(query) ||
-      customerName.includes(query)
-    );
-  });
 
   // Apply filters for orders (chỉ áp dụng cho tab không phải custom design)
   let filteredOrders = allOrders.filter((order) => {
@@ -733,91 +761,168 @@ const CustomerRequests = () => {
   });
   // Fetch design requests when component mounts or tab changes to 0
   useEffect(() => {
-    if (currentTab === 0) {
-      dispatch(
-        fetchAllDesignRequests({
-          status: selectedStatus,
-          page: designRequestsPage,
-          size: 10,
-        })
-      )
-        .then((action) => {
-          if (action.payload && action.payload.totalPages) {
-            setDesignRequestsTotalPages(action.payload.totalPages);
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching design requests:", error);
-          setNotification({
-            open: true,
-            message:
-              "Lỗi khi tải yêu cầu thiết kế: " +
-              (error.message || "Không thể tải dữ liệu"),
-            severity: "error",
+    // Không fetch khi đang switching tab
+    if (isTabSwitching) return;
+
+    if (currentTab === 0 && !activeSearchKeyword.trim()) {
+      // Chỉ fetch khi không có active search keyword
+      const timeoutId = setTimeout(() => {
+        dispatch(
+          fetchAllDesignRequests({
+            status: selectedStatus,
+            page: designRequestsPage,
+            size: 10,
+          })
+        )
+          .then((action) => {
+            if (action.payload && action.payload.totalPages) {
+              setDesignRequestsTotalPages(action.payload.totalPages);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching design requests:", error);
+            setNotification({
+              open: true,
+              message:
+                "Lỗi khi tải yêu cầu thiết kế: " +
+                (error.message || "Không thể tải dữ liệu"),
+              severity: "error",
+            });
           });
-        });
+      }, 100); // 100ms debounce
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [currentTab, dispatch, selectedStatus, designRequestsPage]);
+  }, [
+    currentTab,
+    dispatch,
+    selectedStatus,
+    designRequestsPage,
+    activeSearchKeyword,
+    isTabSwitching,
+  ]);
 
   useEffect(() => {
+    // Không fetch khi đang switching tab
+    if (isTabSwitching) return;
+
     if (currentTab === 1) {
-      const fetchTimestamp = Date.now();
-      console.log(
-        `🚀 [${fetchTimestamp}] Tab 1 active - fetching CUSTOM DESIGN orders:`,
-        {
-          status: selectedOrderStatus,
-          page: ordersPage,
-          size: 10,
-        }
-      );
-
-      // Sử dụng API mới /api/orders/custom-design
-      dispatch(
-        fetchCustomDesignOrders({
-          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
-          page: ordersPage,
-          size: 10,
-        })
-      )
-        .then((action) => {
-          console.log(
-            `✅ [${fetchTimestamp}] Custom Design Orders API Response:`,
-            action.payload
-          );
-          if (action.payload && action.payload.orders) {
-            // Sử dụng pagination từ server
-            const totalOrders = action.payload.orders || [];
-            const totalPages = action.payload.pagination?.totalPages || 1;
-
-            setOrdersTotalPages(totalPages);
-            console.log(
-              `📊 [${fetchTimestamp}] Custom Design Orders:`,
-              totalOrders.length
-            );
-            console.log(`📊 [${fetchTimestamp}] Server Pages:`, totalPages);
+      const timeoutId = setTimeout(() => {
+        const fetchTimestamp = Date.now();
+        console.log(
+          `🚀 [${fetchTimestamp}] Tab 1 active - fetching CUSTOM DESIGN orders:`,
+          {
+            status: selectedOrderStatus,
+            page: ordersPage,
+            size: 10,
           }
-        })
-        .catch((error) => {
-          console.error("Error fetching custom design orders:", error);
-          setNotification({
-            open: true,
-            message:
-              "Lỗi khi tải đơn hàng thiết kế tùy chỉnh: " +
-              (error.message || "Không thể tải dữ liệu"),
-            severity: "error",
+        );
+
+        // Sử dụng API mới /api/orders/custom-design
+        dispatch(
+          fetchCustomDesignOrders({
+            orderStatus:
+              selectedOrderStatus === "" ? null : selectedOrderStatus,
+            page: ordersPage,
+            size: 10,
+          })
+        )
+          .then((action) => {
+            console.log(
+              `✅ [${fetchTimestamp}] Custom Design Orders API Response:`,
+              action.payload
+            );
+            if (action.payload && action.payload.orders) {
+              // Sử dụng pagination từ server
+              const totalOrders = action.payload.orders || [];
+              const totalPages = action.payload.pagination?.totalPages || 1;
+
+              setOrdersTotalPages(totalPages);
+              console.log(
+                `📊 [${fetchTimestamp}] Custom Design Orders:`,
+                totalOrders.length
+              );
+              console.log(`📊 [${fetchTimestamp}] Server Pages:`, totalPages);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching custom design orders:", error);
+            setNotification({
+              open: true,
+              message:
+                "Lỗi khi tải đơn hàng thiết kế tùy chỉnh: " +
+                (error.message || "Không thể tải dữ liệu"),
+              severity: "error",
+            });
           });
-        });
+      }, 100); // 100ms debounce
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [currentTab, selectedOrderStatus, ordersPage]); // Thêm ordersPage để fetch khi thay đổi trang
+  }, [currentTab, selectedOrderStatus, ordersPage, dispatch, isTabSwitching]);
 
   // Pagination handlers
   const handleDesignRequestsPageChange = (event, newPage) => {
     setDesignRequestsPage(newPage);
+
+    // Trigger immediate fetch for pagination
+    if (activeSearchKeyword.trim()) {
+      dispatch(
+        searchDesignRequestsSale({
+          keyword: activeSearchKeyword.trim(),
+          page: newPage,
+          size: 10,
+        })
+      ).then((action) => {
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
+        }
+      });
+    } else {
+      dispatch(
+        fetchAllDesignRequests({
+          status: selectedStatus,
+          page: newPage,
+          size: 10,
+        })
+      ).then((action) => {
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
+        }
+      });
+    }
   };
 
   const handleOrdersPageChange = (event, newPage) => {
     setOrdersPage(newPage);
     console.log("🔄 Changing to orders page:", newPage);
+
+    // Trigger immediate fetch for pagination
+    if (activeOrderSearchKeyword.trim()) {
+      dispatch(
+        searchCustomDesignOrders({
+          query: activeOrderSearchKeyword.trim(),
+          page: newPage,
+          size: 10,
+        })
+      ).then((action) => {
+        if (
+          action.payload &&
+          action.payload.pagination &&
+          action.payload.pagination.totalPages
+        ) {
+          setOrdersTotalPages(action.payload.pagination.totalPages);
+        }
+      });
+    } else {
+      dispatch(
+        fetchCustomDesignOrders({
+          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
+          page: newPage,
+          size: 10,
+        })
+      );
+    }
   };
 
   const handleUpdateEstimatedDeliveryDate = async (orderId, deliveryDate) => {
@@ -1138,7 +1243,27 @@ const CustomerRequests = () => {
   };
 
   const handleTabChange = (event, newValue) => {
-    setCurrentTab(newValue);
+    if (newValue !== currentTab) {
+      console.log(`🔄 Tab changing from ${currentTab} to ${newValue}`);
+      setIsTabSwitching(true);
+      setCurrentTab(newValue);
+
+      // Reset pagination và clear search khi switch tab
+      if (newValue === 0) {
+        setDesignRequestsPage(1);
+        setActiveSearchKeyword("");
+        setSearchDesignRequests("");
+        setSearchKeyword("");
+      } else {
+        setOrdersPage(1);
+      }
+
+      // Clear tab switching state sau một delay ngắn
+      setTimeout(() => {
+        console.log(`✅ Tab switch completed to ${newValue}`);
+        setIsTabSwitching(false);
+      }, 100);
+    }
   };
   const handleOrderStatusChange = (e) => {
     setSelectedOrderStatus(e.target.value);
@@ -1151,8 +1276,193 @@ const CustomerRequests = () => {
   };
 
   const handleSearchDesignRequests = (e) => {
-    setSearchDesignRequests(e.target.value);
-    setDesignRequestsPage(1); // Reset to first page when searching
+    setSearchKeyword(e.target.value);
+  };
+
+  // Function để thực hiện tìm kiếm khi nhấn nút
+  const handlePerformSearch = async () => {
+    try {
+      const keyword = searchKeyword.trim();
+      setActiveSearchKeyword(keyword);
+      setSearchDesignRequests(keyword);
+      setDesignRequestsPage(1); // Reset về trang đầu khi search
+
+      if (keyword) {
+        // Gọi API search
+        const action = await dispatch(
+          searchDesignRequestsSale({
+            keyword: keyword,
+            page: 1,
+            size: 10,
+          })
+        );
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
+        }
+      } else {
+        // Gọi API lấy tất cả với status filter
+        const action = await dispatch(
+          fetchAllDesignRequests({
+            status: selectedStatus,
+            page: 1,
+            size: 10,
+          })
+        );
+        if (action.payload && action.payload.totalPages) {
+          setDesignRequestsTotalPages(action.payload.totalPages);
+        }
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setNotification({
+        open: true,
+        message: "Lỗi khi tìm kiếm: " + (error.message || "Không thể tìm kiếm"),
+        severity: "error",
+      });
+    }
+  };
+
+  // Function để clear search
+  const handleClearSearch = async () => {
+    try {
+      setSearchKeyword("");
+      setActiveSearchKeyword("");
+      setSearchDesignRequests("");
+      setDesignRequestsPage(1);
+
+      // Gọi lại API lấy tất cả
+      const action = await dispatch(
+        fetchAllDesignRequests({
+          status: selectedStatus,
+          page: 1,
+          size: 10,
+        })
+      );
+      if (action.payload && action.payload.totalPages) {
+        setDesignRequestsTotalPages(action.payload.totalPages);
+      }
+    } catch (error) {
+      console.error("Clear search error:", error);
+      setNotification({
+        open: true,
+        message:
+          "Lỗi khi xóa tìm kiếm: " +
+          (error.message || "Không thể xóa tìm kiếm"),
+        severity: "error",
+      });
+    }
+  };
+
+  // Function để handle Enter key cho design requests
+  const handleSearchKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handlePerformSearch();
+    }
+  };
+
+  // Orders Search Functions
+  const handleSearchOrders = (e) => {
+    setOrderSearchKeyword(e.target.value);
+  };
+
+  // Function để thực hiện tìm kiếm orders khi bấm nút
+  const handlePerformOrderSearch = async () => {
+    try {
+      setOrderSearchLoading(true);
+      const keyword = orderSearchKeyword.trim();
+      setActiveOrderSearchKeyword(keyword);
+      setOrdersPage(1);
+
+      if (keyword) {
+        // Gọi API search orders
+        const action = await dispatch(
+          searchCustomDesignOrders({
+            query: keyword,
+            page: 1,
+            size: 10,
+          })
+        );
+        if (
+          action.payload &&
+          action.payload.pagination &&
+          action.payload.pagination.totalPages
+        ) {
+          setOrdersTotalPages(action.payload.pagination.totalPages);
+        }
+      } else {
+        // Gọi API lấy tất cả với status filter
+        const action = await dispatch(
+          fetchCustomDesignOrders({
+            orderStatus:
+              selectedOrderStatus === "" ? null : selectedOrderStatus,
+            page: 1,
+            size: 10,
+          })
+        );
+        if (
+          action.payload &&
+          action.payload.pagination &&
+          action.payload.pagination.totalPages
+        ) {
+          setOrdersTotalPages(action.payload.pagination.totalPages);
+        }
+      }
+    } catch (error) {
+      console.error("Perform order search error:", error);
+      setNotification({
+        open: true,
+        message:
+          "Lỗi khi tìm kiếm đơn hàng: " +
+          (error.message || "Không thể tìm kiếm đơn hàng"),
+        severity: "error",
+      });
+    } finally {
+      setOrderSearchLoading(false);
+    }
+  };
+
+  // Function để clear search orders
+  const handleClearOrderSearch = async () => {
+    try {
+      setOrderSearchLoading(true);
+      setOrderSearchKeyword("");
+      setActiveOrderSearchKeyword("");
+      setOrdersPage(1);
+
+      // Gọi lại API lấy tất cả
+      const action = await dispatch(
+        fetchCustomDesignOrders({
+          orderStatus: selectedOrderStatus === "" ? null : selectedOrderStatus,
+          page: 1,
+          size: 10,
+        })
+      );
+      if (
+        action.payload &&
+        action.payload.pagination &&
+        action.payload.pagination.totalPages
+      ) {
+        setOrdersTotalPages(action.payload.pagination.totalPages);
+      }
+    } catch (error) {
+      console.error("Clear order search error:", error);
+      setNotification({
+        open: true,
+        message:
+          "Lỗi khi xóa tìm kiếm đơn hàng: " +
+          (error.message || "Không thể xóa tìm kiếm"),
+        severity: "error",
+      });
+    } finally {
+      setOrderSearchLoading(false);
+    }
+  };
+
+  // Function để handle Enter key cho orders
+  const handleOrderSearchKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handlePerformOrderSearch();
+    }
   };
 
   // Reset page when search or status filter changes
@@ -1760,7 +2070,32 @@ const CustomerRequests = () => {
     setActionLoading(false);
   };
 
-  if (status === "loading" && designRequests.length === 0) {
+  // Loading states
+  if (isTabSwitching) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          gap: 2,
+        }}
+      >
+        <CircularProgress size={60} thickness={4} />
+        <Typography variant="h6" color="text.secondary">
+          Đang chuyển tab...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (
+    status === "loading" &&
+    allDesignRequests.length === 0 &&
+    currentTab === 0
+  ) {
     return (
       <Box
         sx={{
@@ -1786,22 +2121,6 @@ const CustomerRequests = () => {
         <Alert severity="error">
           Lỗi tải dữ liệu: {error || "Không thể tải dữ liệu"}
         </Alert>
-      </Box>
-    );
-  }
-
-  // Thêm kiểm tra loading state
-  if (status === "loading") {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "400px",
-        }}
-      >
-        <CircularProgress />
       </Box>
     );
   }
@@ -1959,7 +2278,7 @@ const CustomerRequests = () => {
                       <Box sx={{ mr: 1 }}>
                         <Chip
                           size="small"
-                          label={designRequests.length}
+                          label={allDesignRequests.length}
                           color="primary"
                           variant="outlined"
                         />
@@ -1993,46 +2312,116 @@ const CustomerRequests = () => {
                     <MenuItem value="CANCELLED">Đã hủy</MenuItem>
                   </Select>
                 </FormControl>
-                <TextField
-                  size="small"
-                  placeholder="Tìm kiếm theo mã yêu cầu, tên công ty..."
-                  value={searchDesignRequests}
-                  onChange={handleSearchDesignRequests}
-                  sx={{ minWidth: 800 }}
-                  InputProps={{
-                    startAdornment: (
-                      <Box sx={{ mr: 1, color: "text.secondary" }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ flex: 1, alignItems: "flex-start" }}
+                >
+                  <TextField
+                    size="small"
+                    placeholder="Tìm kiếm theo mã yêu cầu, tên công ty."
+                    value={searchKeyword}
+                    onChange={handleSearchDesignRequests}
+                    onKeyPress={handleSearchKeyPress}
+                    sx={{ flex: 1 }}
+                    InputProps={{
+                      startAdornment: (
+                        <Box sx={{ mr: 1, color: "text.secondary" }}>
+                          <SearchIcon />
+                        </Box>
+                      ),
+                      endAdornment: searchKeyword && (
+                        <IconButton
+                          size="small"
+                          onClick={handleClearSearch}
+                          sx={{ mr: 0.5 }}
+                          title="Xóa tìm kiếm"
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      ),
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handlePerformSearch}
+                    disabled={status === "loading"}
+                    startIcon={
+                      status === "loading" && searchDesignRequests.trim() ? (
+                        <CircularProgress size={16} />
+                      ) : (
                         <SearchIcon />
-                      </Box>
-                    ),
-                    endAdornment: searchDesignRequests && (
-                      <IconButton
-                        size="small"
-                        onClick={() => setSearchDesignRequests("")}
-                        sx={{ mr: 0.5 }}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    ),
-                  }}
-                />
+                      )
+                    }
+                    sx={{
+                      px: 3,
+                      whiteSpace: "nowrap",
+                      minWidth: "120px",
+                    }}
+                  >
+                    {status === "loading" && activeSearchKeyword.trim()
+                      ? "Đang tìm..."
+                      : "Tìm kiếm"}
+                  </Button>
+                  {activeSearchKeyword.trim() && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleClearSearch}
+                      sx={{
+                        px: 2,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Xóa bộ lọc
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
             </Card>
 
+            {/* Search Results Info */}
+            {activeSearchKeyword.trim() && (
+              <Card
+                sx={{
+                  p: 2,
+                  bgcolor: "info.light",
+                  border: "1px solid",
+                  borderColor: "info.main",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <SearchIcon sx={{ fontSize: 20, color: "info.dark" }} />
+                  <Typography variant="body2" color="info.dark">
+                    <strong>Kết quả tìm kiếm cho:</strong> "
+                    {activeSearchKeyword.trim()}"
+                    {status === "succeeded" && (
+                      <span>
+                        {" "}
+                        - Tìm thấy {allDesignRequests.length} yêu cầu
+                      </span>
+                    )}
+                    {status === "loading" && <span> - Đang tìm kiếm...</span>}
+                  </Typography>
+                </Box>
+              </Card>
+            )}
+
             {/* Content Section */}
-            {designRequests.length === 0 && status === "succeeded" ? (
+            {allDesignRequests.length === 0 && status === "succeeded" ? (
               <Card sx={{ p: 4, textAlign: "center" }}>
                 <Box sx={{ mb: 2 }}>
                   <BrushIcon sx={{ fontSize: 64, color: "grey.400" }} />
                 </Box>
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-                  {searchDesignRequests.trim()
+                  {activeSearchKeyword.trim()
                     ? "Không tìm thấy kết quả"
                     : "Chưa có yêu cầu thiết kế nào"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {searchDesignRequests.trim()
-                    ? `Không tìm thấy yêu cầu thiết kế nào phù hợp với từ khóa "${searchDesignRequests}"`
+                  {activeSearchKeyword.trim()
+                    ? `Không tìm thấy yêu cầu thiết kế nào phù hợp với từ khóa "${activeSearchKeyword}"`
                     : "Hiện tại không có yêu cầu thiết kế nào phù hợp với bộ lọc đã chọn"}
                 </Typography>
               </Card>
@@ -2118,7 +2507,7 @@ const CustomerRequests = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {designRequests.map((request, index) => (
+                      {allDesignRequests.map((request, index) => (
                         <TableRow
                           key={request.id}
                           sx={{
@@ -2267,31 +2656,6 @@ const CustomerRequests = () => {
                 alignItems="center"
                 sx={{ mb: 2 }}
               >
-                {/* Search Field */}
-                <TextField
-                  size="small"
-                  placeholder="Tìm kiếm theo mã yêu cầu, tên công ty..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  sx={{ minWidth: 350 }}
-                  InputProps={{
-                    startAdornment: (
-                      <Box sx={{ mr: 1, color: "text.secondary" }}>
-                        <SearchIcon />
-                      </Box>
-                    ),
-                    endAdornment: searchQuery && (
-                      <IconButton
-                        size="small"
-                        onClick={() => setSearchQuery("")}
-                        sx={{ mr: 0.5 }}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    ),
-                  }}
-                />
-
                 {/* Status Filter */}
                 <FormControl size="small" sx={{ minWidth: 300 }}>
                   <InputLabel id="order-status-filter-label">
@@ -2356,6 +2720,67 @@ const CustomerRequests = () => {
                     <MenuItem value="CANCELLED">Đã hủy</MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* Search Field */}
+                <TextField
+                  size="small"
+                  placeholder="Tìm kiếm theo mã đơn hàng, tên công ty..."
+                  value={orderSearchKeyword}
+                  onChange={(e) => setOrderSearchKeyword(e.target.value)}
+                  sx={{ flex: 1 }}
+                  InputProps={{
+                    startAdornment: (
+                      <Box sx={{ mr: 1, color: "text.secondary" }}>
+                        <SearchIcon />
+                      </Box>
+                    ),
+                    endAdornment: orderSearchKeyword && (
+                      <IconButton
+                        size="small"
+                        onClick={handleClearOrderSearch}
+                        sx={{ mr: 0.5 }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    ),
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      handlePerformOrderSearch();
+                    }
+                  }}
+                />
+
+                {/* Search Button */}
+                <Button
+                  variant="contained"
+                  startIcon={<SearchIcon />}
+                  onClick={handlePerformOrderSearch}
+                  disabled={orderSearchLoading}
+                  sx={{
+                    minWidth: 120,
+                    height: 40,
+                    background: "linear-gradient(45deg, #1976d2, #42a5f5)",
+                    "&:hover": {
+                      background: "linear-gradient(45deg, #1565c0, #1976d2)",
+                    },
+                  }}
+                >
+                  {orderSearchLoading ? "Đang tìm..." : "Tìm kiếm"}
+                </Button>
+
+                {/* Clear Search Button */}
+                {orderSearchKeyword && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<CloseIcon />}
+                    onClick={handleClearOrderSearch}
+                    disabled={orderSearchLoading}
+                    sx={{ minWidth: 100, height: 40 }}
+                  >
+                    Xóa
+                  </Button>
+                )}
               </Stack>
             </Card>
 
@@ -3165,7 +3590,11 @@ const CustomerRequests = () => {
                         <Typography
                           variant="subtitle1"
                           fontWeight="600"
-                          sx={{ fontSize: "1rem", mb: 2, color: "primary.main" }}
+                          sx={{
+                            fontSize: "1rem",
+                            mb: 2,
+                            color: "primary.main",
+                          }}
                         >
                           Giao task thiết kế
                         </Typography>
@@ -3178,7 +3607,7 @@ const CustomerRequests = () => {
                           >
                             Chọn designer để giao task thiết kế:
                           </Typography>
-                          
+
                           <Grid container spacing={2}>
                             <Grid item xs={12} sm={7}>
                               {loadingDesigners ? (
@@ -3193,13 +3622,17 @@ const CustomerRequests = () => {
                                   }}
                                 >
                                   <CircularProgress size={24} sx={{ mr: 2 }} />
-                                  <Typography>Đang tải danh sách designers...</Typography>
+                                  <Typography>
+                                    Đang tải danh sách designers...
+                                  </Typography>
                                 </Box>
                               ) : (
                                 <FormControl fullWidth>
                                   <Select
                                     value={selectedDesigner || ""}
-                                    onChange={(e) => setSelectedDesigner(e.target.value)}
+                                    onChange={(e) =>
+                                      setSelectedDesigner(e.target.value)
+                                    }
                                     size="medium"
                                     sx={{
                                       height: "64px",
@@ -3219,17 +3652,20 @@ const CustomerRequests = () => {
                                       "& .MuiOutlinedInput-notchedOutline": {
                                         borderColor: "grey.300",
                                       },
-                                      "&:hover .MuiOutlinedInput-notchedOutline": {
-                                        borderColor: "primary.main",
-                                      },
+                                      "&:hover .MuiOutlinedInput-notchedOutline":
+                                        {
+                                          borderColor: "primary.main",
+                                        },
                                     }}
                                     displayEmpty
                                     renderValue={(value) => {
-                                      const designer = designers.find(d => d.id === value);
+                                      const designer = designers.find(
+                                        (d) => d.id === value
+                                      );
                                       if (!designer) {
                                         return (
-                                          <Typography 
-                                            color="text.secondary" 
+                                          <Typography
+                                            color="text.secondary"
                                             sx={{ fontSize: "1rem" }}
                                           >
                                             Chọn designer...
@@ -3237,15 +3673,29 @@ const CustomerRequests = () => {
                                         );
                                       }
                                       return (
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1.5,
+                                          }}
+                                        >
                                           <Avatar
                                             src={designer.avatar}
                                             sx={{ width: 36, height: 36 }}
                                           >
-                                            {designer.fullName?.charAt(0)?.toUpperCase()}
+                                            {designer.fullName
+                                              ?.charAt(0)
+                                              ?.toUpperCase()}
                                           </Avatar>
                                           <Box>
-                                            <Typography variant="body1" sx={{ fontSize: "1rem", fontWeight: "500" }}>
+                                            <Typography
+                                              variant="body1"
+                                              sx={{
+                                                fontSize: "1rem",
+                                                fontWeight: "500",
+                                              }}
+                                            >
                                               {designer.fullName}
                                             </Typography>
                                           </Box>
@@ -3261,8 +3711,8 @@ const CustomerRequests = () => {
                                       </MenuItem>
                                     ) : (
                                       designers.map((designer) => (
-                                        <MenuItem 
-                                          key={designer.id} 
+                                        <MenuItem
+                                          key={designer.id}
                                           value={designer.id}
                                           sx={{
                                             py: 2,
@@ -3272,12 +3722,21 @@ const CustomerRequests = () => {
                                             },
                                           }}
                                         >
-                                          <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
+                                          <Box
+                                            sx={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: 2,
+                                              width: "100%",
+                                            }}
+                                          >
                                             <Avatar
                                               src={designer.avatar}
                                               sx={{ width: 42, height: 42 }}
                                             >
-                                              {designer.fullName?.charAt(0)?.toUpperCase()}
+                                              {designer.fullName
+                                                ?.charAt(0)
+                                                ?.toUpperCase()}
                                             </Avatar>
                                             <Box sx={{ flex: 1 }}>
                                               <Typography
@@ -3309,7 +3768,7 @@ const CustomerRequests = () => {
                                 </FormControl>
                               )}
                             </Grid>
-                            
+
                             <Grid item xs={12} sm={5}>
                               <Button
                                 variant="contained"
@@ -3332,18 +3791,17 @@ const CustomerRequests = () => {
                                   borderRadius: 2,
                                   textTransform: "none",
                                   transition: "all 0.2s ease",
-                                  "&:hover": { 
+                                  "&:hover": {
                                     transform: "translateY(-1px)",
                                   },
                                   "&:disabled": {
                                     opacity: 0.6,
-                                  }
+                                  },
                                 }}
                               >
-                                {assigningDesigner 
-                                  ? "Đang giao task..." 
-                                  : "Giao task"
-                                }
+                                {assigningDesigner
+                                  ? "Đang giao task..."
+                                  : "Giao task"}
                               </Button>
                             </Grid>
                           </Grid>
@@ -5687,7 +6145,9 @@ const UploadContractDialog = memo(
           setError(response.error || "Có lỗi xảy ra khi tải lên hợp đồng");
         }
       } catch (error) {
-        setError(error?.response?.data?.message || "Có lỗi xảy ra khi tải lên hợp đồng");
+        setError(
+          error?.response?.data?.message || "Có lỗi xảy ra khi tải lên hợp đồng"
+        );
       } finally {
         setUploading(false);
       }
@@ -5817,194 +6277,211 @@ const UploadContractDialog = memo(
 UploadContractDialog.displayName = "UploadContractDialog";
 
 // Component Upload Revised Contract Dialog - Đồng nhất với DashboardContent.jsx
-const UploadRevisedContractDialog = memo(({ open, onClose, orderId, onUploadSuccess }) => {
-  const dispatch = useDispatch();
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-  const [depositPercent, setDepositPercent] = useState(10); // Mặc định 10%
+const UploadRevisedContractDialog = memo(
+  ({ open, onClose, orderId, onUploadSuccess }) => {
+    const dispatch = useDispatch();
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState(null);
+    const [depositPercent, setDepositPercent] = useState(10); // Mặc định 10%
 
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Kiểm tra định dạng file (chỉ cho phép PDF)
-      if (file.type !== 'application/pdf') {
-        setError('Vui lòng chọn file PDF');
+    const handleFileSelect = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        // Kiểm tra định dạng file (chỉ cho phép PDF)
+        if (file.type !== "application/pdf") {
+          setError("Vui lòng chọn file PDF");
+          return;
+        }
+
+        // Kiểm tra kích thước file (tối đa 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          setError("Kích thước file không được vượt quá 10MB");
+          return;
+        }
+
+        setSelectedFile(file);
+        setError(null);
+      }
+    };
+
+    const handleDepositPercentChange = (event) => {
+      const value = parseFloat(event.target.value);
+      if (isNaN(value) || value < 0 || value > 100) {
+        setError("Phần trăm cọc phải từ 0% đến 100%");
         return;
       }
-      
-      // Kiểm tra kích thước file (tối đa 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('Kích thước file không được vượt quá 10MB');
-        return;
-      }
-      
-      setSelectedFile(file);
+      setDepositPercent(value);
       setError(null);
-    }
-  };
+    };
 
-  const handleDepositPercentChange = (event) => {
-    const value = parseFloat(event.target.value);
-    if (isNaN(value) || value < 0 || value > 100) {
-      setError('Phần trăm cọc phải từ 0% đến 100%');
-      return;
-    }
-    setDepositPercent(value);
-    setError(null);
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setError('Vui lòng chọn file hợp đồng đã chỉnh sửa');
-      return;
-    }
-
-    if (depositPercent < 0 || depositPercent > 100) {
-      setError('Phần trăm cọc phải từ 0% đến 100%');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // Lấy thông tin hợp đồng từ orderId để có contractId
-      const contractResponse = await getOrderContractApi(orderId);
-      if (!contractResponse.success) {
-        setError('Không thể lấy thông tin hợp đồng để gửi lại');
-        setUploading(false);
+    const handleUpload = async () => {
+      if (!selectedFile) {
+        setError("Vui lòng chọn file hợp đồng đã chỉnh sửa");
         return;
       }
 
-      const contractId = contractResponse.data.id;
-      const formData = new FormData();
-      formData.append('contactFile', selectedFile); // Theo API spec: contactFile
-      formData.append('depositPercentChanged', depositPercent.toString());
-
-      // Sử dụng API upload revised contract từ contractService
-      const response = await uploadRevisedContractApi(contractId, formData);
-
-      if (response.success) {
-        // Thông báo thành công và refresh danh sách
-        onUploadSuccess();
-        handleClose();
-      } else {
-        setError(response.error || 'Có lỗi xảy ra khi tải lên hợp đồng đã chỉnh sửa');
+      if (depositPercent < 0 || depositPercent > 100) {
+        setError("Phần trăm cọc phải từ 0% đến 100%");
+        return;
       }
-      
-    } catch (error) {
-      setError(error?.response?.data?.message || 'Có lỗi xảy ra khi tải lên hợp đồng đã chỉnh sửa');
-    } finally {
+
+      setUploading(true);
+      try {
+        // Lấy thông tin hợp đồng từ orderId để có contractId
+        const contractResponse = await getOrderContractApi(orderId);
+        if (!contractResponse.success) {
+          setError("Không thể lấy thông tin hợp đồng để gửi lại");
+          setUploading(false);
+          return;
+        }
+
+        const contractId = contractResponse.data.id;
+        const formData = new FormData();
+        formData.append("contactFile", selectedFile); // Theo API spec: contactFile
+        formData.append("depositPercentChanged", depositPercent.toString());
+
+        // Sử dụng API upload revised contract từ contractService
+        const response = await uploadRevisedContractApi(contractId, formData);
+
+        if (response.success) {
+          // Thông báo thành công và refresh danh sách
+          onUploadSuccess();
+          handleClose();
+        } else {
+          setError(
+            response.error || "Có lỗi xảy ra khi tải lên hợp đồng đã chỉnh sửa"
+          );
+        }
+      } catch (error) {
+        setError(
+          error?.response?.data?.message ||
+            "Có lỗi xảy ra khi tải lên hợp đồng đã chỉnh sửa"
+        );
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    const handleClose = () => {
+      setSelectedFile(null);
+      setError(null);
       setUploading(false);
-    }
-  };
+      setDepositPercent(10); // Reset về mặc định 10%
+      onClose();
+    };
 
-  const handleClose = () => {
-    setSelectedFile(null);
-    setError(null);
-    setUploading(false);
-    setDepositPercent(10); // Reset về mặc định 10%
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <UploadIcon color="warning" />
-          <Typography variant="h6">Gửi lại hợp đồng đã chỉnh sửa</Typography>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        <Box sx={{ py: 2 }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Tải lên hợp đồng đã chỉnh sửa theo yêu cầu thảo luận của khách hàng
-          </Typography>
-          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
-            Chọn file hợp đồng (định dạng PDF, tối đa 10MB)
-          </Typography>
-
-          {/* Trường nhập phần trăm cọc */}
-          <Box sx={{ mt: 2, mb: 2 }}>
-            <TextField
-              label="Phần trăm cọc (%)"
-              type="number"
-              value={depositPercent}
-              onChange={handleDepositPercentChange}
-              fullWidth
-              inputProps={{
-                min: 0,
-                max: 100,
-                step: 0.1,
-              }}
-              helperText="Nhập phần trăm tiền cọc (mặc định 10%)"
-              sx={{ mb: 2 }}
-            />
+    return (
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <UploadIcon color="warning" />
+            <Typography variant="h6">Gửi lại hợp đồng đã chỉnh sửa</Typography>
           </Box>
-          
-          <Box sx={{ mt: 2, mb: 2 }}>
-            <input
-              accept=".pdf"
-              style={{ display: 'none' }}
-              id="revised-contract-file-input"
-              type="file"
-              onChange={handleFileSelect}
-            />
-            <label htmlFor="revised-contract-file-input">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<UploadIcon />}
-                sx={{ mb: 1 }}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ py: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Tải lên hợp đồng đã chỉnh sửa theo yêu cầu thảo luận của khách
+              hàng
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              gutterBottom
+              sx={{ mb: 2 }}
+            >
+              Chọn file hợp đồng (định dạng PDF, tối đa 10MB)
+            </Typography>
+
+            {/* Trường nhập phần trăm cọc */}
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <TextField
+                label="Phần trăm cọc (%)"
+                type="number"
+                value={depositPercent}
+                onChange={handleDepositPercentChange}
                 fullWidth
-                color="warning"
-              >
-                Chọn file hợp đồng đã chỉnh sửa
-              </Button>
-            </label>
-            
-            {selectedFile && (
-              <Box sx={{ 
-                mt: 1, 
-                p: 2, 
-                bgcolor: 'warning.50',
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'warning.200'
-              }}>
-                <Typography variant="body2" color="warning.main">
-                  ✓ Đã chọn file: {selectedFile.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Kích thước: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </Typography>
-              </Box>
+                inputProps={{
+                  min: 0,
+                  max: 100,
+                  step: 0.1,
+                }}
+                helperText="Nhập phần trăm tiền cọc (mặc định 10%)"
+                sx={{ mb: 2 }}
+              />
+            </Box>
+
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <input
+                accept=".pdf"
+                style={{ display: "none" }}
+                id="revised-contract-file-input"
+                type="file"
+                onChange={handleFileSelect}
+              />
+              <label htmlFor="revised-contract-file-input">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<UploadIcon />}
+                  sx={{ mb: 1 }}
+                  fullWidth
+                  color="warning"
+                >
+                  Chọn file hợp đồng đã chỉnh sửa
+                </Button>
+              </label>
+
+              {selectedFile && (
+                <Box
+                  sx={{
+                    mt: 1,
+                    p: 2,
+                    bgcolor: "warning.50",
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: "warning.200",
+                  }}
+                >
+                  <Typography variant="body2" color="warning.main">
+                    ✓ Đã chọn file: {selectedFile.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Kích thước: {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                    MB
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
             )}
           </Box>
-
-          {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-          )}
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={uploading}>
-          Hủy
-        </Button>
-        <Button 
-          onClick={handleUpload} 
-          variant="contained" 
-          color="warning"
-          disabled={!selectedFile || uploading}
-          startIcon={uploading ? <CircularProgress size={20} /> : <UploadIcon />}
-        >
-          {uploading ? 'Đang gửi lại...' : 'Gửi lại hợp đồng'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-});
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} disabled={uploading}>
+            Hủy
+          </Button>
+          <Button
+            onClick={handleUpload}
+            variant="contained"
+            color="warning"
+            disabled={!selectedFile || uploading}
+            startIcon={
+              uploading ? <CircularProgress size={20} /> : <UploadIcon />
+            }
+          >
+            {uploading ? "Đang gửi lại..." : "Gửi lại hợp đồng"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+);
 
 UploadRevisedContractDialog.displayName = "UploadRevisedContractDialog";
 

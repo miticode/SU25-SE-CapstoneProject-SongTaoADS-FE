@@ -1272,4 +1272,26 @@ export const searchProductionOrdersApi = async (query, page = 1, size = 10) => {
   }
 };
 
+// Search custom design orders
+export const searchCustomDesignOrdersApi = async (query = '', page = 1, size = 10) => {
+  try {
+    const params = { query, page, size };
+    const response = await orderService.get('/api/orders/custom-search', { params });
+    return {
+      success: true,
+      result: response.data.result,
+      currentPage: response.data.currentPage,
+      totalPages: response.data.totalPages,
+      pageSize: response.data.pageSize,
+      totalElements: response.data.totalElements
+    };
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Không thể tìm kiếm đơn hàng thiết kế tùy chỉnh. Vui lòng thử lại.'
+    };
+  }
+};
+
 export default orderService;

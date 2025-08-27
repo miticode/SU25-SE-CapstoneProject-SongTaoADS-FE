@@ -10,7 +10,8 @@ import {
   sendFinalDesignImageApi,
   fetchDesignRequestsByDesignerApi,
   getFinalDesignSubImagesApi,
-  searchDesignRequestsByDesignerApi
+  searchDesignRequestsByDesignerApi,
+  searchDesignRequestsSaleApi
 } from "../../../api/customeDesignService";
 
 // Initial state
@@ -236,6 +237,22 @@ export const searchDesignRequestsByDesigner = createAsyncThunk(
   }
 );
 
+// Search yêu cầu thiết kế của Sale
+export const searchDesignRequestsSale = createAsyncThunk(
+  'customDesign/searchDesignRequestsSale',
+  async ({ keyword = '', page = 1, size = 10 }, { rejectWithValue }) => {
+    try {
+      const response = await searchDesignRequestsSaleApi(keyword, page, size);
+      if (!response.success) {
+        return rejectWithValue(response.error || 'Failed to search design requests for sale');
+      }
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred while searching design requests for sale');
+    }
+  }
+);
+
 // Create the slice
 const customerDesignSlice = createSlice({
   name: "customDesign",
@@ -407,6 +424,25 @@ const customerDesignSlice = createSlice({
         state.error = null;
       })
       .addCase(searchDesignRequestsByDesigner.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(searchDesignRequestsSale.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(searchDesignRequestsSale.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.designRequests = action.payload.result;
+        state.pagination = {
+          currentPage: action.payload.currentPage,
+          totalPages: action.payload.totalPages,
+          pageSize: action.payload.pageSize,
+          totalElements: action.payload.totalElements
+        };
+        state.error = null;
+      })
+      .addCase(searchDesignRequestsSale.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       });

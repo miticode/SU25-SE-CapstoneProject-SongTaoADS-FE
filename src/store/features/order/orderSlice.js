@@ -24,6 +24,7 @@ import {
   getCustomDesignOrdersApi,
   searchCustomerOrdersApi,
   searchProductionOrdersApi,
+  searchCustomDesignOrdersApi,
 } from "../../../api/orderService";
 
 // Định nghĩa mapping trạng thái đơn hàng thiết kế AI
@@ -505,6 +506,42 @@ export const searchProductionOrders = createAsyncThunk(
       return rejectWithValue(response.error);
     } catch (error) {
       return rejectWithValue(error.message || "Không thể tìm kiếm đơn hàng production");
+    }
+  }
+);
+
+// Search Custom Design Orders
+export const searchCustomDesignOrders = createAsyncThunk(
+  "order/searchCustomDesignOrders",
+  async (params, { rejectWithValue }) => {
+    try {
+      let query, page, size;
+      if (typeof params === "object" && params !== null) {
+        query = params.query;
+        page = params.page || 1;
+        size = params.size || 10;
+      } else {
+        query = params; // string
+        page = 1;
+        size = 10;
+      }
+
+      const response = await searchCustomDesignOrdersApi(query, page, size);
+      if (response.success) {
+        return {
+          orders: response.result || [],
+          pagination: {
+            currentPage: response.currentPage,
+            totalPages: response.totalPages,
+            pageSize: response.pageSize,
+            totalElements: response.totalElements,
+          },
+          query,
+        };
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Không thể tìm kiếm đơn hàng thiết kế tùy chỉnh");
     }
   }
 );
@@ -1064,6 +1101,23 @@ const orderSlice = createSlice({
       .addCase(searchProductionOrders.rejected, (state, action) => {
         state.productionSearch.status = "failed";
         state.productionSearch.error = action.payload;
+      })
+      .addCase(searchCustomDesignOrders.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(searchCustomDesignOrders.fulfilled, (state, action) => {
+        state.loading = false;
+        state.customDesignOrders = action.payload.orders || [];
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
+        state.lastUpdated = new Date().toISOString();
+        state.error = null;
+      })
+      .addCase(searchCustomDesignOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
