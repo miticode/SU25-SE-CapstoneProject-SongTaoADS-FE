@@ -57,6 +57,7 @@ import {
   fetchSaleDashboard,
   fetchSaleOrdersStats,
   fetchCustomDesignRequestsStats,
+  fetchPaymentsStats,
   selectDashboardStatus,
   selectDashboardError,
   selectDashboardLastUpdated,
@@ -68,6 +69,10 @@ import {
   selectCustomDesignRequestsStatsStatus,
   selectCustomDesignRequestsStatsError,
   selectCustomDesignRequestsStatsLastUpdated,
+  selectPaymentsStats,
+  selectPaymentsStatsStatus,
+  selectPaymentsStatsError,
+  selectPaymentsStatsLastUpdated,
   // Individual selectors
   selectSaleTotalOrders,
   selectSaleTotalOrderCompleted,
@@ -103,6 +108,12 @@ const SalesDashboard = () => {
   const customDesignRequestsStatsStatus = useSelector(selectCustomDesignRequestsStatsStatus);
   const customDesignRequestsStatsError = useSelector(selectCustomDesignRequestsStatsError);
   const customDesignRequestsStatsLastUpdated = useSelector(selectCustomDesignRequestsStatsLastUpdated);
+  
+  // Payments stats selectors (after other selectors)
+  const paymentsStats = useSelector(selectPaymentsStats);
+  const paymentsStatsStatus = useSelector(selectPaymentsStatsStatus);
+  const paymentsStatsError = useSelector(selectPaymentsStatsError);
+  const paymentsStatsLastUpdated = useSelector(selectPaymentsStatsLastUpdated);
   
   // Individual metrics
   const totalOrders = useSelector(selectSaleTotalOrders);
@@ -143,6 +154,11 @@ const SalesDashboard = () => {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     }));
+    // Fetch payments stats with default date range
+    dispatch(fetchPaymentsStats({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    }));
   }, [dispatch, startDate, endDate]);
 
   // Handle refresh
@@ -158,6 +174,10 @@ const SalesDashboard = () => {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
       })).unwrap();
+      await dispatch(fetchPaymentsStats({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      })).unwrap();
     } catch (error) {
       console.error('Error refreshing dashboard:', error);
     } finally {
@@ -167,11 +187,19 @@ const SalesDashboard = () => {
 
   // Handle date change
   const handleDateChange = useCallback(() => {
+    dispatch(fetchSaleDashboard({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    }));
     dispatch(fetchSaleOrdersStats({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     }));
     dispatch(fetchCustomDesignRequestsStats({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    }));
+    dispatch(fetchPaymentsStats({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     }));
@@ -240,6 +268,12 @@ const SalesDashboard = () => {
     return new Intl.NumberFormat('vi-VN').format(number || 0);
   };
 
+  // Format currency (custom: append VND)
+  const formatCurrency = (amount) => {
+    const value = Number(amount) || 0;
+    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(value) + ' VND';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -305,6 +339,13 @@ const SalesDashboard = () => {
           {customDesignRequestsStatsError && (
             <Alert severity="error" className="!mb-6 !rounded-xl !shadow-lg">
               Lỗi thống kê yêu cầu thiết kế: {customDesignRequestsStatsError}
+            </Alert>
+          )}
+
+          {/* Payments Stats Error */}
+          {paymentsStatsError && (
+            <Alert severity="error" className="!mb-6 !rounded-xl !shadow-lg">
+              Lỗi thống kê doanh thu: {paymentsStatsError}
             </Alert>
           )}
         </div>
@@ -619,6 +660,64 @@ const SalesDashboard = () => {
               </Typography>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Payments Statistics */}
+        <div className="mt-8">
+          {paymentsStatsError && (
+            <Alert severity="error" className="!mb-6 !rounded-xl !shadow-lg">
+              Lỗi thống kê doanh thu: {paymentsStatsError}
+            </Alert>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 lg:gap-6 mb-6 lg:mb-8">
+            <Card className="!rounded-2xl lg:!rounded-3xl !shadow-lg !border-0 !bg-gradient-to-br !from-white !to-emerald-50">
+              <CardContent className="!p-4 lg:!p-6">
+                <Typography variant="body2" className="!font-semibold !text-gray-600 !mb-1">Tổng doanh thu</Typography>
+                <Typography variant="h6" className="!font-black !text-emerald-600 !text-base lg:!text-lg">
+                  {paymentsStatsStatus === 'loading' ? '...' : formatCurrency(paymentsStats?.revenue)}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card className="!rounded-2xl lg:!rounded-3xl !shadow-lg !border-0 !bg-gradient-to-br !from-white !to-blue-50">
+              <CardContent className="!p-4 lg:!p-6">
+                <Typography variant="body2" className="!font-semibold !text-gray-600 !mb-1">Doanh thu PayOS</Typography>
+                <Typography variant="h6" className="!font-black !text-blue-600 !text-base lg:!text-lg">
+                  {paymentsStatsStatus === 'loading' ? '...' : formatCurrency(paymentsStats?.payOSRevenue)}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card className="!rounded-2xl lg:!rounded-3xl !shadow-lg !border-0 !bg-gradient-to-br !from-white !to-amber-50">
+              <CardContent className="!p-4 lg:!p-6">
+                <Typography variant="body2" className="!font-semibold !text-gray-600 !mb-1">Doanh thu tiền mặt</Typography>
+                <Typography variant="h6" className="!font-black !text-amber-600 !text-base lg:!text-lg">
+                  {paymentsStatsStatus === 'loading' ? '...' : formatCurrency(paymentsStats?.castRevenue)}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card className="!rounded-2xl lg:!rounded-3xl !shadow-lg !border-0 !bg-gradient-to-br !from-white !to-indigo-50">
+              <CardContent className="!p-4 lg:!p-6">
+                <Typography variant="body2" className="!font-semibold !text-gray-600 !mb-1">Doanh thu thiết kế</Typography>
+                <Typography variant="h6" className="!font-black !text-indigo-600 !text-base lg:!text-lg">
+                  {paymentsStatsStatus === 'loading' ? '...' : formatCurrency(paymentsStats?.designRevenue)}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card className="!rounded-2xl lg:!rounded-3xl !shadow-lg !border-0 !bg-gradient-to-br !from-white !to-purple-50">
+              <CardContent className="!p-4 lg:!p-6">
+                <Typography variant="body2" className="!font-semibold !text-gray-600 !mb-1">Doanh thu thi công</Typography>
+                <Typography variant="h6" className="!font-black !text-purple-600 !text-base lg:!text-lg">
+                  {paymentsStatsStatus === 'loading' ? '...' : formatCurrency(paymentsStats?.constructionRevenue)}
+                </Typography>
+              </CardContent>
+            </Card>
+          </div>
+          {paymentsStatsLastUpdated && (
+            <div className="mb-8 p-3 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-100">
+              <Typography variant="body2" className="!text-emerald-700 !font-semibold !text-xs">
+                Cập nhật doanh thu: {new Date(paymentsStatsLastUpdated).toLocaleString('vi-VN')}
+              </Typography>
+            </div>
+          )}
         </div>
 
         {/* Charts Section */}
