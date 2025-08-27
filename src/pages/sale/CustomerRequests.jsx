@@ -2048,6 +2048,112 @@ const CustomerRequests = () => {
     });
   };
 
+  // Function để chấp nhận offer và tự động tạo báo giá mới
+  const handleAcceptOffer = async (proposal) => {
+    if (!proposal.totalPriceOffer || !proposal.depositAmountOffer) {
+      setNotification({
+        open: true,
+        message: "Không tìm thấy thông tin offer từ khách hàng!",
+        severity: "error",
+      });
+      return;
+    }
+
+    if (!selectedRequest) {
+      setNotification({
+        open: true,
+        message: "Không tìm thấy thông tin yêu cầu thiết kế!",
+        severity: "error",
+      });
+      return;
+    }
+
+    setCreatingProposal(true);
+    try {
+      const data = {
+        totalPrice: Number(proposal.totalPriceOffer),
+        depositAmount: Number(proposal.depositAmountOffer),
+      };
+
+      const resultAction = await dispatch(
+        createProposal({
+          customDesignRequestId: selectedRequest.id,
+          data,
+        })
+      );
+
+      if (createProposal.fulfilled.match(resultAction)) {
+        setNotification({
+          open: true,
+          message: "Đã chấp nhận offer và tạo báo giá mới thành công!",
+          severity: "success",
+        });
+
+        // Cập nhật status của selectedRequest ngay lập tức để UI hiển thị đúng
+        setSelectedRequest((prevRequest) => ({
+          ...prevRequest,
+          status: "PRICING_NOTIFIED",
+        }));
+
+        // Reset form báo giá (ẩn form)
+        setPriceForm({ totalPrice: "", depositAmount: "" });
+
+        // Reload proposals to show the new one
+        getPriceProposals(selectedRequest.id).then((res) => {
+          if (res.success) {
+            setPriceProposals(res.result);
+          }
+        });
+
+        // Refresh design requests data
+        await refreshDesignRequestsData();
+      } else {
+        setNotification({
+          open: true,
+          message: resultAction.payload || "Không thể tạo báo giá",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: "Có lỗi xảy ra khi tạo báo giá",
+        severity: "error",
+      });
+    }
+    setCreatingProposal(false);
+  };
+
+  // Helper function để kiểm tra xem có phải proposal mới nhất có offer và chưa được chấp nhận không
+  const isLatestProposalWithOffer = (proposal) => {
+    // Tìm tất cả proposals có offer
+    const proposalsWithOffer = priceProposals.filter(
+      (p) => p.totalPriceOffer && p.depositAmountOffer
+    );
+
+    // Nếu không có proposal nào có offer thì return false
+    if (proposalsWithOffer.length === 0) return false;
+
+    // Sắp xếp theo thời gian tạo (mới nhất trước)
+    proposalsWithOffer.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    // Kiểm tra xem proposal hiện tại có phải là proposal mới nhất có offer không
+    const isLatestWithOffer = proposalsWithOffer[0].id === proposal.id;
+
+    // Kiểm tra xem có proposal nào được tạo sau proposal có offer này không
+    // (nghĩa là offer này đã được chấp nhận và tạo báo giá mới)
+    const hasNewerProposal = priceProposals.some(
+      (p) =>
+        new Date(p.createdAt) > new Date(proposal.createdAt) &&
+        !p.totalPriceOffer // Proposal mới không có offer (nghĩa là do sale tạo)
+    );
+
+    // Chỉ hiển thị nút nếu là proposal mới nhất có offer VÀ chưa có proposal mới nào được tạo sau nó
+    return isLatestWithOffer && !hasNewerProposal;
+  };
+
   const handleCloseUpdateDialog = () => {
     setUpdateDialog({ open: false, proposalId: null });
   };
@@ -4305,7 +4411,17 @@ const CustomerRequests = () => {
                               <Grid
                                 item
                                 xs={6}
-                                sm={proposal.totalPriceOffer ? 1 : 2}
+                                sm={
+                                  proposal.totalPriceOffer &&
+                                  proposal.depositAmountOffer &&
+                                  (proposal.status === "NEGOTIATING" ||
+                                    proposal.status === "REJECTED") &&
+                                  isLatestProposalWithOffer(proposal)
+                                    ? 0.5
+                                    : proposal.totalPriceOffer
+                                    ? 1
+                                    : 2
+                                }
                               >
                                 <Typography
                                   variant="caption"
@@ -4320,7 +4436,16 @@ const CustomerRequests = () => {
 
                               {/* Action button */}
                               {proposal.status === "PENDING" && (
-                                <Grid item xs={12} sm={1}>
+                                <Grid
+                                  item
+                                  xs={12}
+                                  sm={
+                                    proposal.totalPriceOffer &&
+                                    proposal.depositAmountOffer
+                                      ? 1.5
+                                      : 1
+                                  }
+                                >
                                   <Button
                                     size="small"
                                     variant="outlined"
@@ -4342,6 +4467,40 @@ const CustomerRequests = () => {
                                   </Button>
                                 </Grid>
                               )}
+
+                              {/* Nút chấp nhận offer - chỉ hiển thị cho proposal mới nhất có offer và chưa được chấp nhận */}
+                              {proposal.totalPriceOffer &&
+                                proposal.depositAmountOffer &&
+                                (proposal.status === "NEGOTIATING" ||
+                                  proposal.status === "REJECTED") &&
+                                isLatestProposalWithOffer(proposal) && (
+                                  <Grid item xs={12} sm={2}>
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      color="success"
+                                      onClick={() =>
+                                        handleAcceptOffer(proposal)
+                                      }
+                                      startIcon={
+                                        <CheckCircleIcon fontSize="small" />
+                                      }
+                                      sx={{
+                                        fontSize: "0.7rem",
+                                        py: 0.5,
+                                        px: 1,
+                                        minWidth: "auto",
+                                        transition: "all 0.2s ease",
+                                        "&:hover": {
+                                          transform: "scale(1.05)",
+                                          bgcolor: "success.dark",
+                                        },
+                                      }}
+                                    >
+                                      Chấp nhận offer
+                                    </Button>
+                                  </Grid>
+                                )}
                             </Grid>
 
                             {/* Lý do từ chối hoặc ghi chú */}
