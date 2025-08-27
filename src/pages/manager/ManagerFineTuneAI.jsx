@@ -125,6 +125,7 @@ import {
   clearError as clearTopicError,
   clearSuccess as clearTopicSuccess,
 } from "../../store/features/topic/topicSlice";
+import { checkTopicUsage } from "../../api/topicService";
 import {
   fetchQuestionsByTopic,
   createNewQuestionByTopic,
@@ -348,6 +349,13 @@ const ManagerFineTuneAI = () => {
     onConfirm: null,
   });
 
+  // Alert Dialog state (for simple notifications)
+  const [alertDialog, setAlertDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
+
   // Progress states for upload
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadCompleted, setUploadCompleted] = useState(false);
@@ -434,6 +442,24 @@ const ManagerFineTuneAI = () => {
       title: "",
       message: "",
       onConfirm: null,
+    });
+  };
+
+  // Helper function để hiển thị alert dialog
+  const showAlertDialog = (title, message) => {
+    setAlertDialog({
+      open: true,
+      title,
+      message,
+    });
+  };
+
+  // Helper function để đóng alert dialog
+  const handleCloseAlertDialog = () => {
+    setAlertDialog({
+      open: false,
+      title: "",
+      message: "",
     });
   };
 
@@ -934,7 +960,31 @@ const ManagerFineTuneAI = () => {
     }
   };
 
-  const handleDeleteTopic = (topicId) => {
+  const handleDeleteTopic = async (topicId) => {
+    try {
+      // Kiểm tra xem topic có đang được sử dụng không
+      const usageData = await checkTopicUsage(topicId);
+      const chatBotTopics = usageData?.result || [];
+
+      if (chatBotTopics.length > 0) {
+        // Topic đang được sử dụng, hiển thị thông tin
+        const modelNames = chatBotTopics
+          .map((item) => item.modelChatBot?.name || "Model không xác định")
+          .filter((name, index, arr) => arr.indexOf(name) === index) // Remove duplicates
+          .join(", ");
+
+        showAlertDialog(
+          "Không thể xóa chủ đề",
+          `Chủ đề này đang được sử dụng trong các model chat. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.`
+        );
+        return;
+      }
+    } catch (error) {
+      console.log("Không thể kiểm tra usage, tiếp tục xóa:", error);
+      // Nếu không kiểm tra được usage, vẫn cho phép xóa
+    }
+
+    // Topic không được sử dụng hoặc không kiểm tra được, cho phép xóa
     showConfirmDialog(
       "Xác nhận xóa chủ đề",
       "Bạn có chắc muốn xóa chủ đề này? Tất cả câu hỏi trong chủ đề cũng sẽ bị xóa.",
@@ -945,7 +995,26 @@ const ManagerFineTuneAI = () => {
           dispatch(fetchAllTopics());
           handleCloseConfirmDialog();
         } catch (error) {
-          showSnackbar(error || "Lỗi khi xóa chủ đề", "error");
+          let errorMessage = "Lỗi khi xóa chủ đề";
+
+          // Kiểm tra nếu là lỗi foreign key constraint
+          if (
+            error?.message?.includes("foreign key constraint") ||
+            error?.message?.includes("fkmgwt6hfxxpetsfnpglighv7f8") ||
+            error?.message?.includes("Thông tin đã được sử dụng ở phần khác") ||
+            error?.includes("foreign key constraint") ||
+            error?.includes("fkmgwt6hfxxpetsfnpglighv7f8") ||
+            error?.includes("Thông tin đã được sử dụng ở phần khác")
+          ) {
+            errorMessage =
+              "Không thể xóa chủ đề này vì đã được gán vào các model chat. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.";
+          } else if (error?.message) {
+            errorMessage = error.message;
+          } else if (typeof error === "string") {
+            errorMessage = error;
+          }
+
+          showSnackbar(errorMessage, "error");
           handleCloseConfirmDialog();
         }
       }
@@ -3229,6 +3298,20 @@ const ManagerFineTuneAI = () => {
                 }
                 sx={{ mb: 2 }}
               />
+              <TextField
+                margin="dense"
+                label="Mô tả chủ đề"
+                fullWidth
+                variant="outlined"
+                multiline
+                rows={3}
+                value={topicForm.description}
+                onChange={(e) =>
+                  setTopicForm({ ...topicForm, description: e.target.value })
+                }
+                placeholder="Nhập mô tả chi tiết cho chủ đề này..."
+                sx={{ mb: 2 }}
+              />
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenTopicDialog(false)}>Hủy</Button>
@@ -4338,6 +4421,57 @@ const ManagerFineTuneAI = () => {
             }}
           >
             Xác nhận xóa
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Alert Dialog (for simple notifications) */}
+      <Dialog
+        open={alertDialog.open}
+        onClose={handleCloseAlertDialog}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          "& .MuiDialog-paper": {
+            borderRadius: 3,
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "#ffebee",
+            color: "#c62828",
+            fontWeight: 700,
+            borderBottom: "1px solid #ef5350",
+          }}
+        >
+          ⚠️ {alertDialog.title}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography
+            variant="body1"
+            sx={{ color: "#424242", lineHeight: 1.6 }}
+          >
+            {alertDialog.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, justifyContent: "center" }}>
+          <Button
+            onClick={handleCloseAlertDialog}
+            variant="contained"
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              py: 1.5,
+              fontWeight: 600,
+              bgcolor: "#1976d2",
+              "&:hover": {
+                bgcolor: "#1565c0",
+              },
+            }}
+          >
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
