@@ -34,7 +34,10 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchDesignRequestsByDesigner, searchDesignRequestsByDesigner } from "../../store/features/customeDesign/customerDesignSlice";
+import {
+  fetchDesignRequestsByDesigner,
+  searchDesignRequestsByDesigner,
+} from "../../store/features/customeDesign/customerDesignSlice";
 import {
   selectStatus,
   selectError,
@@ -446,7 +449,7 @@ const DesignRequests = () => {
 
   // Function để reset về trang đầu tiên khi tìm kiếm
   const resetToFirstPage = () => {
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
   // ===== KẾT THÚC CÁC FUNCTION REFRESH =====
@@ -570,7 +573,7 @@ const DesignRequests = () => {
 
   const handlePageChange = (event, value) => {
     setPagination((prev) => ({ ...prev, currentPage: value }));
-    
+
     // Nếu đang tìm kiếm, cần fetch lại kết quả tìm kiếm với trang mới
     if (isSearching && searchKeyword.trim() !== "") {
       // Không cần gọi API ở đây vì useEffect sẽ tự động xử lý
@@ -673,38 +676,46 @@ const DesignRequests = () => {
   // Hàm cập nhật demo
   const handleUpdateDemo = async () => {
     if (!latestDemo) return;
-    
+
     setActionLoading(true);
     setUpdateDemoError("");
-    
+
     try {
       // Cập nhật mô tả nếu có thay đổi
-      if (updateDemoForm.designerDescription !== latestDemo.designerDescription) {
-        await dispatch(updateDemoDesignDescription({
-          customDesignId: latestDemo.id,
-          data: { designerDescription: updateDemoForm.designerDescription }
-        })).unwrap();
+      if (
+        updateDemoForm.designerDescription !== latestDemo.designerDescription
+      ) {
+        await dispatch(
+          updateDemoDesignDescription({
+            customDesignId: latestDemo.id,
+            data: { designerDescription: updateDemoForm.designerDescription },
+          })
+        ).unwrap();
       }
 
       // Cập nhật hình ảnh chính nếu có
       if (updateDemoForm.customDesignImage) {
         const formData = new FormData();
         // Theo Swagger: field name phải là 'file'
-        formData.append('file', updateDemoForm.customDesignImage);
-        
-        await dispatch(updateDemoDesignImage({
-          customDesignId: latestDemo.id,
-          data: formData
-        })).unwrap();
+        formData.append("file", updateDemoForm.customDesignImage);
+
+        await dispatch(
+          updateDemoDesignImage({
+            customDesignId: latestDemo.id,
+            data: formData,
+          })
+        ).unwrap();
       }
 
       // Cập nhật hình ảnh phụ
       if (updateDemoForm.subImages.length > 0) {
         // Chỉ gửi sub-images mới khi có
-        await dispatch(uploadDemoSubImages({
-          customDesignId: latestDemo.id,
-          files: updateDemoForm.subImages
-        })).unwrap();
+        await dispatch(
+          uploadDemoSubImages({
+            customDesignId: latestDemo.id,
+            files: updateDemoForm.subImages,
+          })
+        ).unwrap();
       }
       // Lưu ý: Không thể xóa sub-images hiện tại mà không có sub-images mới
       // vì backend yêu cầu danh sách không được rỗng
@@ -715,7 +726,7 @@ const DesignRequests = () => {
         severity: "success",
       });
       setOpenUpdateDemoDialog(false);
-      
+
       // Refresh data
       await refreshDemoData(selectedRequest.id);
     } catch (err) {
@@ -836,11 +847,11 @@ const DesignRequests = () => {
   // Function tìm kiếm với debounce
   const handleSearch = async (keyword) => {
     if (!designerId) return;
-    
+
     setSearchLoading(true);
     setIsSearching(true);
     resetToFirstPage(); // Reset về trang đầu tiên khi tìm kiếm
-    
+
     try {
       const res = await dispatch(
         searchDesignRequestsByDesigner({
@@ -849,7 +860,7 @@ const DesignRequests = () => {
           size: pagination.pageSize,
         })
       ).unwrap();
-      
+
       setRequests(res.result || []);
       setPagination({
         currentPage: res.currentPage || 1,
@@ -857,7 +868,7 @@ const DesignRequests = () => {
         pageSize: res.pageSize || 10,
         totalElements: res.totalElements || 0,
       });
-      
+
       // Fetch customer details cho kết quả tìm kiếm
       const ids = Array.from(
         new Set(
@@ -874,7 +885,7 @@ const DesignRequests = () => {
             .filter(Boolean)
         )
       );
-      
+
       ids.forEach((id) => {
         if (!customerDetails[id]) {
           dispatch(fetchCustomerDetailById(id))
@@ -929,7 +940,7 @@ const DesignRequests = () => {
     setSearchKeyword("");
     setIsSearching(false);
     resetToFirstPage(); // Reset về trang đầu tiên
-    
+
     // Refresh lại danh sách gốc
     if (designerId) {
       try {
@@ -940,7 +951,7 @@ const DesignRequests = () => {
             size: pagination.pageSize,
           })
         ).unwrap();
-        
+
         setRequests(res.result || []);
         setPagination({
           currentPage: res.currentPage || 1,
@@ -948,7 +959,7 @@ const DesignRequests = () => {
           pageSize: res.pageSize || 10,
           totalElements: res.totalElements || 0,
         });
-        
+
         // Fetch customer details
         const ids = Array.from(
           new Set(
@@ -965,7 +976,7 @@ const DesignRequests = () => {
               .filter(Boolean)
           )
         );
-        
+
         ids.forEach((id) => {
           if (!customerDetails[id]) {
             dispatch(fetchCustomerDetailById(id))
@@ -1040,7 +1051,7 @@ const DesignRequests = () => {
               pageSize: res.pageSize || 10,
               totalElements: res.totalElements || 0,
             });
-            
+
             // Fetch customer details cho kết quả tìm kiếm
             const ids = Array.from(
               new Set(
@@ -1057,7 +1068,7 @@ const DesignRequests = () => {
                   .filter(Boolean)
               )
             );
-            
+
             ids.forEach((id) => {
               if (!customerDetails[id]) {
                 dispatch(fetchCustomerDetailById(id))
@@ -1116,7 +1127,7 @@ const DesignRequests = () => {
               pageSize: res.pageSize || 10,
               totalElements: res.totalElements || 0,
             });
-            
+
             // Lấy tất cả customerDetailId duy nhất (luôn lấy .id nếu là object)
             const ids = Array.from(
               new Set(
@@ -1133,7 +1144,7 @@ const DesignRequests = () => {
                   .filter(Boolean)
               )
             );
-            
+
             ids.forEach((id) => {
               if (!customerDetails[id]) {
                 dispatch(fetchCustomerDetailById(id))
@@ -1177,7 +1188,15 @@ const DesignRequests = () => {
           });
       }
     }
-  }, [designerId, dispatch, pagination.currentPage, pagination.pageSize, isSearching, searchKeyword, customerDetails]);
+  }, [
+    designerId,
+    dispatch,
+    pagination.currentPage,
+    pagination.pageSize,
+    isSearching,
+    searchKeyword,
+    customerDetails,
+  ]);
 
   return (
     <>
@@ -1241,12 +1260,27 @@ const DesignRequests = () => {
             border: "1px solid #e2e8f0",
           }}
         >
-          <CardContent sx={{ p: 3 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={8}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                gap: 2,
+                alignItems: { md: "center" },
+              }}
+            >
+              {/* Search Input - chiếm tối đa chiều ngang */}
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: { xs: "100%", md: "300px" },
+                  maxWidth: { xs: "100%", md: "none" },
+                }}
+              >
                 <TextField
                   fullWidth
-                  placeholder="Tìm kiếm theo mã yêu cầu, tên công ty, mô tả..."
+                  size="small"
+                  placeholder="Tìm kiếm theo mã yêu cầu, tên công ty"
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
                   InputProps={{
@@ -1270,6 +1304,7 @@ const DesignRequests = () => {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      bgcolor: "#ffffff",
                       "&:hover fieldset": {
                         borderColor: "#3b82f6",
                       },
@@ -1279,55 +1314,100 @@ const DesignRequests = () => {
                     },
                   }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Stack direction="row" spacing={2} justifyContent="flex-end">
-                  <Button
-                    variant="outlined"
-                    onClick={handleClearSearch}
-                    disabled={!searchKeyword.trim()}
-                    startIcon={<ClearIcon />}
-                    sx={{
-                      borderRadius: 2,
-                      borderColor: "#e2e8f0",
-                      color: "#64748b",
-                      "&:hover": {
-                        borderColor: "#64748b",
-                        bgcolor: "#f8fafc",
-                      },
-                    }}
-                  >
-                    Xóa tìm kiếm
-                  </Button>
-                  <Button
-                    variant="contained"
-                    onClick={() => handleSearch(searchKeyword)}
-                    disabled={!searchKeyword.trim() || searchLoading}
-                    startIcon={searchLoading ? <CircularProgress size={16} /> : <SearchIcon />}
-                    sx={{
-                      borderRadius: 2,
-                      bgcolor: "#3b82f6",
-                      "&:hover": {
-                        bgcolor: "#2563eb",
-                      },
-                    }}
-                  >
-                    {searchLoading ? "Đang tìm..." : "Tìm kiếm"}
-                  </Button>
-                </Stack>
-              </Grid>
-            </Grid>
-            
-            {/* Search Status */}
+              </Box>
+
+              {/* Action Buttons - responsive layout */}
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1.5,
+                  flexDirection: { xs: "row", sm: "row" },
+                  justifyContent: { xs: "stretch", md: "flex-end" },
+                  width: { xs: "100%", md: "auto" },
+                  "& .MuiButton-root": {
+                    flex: { xs: 1, md: "0 0 auto" },
+                    minWidth: { xs: "auto", md: "120px" },
+                  },
+                }}
+              >
+                <Button
+                  variant="outlined"
+                  onClick={handleClearSearch}
+                  disabled={!searchKeyword.trim()}
+                  startIcon={<ClearIcon />}
+                  size="small"
+                  sx={{
+                    borderRadius: 2,
+                    borderColor: "#e2e8f0",
+                    color: "#64748b",
+                    "&:hover": {
+                      borderColor: "#64748b",
+                      bgcolor: "#f8fafc",
+                    },
+                  }}
+                >
+                  Xóa
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => handleSearch(searchKeyword)}
+                  disabled={!searchKeyword.trim() || searchLoading}
+                  startIcon={
+                    searchLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <SearchIcon />
+                    )
+                  }
+                  size="small"
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: "#3b82f6",
+                    "&:hover": {
+                      bgcolor: "#2563eb",
+                    },
+                  }}
+                >
+                  {searchLoading ? "Đang tìm..." : "Tìm kiếm"}
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Search Status - responsive layout */}
             {isSearching && (
-              <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                sx={{
+                  mt: 2,
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  gap: { xs: 1, sm: 1.5 },
+                }}
+              >
                 <Chip
                   label={`Đang tìm kiếm: "${searchKeyword}"`}
                   color="primary"
                   size="small"
-                  sx={{ bgcolor: "#dbeafe", color: "#1e40af" }}
+                  sx={{
+                    bgcolor: "#dbeafe",
+                    color: "#1e40af",
+                    maxWidth: { xs: "100%", sm: "none" },
+                    "& .MuiChip-label": {
+                      display: "block",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                      maxWidth: { xs: "250px", sm: "none" },
+                    },
+                  }}
                 />
-                <Typography variant="body2" color="#64748b">
+                <Typography
+                  variant="body2"
+                  color="#64748b"
+                  sx={{
+                    fontSize: { xs: "0.875rem", sm: "0.875rem" },
+                    mt: { xs: 0, sm: 0 },
+                  }}
+                >
                   Tìm thấy {pagination.totalElements || 0} kết quả
                 </Typography>
               </Box>
@@ -1371,10 +1451,9 @@ const DesignRequests = () => {
               border: "1px solid #bfdbfe",
             }}
           >
-            {isSearching 
+            {isSearching
               ? `Không tìm thấy yêu cầu thiết kế nào phù hợp với từ khóa "${searchKeyword}"`
-              : "Không có yêu cầu thiết kế nào được giao."
-            }
+              : "Không có yêu cầu thiết kế nào được giao."}
           </Alert>
         ) : (
           <>
@@ -1397,13 +1476,18 @@ const DesignRequests = () => {
                     variant="h6"
                     sx={{ fontWeight: 600, color: "#1f2937", mb: 0.5 }}
                   >
-                    {isSearching ? "Kết quả tìm kiếm" : "Danh sách yêu cầu thiết kế"}
+                    {isSearching
+                      ? "Kết quả tìm kiếm"
+                      : "Danh sách yêu cầu thiết kế"}
                   </Typography>
                   <Typography variant="body2" color="#64748b">
-                    {isSearching 
-                      ? `Tìm thấy ${pagination.totalElements || 0} yêu cầu phù hợp với "${searchKeyword}"`
-                      : `Tổng cộng ${pagination.totalElements || 0} yêu cầu được giao`
-                    }
+                    {isSearching
+                      ? `Tìm thấy ${
+                          pagination.totalElements || 0
+                        } yêu cầu phù hợp với "${searchKeyword}"`
+                      : `Tổng cộng ${
+                          pagination.totalElements || 0
+                        } yêu cầu được giao`}
                   </Typography>
                 </Box>
                 <TableContainer>
@@ -2743,7 +2827,6 @@ const DesignRequests = () => {
                 >
                   Cập nhật Demo
                 </Button>
-
               </Stack>
             )}
 
@@ -3381,12 +3464,11 @@ const DesignRequests = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          Cập nhật demo thiết kế
-        </DialogTitle>
+        <DialogTitle>Cập nhật demo thiết kế</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Bạn có thể cập nhật mô tả, hình ảnh chính và hình ảnh phụ của demo hiện tại.
+            Bạn có thể cập nhật mô tả, hình ảnh chính và hình ảnh phụ của demo
+            hiện tại.
           </Typography>
 
           {/* Mô tả demo */}
@@ -3394,10 +3476,12 @@ const DesignRequests = () => {
             label="Mô tả demo"
             name="designerDescription"
             value={updateDemoForm.designerDescription}
-            onChange={(e) => setUpdateDemoForm(prev => ({
-              ...prev,
-              designerDescription: e.target.value
-            }))}
+            onChange={(e) =>
+              setUpdateDemoForm((prev) => ({
+                ...prev,
+                designerDescription: e.target.value,
+              }))
+            }
             fullWidth
             margin="normal"
             multiline
@@ -3410,53 +3494,59 @@ const DesignRequests = () => {
           </Typography>
 
           {/* Hiển thị ảnh demo chính hiện tại */}
-          {!updateDemoForm.customDesignImage && mainDemoS3Url && latestDemo?.demoImage && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                Ảnh demo chính hiện tại:
-              </Typography>
-              <Box
-                sx={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 2,
-                  p: 2,
-                  bgcolor: "#f8fafc",
-                  display: "inline-block",
-                }}
-              >
-                {mainDemoS3Url ? (
-                  <img
-                    src={mainDemoS3Url}
-                    alt="Current demo"
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: 200,
-                      borderRadius: 8,
-                      objectFit: "contain",
-                    }}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      width: 200,
-                      height: 200,
-                      bgcolor: "#f3f4f6",
-                      borderRadius: 8,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1px dashed #d1d5db",
-                    }}
-                  >
-                    <CircularProgress size={30} />
-                  </Box>
-                )}
+          {!updateDemoForm.customDesignImage &&
+            mainDemoS3Url &&
+            latestDemo?.demoImage && (
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="body2"
+                  color="textSecondary"
+                  sx={{ mb: 1 }}
+                >
+                  Ảnh demo chính hiện tại:
+                </Typography>
+                <Box
+                  sx={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: "#f8fafc",
+                    display: "inline-block",
+                  }}
+                >
+                  {mainDemoS3Url ? (
+                    <img
+                      src={mainDemoS3Url}
+                      alt="Current demo"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 200,
+                        borderRadius: 8,
+                        objectFit: "contain",
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 200,
+                        height: 200,
+                        bgcolor: "#f3f4f6",
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "1px dashed #d1d5db",
+                      }}
+                    >
+                      <CircularProgress size={30} />
+                    </Box>
+                  )}
+                </Box>
               </Box>
-            </Box>
-          )}
+            )}
 
           {/* Dropzone cho ảnh chính mới */}
           <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
@@ -3532,79 +3622,108 @@ const DesignRequests = () => {
           {demoSubImages && demoSubImages.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                Sub-images hiện tại ({demoSubImages.filter(subImage => !updateDemoForm.subImagesToRemove.includes(subImage.id)).length} ảnh):
+                Sub-images hiện tại (
+                {
+                  demoSubImages.filter(
+                    (subImage) =>
+                      !updateDemoForm.subImagesToRemove.includes(subImage.id)
+                  ).length
+                }{" "}
+                ảnh):
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={1}>
                 {demoSubImages
-                  .filter(subImage => !updateDemoForm.subImagesToRemove.includes(subImage.id))
+                  .filter(
+                    (subImage) =>
+                      !updateDemoForm.subImagesToRemove.includes(subImage.id)
+                  )
                   .map((subImage) => (
-                  <Box
-                    key={subImage.id}
-                    sx={{
-                      position: "relative",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 1,
-                      p: 0.5,
-                      bgcolor: "white",
-                    }}
-                  >
-                    {s3ImageUrls[subImage.id] ? (
-                      <img
-                        src={s3ImageUrls[subImage.id]}
-                        alt={`Sub image ${subImage.id}`}
-                        style={{
-                          width: 80,
-                          height: 80,
-                          objectFit: "cover",
-                          borderRadius: 4,
-                        }}
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: 80,
-                          height: 80,
-                          bgcolor: "#f3f4f6",
-                          borderRadius: 4,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          border: "1px dashed #d1d5db",
-                        }}
-                      >
-                        <CircularProgress size={20} />
-                      </Box>
-                    )}
-                    {/* Nút xóa sub-image */}
-                    <IconButton
-                      size="small"
-                      disabled={updateDemoForm.subImages.length === 0}
+                    <Box
+                      key={subImage.id}
                       sx={{
-                        position: "absolute",
-                        top: -8,
-                        right: -8,
-                        bgcolor: updateDemoForm.subImages.length === 0 ? "#9ca3af" : "error.main",
-                        color: "white",
-                        "&:hover": { 
-                          bgcolor: updateDemoForm.subImages.length === 0 ? "#9ca3af" : "error.dark" 
-                        },
-                        width: 24,
-                        height: 24,
-                        cursor: updateDemoForm.subImages.length === 0 ? "not-allowed" : "pointer",
+                        position: "relative",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 1,
+                        p: 0.5,
+                        bgcolor: "white",
                       }}
-                      onClick={() => handleRemoveCurrentSubImage(subImage.id)}
-                      title={updateDemoForm.subImages.length === 0 ? "Phải thêm ít nhất một sub-image mới để có thể xóa" : "Xóa sub-image này"}
                     >
-                      <DeleteIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </Box>
-                ))}
+                      {s3ImageUrls[subImage.id] ? (
+                        <img
+                          src={s3ImageUrls[subImage.id]}
+                          alt={`Sub image ${subImage.id}`}
+                          style={{
+                            width: 80,
+                            height: 80,
+                            objectFit: "cover",
+                            borderRadius: 4,
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: 80,
+                            height: 80,
+                            bgcolor: "#f3f4f6",
+                            borderRadius: 4,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px dashed #d1d5db",
+                          }}
+                        >
+                          <CircularProgress size={20} />
+                        </Box>
+                      )}
+                      {/* Nút xóa sub-image */}
+                      <IconButton
+                        size="small"
+                        disabled={updateDemoForm.subImages.length === 0}
+                        sx={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          bgcolor:
+                            updateDemoForm.subImages.length === 0
+                              ? "#9ca3af"
+                              : "error.main",
+                          color: "white",
+                          "&:hover": {
+                            bgcolor:
+                              updateDemoForm.subImages.length === 0
+                                ? "#9ca3af"
+                                : "error.dark",
+                          },
+                          width: 24,
+                          height: 24,
+                          cursor:
+                            updateDemoForm.subImages.length === 0
+                              ? "not-allowed"
+                              : "pointer",
+                        }}
+                        onClick={() => handleRemoveCurrentSubImage(subImage.id)}
+                        title={
+                          updateDemoForm.subImages.length === 0
+                            ? "Phải thêm ít nhất một sub-image mới để có thể xóa"
+                            : "Xóa sub-image này"
+                        }
+                      >
+                        <DeleteIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Box>
+                  ))}
               </Box>
-              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: "block" }}>
-                Lưu ý: Nút X sẽ bị disable (màu xám) khi không có sub-images mới nào. Để xóa sub-images hiện tại, bạn phải thêm ít nhất một sub-image mới để thay thế.
+              <Typography
+                variant="caption"
+                color="textSecondary"
+                sx={{ mt: 1, display: "block" }}
+              >
+                Lưu ý: Nút X sẽ bị disable (màu xám) khi không có sub-images mới
+                nào. Để xóa sub-images hiện tại, bạn phải thêm ít nhất một
+                sub-image mới để thay thế.
               </Typography>
             </Box>
           )}
@@ -3644,7 +3763,8 @@ const DesignRequests = () => {
           {updateDemoForm.subImages.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Sub-images mới sẽ được lưu ({updateDemoForm.subImages.length} ảnh):
+                Sub-images mới sẽ được lưu ({updateDemoForm.subImages.length}{" "}
+                ảnh):
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={1}>
                 {/* Hiển thị sub-images mới */}
@@ -3685,15 +3805,18 @@ const DesignRequests = () => {
                     >
                       <DeleteIcon sx={{ fontSize: 14 }} />
                     </IconButton>
-                    <Typography variant="caption" sx={{ 
-                      position: "absolute", 
-                      bottom: -20, 
-                      left: 0, 
-                      right: 0, 
-                      textAlign: "center",
-                      fontSize: "10px",
-                      color: "#d97706"
-                    }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        position: "absolute",
+                        bottom: -20,
+                        left: 0,
+                        right: 0,
+                        textAlign: "center",
+                        fontSize: "10px",
+                        color: "#d97706",
+                      }}
+                    >
                       Mới
                     </Typography>
                   </Box>
@@ -3709,7 +3832,10 @@ const DesignRequests = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseUpdateDemoDialog} disabled={actionLoading}>
+          <Button
+            onClick={handleCloseUpdateDemoDialog}
+            disabled={actionLoading}
+          >
             Hủy
           </Button>
           <Button
@@ -3722,8 +3848,6 @@ const DesignRequests = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-
 
       <Snackbar
         open={notification.open}

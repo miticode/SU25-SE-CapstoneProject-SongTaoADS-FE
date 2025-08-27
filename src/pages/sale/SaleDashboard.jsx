@@ -75,7 +75,6 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Message as MessageIcon,
-  Palette as PaletteIcon,
   People as PeopleIcon,
   SupportAgent as SupportAgentIcon,
   Close as CloseIcon,
@@ -83,7 +82,6 @@ import {
   Info as InfoIcon,
 } from "@mui/icons-material";
 import CustomerRequests from "./CustomerRequests";
-import DesignerChat from "./DesignerChat";
 import DashboardContent from "./DashboardContent";
 import SalesDashboard from "./SalesDashboard";
 import FeedbackList from "../../components/Feedback/FeedbackList";
@@ -98,21 +96,21 @@ const SaleDashboard = () => {
   const navigate = useNavigate();
   const { orders, pagination } = useSelector((state) => state.order);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  
+
   // Notification selectors
   const notifications = useSelector(selectNotifications);
   const roleNotifications = useSelector(selectRoleNotifications);
   const notificationLoading = useSelector(selectNotificationLoading);
   const roleNotificationLoading = useSelector(selectRoleNotificationLoading);
   const unreadCount = useSelector(selectTotalUnreadCount);
-  
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null);
-  
+
   // Notification states
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [alertNotifications, setAlertNotifications] = useState([]);
-  
+
   const [selectedMenu, setSelectedMenu] = useState("sales-dashboard");
   const [openDialog, setOpenDialog] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
@@ -150,10 +148,13 @@ const SaleDashboard = () => {
       await dispatch(markNotificationRead(notification.notificationId));
     }
     handleNotificationMenuClose();
-    
+
     // Navigate based on notification type or content
-    if (notification.type === 'ORDER_STATUS_UPDATE' && notification.userTarget?.orderCode) {
-      setSelectedMenu('dashboard');
+    if (
+      notification.type === "ORDER_STATUS_UPDATE" &&
+      notification.userTarget?.orderCode
+    ) {
+      setSelectedMenu("dashboard");
     }
   };
 
@@ -161,23 +162,31 @@ const SaleDashboard = () => {
   const showAlertNotification = useCallback((notification) => {
     const alertData = {
       id: Date.now() + Math.random(),
-      type: notification.roleTarget ? 'role' : 'user',
-      title: notification.roleTarget ? 'Thông báo vai trò' : 'Thông báo cá nhân',
+      type: notification.roleTarget ? "role" : "user",
+      title: notification.roleTarget
+        ? "Thông báo vai trò"
+        : "Thông báo cá nhân",
       message: notification.message,
-      orderCode: notification.roleTarget?.orderCode || notification.userTarget?.orderCode,
+      orderCode:
+        notification.roleTarget?.orderCode ||
+        notification.userTarget?.orderCode,
       timestamp: notification.createdAt || new Date().toISOString(),
     };
 
-    setAlertNotifications(prev => [...prev, alertData]);
+    setAlertNotifications((prev) => [...prev, alertData]);
 
     // Auto close after 5 seconds
     setTimeout(() => {
-      setAlertNotifications(prev => prev.filter(alert => alert.id !== alertData.id));
+      setAlertNotifications((prev) =>
+        prev.filter((alert) => alert.id !== alertData.id)
+      );
     }, 5000);
   }, []);
 
   const closeAlertNotification = (alertId) => {
-    setAlertNotifications(prev => prev.filter(alert => alert.id !== alertId));
+    setAlertNotifications((prev) =>
+      prev.filter((alert) => alert.id !== alertId)
+    );
   };
 
   // Fetch notifications when user is authenticated
@@ -193,7 +202,7 @@ const SaleDashboard = () => {
     if (!isAuthenticated) {
       // Cleanup socket if user is not authenticated
       if (socketRef.current) {
-        console.log('Disconnecting socket - user not authenticated');
+        console.log("Disconnecting socket - user not authenticated");
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -201,39 +210,41 @@ const SaleDashboard = () => {
     }
 
     if (!socketRef.current) {
-      console.log('Initializing socket connection...');
+      console.log("Initializing socket connection...");
       const token = localStorage.getItem("accessToken");
       if (!token) return;
 
-      const connectionUrl = `${import.meta.env.VITE_SOCKET_URL || 'https://songtaoads.online'}?token=${token}`;
-      
+      const connectionUrl = `${
+        import.meta.env.VITE_SOCKET_URL || "https://songtaoads.online"
+      }?token=${token}`;
+
       socketRef.current = io(connectionUrl, {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       });
 
-      console.log('Connecting to socket:', connectionUrl);
+      console.log("Connecting to socket:", connectionUrl);
 
-      socketRef.current.on('connect', () => {
-        console.log('Socket connected successfully');
+      socketRef.current.on("connect", () => {
+        console.log("Socket connected successfully");
       });
 
-      socketRef.current.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason);
+      socketRef.current.on("disconnect", (reason) => {
+        console.log("Socket disconnected:", reason);
       });
 
-      socketRef.current.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
+      socketRef.current.on("connect_error", (error) => {
+        console.error("Socket connection error:", error);
       });
 
       // Listen for role-based notifications
-      socketRef.current.on('role_notification', (data) => {
-        console.log('Role notification received:', data);
-        
+      socketRef.current.on("role_notification", (data) => {
+        console.log("Role notification received:", data);
+
         const newNotification = {
           notificationId: data.notificationId || Date.now(),
-          type: data.type || 'GENERAL',
+          type: data.type || "GENERAL",
           message: data.message,
           isRead: false,
           createdAt: data.timestamp || new Date().toISOString(),
@@ -243,26 +254,26 @@ const SaleDashboard = () => {
 
         // Add to Redux store for ROLE notifications
         dispatch(addRoleNotificationRealtime(newNotification));
-        
+
         // Show alert notification
         showAlertNotification(newNotification);
-        
+
         // Show browser notification if supported
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Thông báo vai trò', {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Thông báo vai trò", {
             body: data.message,
-            icon: '/favicon.ico'
+            icon: "/favicon.ico",
           });
         }
       });
 
       // Listen for user-specific notifications
-      socketRef.current.on('user_notification', (data) => {
-        console.log('User notification received:', data);
-        
+      socketRef.current.on("user_notification", (data) => {
+        console.log("User notification received:", data);
+
         const newNotification = {
           notificationId: data.notificationId || Date.now(),
-          type: data.type || 'GENERAL',
+          type: data.type || "GENERAL",
           message: data.message,
           isRead: false,
           createdAt: data.timestamp || new Date().toISOString(),
@@ -272,28 +283,28 @@ const SaleDashboard = () => {
 
         // Add to Redux store
         dispatch(addNotificationRealtime(newNotification));
-        
+
         // Show alert notification
         showAlertNotification(newNotification);
-        
+
         // Show browser notification if supported
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Thông báo cá nhân', {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Thông báo cá nhân", {
             body: data.message,
-            icon: '/favicon.ico'
+            icon: "/favicon.ico",
           });
         }
       });
 
-      socketRef.current.on('reconnect', (attemptNumber) => {
-        console.log('Socket reconnected after', attemptNumber, 'attempts');
+      socketRef.current.on("reconnect", (attemptNumber) => {
+        console.log("Socket reconnected after", attemptNumber, "attempts");
       });
     }
 
     // Cleanup function
     return () => {
       if (socketRef.current) {
-        console.log('Cleaning up socket connection...');
+        console.log("Cleaning up socket connection...");
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -302,9 +313,9 @@ const SaleDashboard = () => {
 
   // Request notification permission when component mounts
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().then((permission) => {
-        console.log('Notification permission:', permission);
+        console.log("Notification permission:", permission);
       });
     }
   }, []);
@@ -322,11 +333,13 @@ const SaleDashboard = () => {
 
   useEffect(() => {
     // Lấy tất cả đơn hàng AI khi load trang (không filter theo trạng thái)
-    dispatch(fetchOrders({
-      orderType: "AI_DESIGN",
-      page: 1,
-      size: pagination.pageSize || 10
-    }));
+    dispatch(
+      fetchOrders({
+        orderType: "AI_DESIGN",
+        page: 1,
+        size: pagination.pageSize || 10,
+      })
+    );
   }, [dispatch, pagination.pageSize]);
 
   // Hàm gọi API lấy chi tiết đơn hàng
@@ -346,18 +359,22 @@ const SaleDashboard = () => {
       if (res.success) {
         // Refresh orders list with current filter for AI orders only
         if (statusFilter) {
-          dispatch(fetchOrders({
-            orderStatus: statusFilter,
-            orderType: "AI_DESIGN",
-            page: 1,
-            size: 10
-          }));
+          dispatch(
+            fetchOrders({
+              orderStatus: statusFilter,
+              orderType: "AI_DESIGN",
+              page: 1,
+              size: 10,
+            })
+          );
         } else {
-          dispatch(fetchOrders({
-            orderType: "AI_DESIGN",
-            page: 1,
-            size: 10
-          }));
+          dispatch(
+            fetchOrders({
+              orderType: "AI_DESIGN",
+              page: 1,
+              size: 10,
+            })
+          );
         }
         // Close dialog
         handleCloseDialog();
@@ -376,47 +393,40 @@ const SaleDashboard = () => {
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
 
   const menuItems = [
-    { 
-      id: "sales-dashboard", 
-      label: "Dashboard", 
+    {
+      id: "sales-dashboard",
+      label: "Dashboard",
       icon: <DashboardIcon />,
       color: "#e91e63",
-      description: "Thống kê tổng quan bán hàng"
+      description: "Thống kê tổng quan bán hàng",
     },
-    { 
-      id: "dashboard", 
-      label: "Đơn hàng thiết kế AI", 
+    {
+      id: "dashboard",
+      label: "Đơn hàng thiết kế AI",
       icon: <DashboardIcon />,
       color: "#1976d2",
-      description: "Quản lý đơn hàng thiết kế AI"
+      description: "Quản lý đơn hàng thiết kế AI",
     },
     {
       id: "customers",
       label: "Đơn hàng thiết kế thủ công",
       icon: <CustomerIcon />,
       color: "#2196f3",
-      description: "Quản lý đơn hàng thiết kế thủ công"
+      description: "Quản lý đơn hàng thiết kế thủ công",
     },
-    { 
-      id: "designer", 
-      label: "Quản lí thiết kế", 
-      icon: <PaletteIcon />,
-      color: "#4caf50",
-      description: "Chat với designer"
-    },
-    { 
-      id: "feedback", 
-      label: "Feedback", 
+    {
+      id: "feedback",
+      label: "Feedback",
       icon: <MoneyIcon />,
       color: "#9c27b0",
-      description: "Quản lý phản hồi khách hàng"
+      description: "Quản lý phản hồi khách hàng",
     },
-    { 
-      id: "ticket", 
-      label: "Hỗ trợ", 
+    {
+      id: "ticket",
+      label: "Hỗ trợ",
       icon: <SupportAgentIcon />,
       color: "#f44336",
-      description: "Hỗ trợ khách hàng"
+      description: "Hỗ trợ khách hàng",
     },
   ];
 
@@ -424,72 +434,88 @@ const SaleDashboard = () => {
   const handleStatusFilterChange = (status) => {
     setStatusFilter(status);
     if (status) {
-      dispatch(fetchOrders({
-        orderStatus: status,
-        orderType: "AI_DESIGN",
-        page: 1,
-        size: pagination.pageSize || 10
-      }));
+      dispatch(
+        fetchOrders({
+          orderStatus: status,
+          orderType: "AI_DESIGN",
+          page: 1,
+          size: pagination.pageSize || 10,
+        })
+      );
     } else {
-      dispatch(fetchOrders({
-        orderType: "AI_DESIGN",
-        page: 1,
-        size: pagination.pageSize || 10
-      }));
+      dispatch(
+        fetchOrders({
+          orderType: "AI_DESIGN",
+          page: 1,
+          size: pagination.pageSize || 10,
+        })
+      );
     }
   };
 
   // Hàm refresh danh sách orders
   const handleRefreshOrders = () => {
     if (statusFilter) {
-      dispatch(fetchOrders({
-        orderStatus: statusFilter,
-        orderType: "AI_DESIGN",
-        page: pagination.currentPage || 1,
-        size: pagination.pageSize || 10
-      }));
+      dispatch(
+        fetchOrders({
+          orderStatus: statusFilter,
+          orderType: "AI_DESIGN",
+          page: pagination.currentPage || 1,
+          size: pagination.pageSize || 10,
+        })
+      );
     } else {
-      dispatch(fetchOrders({
-        orderType: "AI_DESIGN",
-        page: pagination.currentPage || 1,
-        size: pagination.pageSize || 10
-      }));
+      dispatch(
+        fetchOrders({
+          orderType: "AI_DESIGN",
+          page: pagination.currentPage || 1,
+          size: pagination.pageSize || 10,
+        })
+      );
     }
   };
 
   // Callback khi thay đổi trang
   const handlePageChange = (newPage) => {
     if (statusFilter) {
-      dispatch(fetchOrders({
-        orderStatus: statusFilter,
-        orderType: "AI_DESIGN", 
-        page: newPage,
-        size: pagination.pageSize || 10
-      }));
+      dispatch(
+        fetchOrders({
+          orderStatus: statusFilter,
+          orderType: "AI_DESIGN",
+          page: newPage,
+          size: pagination.pageSize || 10,
+        })
+      );
     } else {
-      dispatch(fetchOrders({
-        orderType: "AI_DESIGN",
-        page: newPage,
-        size: pagination.pageSize || 10
-      }));
+      dispatch(
+        fetchOrders({
+          orderType: "AI_DESIGN",
+          page: newPage,
+          size: pagination.pageSize || 10,
+        })
+      );
     }
   };
 
   // Callback khi thay đổi số dòng mỗi trang
   const handleRowsPerPageChange = (newSize) => {
     if (statusFilter) {
-      dispatch(fetchOrders({
-        orderStatus: statusFilter,
-        orderType: "AI_DESIGN",
-        page: 1, // Reset về trang đầu khi thay đổi page size
-        size: newSize
-      }));
+      dispatch(
+        fetchOrders({
+          orderStatus: statusFilter,
+          orderType: "AI_DESIGN",
+          page: 1, // Reset về trang đầu khi thay đổi page size
+          size: newSize,
+        })
+      );
     } else {
-      dispatch(fetchOrders({
-        orderType: "AI_DESIGN",
-        page: 1,
-        size: newSize
-      }));
+      dispatch(
+        fetchOrders({
+          orderType: "AI_DESIGN",
+          page: 1,
+          size: newSize,
+        })
+      );
     }
   };
 
@@ -505,12 +531,6 @@ const SaleDashboard = () => {
         return (
           <ErrorBoundary>
             <CustomerRequests />
-          </ErrorBoundary>
-        );
-      case "designer":
-        return (
-          <ErrorBoundary>
-            <DesignerChat />
           </ErrorBoundary>
         );
       case "feedback":
@@ -555,7 +575,8 @@ const SaleDashboard = () => {
         sx={{
           p: 0,
           minHeight: "64px !important",
-          background: "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
+          background:
+            "linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%)",
         }}
       >
         <Box
@@ -684,18 +705,22 @@ const SaleDashboard = () => {
       if (res.success) {
         // Refresh AI orders list with current filter
         if (statusFilter) {
-          dispatch(fetchOrders({
-            orderStatus: statusFilter,
-            orderType: "AI_DESIGN",
-            page: 1,
-            size: 10
-          }));
+          dispatch(
+            fetchOrders({
+              orderStatus: statusFilter,
+              orderType: "AI_DESIGN",
+              page: 1,
+              size: 10,
+            })
+          );
         } else {
-          dispatch(fetchOrders({
-            orderType: "AI_DESIGN",
-            page: 1,
-            size: 10
-          }));
+          dispatch(
+            fetchOrders({
+              orderType: "AI_DESIGN",
+              page: 1,
+              size: 10,
+            })
+          );
         }
         handleCloseDialog();
       } else {
@@ -714,18 +739,22 @@ const SaleDashboard = () => {
       if (res.success) {
         // Refresh AI orders list with current filter
         if (statusFilter) {
-          dispatch(fetchOrders({
-            orderStatus: statusFilter,
-            orderType: "AI_DESIGN",
-            page: 1,
-            size: 10
-          }));
+          dispatch(
+            fetchOrders({
+              orderStatus: statusFilter,
+              orderType: "AI_DESIGN",
+              page: 1,
+              size: 10,
+            })
+          );
         } else {
-          dispatch(fetchOrders({
-            orderType: "AI_DESIGN",
-            page: 1,
-            size: 10
-          }));
+          dispatch(
+            fetchOrders({
+              orderType: "AI_DESIGN",
+              page: 1,
+              size: 10,
+            })
+          );
         }
         setShowDeliveryPicker(false);
         setOpenDialog(false);
@@ -777,8 +806,8 @@ const SaleDashboard = () => {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ 
-              mr: 2, 
+            sx={{
+              mr: 2,
               display: { sm: "none" },
               backgroundColor: "rgba(255, 255, 255, 0.1)",
               "&:hover": {
@@ -816,8 +845,8 @@ const SaleDashboard = () => {
               }}
             />
           </Box>
-          <IconButton 
-            color="inherit" 
+          <IconButton
+            color="inherit"
             onClick={handleNotificationMenuOpen}
             sx={{
               mr: 2,
@@ -829,8 +858,8 @@ const SaleDashboard = () => {
               transition: "all 0.3s ease",
             }}
           >
-            <Badge 
-              badgeContent={unreadCount} 
+            <Badge
+              badgeContent={unreadCount}
               color="error"
               sx={{
                 "& .MuiBadge-badge": {
@@ -849,12 +878,12 @@ const SaleDashboard = () => {
             anchorEl={notificationAnchorEl}
             onClose={handleNotificationMenuClose}
             anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
+              vertical: "bottom",
+              horizontal: "right",
             }}
             transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
+              vertical: "top",
+              horizontal: "right",
             }}
             sx={{
               mt: 1,
@@ -863,24 +892,30 @@ const SaleDashboard = () => {
                 width: 380,
                 maxHeight: 500,
                 background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                boxShadow:
+                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
                 border: "1px solid rgba(0, 0, 0, 0.1)",
               },
             }}
           >
             <Box sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: "#1e293b", fontWeight: 600 }}>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: "#1e293b", fontWeight: 600 }}
+              >
                 Thông báo
               </Typography>
-              
-              {(notificationLoading || roleNotificationLoading) ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+
+              {notificationLoading || roleNotificationLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
                   <CircularProgress size={24} />
                 </Box>
               ) : (
-                <Box sx={{ maxHeight: 350, overflowY: 'auto' }}>
+                <Box sx={{ maxHeight: 350, overflowY: "auto" }}>
                   {[...notifications, ...roleNotifications]
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .sort(
+                      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+                    )
                     .slice(0, 10)
                     .map((notification, index) => (
                       <Box
@@ -890,23 +925,33 @@ const SaleDashboard = () => {
                           p: 2,
                           mb: 1,
                           borderRadius: "12px",
-                          backgroundColor: notification.isRead ? "#f8fafc" : "#e0f2fe",
-                          border: notification.isRead ? "1px solid #e2e8f0" : "1px solid #0891b2",
+                          backgroundColor: notification.isRead
+                            ? "#f8fafc"
+                            : "#e0f2fe",
+                          border: notification.isRead
+                            ? "1px solid #e2e8f0"
+                            : "1px solid #0891b2",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
                           "&:hover": {
-                            backgroundColor: notification.isRead ? "#f1f5f9" : "#b3e5fc",
+                            backgroundColor: notification.isRead
+                              ? "#f1f5f9"
+                              : "#b3e5fc",
                             transform: "translateY(-1px)",
                             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                           },
                         }}
                       >
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
                           <Box sx={{ mr: 2, mt: 0.5 }}>
                             {notification.roleTarget ? (
-                              <InfoIcon sx={{ color: "#0891b2", fontSize: 20 }} />
+                              <InfoIcon
+                                sx={{ color: "#0891b2", fontSize: 20 }}
+                              />
                             ) : (
-                              <CheckCircleIcon sx={{ color: "#059669", fontSize: 20 }} />
+                              <CheckCircleIcon
+                                sx={{ color: "#059669", fontSize: 20 }}
+                              />
                             )}
                           </Box>
                           <Box sx={{ flexGrow: 1 }}>
@@ -920,9 +965,13 @@ const SaleDashboard = () => {
                             >
                               {notification.message}
                             </Typography>
-                            {(notification.roleTarget?.orderCode || notification.userTarget?.orderCode) && (
+                            {(notification.roleTarget?.orderCode ||
+                              notification.userTarget?.orderCode) && (
                               <Chip
-                                label={`Đơn hàng: ${notification.roleTarget?.orderCode || notification.userTarget?.orderCode}`}
+                                label={`Đơn hàng: ${
+                                  notification.roleTarget?.orderCode ||
+                                  notification.userTarget?.orderCode
+                                }`}
                                 size="small"
                                 sx={{
                                   backgroundColor: "#e0f2fe",
@@ -932,20 +981,31 @@ const SaleDashboard = () => {
                                 }}
                               />
                             )}
-                            <Typography variant="caption" sx={{ color: "#64748b" }}>
-                              {new Date(notification.createdAt).toLocaleString('vi-VN')}
+                            <Typography
+                              variant="caption"
+                              sx={{ color: "#64748b" }}
+                            >
+                              {new Date(notification.createdAt).toLocaleString(
+                                "vi-VN"
+                              )}
                             </Typography>
                           </Box>
                           {!notification.isRead && (
-                            <CircleIcon sx={{ color: "#0891b2", fontSize: 8, ml: 1, mt: 1 }} />
+                            <CircleIcon
+                              sx={{
+                                color: "#0891b2",
+                                fontSize: 8,
+                                ml: 1,
+                                mt: 1,
+                              }}
+                            />
                           )}
                         </Box>
                       </Box>
-                    ))
-                  }
-                  
+                    ))}
+
                   {[...notifications, ...roleNotifications].length === 0 && (
-                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <Box sx={{ textAlign: "center", py: 3 }}>
                       <Typography variant="body2" color="text.secondary">
                         Không có thông báo nào
                       </Typography>
@@ -955,9 +1015,9 @@ const SaleDashboard = () => {
               )}
             </Box>
           </Popover>
-          <IconButton 
-            onClick={handleAvatarClick} 
-            sx={{ 
+          <IconButton
+            onClick={handleAvatarClick}
+            sx={{
               ml: 1,
               p: 0.5,
               "&:hover": {
@@ -966,8 +1026,8 @@ const SaleDashboard = () => {
               transition: "all 0.3s ease",
             }}
           >
-            <Avatar 
-              sx={{ 
+            <Avatar
+              sx={{
                 width: 45,
                 height: 45,
                 background: "linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)",
@@ -1001,7 +1061,7 @@ const SaleDashboard = () => {
               },
             }}
           >
-            <MenuItem 
+            <MenuItem
               onClick={handleLogout}
               sx={{
                 color: "#ffcccb",
@@ -1083,9 +1143,7 @@ const SaleDashboard = () => {
         }}
       >
         <Toolbar sx={{ minHeight: "70px !important" }} />
-        <Box sx={{ position: "relative", zIndex: 1 }}>
-          {renderContent()}
-        </Box>
+        <Box sx={{ position: "relative", zIndex: 1 }}>{renderContent()}</Box>
       </Box>
 
       {/* Order Detail Dialog */}
@@ -1223,13 +1281,13 @@ const SaleDashboard = () => {
                     <Typography>
                       <b>Ngày tạo:</b>{" "}
                       {selectedOrder.users?.createdAt
-                        ? new Date(selectedOrder.users.createdAt).toLocaleDateString(
-                            "vi-VN"
-                          )
+                        ? new Date(
+                            selectedOrder.users.createdAt
+                          ).toLocaleDateString("vi-VN")
                         : selectedOrder.users?.updatedAt
-                        ? new Date(selectedOrder.users.updatedAt).toLocaleDateString(
-                            "vi-VN"
-                          )
+                        ? new Date(
+                            selectedOrder.users.updatedAt
+                          ).toLocaleDateString("vi-VN")
                         : "N/A"}
                     </Typography>
                   </Box>
@@ -1323,16 +1381,17 @@ const SaleDashboard = () => {
         {alertNotifications.map((alert) => (
           <Alert
             key={alert.id}
-            severity={alert.type === 'role' ? 'info' : 'success'}
+            severity={alert.type === "role" ? "info" : "success"}
             onClose={() => closeAlertNotification(alert.id)}
             sx={{
               width: 350,
               borderRadius: "12px",
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
               backdropFilter: "blur(10px)",
-              border: alert.type === 'role' 
-                ? "1px solid rgba(33, 150, 243, 0.3)" 
-                : "1px solid rgba(76, 175, 80, 0.3)",
+              border:
+                alert.type === "role"
+                  ? "1px solid rgba(33, 150, 243, 0.3)"
+                  : "1px solid rgba(76, 175, 80, 0.3)",
               animation: "slideInRight 0.3s ease-out",
               "@keyframes slideInRight": {
                 from: {
