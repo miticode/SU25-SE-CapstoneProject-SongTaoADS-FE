@@ -152,7 +152,7 @@ const statusMap = {
   DESIGN_COMPLETED: { label: "Thiết kế hoàn thành", color: "success" },
   PENDING_CONTRACT: { label: "Đang chờ hợp đồng", color: "warning" },
   CONTRACT_SENT: { label: "Hợp đồng đã được gửi", color: "info" },
-  CONTRACT_SIGNED: { label: "Hợp đồng đã ký", color: "success" },
+  CONTRACT_SIGNED: { label: "Đã ký hợp đồng", color: "success" },
   CONTRACT_DISCUSS: { label: "Chờ thương lượng hợp đồng", color: "warning" },
   CONTRACT_RESIGNED: { label: "Yêu cầu gửi lại hợp đồng", color: "warning" },
   CONTRACT_CONFIRMED: { label: "Đã xác nhận hợp đồng", color: "success" },
