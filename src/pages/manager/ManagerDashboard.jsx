@@ -153,14 +153,19 @@ const ManagerDashboard = () => {
 
   // Fetch dashboard data on component mount
   useEffect(() => {
-    dispatch(fetchStaffDashboard());
-    // Fetch orders stats for initial time filter
+    // build date range for staff dashboard (reuse current dateRange state)
+    const endISO = new Date(dateRange.end + 'T23:59:59.999Z').toISOString();
+    const startISO = new Date(dateRange.start + 'T00:00:00.000Z').toISOString();
+    dispatch(fetchStaffDashboard({ startDate: startISO, endDate: endISO }));
+    // Fetch orders stats for initial / changed time filter
     fetchOrdersStatsForTimeFilter(timeFilter);
-  }, [dispatch, timeFilter, fetchOrdersStatsForTimeFilter]);
+  }, [dispatch, timeFilter, fetchOrdersStatsForTimeFilter, dateRange.start, dateRange.end]);
 
   // Handle refresh dashboard data
   const handleRefreshDashboard = () => {
-    dispatch(fetchStaffDashboard());
+    const endISO = new Date(dateRange.end + 'T23:59:59.999Z').toISOString();
+    const startISO = new Date(dateRange.start + 'T00:00:00.000Z').toISOString();
+    dispatch(fetchStaffDashboard({ startDate: startISO, endDate: endISO }));
     fetchOrdersStatsForTimeFilter(timeFilter);
   };
 
@@ -242,7 +247,7 @@ const ManagerDashboard = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div>
             <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
-              📊 Manager Dashboard
+               Manager Dashboard
             </Typography>
             <Typography variant="body1" className="!text-gray-600">
               Tổng quan quản lý và theo dõi hiệu suất
@@ -446,122 +451,9 @@ const ManagerDashboard = () => {
         </Box>
       </Popover>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-        {/* Đơn hàng đang sản xuất */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-              <TasksIcon className="!text-orange-600" />
-            </div>
-            {dashboardStatus === 'loading' && (
-              <CircularProgress size={20} className="!text-orange-600" />
-            )}
-          </div>
-          <div className="space-y-2">
-            <Typography variant="h4" className="!font-bold !text-orange-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.totalProducingOrder?.toLocaleString() || '0'}
-            </Typography>
-            <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Đơn hàng đang sản xuất
-            </Typography>
-          </div>
-          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-orange-50 rounded-full opacity-20"></div>
-        </div>
-
-        {/* Đơn hàng hoàn thành sản xuất */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <ShippingIcon className="!text-blue-600" />
-            </div>
-            {dashboardStatus === 'loading' && (
-              <CircularProgress size={20} className="!text-blue-600" />
-            )}
-          </div>
-          <div className="space-y-2">
-            <Typography variant="h4" className="!font-bold !text-blue-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.totalProductionCompletedOrder?.toLocaleString() || '0'}
-            </Typography>
-            <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Đơn hàng hoàn thành sản xuất
-            </Typography>
-          </div>
-          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-blue-50 rounded-full opacity-20"></div>
-        </div>
-
-        {/* Đơn hàng đang giao */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <ShippingIcon className="!text-purple-600" />
-            </div>
-            {dashboardStatus === 'loading' && (
-              <CircularProgress size={20} className="!text-purple-600" />
-            )}
-          </div>
-          <div className="space-y-2">
-            <Typography variant="h4" className="!font-bold !text-purple-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.totalDeliveringOrder?.toLocaleString() || '0'}
-            </Typography>
-            <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Đơn hàng đang giao
-            </Typography>
-          </div>
-          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-purple-50 rounded-full opacity-20"></div>
-        </div>
-
-        {/* Đơn hàng đã lắp đặt */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-              <CompletedIcon className="!text-emerald-600" />
-            </div>
-            {dashboardStatus === 'loading' && (
-              <CircularProgress size={20} className="!text-emerald-600" />
-            )}
-          </div>
-          <div className="space-y-2">
-            <Typography variant="h4" className="!font-bold !text-emerald-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.totalInstalledOrder?.toLocaleString() || '0'}
-            </Typography>
-            <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Đơn hàng đã lắp đặt
-            </Typography>
-          </div>
-          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-emerald-50 rounded-full opacity-20"></div>
-        </div>
-      </div>
-
       {/* Additional Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-        {/* Tổng đơn hàng */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-blue-500"></div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <TasksIcon className="!text-indigo-600" />
-            </div>
-            {dashboardStatus === 'loading' && (
-              <CircularProgress size={20} className="!text-indigo-600" />
-            )}
-          </div>
-          <div className="space-y-2">
-            <Typography variant="h4" className="!font-bold !text-indigo-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.totalOrder?.toLocaleString() || '0'}
-            </Typography>
-            <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Tổng đơn hàng
-            </Typography>
-          </div>
-          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-indigo-50 rounded-full opacity-20"></div>
-        </div>
-
-        {/* Loại sản phẩm */}
+        {/* Tổng loại SP */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-rose-500"></div>
           <div className="flex items-center justify-between mb-4">
@@ -579,11 +471,13 @@ const ManagerDashboard = () => {
             <Typography variant="body2" className="!text-gray-600 !font-medium">
               Loại sản phẩm
             </Typography>
+            <Typography variant="caption" className="!text-gray-500 !block">Active: {dashboardData.totalProductTypeActive ?? 0}</Typography>
+            <Typography variant="caption" className="!text-gray-500 !block">Dùng AI: {dashboardData.totalProductTypeUsingAI ?? 0}</Typography>
           </div>
           <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-pink-50 rounded-full opacity-20"></div>
         </div>
 
-        {/* Nhà thầu */}
+        {/* Thuộc tính */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-cyan-500"></div>
           <div className="flex items-center justify-between mb-4">
@@ -596,16 +490,42 @@ const ManagerDashboard = () => {
           </div>
           <div className="space-y-2">
             <Typography variant="h4" className="!font-bold !text-teal-600">
-              {dashboardStatus === 'loading' ? '...' : dashboardData.totalContractor?.toLocaleString() || '0'}
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalAttribute?.toLocaleString() || '0'}
             </Typography>
             <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Tổng nhà thầu
+              Thuộc tính
             </Typography>
+            <Typography variant="caption" className="!text-gray-500 !block">Active: {dashboardData.totalAttributeActive ?? 0}</Typography>
+            <Typography variant="caption" className="!text-gray-500 !block">Giá trị: {dashboardData.totalAttributeValue ?? 0} (Active {dashboardData.totalAttributeValueActive ?? 0})</Typography>
           </div>
           <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-teal-50 rounded-full opacity-20"></div>
         </div>
 
-        {/* Doanh thu */}
+        {/* Nhà thầu */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-blue-500"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+              <TasksIcon className="!text-indigo-600" />
+            </div>
+            {dashboardStatus === 'loading' && (
+              <CircularProgress size={20} className="!text-indigo-600" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Typography variant="h4" className="!font-bold !text-indigo-600">
+              {dashboardStatus === 'loading' ? '...' : dashboardData.totalContractor?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2" className="!text-gray-600 !font-medium">
+              Nhà thầu
+            </Typography>
+            <Typography variant="caption" className="!text-gray-500 !block">Active: {dashboardData.totalContractorActive ?? 0}</Typography>
+            <Typography variant="caption" className="!text-gray-500 !block">Internal: {dashboardData.totalContactorInternal ?? 0} / External: {dashboardData.totalContractorExternal ?? 0}</Typography>
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-indigo-50 rounded-full opacity-20"></div>
+        </div>
+
+        {/* Resources (Cost Types, Design Templates, Backgrounds, Chatbot Models) */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-500"></div>
           <div className="flex items-center justify-between mb-4">
@@ -616,13 +536,18 @@ const ManagerDashboard = () => {
               <CircularProgress size={20} className="!text-yellow-600" />
             )}
           </div>
-          <div className="space-y-2">
-            <Typography variant="h4" className="!font-bold !text-yellow-600">
-              {dashboardStatus === 'loading' ? '...' : (dashboardData.totalRevenue?.toLocaleString() || '0') + ' VNĐ'}
+          <div className="space-y-2 text-[12px] leading-tight">
+            <Typography variant="body2" className="!text-gray-700 !font-semibold">
+              Nguồn lực / Tài nguyên
             </Typography>
-            <Typography variant="body2" className="!text-gray-600 !font-medium">
-              Tổng doanh thu
-            </Typography>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <span>Cost types: <strong>{dashboardData.totalCostType ?? 0}</strong> ({dashboardData.totalCostTypeActive ?? 0} active)</span>
+              <span>Templates: <strong>{dashboardData.totalDesignTemplate ?? 0}</strong> ({dashboardData.totalDesignTemplateActive ?? 0} active)</span>
+              <span>Backgrounds: <strong>{dashboardData.totalBackground ?? 0}</strong> ({dashboardData.totalBackgroundActive ?? 0} active)</span>
+              <span>ChatBot Models: <strong>{dashboardData.totalModelChatBot ?? 0}</strong></span>
+              <span>Topics: <strong>{dashboardData.totalTopic ?? 0}</strong></span>
+              <span>Questions: <strong>{dashboardData.totalQuestion ?? 0}</strong></span>
+            </div>
           </div>
           <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-yellow-50 rounded-full opacity-20"></div>
         </div>

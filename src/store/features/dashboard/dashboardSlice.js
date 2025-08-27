@@ -164,12 +164,12 @@ const initialState = {
   paymentsStatsLastUpdated: null
 };
 
-// Async thunk for fetching staff dashboard data
+// Async thunk for fetching staff dashboard data (updated to pass date range)
 export const fetchStaffDashboard = createAsyncThunk(
   'dashboard/fetchStaffDashboard',
-  async (_, { rejectWithValue }) => {
+  async ({ startDate, endDate } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetchStaffDashboardApi();
+      const response = await fetchStaffDashboardApi(startDate, endDate);
 
       if (!response.success) {
         return rejectWithValue(response.error || 'Failed to fetch staff dashboard');
@@ -493,7 +493,8 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchStaffDashboard.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.staffDashboard = action.payload;
+        // Merge to preserve missing legacy keys (set to previous or 0)
+        state.staffDashboard = { ...state.staffDashboard, ...action.payload };
         state.lastUpdated = new Date().toISOString();
         state.error = null;
       })

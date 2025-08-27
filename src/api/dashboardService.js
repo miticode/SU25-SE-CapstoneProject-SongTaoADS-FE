@@ -34,17 +34,20 @@ dashboardService.interceptors.request.use(
   }
 );
 
-// API to fetch staff dashboard data
-export const fetchStaffDashboardApi = async () => {
+// API to fetch staff dashboard data (updated: POST with date range body)
+export const fetchStaffDashboardApi = async (startDate, endDate) => {
   try {
-    const response = await dashboardService.get('/api/dashboard/staff');
+    // fallback: last 7 days if not provided
+    const now = new Date();
+    const defaultEnd = endDate || now.toISOString();
+    const defaultStart = startDate || new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    const body = { start: defaultStart, end: defaultEnd };
+    const response = await dashboardService.post('/api/dashboard/staff', body);
     const { success, result, message } = response.data;
-
     if (success) {
       return { success: true, data: result };
     }
-
     return { success: false, error: message || 'Invalid response format' };
   } catch (error) {
     console.error('Error fetching staff dashboard:', error);
