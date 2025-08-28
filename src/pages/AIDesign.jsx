@@ -10,7 +10,6 @@ import ProductTypeSelection from "../components/AIDesign/ProductTypeSelection";
 import BillboardInfoForm from "../components/AIDesign/BillboardInfoForm";
 import TemplateBackgroundSelection from "../components/AIDesign/TemplateBackgroundSelection";
 import DesignPreview from "../components/AIDesign/DesignPreview";
-
 import DesignEditor from "../components/AIDesign/DesignEditor";
 import {
   TextField,
@@ -3586,86 +3585,19 @@ const AIDesign = () => {
     }
   };
 
-  // ✅ Layout 1: Thông tin ở góc trái trên
-  const applyLayout1 = () => {
-    if (!fabricCanvas) {
-      console.log("Canvas not available");
-      return;
-    }
-
-    // Clear existing business info objects
-    clearBusinessInfo();
-
-    const canvasWidth = fabricCanvas.width;
-    const canvasHeight = fabricCanvas.height;
-    const canvasSize = Math.max(canvasWidth, canvasHeight);
-    const baseScaleFactor = canvasSize / 1000;
-
-    // Calculate sizes
-    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
-    const companyNameSize = Math.min(Math.max(28 * baseScaleFactor * fontScaleFactor, 18), canvasSize * 0.08);
-    const addressSize = Math.min(Math.max(18 * baseScaleFactor * fontScaleFactor, 14), canvasSize * 0.05);
-    const contactSize = Math.min(Math.max(16 * baseScaleFactor * fontScaleFactor, 12), canvasSize * 0.04);
-    const logoSize = Math.min(Math.max(120 * baseScaleFactor * fontScaleFactor, 80), canvasSize * 0.25);
-
-    const margin = canvasWidth * 0.05;
-    let currentY = canvasHeight * 0.05;
-
-    // Add logo first (top-left)
-    if (businessPresets.logoUrl) {
-      addLogoAtPosition(margin, currentY, logoSize, "layout1-logo");
-      currentY += logoSize + 20;
-    }
-
-    // Add company name
-    if (businessPresets.companyName) {
-      const companyText = new fabric.Text(businessPresets.companyName, {
-        left: margin,
-        top: currentY,
-        fontFamily: "Arial",
-        fontSize: Math.round(companyNameSize),
-        fill: "#000000",
-        fontWeight: "bold",
-        name: "layout1-companyName",
-      });
-      fabricCanvas.add(companyText);
-      currentY += companyNameSize * 1.5;
-    }
-
-    // Add address
-    if (businessPresets.address) {
-      const addressText = new fabric.Text(businessPresets.address, {
-        left: margin,
-        top: currentY,
-        fontFamily: "Arial",
-        fontSize: Math.round(addressSize),
-        fill: "#666666",
-        fontStyle: "italic",
-        name: "layout1-address",
-      });
-      fabricCanvas.add(addressText);
-      currentY += addressSize * 1.5;
-    }
-
-    // Add contact info
-    if (businessPresets.contactInfo) {
-      const contactText = new fabric.Text(businessPresets.contactInfo, {
-        left: margin,
-        top: currentY,
-        fontFamily: "Arial",
-        fontSize: Math.round(contactSize),
-        fill: "#333333",
-        name: "layout1-contactInfo",
-      });
-      fabricCanvas.add(contactText);
-    }
-
-    fabricCanvas.renderAll();
-    console.log("Applied Layout 1: Top-left arrangement");
+  // === Orientation helpers ===
+  const getSimpleOrientation = () => {
+    if (!fabricCanvas) return 'landscape';
+    const w = fabricCanvas.width;
+    const h = fabricCanvas.height;
+    const r = w / h;
+    if (r > 1.15) return 'landscape';
+    if (r < 0.85) return 'portrait';
+    return 'square';
   };
 
-  // ✅ Layout 2: Thông tin ở góc phải dưới
-  const applyLayout2 = () => {
+  // ================= LANDSCAPE VARIANTS (base: previous adaptive version) =================
+  const applyLayoutLandscape1 = () => {
     if (!fabricCanvas) {
       console.log("Canvas not available");
       return;
@@ -3673,80 +3605,109 @@ const AIDesign = () => {
 
     // Clear existing business info objects
     clearBusinessInfo();
-
-    const canvasWidth = fabricCanvas.width;
-    const canvasHeight = fabricCanvas.height;
-    const canvasSize = Math.max(canvasWidth, canvasHeight);
-    const baseScaleFactor = canvasSize / 1000;
-
-    // Calculate sizes
-    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
-    const companyNameSize = Math.min(Math.max(28 * baseScaleFactor * fontScaleFactor, 18), canvasSize * 0.08);
-    const addressSize = Math.min(Math.max(18 * baseScaleFactor * fontScaleFactor, 14), canvasSize * 0.05);
-    const contactSize = Math.min(Math.max(16 * baseScaleFactor * fontScaleFactor, 12), canvasSize * 0.04);
-    const logoSize = Math.min(Math.max(120 * baseScaleFactor * fontScaleFactor, 80), canvasSize * 0.25);
-
-    const margin = canvasWidth * 0.05;
-    let currentY = canvasHeight - margin;
-
-    // Add contact info first (bottom-right)
-    if (businessPresets.contactInfo) {
-      const contactText = new fabric.Text(businessPresets.contactInfo, {
-        left: canvasWidth - margin,
-        top: currentY - contactSize,
-        fontFamily: "Arial",
-        fontSize: Math.round(contactSize),
-        fill: "#333333",
-        originX: "right",
-        name: "layout2-contactInfo",
-      });
-      fabricCanvas.add(contactText);
-      currentY -= contactSize * 1.5;
-    }
-
-    // Add address
-    if (businessPresets.address) {
-      const addressText = new fabric.Text(businessPresets.address, {
-        left: canvasWidth - margin,
-        top: currentY - addressSize,
-        fontFamily: "Arial",
-        fontSize: Math.round(addressSize),
-        fill: "#666666",
-        fontStyle: "italic",
-        originX: "right",
-        name: "layout2-address",
-      });
-      fabricCanvas.add(addressText);
-      currentY -= addressSize * 1.5;
-    }
-
-    // Add company name
-    if (businessPresets.companyName) {
-      const companyText = new fabric.Text(businessPresets.companyName, {
-        left: canvasWidth - margin,
-        top: currentY - companyNameSize,
-        fontFamily: "Arial",
-        fontSize: Math.round(companyNameSize),
-        fill: "#000000",
-        fontWeight: "bold",
-        originX: "right",
-        name: "layout2-companyName",
-      });
-      fabricCanvas.add(companyText);
-      currentY -= companyNameSize + 20;
-    }
-
-    // Add logo last (bottom-right)
-    if (businessPresets.logoUrl) {
-      addLogoAtPosition(canvasWidth - margin - logoSize, currentY - logoSize, logoSize, "layout2-logo");
-    }
-
-    fabricCanvas.renderAll();
-    console.log("Applied Layout 2: Bottom-right arrangement");
+  const cw = fabricCanvas.width; const ch = fabricCanvas.height; const canvasSize = Math.max(cw, ch);
+  const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+  const companyNameSize = Math.min(Math.max(60 * (canvasSize/1000) * fontScaleFactor, 34), canvasSize * 0.11);
+  const secondarySize = Math.min(Math.max(30 * (canvasSize/1000) * fontScaleFactor, 18), canvasSize * 0.06);
+  const gapHorizontal = Math.max(24, cw * 0.02);
+  const gapRow = Math.max(30, ch * 0.05);
+  const topRowY = ch * 0.15;
+  const logoSizeBase = Math.min(cw * 0.22, ch * 0.30);
+  const createTb = (text, opts, maxWidth) => { const tb=new fabric.Textbox(text,{width:maxWidth,...opts}); if(tb.getScaledWidth()>maxWidth+2){ const ratio=maxWidth/tb.getScaledWidth(); tb.set({fontSize:Math.round(tb.fontSize*ratio)});} tb.set({width:maxWidth}); return tb; };
+  let logoW=0, logoH=0; if (businessPresets.logoUrl){ logoW=logoSizeBase; logoH=logoSizeBase; }
+  let companyObj=null; if (businessPresets.companyName){ companyObj=createTb(businessPresets.companyName,{left:0,top:topRowY,fontFamily:'Arial',fontSize:companyNameSize,fill:'#000',fontWeight:'bold',name:'layout1-companyName'}, cw*0.6); fabricCanvas.add(companyObj); companyObj.setCoords(); }
+  const companyW=companyObj?companyObj.getScaledWidth():0; const companyH=companyObj?companyObj.getScaledHeight():0; const totalTopW=logoW + (logoW && companyW ? gapHorizontal:0) + companyW; let startX=(cw-totalTopW)/2; if(logoW){ addLogoAtPosition(startX, topRowY - (logoH*0.05), logoW, 'layout1-logo'); startX += logoW + (companyW?gapHorizontal:0);} if(companyObj){ companyObj.set({ left:startX, top: topRowY + (logoH ? (logoH-companyH)/2 : 0) }); }
+  const row2Y = topRowY + Math.max(logoH, companyH) + gapRow; let addressObj=null, contactObj=null; const maxSecondaryWidth=cw*0.42; if(businessPresets.address){ addressObj=createTb(`Địa chỉ: ${businessPresets.address}`, {left:0, top:row2Y, fontFamily:'Arial', fontSize:secondarySize, fill:'#000', name:'layout1-address'}, maxSecondaryWidth); fabricCanvas.add(addressObj); addressObj.setCoords(); } if(businessPresets.contactInfo){ contactObj=createTb(`ĐT : ${businessPresets.contactInfo}`, {left:0, top:row2Y, fontFamily:'Arial', fontSize:secondarySize, fill:'#000', name:'layout1-contactInfo'}, maxSecondaryWidth); fabricCanvas.add(contactObj); contactObj.setCoords(); }
+  const addrW=addressObj?addressObj.getScaledWidth():0; const contactW=contactObj?contactObj.getScaledWidth():0; const gap2=(addressObj && contactObj)?gapHorizontal:0; const totalRow2W=addrW+gap2+contactW; let row2Start=(cw-totalRow2W)/2; if(addressObj){ addressObj.set({ left: row2Start }); row2Start += addrW + gap2; } if(contactObj){ contactObj.set({ left: row2Start }); }
+  fabricCanvas.requestRenderAll(); console.log('Applied Landscape Layout 1: Centered logo+company with horizontal address/contact');
   };
 
-  // ✅ Layout 3: Thông tin ở giữa dưới (footer style)
-  const applyLayout3 = () => {
+  // ✅ Landscape Layout 2: Thông tin ở góc phải dưới
+  const applyLayoutLandscape2 = () => {
+    if (!fabricCanvas) {
+      console.log("Canvas not available");
+      return;
+    }
+    // Clear existing business info objects
+    clearBusinessInfo();
+
+    // Goal: 2 cột cân đối giữa chiều cao (logo + tên công ty ở cột trái, địa chỉ + liên hệ ở cột phải), tất cả canh giữa theo trục dọc để khác biệt với Layout 1.
+    const cw = fabricCanvas.width; const ch = fabricCanvas.height; const canvasSize = Math.max(cw, ch);
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const baseScale = canvasSize / 1000;
+    const companyNameSize = Math.min(Math.max(54 * baseScale * fontScaleFactor, 32), canvasSize * 0.11);
+    const secondarySize = Math.min(Math.max(30 * baseScale * fontScaleFactor, 20), canvasSize * 0.07);
+    const gapVertical = Math.max(18, ch * 0.02);
+    const colGap = Math.max(60, cw * 0.07);
+    const marginSide = Math.max(40, cw * 0.05);
+    const availableWidth = cw - marginSide * 2 - colGap;
+    const leftColWidth = availableWidth * 0.48;
+    const rightColWidth = availableWidth * 0.52;
+    const createTb = (text, opts, maxW) => { const tb=new fabric.Textbox(text,{width:maxW,...opts}); if(tb.getScaledWidth()>maxW+2){ const ratio=maxW/tb.getScaledWidth(); tb.set({fontSize:Math.round(tb.fontSize*ratio)});} tb.set({width:maxW}); return tb; };
+
+    // LEFT COLUMN CONTENT (logo + company name stacked)
+    let leftObjects = [];
+    if (businessPresets.logoUrl){
+      // provisional size relative to column / height
+      const logoSize = Math.min(leftColWidth * 0.75, ch * 0.28);
+      addLogoAtPosition(marginSide + (leftColWidth - logoSize)/2, 0, logoSize, 'layout2-logo');
+      const logoObj = fabricCanvas.getObjects().find(o=>o.name==='layout2-logo');
+      if (logoObj) leftObjects.push(logoObj);
+    }
+    if (businessPresets.companyName){
+      const companyTb = createTb(businessPresets.companyName, { left: marginSide, top: 0, fontFamily:'Arial', fontSize: companyNameSize, fill:'#000', fontWeight:'bold', textAlign:'center', originX:'left', name:'layout2-companyName' }, leftColWidth);
+      fabricCanvas.add(companyTb); leftObjects.push(companyTb);
+    }
+
+    // Position left column stacked & vertically centered
+    let leftTotalH = leftObjects.reduce((s,o)=> s + o.getScaledHeight(), 0) + (leftObjects.length>1 ? gapVertical*(leftObjects.length-1):0);
+    let leftStartY = (ch - leftTotalH)/2;
+    leftObjects.forEach(o=>{ o.set({ top: leftStartY, left: o.name==='layout2-companyName'? marginSide : o.left }); o.setCoords(); leftStartY += o.getScaledHeight() + gapVertical; });
+
+    // RIGHT COLUMN CONTENT (address + contact side-by-side horizontally inside one row if both exist; else stacked)
+    let rightObjects = [];
+    const rightXBase = marginSide + leftColWidth + colGap;
+    if (businessPresets.address){
+      const addrTb = createTb(`Địa chỉ: ${businessPresets.address}`, { left: rightXBase, top:0, fontFamily:'Arial', fontSize: secondarySize, fill:'#000', name:'layout2-address', textAlign:'left', originX:'left' }, rightColWidth);
+      fabricCanvas.add(addrTb); rightObjects.push(addrTb);
+    }
+    if (businessPresets.contactInfo){
+  const contactTb = createTb(`ĐT : ${businessPresets.contactInfo}`, { left: rightXBase, top:0, fontFamily:'Arial', fontSize: secondarySize, fill:'#000', name:'layout2-contactInfo', textAlign:'left', originX:'left' }, rightColWidth);
+      fabricCanvas.add(contactTb); rightObjects.push(contactTb);
+    }
+
+    // If both address & contact exist and fit horizontally, attempt to put them in one row
+    if (rightObjects.length === 2){
+      const addr = rightObjects[0]; const contact = rightObjects[1];
+      const gapH = Math.max(30, cw * 0.02);
+      const combinedWidth = addr.getScaledWidth() + gapH + contact.getScaledWidth();
+      if (combinedWidth <= rightColWidth){
+        // Single row placement
+        const total = combinedWidth;
+        const startX = rightXBase + (rightColWidth - total)/2;
+        addr.set({ left: startX }); addr.setCoords();
+        contact.set({ left: startX + addr.getScaledWidth() + gapH }); contact.setCoords();
+        const rowH = Math.max(addr.getScaledHeight(), contact.getScaledHeight());
+        const rowTop = (ch - rowH)/2;
+        addr.set({ top: rowTop }); contact.set({ top: rowTop });
+        rightObjects = [addr, contact];
+      } else {
+        // Stack vertically centered
+        const totalH = addr.getScaledHeight() + gapVertical + contact.getScaledHeight();
+        let startY = (ch - totalH)/2;
+        [addr, contact].forEach(o=>{ o.set({ top:startY }); o.setCoords(); startY += o.getScaledHeight() + gapVertical; });
+      }
+    } else if (rightObjects.length === 1){
+      const single = rightObjects[0];
+      single.set({ top: (ch - single.getScaledHeight())/2 });
+    }
+
+    fabricCanvas.requestRenderAll();
+    console.log('Applied Landscape Layout 2: Balanced two-column center');
+  };
+
+  // ✅ Landscape Layout 3: Center-bottom footer
+  const applyLayoutLandscape3 = () => {
     if (!fabricCanvas) {
       console.log("Canvas not available");
       return;
@@ -3759,46 +3720,77 @@ const AIDesign = () => {
     const canvasHeight = fabricCanvas.height;
     const canvasSize = Math.max(canvasWidth, canvasHeight);
     const baseScaleFactor = canvasSize / 1000;
+    const aspect = canvasWidth / canvasHeight;
+    const orientation = aspect > 1.8 ? 'ultraWide' : aspect > 1.2 ? 'landscape' : aspect < 0.7 ? 'ultraTall' : aspect < 0.9 ? 'portrait' : 'square';
+    const getDynamicLogoSize = (cw, ch, orient, fontScale) => {
+      const minDim = Math.min(cw, ch);
+      const maxDim = Math.max(cw, ch);
+      let wPercent = 0.18;
+      let hPercent = 0.22;
+      switch (orient) {
+        case 'ultraWide': wPercent = 0.12; hPercent = 0.20; break;
+        case 'landscape': wPercent = 0.16; hPercent = 0.22; break;
+        case 'square': wPercent = 0.22; hPercent = 0.26; break;
+        case 'portrait': wPercent = 0.26; hPercent = 0.24; break;
+        case 'ultraTall': wPercent = 0.30; hPercent = 0.22; break;
+        default: break;
+      }
+      const base = Math.min(cw * wPercent, ch * hPercent) * (fontScale || 1);
+      const minLimit = Math.max(64, minDim * 0.05);
+      const maxLimit = maxDim * 0.26;
+      return Math.max(minLimit, Math.min(base, maxLimit));
+    };
 
     // Calculate sizes
     const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
-    const companyNameSize = Math.min(Math.max(32 * baseScaleFactor * fontScaleFactor, 20), canvasSize * 0.08);
-    const addressSize = Math.min(Math.max(20 * baseScaleFactor * fontScaleFactor, 16), canvasSize * 0.05);
-    const contactSize = Math.min(Math.max(18 * baseScaleFactor * fontScaleFactor, 14), canvasSize * 0.04);
-    const logoSize = Math.min(Math.max(100 * baseScaleFactor * fontScaleFactor, 70), canvasSize * 0.2);
+  const companyNameSize = Math.min(Math.max(48 * baseScaleFactor * fontScaleFactor, 32), canvasSize * 0.11);
+  const addressSize = Math.min(Math.max(30 * baseScaleFactor * fontScaleFactor, 20), canvasSize * 0.07);
+  const contactSize = Math.min(Math.max(28 * baseScaleFactor * fontScaleFactor, 18), canvasSize * 0.065);
+  const logoSize = getDynamicLogoSize(canvasWidth, canvasHeight, orientation, fontScaleFactor);
 
     const centerX = canvasWidth / 2;
-    const bottomMargin = canvasHeight * 0.05;
+    const bottomMargin = canvasHeight * (orientation === 'ultraWide' ? 0.07 : 0.05);
     let currentY = canvasHeight - bottomMargin;
+    const maxTextWidth = Math.min(canvasWidth * (orientation === 'portrait' || orientation === 'ultraTall' ? 0.9 : 0.7), 900);
+    const createTextboxFit = (text, opts) => {
+      const tb = new fabric.Textbox(text, { width: maxTextWidth, ...opts });
+      if (tb.width > maxTextWidth + 2) {
+        const ratio = maxTextWidth / tb.width;
+        tb.set({ fontSize: Math.round(tb.fontSize * ratio) });
+        tb.set({ width: maxTextWidth });
+      }
+      return tb;
+    };
 
-    // Add contact info first (bottom center)
+    // Add contact info first (bottom center) with prefix
     if (businessPresets.contactInfo) {
-      const contactText = new fabric.Text(businessPresets.contactInfo, {
+  const prefixedContact = `ĐT : ${businessPresets.contactInfo}`;
+      const contactText = createTextboxFit(prefixedContact, {
         left: centerX,
         top: currentY - contactSize,
-        fontFamily: "Arial",
+        fontFamily: 'Arial',
         fontSize: Math.round(contactSize),
-        fill: "#333333",
-        originX: "center",
-        textAlign: "center",
-        name: "layout3-contactInfo",
+        fill: '#000000',
+        originX: 'center',
+        textAlign: 'center',
+        name: 'layout3-contactInfo'
       });
       fabricCanvas.add(contactText);
       currentY -= contactSize * 1.5;
     }
 
-    // Add address
+    // Add address with prefix
     if (businessPresets.address) {
-      const addressText = new fabric.Text(businessPresets.address, {
+      const prefixedAddress = `Địa chỉ: ${businessPresets.address}`;
+      const addressText = createTextboxFit(prefixedAddress, {
         left: centerX,
         top: currentY - addressSize,
-        fontFamily: "Arial",
+        fontFamily: 'Arial',
         fontSize: Math.round(addressSize),
-        fill: "#666666",
-        fontStyle: "italic",
-        originX: "center",
-        textAlign: "center",
-        name: "layout3-address",
+        fill: '#000000',
+        originX: 'center',
+        textAlign: 'center',
+        name: 'layout3-address'
       });
       fabricCanvas.add(addressText);
       currentY -= addressSize * 1.5;
@@ -3806,16 +3798,16 @@ const AIDesign = () => {
 
     // Add company name (larger, center)
     if (businessPresets.companyName) {
-      const companyText = new fabric.Text(businessPresets.companyName, {
+      const companyText = createTextboxFit(businessPresets.companyName, {
         left: centerX,
         top: currentY - companyNameSize,
-        fontFamily: "Arial",
+        fontFamily: 'Arial',
         fontSize: Math.round(companyNameSize),
-        fill: "#000000",
-        fontWeight: "bold",
-        originX: "center",
-        textAlign: "center",
-        name: "layout3-companyName",
+        fill: '#000000',
+        fontWeight: 'bold',
+        originX: 'center',
+        textAlign: 'center',
+        name: 'layout3-companyName'
       });
       fabricCanvas.add(companyText);
       currentY -= companyNameSize + 20;
@@ -3827,7 +3819,241 @@ const AIDesign = () => {
     }
 
     fabricCanvas.renderAll();
-    console.log("Applied Layout 3: Center-bottom arrangement");
+    console.log("Applied Landscape Layout 3: Center-bottom arrangement");
+  };
+
+  // ================= PORTRAIT VARIANTS =================
+  const applyLayoutPortrait1 = () => {
+    if (!fabricCanvas) return;
+    clearBusinessInfo();
+    const cw = fabricCanvas.width; const ch = fabricCanvas.height; const canvasSize = Math.max(cw, ch);
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(64 * (canvasSize/1000) * fontScaleFactor, 34), canvasSize * 0.125);
+    const secondarySize = Math.min(Math.max(34 * (canvasSize/1000) * fontScaleFactor, 20), canvasSize * 0.07);
+    const topRowY = ch * 0.18;
+    const gapHorizontal = Math.max(20, cw * 0.04);
+    const gapRow = Math.max(28, ch * 0.05);
+    const logoSizeBase = Math.min(cw * 0.35, ch * 0.18);
+
+    const createTb = (text, opts, maxWidth) => {
+      const tb = new fabric.Textbox(text, { width: maxWidth, ...opts });
+      if (tb.getScaledWidth() > maxWidth + 2) {
+        const ratio = maxWidth / tb.getScaledWidth();
+        tb.set({ fontSize: Math.round(tb.fontSize * ratio) });
+      }
+      tb.set({ width: maxWidth });
+      return tb;
+    };
+
+    let logoWidth = 0; let logoHeight = 0; if (businessPresets.logoUrl) { logoWidth = logoSizeBase; logoHeight = logoSizeBase; }
+    let companyObj = null;
+    if (businessPresets.companyName) {
+      companyObj = createTb(businessPresets.companyName, { left:0, top: topRowY, fontFamily:'Arial', fontSize: companyNameSize, fill:'#000', fontWeight:'bold', name:'portrait1-companyName' }, cw*0.6);
+      fabricCanvas.add(companyObj); companyObj.setCoords();
+    }
+    const companyWidth = companyObj ? companyObj.getScaledWidth() : 0; const companyHeight = companyObj ? companyObj.getScaledHeight() : 0;
+    const totalTopWidth = logoWidth + (logoWidth && companyWidth ? gapHorizontal : 0) + companyWidth;
+    let startX = (cw - totalTopWidth)/2;
+    if (logoWidth) { addLogoAtPosition(startX, topRowY - (logoHeight*0.05), logoWidth, 'portrait1-logo'); startX += logoWidth + (companyWidth ? gapHorizontal : 0); }
+    if (companyObj) { companyObj.set({ left: startX, top: topRowY + (logoHeight ? (logoHeight - companyHeight)/2 : 0) }); }
+
+    const row2Y = topRowY + Math.max(logoHeight, companyHeight) + gapRow;
+    let addressObj=null, contactObj=null; const maxSecondaryWidth = cw*0.8 * 0.5; // roughly half of 80% width
+    if (businessPresets.address) { addressObj = createTb(`Địa chỉ: ${businessPresets.address}`, { left:0, top:row2Y, fontFamily:'Arial', fontSize: secondarySize, fill:'#000', name:'portrait1-address' }, maxSecondaryWidth); fabricCanvas.add(addressObj); addressObj.setCoords(); }
+  if (businessPresets.contactInfo) { contactObj = createTb(`ĐT : ${businessPresets.contactInfo}`, { left:0, top:row2Y, fontFamily:'Arial', fontSize: secondarySize, fill:'#000', name:'portrait1-contactInfo' }, maxSecondaryWidth); fabricCanvas.add(contactObj); contactObj.setCoords(); }
+    const addrW = addressObj ? addressObj.getScaledWidth() : 0; const contactW = contactObj ? contactObj.getScaledWidth() : 0; const gap2 = (addressObj && contactObj) ? gapHorizontal : 0; const totalRow2Width = addrW + gap2 + contactW; let row2StartX = (cw - totalRow2Width)/2;
+    if (addressObj) { addressObj.set({ left: row2StartX }); row2StartX += addrW + gap2; }
+    if (contactObj) { contactObj.set({ left: row2StartX }); }
+
+    fabricCanvas.requestRenderAll();
+    console.log('Applied Portrait Layout 1: Centered logo+company with horizontal address/contact');
+  };
+
+  const applyLayoutPortrait2 = () => {
+    if (!fabricCanvas) return;
+    clearBusinessInfo();
+    // New portrait layout 2: 2 hàng (logo + tên trên cùng một hàng nếu có logo; nếu không có logo thì tên căn giữa), hàng dưới: địa chỉ và liên hệ đặt ngang nếu đủ rộng, nếu không thì xuống dòng.
+    const cw = fabricCanvas.width; const ch = fabricCanvas.height; const canvasSize = Math.max(cw, ch); const baseScale = canvasSize/1000;
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(56 * baseScale * fontScaleFactor, 30), canvasSize * 0.12);
+    const secondarySize = Math.min(Math.max(30 * baseScale * fontScaleFactor, 18), canvasSize * 0.085);
+    const topRowY = ch * 0.12;
+    const rowGap = Math.max(28, ch * 0.06);
+    const horizontalGap = Math.max(24, cw * 0.04);
+    const maxCompanyWidth = cw * 0.70;
+    const maxSecondaryWidth = cw * 0.40; // each if side-by-side
+    const createTb = (text, opts, maxW) => { const tb=new fabric.Textbox(text,{width:maxW,...opts}); if(tb.getScaledWidth()>maxW+2){ const ratio=maxW/tb.getScaledWidth(); tb.set({fontSize:Math.round(tb.fontSize*ratio)});} tb.set({width:maxW}); return tb; };
+
+    let logoW = 0; let logoH = 0;
+    if (businessPresets.logoUrl){
+      logoW = Math.min(cw*0.32, ch*0.18);
+      logoH = logoW;
+      addLogoAtPosition((cw - logoW - (businessPresets.companyName ? horizontalGap : 0))/2, topRowY - logoH*0.05, logoW, 'portrait2-logo');
+    }
+    let companyTb = null;
+    if (businessPresets.companyName){
+      companyTb = createTb(businessPresets.companyName, { left:0, top: topRowY, fontFamily:'Arial', fontSize: companyNameSize, fill:'#000', fontWeight:'bold', name:'portrait2-companyName'}, maxCompanyWidth);
+      fabricCanvas.add(companyTb); companyTb.setCoords();
+    }
+    const companyW = companyTb? companyTb.getScaledWidth():0; const companyH = companyTb? companyTb.getScaledHeight():0;
+    const totalTopW = (logoW? logoW:0) + (logoW && companyW ? horizontalGap:0) + companyW;
+    let startX = (cw - totalTopW)/2;
+    if (logoW){ const logoObj = fabricCanvas.getObjects().find(o=>o.name==='portrait2-logo'); if (logoObj){ logoObj.set({ left: startX }); logoObj.setCoords(); startX += logoW + (companyW?horizontalGap:0);} }
+    if (companyTb){ companyTb.set({ left: startX, top: topRowY + (logoH ? (logoH - companyH)/2 : 0) }); }
+
+    // Second row (address + contact)
+    const row2Y = topRowY + Math.max(logoH, companyH) + rowGap;
+    let addressTb=null, contactTb=null;
+    if (businessPresets.address){ addressTb = createTb(`Địa chỉ: ${businessPresets.address}`, { left:0, top:row2Y, fontFamily:'Arial', fontSize: secondarySize, fill:'#000', name:'portrait2-address'}, maxSecondaryWidth); fabricCanvas.add(addressTb); }
+  if (businessPresets.contactInfo){ contactTb = createTb(`ĐT : ${businessPresets.contactInfo}`, { left:0, top:row2Y, fontFamily:'Arial', fontSize: secondarySize, fill:'#000', name:'portrait2-contactInfo'}, maxSecondaryWidth); fabricCanvas.add(contactTb); }
+    if (addressTb && contactTb){
+      // Try side-by-side
+      const totalRow2W = addressTb.getScaledWidth() + horizontalGap + contactTb.getScaledWidth();
+      if (totalRow2W <= cw * 0.90){
+        let r2Start = (cw - totalRow2W)/2;
+        addressTb.set({ left: r2Start }); r2Start += addressTb.getScaledWidth() + horizontalGap;
+        contactTb.set({ left: r2Start });
+      } else {
+        // Stack centered
+        addressTb.set({ left: (cw - addressTb.getScaledWidth())/2 });
+        contactTb.set({ top: row2Y + addressTb.getScaledHeight() + 14, left: (cw - contactTb.getScaledWidth())/2 });
+      }
+    } else if (addressTb){ addressTb.set({ left: (cw - addressTb.getScaledWidth())/2 }); }
+    else if (contactTb){ contactTb.set({ left: (cw - contactTb.getScaledWidth())/2 }); }
+
+    fabricCanvas.requestRenderAll();
+    console.log('Applied Portrait Layout 2: Two-row centered variant');
+  };
+
+  const applyLayoutPortrait3 = () => {
+    if (!fabricCanvas) return;
+    clearBusinessInfo();
+    const cw=fabricCanvas.width; const ch=fabricCanvas.height;
+    const canvasSize = Math.max(cw, ch); const baseScale = canvasSize/1000;
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(50 * baseScale * fontScaleFactor, 32), canvasSize * 0.12);
+    const addressSize = Math.min(Math.max(30 * baseScale * fontScaleFactor, 20), canvasSize * 0.075);
+    const contactSize = Math.min(Math.max(28 * baseScale * fontScaleFactor, 18), canvasSize * 0.07);
+    const maxTextWidth = cw * 0.9;
+    const createTb = (text, opts) => new fabric.Textbox(text, { width: maxTextWidth, ...opts });
+    let currentY = ch * 0.55; // mid lower
+    if (businessPresets.companyName) {
+      const t = createTb(businessPresets.companyName, { left: cw/2, top: currentY, fontFamily:'Arial', fontSize: companyNameSize, fill:'#000', fontWeight:'bold', originX:'center', textAlign:'center', name:'portrait3-companyName' });
+      fabricCanvas.add(t); currentY += t.getScaledHeight() + 12;
+    }
+    if (businessPresets.address) {
+      const t = createTb(`Địa chỉ: ${businessPresets.address}`, { left: cw/2, top: currentY, fontFamily:'Arial', fontSize: addressSize, fill:'#000', originX:'center', textAlign:'center', name:'portrait3-address' });
+      fabricCanvas.add(t); currentY += t.getScaledHeight() + 10;
+    }
+    if (businessPresets.contactInfo) {
+  const t = createTb(`ĐT : ${businessPresets.contactInfo}`, { left: cw/2, top: currentY, fontFamily:'Arial', fontSize: contactSize, fill:'#000', originX:'center', textAlign:'center', name:'portrait3-contactInfo' });
+      fabricCanvas.add(t);
+    }
+    if (businessPresets.logoUrl) {
+      const logoSize = Math.min(cw * 0.4, ch * 0.18);
+      addLogoAtPosition(cw/2 - logoSize/2, ch*0.1, logoSize, 'portrait3-logo');
+    }
+    fabricCanvas.renderAll();
+    console.log('Applied Portrait Layout 3');
+  };
+
+  // ================= SQUARE VARIANTS =================
+  const applyLayoutSquare1 = () => {
+    if (!fabricCanvas) return;
+  clearBusinessInfo();
+  const cw=fabricCanvas.width; const ch=fabricCanvas.height; const canvasSize=Math.max(cw,ch);
+  const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+  const companyNameSize = Math.min(Math.max(58*(canvasSize/1000)*fontScaleFactor, 32), canvasSize*0.12);
+  const secondarySize = Math.min(Math.max(32*(canvasSize/1000)*fontScaleFactor, 18), canvasSize*0.07);
+  const topRowY = ch*0.18; const gapHorizontal = Math.max(20, cw*0.03); const gapRow = Math.max(26, ch*0.06); const logoSizeBase = Math.min(cw*0.30, ch*0.30);
+  const createTb=(text,opts,maxWidth)=>{ const tb=new fabric.Textbox(text,{width:maxWidth,...opts}); if(tb.getScaledWidth()>maxWidth+2){ const ratio=maxWidth/tb.getScaledWidth(); tb.set({fontSize:Math.round(tb.fontSize*ratio)});} tb.set({width:maxWidth}); return tb; };
+  let logoW=0, logoH=0; if (businessPresets.logoUrl){ logoW=logoSizeBase; logoH=logoSizeBase; }
+  let companyObj=null; if (businessPresets.companyName){ companyObj=createTb(businessPresets.companyName,{left:0,top:topRowY,fontFamily:'Arial',fontSize:companyNameSize,fill:'#000',fontWeight:'bold',name:'square1-companyName'}, cw*0.6); fabricCanvas.add(companyObj); companyObj.setCoords(); }
+  const companyW=companyObj?companyObj.getScaledWidth():0; const companyH=companyObj?companyObj.getScaledHeight():0; const totalTopW=logoW + (logoW && companyW ? gapHorizontal:0) + companyW; let startX=(cw-totalTopW)/2; if(logoW){ addLogoAtPosition(startX, topRowY - (logoH*0.05), logoW, 'square1-logo'); startX += logoW + (companyW?gapHorizontal:0);} if(companyObj){ companyObj.set({ left:startX, top: topRowY + (logoH ? (logoH-companyH)/2 : 0) }); }
+  const row2Y = topRowY + Math.max(logoH, companyH) + gapRow; let addressObj=null, contactObj=null; const maxSecondaryWidth=cw*0.42; if(businessPresets.address){ addressObj=createTb(`Địa chỉ: ${businessPresets.address}`, {left:0, top:row2Y, fontFamily:'Arial', fontSize:secondarySize, fill:'#000', name:'square1-address'}, maxSecondaryWidth); fabricCanvas.add(addressObj); addressObj.setCoords(); } if(businessPresets.contactInfo){ contactObj=createTb(`ĐT : ${businessPresets.contactInfo}`, {left:0, top:row2Y, fontFamily:'Arial', fontSize:secondarySize, fill:'#000', name:'square1-contactInfo'}, maxSecondaryWidth); fabricCanvas.add(contactObj); contactObj.setCoords(); }
+  const addrW=addressObj?addressObj.getScaledWidth():0; const contactW=contactObj?contactObj.getScaledWidth():0; const gap2=(addressObj && contactObj)?gapHorizontal:0; const totalRow2W=addrW+gap2+contactW; let row2Start=(cw-totalRow2W)/2; if(addressObj){ addressObj.set({ left: row2Start }); row2Start += addrW + gap2; } if(contactObj){ contactObj.set({ left: row2Start }); }
+  fabricCanvas.requestRenderAll(); console.log('Applied Square Layout 1: Centered logo+company with horizontal address/contact');
+  };
+
+  const applyLayoutSquare2 = () => {
+    if (!fabricCanvas) return; clearBusinessInfo();
+    // New square layout 2: giống landscape2 nhưng thích ứng kích thước vuông. Hai cột cực cân giữa theo chiều dọc.
+    const cw = fabricCanvas.width; const ch = fabricCanvas.height; const canvasSize = Math.max(cw,ch); const baseScale = canvasSize/1000;
+    const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize = Math.min(Math.max(52 * baseScale * fontScaleFactor, 30), canvasSize * 0.12);
+    const secondarySize = Math.min(Math.max(30 * baseScale * fontScaleFactor, 18), canvasSize * 0.085);
+    const colGap = Math.max(50, cw*0.07);
+    const marginSide = Math.max(36, cw*0.06);
+    const availableWidth = cw - marginSide*2 - colGap;
+    const leftColWidth = availableWidth * 0.50;
+    const rightColWidth = availableWidth * 0.50;
+    const gapVertical = Math.max(16, ch*0.02);
+    const createTb=(text,opts,maxW)=>{ const tb=new fabric.Textbox(text,{width:maxW,...opts}); if(tb.getScaledWidth()>maxW+2){ const ratio=maxW/tb.getScaledWidth(); tb.set({fontSize:Math.round(tb.fontSize*ratio)});} tb.set({width:maxW}); return tb; };
+
+    // Left column
+    let leftObjs=[];
+    if (businessPresets.logoUrl){ const logoSize=Math.min(leftColWidth*0.8, ch*0.30); addLogoAtPosition(marginSide + (leftColWidth-logoSize)/2, 0, logoSize, 'square2-logo'); const logoObj=fabricCanvas.getObjects().find(o=>o.name==='square2-logo'); if(logoObj) leftObjs.push(logoObj); }
+    if (businessPresets.companyName){ const tb=createTb(businessPresets.companyName,{ left:marginSide, top:0, fontFamily:'Arial', fontSize:companyNameSize, fill:'#000', fontWeight:'bold', name:'square2-companyName', textAlign:'center' }, leftColWidth); fabricCanvas.add(tb); leftObjs.push(tb); }
+    let leftTotalH = leftObjs.reduce((s,o)=>s+o.getScaledHeight(),0)+ (leftObjs.length>1? gapVertical*(leftObjs.length-1):0);
+    let lStart = (ch-leftTotalH)/2; leftObjs.forEach(o=>{ o.set({ top:lStart, left:o.name==='square2-companyName'? marginSide : o.left }); o.setCoords(); lStart += o.getScaledHeight() + gapVertical; });
+
+    // Right column address/contact side by side if possible
+    let addr=null, contact=null; const rightBaseX = marginSide + leftColWidth + colGap;
+    if (businessPresets.address){ addr=createTb(`Địa chỉ: ${businessPresets.address}`, { left:rightBaseX, top:0, fontFamily:'Arial', fontSize:secondarySize, fill:'#000', name:'square2-address', textAlign:'left' }, rightColWidth); fabricCanvas.add(addr); }
+  if (businessPresets.contactInfo){ contact=createTb(`ĐT : ${businessPresets.contactInfo}`, { left:rightBaseX, top:0, fontFamily:'Arial', fontSize:secondarySize, fill:'#000', name:'square2-contactInfo', textAlign:'left' }, rightColWidth); fabricCanvas.add(contact); }
+    if (addr && contact){
+      const gapH = Math.max(28, cw*0.025);
+      const combinedW = addr.getScaledWidth() + gapH + contact.getScaledWidth();
+      if (combinedW <= rightColWidth){
+        const start = rightBaseX + (rightColWidth - combinedW)/2;
+        addr.set({ left:start }); contact.set({ left: start + addr.getScaledWidth() + gapH });
+        const rowH = Math.max(addr.getScaledHeight(), contact.getScaledHeight());
+        const rowTop = (ch - rowH)/2; addr.set({ top: rowTop }); contact.set({ top: rowTop });
+      } else {
+        const totalH = addr.getScaledHeight() + gapVertical + contact.getScaledHeight();
+        let startY = (ch - totalH)/2; [addr,contact].forEach(o=>{ o.set({ top:startY, left: rightBaseX + (rightColWidth - o.getScaledWidth())/2 }); o.setCoords(); startY += o.getScaledHeight() + gapVertical; });
+      }
+    } else if (addr){ addr.set({ top:(ch-addr.getScaledHeight())/2, left: rightBaseX + (rightColWidth - addr.getScaledWidth())/2 }); }
+    else if (contact){ contact.set({ top:(ch-contact.getScaledHeight())/2, left: rightBaseX + (rightColWidth - contact.getScaledWidth())/2 }); }
+
+    fabricCanvas.requestRenderAll();
+    console.log('Applied Square Layout 2: Balanced two-column center');
+  };
+
+  const applyLayoutSquare3 = () => {
+    if (!fabricCanvas) return; clearBusinessInfo();
+    const cw=fabricCanvas.width; const ch=fabricCanvas.height; const canvasSize=Math.max(cw,ch); const baseScale=canvasSize/1000; const fontScaleFactor = fontSizePixelValue ? fontSizePixelValue / 256 : 1;
+    const companyNameSize=Math.min(Math.max(52*baseScale*fontScaleFactor,34), canvasSize*0.13);
+    const addressSize=Math.min(Math.max(30*baseScale*fontScaleFactor,20), canvasSize*0.08);
+    const contactSize=Math.min(Math.max(28*baseScale*fontScaleFactor,18), canvasSize*0.075);
+    const maxTextWidth = cw*0.9; const createTb=(text,opts)=> new fabric.Textbox(text,{width:maxTextWidth,...opts});
+    // place all bottom center with logo top center
+    if (businessPresets.logoUrl){ const logoSize=Math.min(cw*0.34, ch*0.18); addLogoAtPosition(cw/2 - logoSize/2, ch*0.15 - logoSize/2, logoSize, 'square3-logo'); }
+    let currentY = ch*0.55;
+    if (businessPresets.companyName){ const t=createTb(businessPresets.companyName,{left:cw/2,top:currentY,fontFamily:'Arial',fontSize:companyNameSize,fill:'#000',fontWeight:'bold',originX:'center',textAlign:'center',name:'square3-companyName'}); fabricCanvas.add(t); currentY += t.getScaledHeight() + 14; }
+    if (businessPresets.address){ const t=createTb(`Địa chỉ: ${businessPresets.address}`,{left:cw/2,top:currentY,fontFamily:'Arial',fontSize:addressSize,fill:'#000',originX:'center',textAlign:'center',name:'square3-address'}); fabricCanvas.add(t); currentY += t.getScaledHeight() + 12; }
+  if (businessPresets.contactInfo){ const t=createTb(`ĐT : ${businessPresets.contactInfo}`,{left:cw/2,top:currentY,fontFamily:'Arial',fontSize:contactSize,fill:'#000',originX:'center',textAlign:'center',name:'square3-contactInfo'}); fabricCanvas.add(t); }
+    fabricCanvas.renderAll(); console.log('Applied Square Layout 3');
+  };
+
+  // ================= DISPATCHERS (public applyLayout1/2/3) =================
+  const applyLayout1 = () => {
+    const o = getSimpleOrientation();
+    if (o === 'portrait') return applyLayoutPortrait1();
+    if (o === 'square') return applyLayoutSquare1();
+    return applyLayoutLandscape1();
+  };
+  const applyLayout2 = () => {
+    const o = getSimpleOrientation();
+    if (o === 'portrait') return applyLayoutPortrait2();
+    if (o === 'square') return applyLayoutSquare2();
+    return applyLayoutLandscape2();
+  };
+  const applyLayout3 = () => {
+    const o = getSimpleOrientation();
+    if (o === 'portrait') return applyLayoutPortrait3();
+    if (o === 'square') return applyLayoutSquare3();
+    return applyLayoutLandscape3();
   };
 
   // ✅ Helper function to clear existing business info objects
@@ -4796,16 +5022,17 @@ const AIDesign = () => {
 
       // Canvas event handlers (giữ nguyên)
       canvas.on("selection:created", (e) => {
-        if (e.selected[0] && e.selected[0].type === "text") {
-          setSelectedText(e.selected[0]);
+        const obj = e.selected && e.selected[0];
+        if (obj && (obj.type === "text" || obj.type === "textbox")) {
+          setSelectedText(obj);
           setTextSettings({
-            fontFamily: e.selected[0].fontFamily,
-            fontSize: e.selected[0].fontSize,
-            fill: e.selected[0].fill,
-            fontWeight: e.selected[0].fontWeight,
-            fontStyle: e.selected[0].fontStyle,
-            underline: e.selected[0].underline,
-            text: e.selected[0].text,
+            fontFamily: obj.fontFamily,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            fontWeight: obj.fontWeight,
+            fontStyle: obj.fontStyle,
+            underline: obj.underline,
+            text: obj.text,
           });
         }
       });
@@ -4815,16 +5042,17 @@ const AIDesign = () => {
       });
 
       canvas.on("selection:updated", (e) => {
-        if (e.selected[0] && e.selected[0].type === "text") {
-          setSelectedText(e.selected[0]);
+        const obj = e.selected && e.selected[0];
+        if (obj && (obj.type === "text" || obj.type === "textbox")) {
+          setSelectedText(obj);
           setTextSettings({
-            fontFamily: e.selected[0].fontFamily,
-            fontSize: e.selected[0].fontSize,
-            fill: e.selected[0].fill,
-            fontWeight: e.selected[0].fontWeight,
-            fontStyle: e.selected[0].fontStyle,
-            underline: e.selected[0].underline,
-            text: e.selected[0].text,
+            fontFamily: obj.fontFamily,
+            fontSize: obj.fontSize,
+            fill: obj.fill,
+            fontWeight: obj.fontWeight,
+            fontStyle: obj.fontStyle,
+            underline: obj.underline,
+            text: obj.text,
           });
         }
       });
@@ -4957,20 +5185,22 @@ const AIDesign = () => {
       originalFontSize: textSettings.fontSize,
     });
 
-    const text = new fabric.Text("Your Text Here", {
-      left: fabricCanvas.width * 0.1, // 10% from left
-      top: fabricCanvas.height * 0.1, // 10% from top
+    const maxWidth = fabricCanvas.width * 0.6;
+    const textbox = new fabric.Textbox("Your Text Here", {
+      left: fabricCanvas.width * 0.1,
+      top: fabricCanvas.height * 0.1,
       fontFamily: textSettings.fontFamily,
       fontSize: Math.round(finalFontSize),
       fill: textSettings.fill,
       fontWeight: textSettings.fontWeight,
       fontStyle: textSettings.fontStyle,
       underline: textSettings.underline,
+      width: maxWidth,
+      name: 'user-text',
     });
-
-    fabricCanvas.add(text);
-    fabricCanvas.setActiveObject(text);
-    setSelectedText(text);
+    fabricCanvas.add(textbox);
+    fabricCanvas.setActiveObject(textbox);
+    setSelectedText(textbox);
   };
 
   const updateTextProperty = (property, value) => {
@@ -4993,8 +5223,8 @@ const AIDesign = () => {
 
     fabricCanvas.remove(activeObject);
 
-    // Reset selected text nếu object bị xóa là text
-    if (activeObject.type === "text") {
+    // Reset selected text nếu object bị xóa là text/textbox
+    if (activeObject.type === "text" || activeObject.type === "textbox") {
       setSelectedText(null);
     }
 
