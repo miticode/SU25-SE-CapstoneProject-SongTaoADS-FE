@@ -71,7 +71,6 @@ const DesignEditor = ({
   addBusinessInfoToCanvas,
   applyLayout1,
   applyLayout2,
-  applyLayout3,
   addText,
   setShowIconPicker,
   icons,
@@ -729,23 +728,6 @@ const DesignEditor = ({
                     <FaPlus className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </motion.button>
 
-                  {/* Layout 3 Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={applyLayout3}
-                    className="cursor-pointer w-full p-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all text-sm font-medium flex items-center justify-between group"
-                  >
-                    <div className="flex items-center">
-                      <span className="mr-3 text-lg">📊</span>
-                      <div className="text-left">
-                        <div className="font-semibold">Layout 3</div>
-                        <div className="text-xs text-purple-100">Giữa dưới</div>
-                      </div>
-                    </div>
-                    <FaPlus className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </motion.button>
-
                 </div>
 
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -789,7 +771,7 @@ const DesignEditor = ({
               </div>
 
               {/* Row 2: toolbar - text controls if a text is selected, else quick add actions */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2" style={{minHeight:'90px'}}> {/* giữ chiều cao cố định để khi chọn object không đẩy canvas xuống */}
                 {(selectedText || activeTextbox) ? (
                   <>
                     {/* Text content */}
@@ -866,7 +848,7 @@ const DesignEditor = ({
                     </motion.button>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full">
                     <Tooltip title="Thêm văn bản">
                       <motion.button
                         whileHover={{ scale: 1.05 }}
@@ -905,6 +887,18 @@ const DesignEditor = ({
                         />
                       </label>
                     </Tooltip>
+                    {/* Spacer mô phỏng chiều rộng khối input khi chưa chọn để tránh layout jump */}
+                    <div className="hidden sm:block flex-1" />
+                    <div className="invisible h-0 sm:h-auto sm:visible flex items-center gap-2">
+                      {/* placeholder kích thước tương đương các control khi editing */}
+                      <div className="w-72 h-0" />
+                      <div className="w-40 h-0" />
+                      <div className="w-24 h-0" />
+                      <div className="w-10 h-0" />
+                      <div className="w-9 h-0" />
+                      <div className="w-9 h-0" />
+                      <div className="w-9 h-0" />
+                    </div>
                   </div>
                 )}
 
