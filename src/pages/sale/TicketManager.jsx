@@ -410,7 +410,10 @@ const TicketManager = () => {
             </FormControl>
 
             <Tooltip title="Làm mới danh sách" arrow>
-              <IconButton
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon />}
                 onClick={() => {
                   if (filterStatus === "ALL") {
                     dispatch(
@@ -430,17 +433,17 @@ const TicketManager = () => {
                   }
                 }}
                 sx={{
-                  bgcolor: "rgba(255, 255, 255, 0.1)",
                   color: "white",
-                  "&:hover": {
-                    bgcolor: "rgba(255, 255, 255, 0.2)",
-                    transform: "scale(1.05)",
-                  },
-                  transition: "all 0.3s ease",
+                  borderColor: "rgba(255,255,255,0.4)",
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: 'white',
+                    backgroundColor: 'rgba(255,255,255,0.12)'
+                  }
                 }}
               >
-                <RefreshIcon />
-              </IconButton>
+                Làm mới
+              </Button>
             </Tooltip>
           </Stack>
         </CardContent>
