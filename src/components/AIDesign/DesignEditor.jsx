@@ -100,7 +100,13 @@ const DesignEditor = ({
 }) => {
   // Theo dõi trạng thái có đối tượng đang được chọn trên canvas để bật/tắt nút Xóa
   const [hasActiveObject, setHasActiveObject] = useState(false);
+  // Track any active textbox (including those added by automatic layouts that may not populate selectedText prop)
+  const [activeTextbox, setActiveTextbox] = useState(null);
+  const activeTextboxRef = useRef(null); // giữ reference thật của Fabric.Textbox
+  const [_, forceRerender] = useState(0); // trigger re-render khi text thay đổi nội bộ
   const lastValidRef = useRef(new WeakMap());
+  // Ref tới ô input nội dung toolbar để auto focus khi double click vào textbox trên canvas
+  const toolbarTextInputRef = useRef(null);
 
   const isOutOfBounds = useCallback((obj, canvas) => {
     if (!obj || !canvas) return false;
@@ -141,6 +147,39 @@ const DesignEditor = ({
       moveInsideBounds(obj, canvas);
     }
   }, [moveInsideBounds]);
+
+  // Đồng bộ cập nhật từ toolbar (selectedText flow) xuống textbox layout nếu đang chọn textbox layout
+  const unifiedUpdate = useCallback((prop, value) => {
+    // Gọi logic gốc để không phá vỡ flow hiện tại
+    if (updateTextProperty) {
+      try { updateTextProperty(prop, value); } catch { /* silent */ }
+    }
+  const t = activeTextboxRef.current || (fabricCanvas && fabricCanvas.getActiveObject());
+  if (t && (t.type === 'textbox' || t.type === 'text')) {
+      try {
+        if (prop === 'text') {
+          t.set('text', value);
+          if (typeof t.initDimensions === 'function') t.initDimensions();
+        } else if (prop === 'fontFamily') {
+          t.set('fontFamily', value);
+        } else if (prop === 'fontSize') {
+          t.set('fontSize', value);
+        } else if (prop === 'fill') {
+          t.set('fill', value);
+        } else if (prop === 'fontWeight') {
+          t.set('fontWeight', value);
+        } else if (prop === 'fontStyle') {
+          t.set('fontStyle', value);
+        } else if (prop === 'underline') {
+          t.set('underline', value);
+        }
+        t.setCoords();
+        fabricCanvas?.requestRenderAll();
+        // Force re-render để input phản ánh đúng (trường hợp selectedText không map tới textbox layout)
+        forceRerender(v => v + 1);
+      } catch { /* silent */ }
+    }
+  }, [updateTextProperty, fabricCanvas]);
 
   // 🎯 useEffect để tự động điều chỉnh canvas theo kích thước ảnh (DISABLED - handled in AIDesign.jsx)
   useEffect(() => {
@@ -204,9 +243,18 @@ const DesignEditor = ({
 
     const updateActive = () => {
       try {
-        setHasActiveObject(!!fabricCanvas.getActiveObject());
+        const obj = fabricCanvas.getActiveObject();
+        setHasActiveObject(!!obj);
+        if (obj && obj.type === 'textbox') {
+          setActiveTextbox(obj);
+          activeTextboxRef.current = obj;
+        } else {
+          setActiveTextbox(null);
+          activeTextboxRef.current = null;
+        }
       } catch {
         setHasActiveObject(false);
+        setActiveTextbox(null);
       }
     };
 
@@ -221,7 +269,7 @@ const DesignEditor = ({
     fabricCanvas.on("object:removed", updateActive);
 
     // Lưu lại trạng thái hợp lệ cuối cùng khi người dùng bắt đầu tương tác
-    const handleMouseDown = () => {
+    const handleMouseDown = (opt) => {
       const t = fabricCanvas.getActiveObject();
       if (t) {
         lastValidRef.current.set(t, {
@@ -231,6 +279,29 @@ const DesignEditor = ({
           scaleY: t.scaleY,
           angle: t.angle,
         });
+      }
+
+      // Quick edit: if user clicks again on already selected textbox within 600ms, enter editing
+      const target = opt?.target;
+      if (target && target.type === 'textbox') {
+        const now = Date.now();
+        if (target.__lastClick && now - target.__lastClick < 600) {
+          try {
+            target.enterEditing();
+            target.selectAll();
+            fabricCanvas.requestRenderAll();
+            // Auto focus input toolbar (delay 0 để đảm bảo input đã render)
+            setTimeout(() => {
+              if (toolbarTextInputRef.current) {
+                toolbarTextInputRef.current.focus();
+                try { toolbarTextInputRef.current.select(); } catch { /* silent */ }
+              }
+            }, 0);
+          } catch {
+            // silent
+          }
+        }
+        target.__lastClick = now;
       }
     };
 
@@ -302,6 +373,38 @@ const DesignEditor = ({
     };
 
     fabricCanvas.on("mouse:down", handleMouseDown);
+    // Explicit double-click handler (more reliable than timing heuristic on some systems)
+    const handleDblClick = (opt) => {
+      const target = opt?.target;
+      if (target && target.type === 'textbox') {
+        try {
+          target.enterEditing();
+          target.selectAll();
+          setActiveTextbox(target);
+          activeTextboxRef.current = target;
+          activeTextboxRef.current = target;
+          fabricCanvas.requestRenderAll();
+          setTimeout(() => {
+            if (toolbarTextInputRef.current) {
+              toolbarTextInputRef.current.focus();
+              try { toolbarTextInputRef.current.select(); } catch { /* silent */ }
+            }
+          }, 0);
+        } catch {
+          // silent
+        }
+      }
+    };
+    fabricCanvas.on('mouse:dblclick', handleDblClick);
+    // Lắng nghe khi text thay đổi bên trong chế độ editing để đồng bộ toolbar
+    const handleTextChanged = (e) => {
+      const t = e.target;
+      if (t && t.type === 'textbox' && t === activeTextboxRef.current) {
+        // giữ reference gốc, chỉ cần force re-render để input value cập nhật
+        forceRerender(v => v + 1);
+      }
+    };
+    fabricCanvas.on('text:changed', handleTextChanged);
     fabricCanvas.on("object:scaling", handleScaling);
     fabricCanvas.on("object:modified", handleModified);
     fabricCanvas.on("object:added", handleObjectAdded);
@@ -314,6 +417,8 @@ const DesignEditor = ({
         fabricCanvas.off("object:added", updateActive);
         fabricCanvas.off("object:removed", updateActive);
         fabricCanvas.off("mouse:down", handleMouseDown);
+  fabricCanvas.off('mouse:dblclick', handleDblClick);
+  fabricCanvas.off('text:changed', handleTextChanged);
         fabricCanvas.off("object:scaling", handleScaling);
         fabricCanvas.off("object:modified", handleModified);
         fabricCanvas.off("object:added", handleObjectAdded);
@@ -640,6 +745,7 @@ const DesignEditor = ({
                     </div>
                     <FaPlus className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </motion.button>
+
                 </div>
 
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -684,21 +790,22 @@ const DesignEditor = ({
 
               {/* Row 2: toolbar - text controls if a text is selected, else quick add actions */}
               <div className="flex flex-wrap items-center gap-2">
-                {selectedText ? (
+                {(selectedText || activeTextbox) ? (
                   <>
                     {/* Text content */}
                     <input
                       type="text"
                       value={textSettings.text}
-                      onChange={(e) => updateTextProperty("text", e.target.value)}
+                      onChange={(e) => unifiedUpdate("text", e.target.value)}
                       placeholder="Nội dung..."
                       className="w-48 sm:w-72 md:w-96 p-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      ref={toolbarTextInputRef}
                     />
 
                     {/* Font family */}
                     <select
                       value={textSettings.fontFamily}
-                      onChange={(e) => updateTextProperty("fontFamily", e.target.value)}
+                      onChange={(e) => unifiedUpdate("fontFamily", e.target.value)}
                       className="w-40 p-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                     >
                       {fonts.map((font) => (
@@ -713,7 +820,7 @@ const DesignEditor = ({
                         min={12}
                         max={200}
                         value={textSettings.fontSize}
-                        onChange={(e) => updateTextProperty("fontSize", parseInt(e.target.value) || 0)}
+                        onChange={(e) => unifiedUpdate("fontSize", parseInt(e.target.value) || 0)}
                         className="w-20 p-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none"
                         title="Kích thước"
                       />
@@ -724,7 +831,7 @@ const DesignEditor = ({
                     <input
                       type="color"
                       value={textSettings.fill}
-                      onChange={(e) => updateTextProperty("fill", e.target.value)}
+                      onChange={(e) => unifiedUpdate("fill", e.target.value)}
                       className="w-10 h-10 p-1 bg-white border border-gray-300 rounded-md"
                       title="Màu chữ"
                     />
@@ -733,7 +840,7 @@ const DesignEditor = ({
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => updateTextProperty("fontWeight", textSettings.fontWeight === "bold" ? "normal" : "bold")}
+                      onClick={() => unifiedUpdate("fontWeight", textSettings.fontWeight === "bold" ? "normal" : "bold")}
                       className={`p-2 rounded-md border text-sm ${textSettings.fontWeight === "bold" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white border-gray-300"}`}
                       title="Đậm"
                     >
@@ -742,7 +849,7 @@ const DesignEditor = ({
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => updateTextProperty("fontStyle", textSettings.fontStyle === "italic" ? "normal" : "italic")}
+                      onClick={() => unifiedUpdate("fontStyle", textSettings.fontStyle === "italic" ? "normal" : "italic")}
                       className={`p-2 rounded-md border text-sm ${textSettings.fontStyle === "italic" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white border-gray-300"}`}
                       title="Nghiêng"
                     >
@@ -751,7 +858,7 @@ const DesignEditor = ({
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => updateTextProperty("underline", !textSettings.underline)}
+                      onClick={() => unifiedUpdate("underline", !textSettings.underline)}
                       className={`p-2 rounded-md border text-sm ${textSettings.underline ? "bg-emerald-500 text-white border-emerald-500" : "bg-white border-gray-300"}`}
                       title="Gạch chân"
                     >
