@@ -58,8 +58,11 @@ import {
   People as PeopleIcon,
   Upload as UploadIcon,
   Description as DescriptionIcon,
+  AttachMoney as AttachMoneyIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import { ORDER_STATUS_MAP, ORDER_TYPE_MAP } from "../../store/features/order/orderSlice";
+import { castPaidThunk } from "../../store/features/payment/paymentSlice"; // xác nhận thanh toán tiền mặt
 
 // Component hiển thị avatar user
 const UserAvatar = memo(({ user, size = 40 }) => {
@@ -1494,6 +1497,7 @@ const OrderCard = memo(
     onViewContract,
     onConfirmSigned,
     contractViewLoading,
+  onCashConstructionDeposit,
   }) => {
     return (
       <Card
@@ -1712,6 +1716,34 @@ const OrderCard = memo(
                      Xác nhận hoàn tất ký kết
                   </Button>
                 )}
+
+                {/* Nút xác nhận cọc thi công tiền mặt (CONTRACT_CONFIRMED) */}
+                {order.status === "CONTRACT_CONFIRMED" && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    size="medium"
+                    startIcon={<AttachMoneyIcon />}
+                    onClick={() => onCashConstructionDeposit?.(order)}
+                    fullWidth
+                    sx={{
+                      borderRadius: 3,
+                      textTransform: "none",
+                      fontWeight: 600,
+                      py: 1.2,
+                      fontSize: "0.8rem",
+                      boxShadow: 2,
+                      background: "linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%)",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-1px)",
+                        background: "linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%)",
+                      },
+                    }}
+                  >
+                    Xác nhận cọc thi công (TM)
+                  </Button>
+                )}
               </Box>
             )}
 
@@ -1762,6 +1794,7 @@ const OrderRow = memo(
     onViewContract,
     onConfirmSigned,
     contractViewLoading,
+  onCashConstructionDeposit,
   }) => {
     return (
       <TableRow
@@ -1860,13 +1893,14 @@ const OrderRow = memo(
               }}
             />
           </TableCell>
-          <TableCell sx={{ minWidth: 250, maxWidth: 320 }}>
+          <TableCell sx={{ minWidth: 190, width: 190 }}>
             <Box 
               sx={{ 
                 display: "flex", 
-                gap: 0.5, 
-                alignItems: "flex-start",
-                flexWrap: "wrap"
+                flexDirection: "column",
+                gap: 0.6,
+                alignItems: "stretch",
+                width: '100%'
               }}
             >
               {/* Nút chi tiết/báo giao hàng - luôn hiển thị đầu tiên */}
@@ -1881,16 +1915,16 @@ const OrderRow = memo(
                   textTransform: "none",
                   fontWeight: "medium",
                   fontSize: "0.75rem",
-                  px: 1.5,
-                  py: 0.5,
-                  minWidth: order.status === "DEPOSITED" ? 100 : 70,
-                  height: 30,
+                  px: 1.2,
+                  py: 0.65,
+                  height: 32,
                   boxShadow: 2,
                   "&:hover": {
                     boxShadow: 4,
                     transform: "translateY(-1px)",
                   },
                 }}
+                fullWidth
               >
                 {order.status === "DEPOSITED" ? "Báo giao hàng" : "Chi tiết"}
               </Button>
@@ -1908,15 +1942,16 @@ const OrderRow = memo(
                     textTransform: "none",
                     fontWeight: "medium",
                     fontSize: "0.75rem",
-                    px: 1.5,
-                    py: 0.5,
-                    height: 30,
+                    px: 1.2,
+                    py: 0.65,
+                    height: 32,
                     boxShadow: 1,
                     "&:hover": {
                       boxShadow: 2,
                       transform: "translateY(-1px)",
                     },
                   }}
+                  fullWidth
                 >
                   Gửi hợp đồng
                 </Button>
@@ -1935,15 +1970,16 @@ const OrderRow = memo(
                     textTransform: "none",
                     fontWeight: "medium",
                     fontSize: "0.75rem",
-                    px: 1.5,
-                    py: 0.5,
-                    height: 30,
+                    px: 1.2,
+                    py: 0.65,
+                    height: 32,
                     boxShadow: 1,
                     "&:hover": {
                       boxShadow: 2,
                       transform: "translateY(-1px)",
                     },
                   }}
+                  fullWidth
                 >
                   Gửi lại hợp đồng
                 </Button>
@@ -1963,15 +1999,16 @@ const OrderRow = memo(
                     textTransform: "none",
                     fontWeight: "medium",
                     fontSize: "0.75rem",
-                    px: 1.5,
-                    py: 0.5,
-                    height: 30,
+                    px: 1.2,
+                    py: 0.65,
+                    height: 32,
                     boxShadow: 1,
                     "&:hover": {
                       boxShadow: 2,
                       transform: "translateY(-1px)",
                     },
                   }}
+                  fullWidth
                 >
                   {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
                 </Button>
@@ -1990,12 +2027,11 @@ const OrderRow = memo(
                     textTransform: "none",
                     fontWeight: "medium",
                     fontSize: "0.75rem",
-                    px: 1.5,
-                    py: 0.5,
-                    height: 30,
+                    px: 1.2,
+                    py: 0.65,
+                    height: 32,
                     minWidth: 140,
                     boxShadow: 2,
-                    mt: 0.5,
                     background: "linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)",
                     "&:hover": {
                       boxShadow: 3,
@@ -2003,8 +2039,40 @@ const OrderRow = memo(
                       background: "linear-gradient(135deg, #43a047 0%, #5cb85c 100%)",
                     },
                   }}
+                  fullWidth
                 >
                    Xác nhận hoàn tất
+                </Button>
+              )}
+
+              {/* Nút xác nhận cọc thi công tiền mặt cho trạng thái CONTRACT_CONFIRMED */}
+              {order.status === "CONTRACT_CONFIRMED" && (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  size="small"
+                  startIcon={<AttachMoneyIcon />}
+                  onClick={() => onCashConstructionDeposit?.(order)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: "medium",
+                    fontSize: "0.70rem",
+                    px: 1.2,
+                    py: 0.65,
+                    height: 32,
+                    minWidth: 150,
+                    boxShadow: 2,
+                    background: "linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%)",
+                    "&:hover": {
+                      boxShadow: 3,
+                      transform: "translateY(-1px)",
+                      background: "linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%)",
+                    },
+                  }}
+                  fullWidth
+                >
+                  Xác nhận cọc thi công (TM)
                 </Button>
               )}
 
@@ -2022,15 +2090,16 @@ const OrderRow = memo(
                     textTransform: "none",
                     fontWeight: "medium",
                     fontSize: "0.75rem",
-                    px: 1.5,
-                    py: 0.5,
-                    height: 30,
+                    px: 1.2,
+                    py: 0.65,
+                    height: 32,
                     boxShadow: 1,
                     "&:hover": {
                       boxShadow: 2,
                       transform: "translateY(-1px)",
                     },
                   }}
+                  fullWidth
                 >
                   {contractViewLoading ? "Đang tải..." : "Xem hợp đồng"}
                 </Button>
@@ -2066,6 +2135,8 @@ const DashboardContent = ({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  // Loading state cho nút refresh thủ công
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
 
   // State cho upload contract dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -2089,6 +2160,34 @@ const DashboardContent = ({
     message: "",
     severity: "success",
   });
+
+  // State xác nhận thanh toán cọc thi công tiền mặt
+  const [cashConstructionDepositDialog, setCashConstructionDepositDialog] = useState({ open: false, order: null });
+  const [confirmingCashConstructionDeposit, setConfirmingCashConstructionDeposit] = useState(false);
+
+  const openCashConstructionDepositDialog = (order) => {
+    setCashConstructionDepositDialog({ open: true, order });
+  };
+  const closeCashConstructionDepositDialog = () => {
+    if (confirmingCashConstructionDeposit) return;
+    setCashConstructionDepositDialog({ open: false, order: null });
+  };
+  const handleConfirmCashConstructionDeposit = async () => {
+    if (!cashConstructionDepositDialog.order) return;
+    try {
+      setConfirmingCashConstructionDeposit(true);
+      await dispatch(castPaidThunk({ orderId: cashConstructionDepositDialog.order.id || cashConstructionDepositDialog.order.orderId, paymentType: 'DEPOSIT_CONSTRUCTION' })).unwrap();
+      setSnackbar({ open: true, message: 'Xác nhận thanh toán cọc thi công (tiền mặt) thành công', severity: 'success' });
+      closeCashConstructionDepositDialog();
+      // Refresh nếu callback có
+      onRefreshOrders?.();
+    } catch (err) {
+      console.error('Confirm cash construction deposit error:', err);
+      setSnackbar({ open: true, message: 'Xác nhận thất bại: ' + (err?.message || 'Lỗi không xác định'), severity: 'error' });
+    } finally {
+      setConfirmingCashConstructionDeposit(false);
+    }
+  };
 
   // State cho contractor list dialog
   const [contractorDialog, setContractorDialog] = useState({
@@ -2507,6 +2606,29 @@ const DashboardContent = ({
     }
   }, [dispatch, onRefreshOrders]);
 
+  // Handler refresh thủ công không rời trang
+  const handleManualRefresh = useCallback(async () => {
+    if (refreshingOrders) return;
+    try {
+      setRefreshingOrders(true);
+      await onRefreshOrders?.();
+      setSnackbar({
+        open: true,
+        message: 'Làm mới danh sách đơn hàng thành công',
+        severity: 'success'
+      });
+    } catch (e) {
+      console.error('Manual refresh error', e);
+      setSnackbar({
+        open: true,
+        message: 'Làm mới thất bại' + (e?.message ? ': ' + e.message : ''),
+        severity: 'error'
+      });
+    } finally {
+      setRefreshingOrders(false);
+    }
+  }, [onRefreshOrders, refreshingOrders]);
+
   // Hàm tạo thông báo cho từng trạng thái
   const getEmptyStateMessage = useCallback((statusFilter) => {
     const statusMessages = {
@@ -2741,6 +2863,21 @@ const DashboardContent = ({
            
             sx={{ flex: 1, minWidth: { xs: "100%", sm: 220 } }}
           />
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleManualRefresh}
+            startIcon={refreshingOrders ? <CircularProgress size={18} /> : <RefreshIcon />}
+            disabled={refreshingOrders}
+            sx={{
+              whiteSpace: 'nowrap',
+              textTransform: 'none',
+              fontWeight: 500,
+              alignSelf: { xs: 'stretch', sm: 'flex-start' }
+            }}
+          >
+            {refreshingOrders ? 'Đang làm mới...' : 'Làm mới'}
+          </Button>
         </Stack>
       </Card>
 
@@ -2860,6 +2997,7 @@ const DashboardContent = ({
                       onViewContract={handleViewContract}
                       onConfirmSigned={handleConfirmSigned}
                       contractViewLoading={contractViewLoading}
+                      onCashConstructionDeposit={openCashConstructionDepositDialog}
                     />
                   ))
                 )}
@@ -3052,6 +3190,7 @@ const DashboardContent = ({
                   onViewContract={handleViewContract}
                   onConfirmSigned={handleConfirmSigned}
                   contractViewLoading={contractViewLoading}
+                  onCashConstructionDeposit={openCashConstructionDepositDialog}
                 />
               ))}
             </Box>
@@ -3235,6 +3374,42 @@ const DashboardContent = ({
         orderDetails={orderDetailDialog.orderDetails}
         generateOrderCode={generateOrderCode}
       />
+
+      {/* Cash Construction Deposit Confirmation Dialog */}
+      <Dialog
+        open={cashConstructionDepositDialog.open}
+        onClose={confirmingCashConstructionDeposit ? undefined : closeCashConstructionDepositDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AttachMoneyIcon color="secondary" />
+            <Typography variant="h6">Xác nhận cọc thi công (TM)</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Bạn có chắc muốn xác nhận khách hàng đã thanh toán tiền mặt phần cọc thi công cho đơn hàng
+            {' '}<strong>{cashConstructionDepositDialog.order?.orderCode || cashConstructionDepositDialog.order?.id}</strong>?
+          </Typography>
+          <Typography variant="body2">
+            Số tiền cọc thi công: <strong>{(cashConstructionDepositDialog.order?.depositConstructionAmount || 0).toLocaleString('vi-VN')} VNĐ</strong>
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeCashConstructionDepositDialog} disabled={confirmingCashConstructionDeposit}>Hủy</Button>
+          <Button
+            onClick={handleConfirmCashConstructionDeposit}
+            variant="contained"
+            color="secondary"
+            disabled={confirmingCashConstructionDeposit}
+            startIcon={confirmingCashConstructionDeposit ? <CircularProgress size={18} /> : <AttachMoneyIcon />}
+          >
+            {confirmingCashConstructionDeposit ? 'Đang xác nhận...' : 'Xác nhận'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar for notifications */}
       <Snackbar

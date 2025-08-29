@@ -703,6 +703,15 @@ const FeedBack = () => {
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              sx={{ textTransform: 'none' }}
+            >
+              Làm mới
+            </Button>
             <Chip 
               label={`Tổng: ${displayTotalElements}`} 
               color="primary" 
