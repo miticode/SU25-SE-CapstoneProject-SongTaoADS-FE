@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, memo } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
@@ -111,6 +111,7 @@ import {
 } from "../../store/features/order/orderSlice";
 
 import { fetchAllContractors } from "../../store/features/contractor/contractorSlice";
+import { castPaidThunk } from "../../store/features/payment/paymentSlice"; // sử dụng cho xác nhận tiền mặt đặt cọc thiết kế
 
 // Thay thế import cũ bằng import mới
 // import ContractUploadForm from "../../components/ContractUploadForm";
@@ -598,6 +599,81 @@ const CustomerRequests = () => {
     depositAmount: "",
   });
   const [creatingProposal, setCreatingProposal] = useState(false);
+
+  // ===== NEW: Cash design deposit confirmation dialog state =====
+  const [cashDesignDepositDialog, setCashDesignDepositDialog] = useState({ open: false, order: null });
+  const [confirmingCashDesignDeposit, setConfirmingCashDesignDeposit] = useState(false);
+
+  const openCashDesignDepositDialog = (order) => {
+    setCashDesignDepositDialog({ open: true, order });
+  };
+  const closeCashDesignDepositDialog = () => {
+    setCashDesignDepositDialog({ open: false, order: null });
+  };
+  const handleConfirmCashDesignDeposit = async () => {
+    if (!cashDesignDepositDialog.order) return;
+    setConfirmingCashDesignDeposit(true);
+    try {
+      await dispatch(castPaidThunk({ orderId: cashDesignDepositDialog.order.id, paymentType: 'DEPOSIT_DESIGN' })).unwrap();
+      setNotification({ open: true, message: 'Đã xác nhận đặt cọc thiết kế (tiền mặt) thành công!', severity: 'success' });
+      closeCashDesignDepositDialog();
+      await refreshOrdersData?.(); // nếu hàm tồn tại
+    } catch (e) {
+      setNotification({ open: true, message: 'Lỗi xác nhận đặt cọc thiết kế: ' + (e?.message || e), severity: 'error' });
+    } finally {
+      setConfirmingCashDesignDeposit(false);
+    }
+  };
+
+  // ===== NEW: Cash remaining design payment confirmation dialog state =====
+  const [cashDesignRemainingDialog, setCashDesignRemainingDialog] = useState({ open: false, order: null });
+  const [confirmingCashDesignRemaining, setConfirmingCashDesignRemaining] = useState(false);
+
+  const openCashDesignRemainingDialog = (order) => {
+    setCashDesignRemainingDialog({ open: true, order });
+  };
+  const closeCashDesignRemainingDialog = () => {
+    setCashDesignRemainingDialog({ open: false, order: null });
+  };
+  const handleConfirmCashDesignRemaining = async () => {
+    if (!cashDesignRemainingDialog.order) return;
+    setConfirmingCashDesignRemaining(true);
+    try {
+      await dispatch(castPaidThunk({ orderId: cashDesignRemainingDialog.order.id, paymentType: 'REMAINING_DESIGN' })).unwrap();
+      setNotification({ open: true, message: 'Đã xác nhận thanh toán đủ thiết kế (tiền mặt) thành công!', severity: 'success' });
+      closeCashDesignRemainingDialog();
+      await refreshOrdersData?.();
+    } catch (e) {
+      setNotification({ open: true, message: 'Lỗi xác nhận thanh toán đủ thiết kế: ' + (e?.message || e), severity: 'error' });
+    } finally {
+      setConfirmingCashDesignRemaining(false);
+    }
+  };
+
+  // ===== NEW: Cash construction deposit confirmation dialog state =====
+  const [cashConstructionDepositDialog, setCashConstructionDepositDialog] = useState({ open: false, order: null });
+  const [confirmingCashConstructionDeposit, setConfirmingCashConstructionDeposit] = useState(false);
+
+  const openCashConstructionDepositDialog = (order) => {
+    setCashConstructionDepositDialog({ open: true, order });
+  };
+  const closeCashConstructionDepositDialog = () => {
+    setCashConstructionDepositDialog({ open: false, order: null });
+  };
+  const handleConfirmCashConstructionDeposit = async () => {
+    if (!cashConstructionDepositDialog.order) return;
+    setConfirmingCashConstructionDeposit(true);
+    try {
+      await dispatch(castPaidThunk({ orderId: cashConstructionDepositDialog.order.id, paymentType: 'DEPOSIT_CONSTRUCTION' })).unwrap();
+      setNotification({ open: true, message: 'Đã xác nhận đặt cọc thi công (tiền mặt) thành công!', severity: 'success' });
+      closeCashConstructionDepositDialog();
+      await refreshOrdersData?.();
+    } catch (e) {
+      setNotification({ open: true, message: 'Lỗi xác nhận đặt cọc thi công: ' + (e?.message || e), severity: 'error' });
+    } finally {
+      setConfirmingCashConstructionDeposit(false);
+    }
+  };
 
   const [selectedStatus, setSelectedStatus] = useState(""); // Mặc định là tất cả trạng thái
 
@@ -2348,16 +2424,25 @@ const CustomerRequests = () => {
           <>
             {/* Filter Section */}
             <Card sx={{ mb: 3, p: 2 }}>
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={2}
-                sx={{ mb: 2 }}
-              >
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 <FilterIcon color="primary" />
-                <Typography variant="h6" fontWeight="medium">
-                  Bộ lọc
-                </Typography>
+                <Typography variant="h6" fontWeight="medium" sx={{ mr: 1 }}>Bộ lọc</Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      setNotification({ open: true, message: "Đang làm mới dữ liệu...", severity: "info" });
+                      await refreshDesignRequestsData();
+                      setNotification({ open: true, message: "Làm mới thành công", severity: "success" });
+                    } catch (e) {
+                      setNotification({ open: true, message: "Làm mới thất bại", severity: "error" });
+                    }
+                  }}
+                  startIcon={<RefreshIcon />}
+                >
+                  Làm mới
+                </Button>
               </Stack>
 
               {/* Search and Filter Row */}
@@ -2745,6 +2830,23 @@ const CustomerRequests = () => {
                 <Typography variant="h6" fontWeight="medium">
                   Bộ lọc đơn hàng
                 </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      setNotification({ open: true, message: "Đang làm mới dữ liệu...", severity: "info" });
+                      await refreshOrdersData();
+                      setNotification({ open: true, message: "Làm mới thành công", severity: "success" });
+                    } catch {
+                      setNotification({ open: true, message: "Làm mới thất bại", severity: "error" });
+                    }
+                  }}
+                  startIcon={<RefreshIcon />}
+                  sx={{ ml: 1 }}
+                >
+                  Làm mới
+                </Button>
               </Stack>
 
               {/* Search and Filter Row */}
@@ -3108,6 +3210,7 @@ const CustomerRequests = () => {
                               </Stack>
                             </TableCell>
                             <TableCell align="center">
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0.75 }}>
                               <Button
                                 variant="contained"
                                 color={
@@ -3150,6 +3253,65 @@ const CustomerRequests = () => {
                                   ? "Báo giao hàng"
                                   : "Xem chi tiết"}
                               </Button>
+                              {/* NEW: Cash confirm design deposit button for NEED_DEPOSIT_DESIGN */}
+                {order.status === 'NEED_DEPOSIT_DESIGN' && (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                  onClick={() => openCashDesignDepositDialog(order)}
+                                  startIcon={<AttachMoneyIcon />}
+                                  sx={{
+                                    mt: 0.5,
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 'medium',
+                                    fontSize: '0.65rem',
+                                    px: 1.2,
+                                    py: 0.5,
+                                    background: 'linear-gradient(135deg,#2e7d32 0%,#43a047 100%)',
+                                    boxShadow: '0 3px 10px rgba(46,125,50,0.35)',
+                                    '&:hover': {
+                                      background: 'linear-gradient(135deg,#27672b 0%,#3b8a3f 100%)',
+                                      boxShadow: '0 5px 16px rgba(46,125,50,0.5)',
+                                      transform: 'translateY(-1px)'
+                                    },
+                                    '&:active': { transform: 'scale(.95)' }
+                                  }}
+                                >
+                                  Xác nhận cọc (tiền mặt)
+                                </Button>
+                              )}
+                              {/* NEW: Cash confirm remaining design payment button for NEED_FULLY_PAID_DESIGN */}
+                {order.status === 'NEED_FULLY_PAID_DESIGN' && (
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                  onClick={() => openCashDesignRemainingDialog(order)}
+                                  startIcon={<AttachMoneyIcon />}
+                                  sx={{
+                                    mt: 0.5,
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 'medium',
+                                    fontSize: '0.65rem',
+                                    px: 1.2,
+                                    py: 0.5,
+                                    background: 'linear-gradient(135deg,#1b5e20 0%,#2e7d32 100%)',
+                                    boxShadow: '0 3px 10px rgba(27,94,32,0.35)',
+                                    '&:hover': {
+                                      background: 'linear-gradient(135deg,#154a19 0%,#27672b 100%)',
+                                      boxShadow: '0 5px 16px rgba(27,94,32,0.5)',
+                                      transform: 'translateY(-1px)'
+                                    },
+                                    '&:active': { transform: 'scale(.95)' }
+                                  }}
+                                >
+                                  Xác nhận đủ TK (tiền mặt)
+                                </Button>
+                              )}
+                              </Box>
                               {/* Các nút hành động hợp đồng (áp dụng cho đơn hàng thiết kế tùy chỉnh từ trạng thái PENDING_CONTRACT trở đi) */}
                               {[
                                 "PENDING_CONTRACT",
@@ -3319,6 +3481,32 @@ const CustomerRequests = () => {
                                         : "Xem hợp đồng"}
                                     </Button>
                                   )}
+                                  {/* NEW: Cash confirm construction deposit (after contract confirmed) */}
+                                  {order.status === 'CONTRACT_CONFIRMED' && (
+                                    <Button
+                                      variant="contained"
+                                      size="small"
+                                      startIcon={<AttachMoneyIcon />}
+                                      onClick={() => openCashConstructionDepositDialog(order)}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.65rem',
+                                        borderRadius: 2,
+                                        px: 1.5,
+                                        py: 0.4,
+                                        background: 'linear-gradient(135deg,#00695c 0%,#00897b 100%)',
+                                        boxShadow: '0 3px 10px rgba(0,105,92,0.35)',
+                                        '&:hover': {
+                                          background: 'linear-gradient(135deg,#00534a 0%,#007065 100%)',
+                                          boxShadow: '0 5px 16px rgba(0,105,92,0.5)',
+                                          transform: 'translateY(-1px)'
+                                        },
+                                        '&:active': { transform: 'scale(.95)' }
+                                      }}
+                                    >
+                                      Xác nhận cọc thi công
+                                    </Button>
+                                  )}
                                   {/* Xác nhận hoàn tất khi khách đã ký */}
                                   {order.status === "CONTRACT_SIGNED" && (
                                     <Button
@@ -3383,6 +3571,112 @@ const CustomerRequests = () => {
             )}
           </>
         )}
+
+        {/* NEW: Dialog xác nhận đặt cọc thiết kế bằng tiền mặt */}
+        <Dialog
+          open={cashDesignDepositDialog.open}
+          onClose={confirmingCashDesignDeposit ? undefined : closeCashDesignDepositDialog}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Xác nhận đặt cọc thiết kế (tiền mặt)</DialogTitle>
+            <DialogContent dividers>
+              <Stack spacing={2}>
+                <Typography variant="body2">
+                  Bạn có chắc chắn muốn xác nhận khách hàng đã thanh toán tiền mặt tiền cọc thiết kế cho đơn hàng:
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                  {cashDesignDepositDialog.order?.orderCode || cashDesignDepositDialog.order?.id}
+                </Typography>
+                <Typography variant="body2">
+                  Số tiền cọc: <strong>{formatCurrency(cashDesignDepositDialog.order?.depositDesignAmount || 0)}</strong>
+                </Typography>
+               
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={closeCashDesignDepositDialog} disabled={confirmingCashDesignDeposit}>Hủy</Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleConfirmCashDesignDeposit}
+                disabled={confirmingCashDesignDeposit}
+                startIcon={confirmingCashDesignDeposit ? <CircularProgress size={16} /> : <AttachMoneyIcon />}
+              >
+                {confirmingCashDesignDeposit ? 'Đang xác nhận...' : 'Xác nhận'}
+              </Button>
+            </DialogActions>
+        </Dialog>
+
+        {/* NEW: Dialog xác nhận thanh toán đủ thiết kế bằng tiền mặt */}
+        <Dialog
+          open={cashDesignRemainingDialog.open}
+          onClose={confirmingCashDesignRemaining ? undefined : closeCashDesignRemainingDialog}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Xác nhận thanh toán đủ thiết kế (tiền mặt)</DialogTitle>
+            <DialogContent dividers>
+              <Stack spacing={2}>
+                <Typography variant="body2">
+                  Bạn có chắc chắn muốn xác nhận khách hàng đã thanh toán tiền mặt phần còn lại phí thiết kế cho đơn hàng:
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                  {cashDesignRemainingDialog.order?.orderCode || cashDesignRemainingDialog.order?.id}
+                </Typography>
+                <Typography variant="body2">
+                  Số tiền còn lại: <strong>{formatCurrency(cashDesignRemainingDialog.order?.remainingDesignAmount || 0)}</strong>
+                </Typography>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={closeCashDesignRemainingDialog} disabled={confirmingCashDesignRemaining}>Hủy</Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleConfirmCashDesignRemaining}
+                disabled={confirmingCashDesignRemaining}
+                startIcon={confirmingCashDesignRemaining ? <CircularProgress size={16} /> : <AttachMoneyIcon />}
+              >
+                {confirmingCashDesignRemaining ? 'Đang xác nhận...' : 'Xác nhận'}
+              </Button>
+            </DialogActions>
+        </Dialog>
+
+        {/* NEW: Dialog xác nhận đặt cọc thi công bằng tiền mặt */}
+        <Dialog
+          open={cashConstructionDepositDialog.open}
+          onClose={confirmingCashConstructionDeposit ? undefined : closeCashConstructionDepositDialog}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Xác nhận đặt cọc thi công (tiền mặt)</DialogTitle>
+            <DialogContent dividers>
+              <Stack spacing={2}>
+                <Typography variant="body2">
+                  Bạn có chắc chắn muốn xác nhận khách hàng đã thanh toán tiền mặt tiền cọc thi công cho đơn hàng:
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                  {cashConstructionDepositDialog.order?.orderCode || cashConstructionDepositDialog.order?.id}
+                </Typography>
+                <Typography variant="body2">
+                  Số tiền cọc thi công: <strong>{formatCurrency(cashConstructionDepositDialog.order?.depositConstructionAmount || 0)}</strong>
+                </Typography>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={closeCashConstructionDepositDialog} disabled={confirmingCashConstructionDeposit}>Hủy</Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleConfirmCashConstructionDeposit}
+                disabled={confirmingCashConstructionDeposit}
+                startIcon={confirmingCashConstructionDeposit ? <CircularProgress size={16} /> : <AttachMoneyIcon />}
+              >
+                {confirmingCashConstructionDeposit ? 'Đang xác nhận...' : 'Xác nhận'}
+              </Button>
+            </DialogActions>
+        </Dialog>
 
         <Dialog
           open={detailOpen}
@@ -6016,19 +6310,21 @@ const CustomerRequests = () => {
                 )}
 
                 {/* Update Status Section (ẩn nếu trạng thái trước đàm phán hoặc từ đàm phán trở đi theo yêu cầu mới) */}
-                {selectedOrder &&
-                  ![
-                    "PENDING_CONTRACT",
-                    "CONTRACT_SENT",
-                    "CONTRACT_DISCUSS",
-                    "CONTRACT_SIGNED",
-                    "CONTRACT_RESIGNED",
-                    "CONTRACT_CONFIRMED",
-                    "IN_PROGRESS",
-                  ].includes(selectedOrder.status) && (
-                    <Box sx={{ mt: 4 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Trạng thái đơn hàng
+
+                {selectedOrder && !['PENDING_CONTRACT','CONTRACT_SENT','CONTRACT_DISCUSS','CONTRACT_SIGNED','CONTRACT_RESIGNED','CONTRACT_CONFIRMED','IN_PROGRESS','PENDING_DESIGN','NEED_DEPOSIT_DESIGN','DEPOSITED_DESIGN','NEED_FULLY_PAID_DESIGN','WAITING_FINAL_DESIGN','DESIGN_COMPLETED'].includes(selectedOrder.status) && (
+                  <Box sx={{ mt: 4 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Trạng thái đơn hàng
+                    </Typography>
+
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Chuyển đến trạng thái:
+
                       </Typography>
 
                       <Paper variant="outlined" sx={{ p: 2 }}>
