@@ -4347,88 +4347,100 @@ const ManagerFineTuneAI = () => {
                     </Box>
                   </Box>
 
-                  {selectedModelChatBotTopics.length === 0 ? (
-                    <Box textAlign="center" py={4}>
-                      <Typography variant="body2" color="text.secondary">
-                        Model này chưa có topic nào
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              STT
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Tên Topic
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Ngày tạo
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Thao tác
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedModelChatBotTopics.map((topic, index) => (
-                            <TableRow key={topic.id} hover>
-                              <TableCell>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={500}
-                                  align="center"
-                                >
-                                  {index + 1}
-                                </Typography>
+                  {/* Lọc unique topics để tránh duplicate */}
+                  {(() => {
+                    const uniqueTopics = selectedModelChatBotTopics
+                      ? selectedModelChatBotTopics.filter(
+                          (topic, index, self) =>
+                            self.findIndex(
+                              (t) => t.topicId === topic.topicId
+                            ) === index
+                        )
+                      : [];
+
+                    return uniqueTopics.length === 0 ? (
+                      <Box textAlign="center" py={4}>
+                        <Typography variant="body2" color="text.secondary">
+                          Model này chưa có topic nào
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                STT
                               </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {/* Find topic name from topics list */}
-                                  {topics?.find((t) => t.id === topic.topicId)
-                                    ?.title || "N/A"}
-                                </Typography>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                Tên Topic
                               </TableCell>
-                              <TableCell>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  {topic.createdAt
-                                    ? new Date(topic.createdAt).toLocaleString(
-                                        "vi-VN"
-                                      )
-                                    : "N/A"}
-                                </Typography>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                Ngày tạo
                               </TableCell>
-                              <TableCell>
-                                <Tooltip title="Xóa Topic khỏi Model">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleDeleteChatBotTopic(topic.id)
-                                    }
-                                    sx={{
-                                      bgcolor: "#ffebee",
-                                      "&:hover": {
-                                        bgcolor: "#d32f2f",
-                                        color: "#fff",
-                                      },
-                                      borderRadius: 1,
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                Thao tác
                               </TableCell>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  )}
+                          </TableHead>
+                          <TableBody>
+                            {uniqueTopics.map((topic, index) => (
+                              <TableRow key={topic.id} hover>
+                                <TableCell>
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={500}
+                                    align="center"
+                                  >
+                                    {index + 1}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {/* Find topic name from topics list */}
+                                    {topics?.find((t) => t.id === topic.topicId)
+                                      ?.title || "N/A"}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    {topic.createdAt
+                                      ? new Date(
+                                          topic.createdAt
+                                        ).toLocaleString("vi-VN")
+                                      : "N/A"}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Tooltip title="Xóa Topic khỏi Model">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleDeleteChatBotTopic(topic.id)
+                                      }
+                                      sx={{
+                                        bgcolor: "#ffebee",
+                                        "&:hover": {
+                                          bgcolor: "#d32f2f",
+                                          color: "#fff",
+                                        },
+                                        borderRadius: 1,
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    );
+                  })()}
                 </>
               )}
             </DialogContent>
