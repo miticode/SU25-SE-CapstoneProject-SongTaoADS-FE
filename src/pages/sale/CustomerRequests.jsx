@@ -1104,10 +1104,13 @@ const CustomerRequests = () => {
         let foundOrder = null;
         try {
           // Kết hợp cả danh sách customDesignOrders và allOrders để chắc chắn tìm thấy
-            const combinedOrders = [...(customDesignOrders || []), ...(allOrders || [])];
-            foundOrder = combinedOrders.find(o => o.id === orderId) || null;
+          const combinedOrders = [
+            ...(customDesignOrders || []),
+            ...(allOrders || []),
+          ];
+          foundOrder = combinedOrders.find((o) => o.id === orderId) || null;
         } catch (e) {
-          console.warn('Không thể tìm order để lấy orderCode:', e);
+          console.warn("Không thể tìm order để lấy orderCode:", e);
         }
 
         setContractDialog({
@@ -2404,13 +2407,6 @@ const CustomerRequests = () => {
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <BrushIcon />
                   <span>Yêu cầu thiết kế</span>
-                  {status !== "loading" && allDesignRequests.length > 0 && (
-                    <Badge
-                      badgeContent={allDesignRequests.length}
-                      color="primary"
-                      sx={{ ml: 1 }}
-                    />
-                  )}
                 </Stack>
               }
             />
@@ -2419,13 +2415,6 @@ const CustomerRequests = () => {
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <OrderIcon />
                   <span>Đơn hàng thiết kế tùy chỉnh</span>
-                  {!orderLoading && orders.length > 0 && (
-                    <Badge
-                      badgeContent={orders.length}
-                      color="warning"
-                      sx={{ ml: 1 }}
-                    />
-                  )}
                 </Stack>
               }
             />
@@ -2478,16 +2467,6 @@ const CustomerRequests = () => {
                       setSelectedStatus(e.target.value);
                       setDesignRequestsPage(1); // Reset to first page when changing status
                     }}
-                    startAdornment={
-                      <Box sx={{ mr: 1 }}>
-                        <Chip
-                          size="small"
-                          label={allDesignRequests.length}
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </Box>
-                    }
                   >
                     <MenuItem value="">Tất cả trạng thái</MenuItem>
                     <MenuItem value="PENDING">Chờ xác nhận</MenuItem>
@@ -2887,16 +2866,6 @@ const CustomerRequests = () => {
                     value={selectedOrderStatus}
                     label="Lọc theo trạng thái đơn hàng"
                     onChange={handleOrderStatusChange}
-                    startAdornment={
-                      <Box sx={{ mr: 1 }}>
-                        <Chip
-                          size="small"
-                          label={orders.length}
-                          color="warning"
-                          variant="outlined"
-                        />
-                      </Box>
-                    }
                   >
                     <MenuItem value="">Tất cả trạng thái</MenuItem>
                     <MenuItem value="PENDING_DESIGN">Chờ thiết kế</MenuItem>
@@ -3244,32 +3213,45 @@ const CustomerRequests = () => {
                               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0.75 }}>
                               <Button
                                 variant="contained"
-                                color={order.status === 'DEPOSITED' ? 'info' : 'primary'}
+                                color={
+                                  order.status === "DEPOSITED"
+                                    ? "info"
+                                    : "primary"
+                                }
                                 size="small"
                                 onClick={() => handleViewDetail(order.id)}
-                                startIcon={order.status === 'DEPOSITED' ? <ShippingIcon /> : undefined}
+                                startIcon={
+                                  order.status === "DEPOSITED" ? (
+                                    <ShippingIcon />
+                                  ) : undefined
+                                }
                                 sx={{
                                   borderRadius: 2,
-                                  textTransform: 'none',
-                                  fontWeight: 'medium',
-                                  fontSize: '0.70rem',
+                                  textTransform: "none",
+                                  fontWeight: "medium",
+                                  fontSize: "0.70rem",
                                   px: 1.5,
                                   py: 0.6,
-                                  minWidth: order.status === 'DEPOSITED' ? 110 : 78,
+                                  minWidth:
+                                    order.status === "DEPOSITED" ? 110 : 78,
                                   boxShadow: 2,
-                                  background: order.status === 'DEPOSITED'
-                                    ? 'linear-gradient(135deg,#0284c7 0%,#0ea5e9 100%)'
-                                    : 'linear-gradient(135deg,#1565c0 0%,#1976d2 100%)',
-                                  '&:hover': {
+                                  background:
+                                    order.status === "DEPOSITED"
+                                      ? "linear-gradient(135deg,#0284c7 0%,#0ea5e9 100%)"
+                                      : "linear-gradient(135deg,#1565c0 0%,#1976d2 100%)",
+                                  "&:hover": {
                                     boxShadow: 4,
-                                    transform: 'translateY(-1px)',
-                                    background: order.status === 'DEPOSITED'
-                                      ? 'linear-gradient(135deg,#026799 0%,#0284c7 100%)'
-                                      : 'linear-gradient(135deg,#0d47a1 0%,#1565c0 100%)'
-                                  }
+                                    transform: "translateY(-1px)",
+                                    background:
+                                      order.status === "DEPOSITED"
+                                        ? "linear-gradient(135deg,#026799 0%,#0284c7 100%)"
+                                        : "linear-gradient(135deg,#0d47a1 0%,#1565c0 100%)",
+                                  },
                                 }}
                               >
-                                {order.status === 'DEPOSITED' ? 'Báo giao hàng' : 'Xem chi tiết'}
+                                {order.status === "DEPOSITED"
+                                  ? "Báo giao hàng"
+                                  : "Xem chi tiết"}
                               </Button>
                               {/* NEW: Cash confirm design deposit button for NEED_DEPOSIT_DESIGN */}
                 {order.status === 'NEED_DEPOSIT_DESIGN' && (
@@ -3346,111 +3328,157 @@ const CustomerRequests = () => {
                                 "INSTALLED",
                                 "ORDER_COMPLETED",
                               ].includes(order.status) && (
-                                <Box sx={(theme) => {
-                                  const verticalStatuses = [
-                                    'CONTRACT_DISCUSS',
-                                    'CONTRACT_SIGNED',
-                                    'CONTRACT_RESIGNED',
-                                    'CONTRACT_CONFIRMED',
-                                    'DEPOSITED',
-                                    'IN_PROGRESS',
-                                    'PRODUCING',
-                                    'PRODUCTION_COMPLETED',
-                                    'DELIVERING',
-                                    'INSTALLED',
-                                    'ORDER_COMPLETED'
-                                  ];
-                                  const isVertical = verticalStatuses.includes(order.status);
-                                  return {
-                                    display: 'flex',
-                                    flexDirection: isVertical ? 'column' : 'row',
-                                    alignItems: isVertical ? 'stretch' : 'center',
-                                    gap: 0.75,
-                                    mt: 1,
-                                    justifyContent: 'center',
-                                    // Full width buttons when vertical
-                                    '& > *': isVertical ? { width: '100%' } : {},
-                                  };
-                                }}>
+                                <Box
+                                  sx={(theme) => {
+                                    const verticalStatuses = [
+                                      "CONTRACT_DISCUSS",
+                                      "CONTRACT_SIGNED",
+                                      "CONTRACT_RESIGNED",
+                                      "CONTRACT_CONFIRMED",
+                                      "DEPOSITED",
+                                      "IN_PROGRESS",
+                                      "PRODUCING",
+                                      "PRODUCTION_COMPLETED",
+                                      "DELIVERING",
+                                      "INSTALLED",
+                                      "ORDER_COMPLETED",
+                                    ];
+                                    const isVertical =
+                                      verticalStatuses.includes(order.status);
+                                    return {
+                                      display: "flex",
+                                      flexDirection: isVertical
+                                        ? "column"
+                                        : "row",
+                                      alignItems: isVertical
+                                        ? "stretch"
+                                        : "center",
+                                      gap: 0.75,
+                                      mt: 1,
+                                      justifyContent: "center",
+                                      // Full width buttons when vertical
+                                      "& > *": isVertical
+                                        ? { width: "100%" }
+                                        : {},
+                                    };
+                                  }}
+                                >
                                   {/* Gửi hợp đồng */}
-                                  {order.status === 'PENDING_CONTRACT' && (
+                                  {order.status === "PENDING_CONTRACT" && (
                                     <Button
                                       variant="contained"
                                       size="small"
                                       startIcon={<UploadIcon />}
-                                      onClick={() => { setSelectedOrder(order); setOpenContractUpload(true); }}
+                                      onClick={() => {
+                                        setSelectedOrder(order);
+                                        setOpenContractUpload(true);
+                                      }}
                                       sx={{
-                                        textTransform: 'none',
-                                        fontSize: '0.65rem',
+                                        textTransform: "none",
+                                        fontSize: "0.65rem",
                                         borderRadius: 2,
                                         px: 1.5,
                                         py: 0.4,
-                                        background: 'linear-gradient(135deg,#2e7d32 0%,#43a047 100%)',
-                                        boxShadow: '0 3px 10px rgba(46,125,50,0.35)',
-                                        '&:hover': {
-                                          background: 'linear-gradient(135deg,#27672b 0%,#3b8a3f 100%)',
-                                          boxShadow: '0 5px 16px rgba(46,125,50,0.5)',
-                                          transform: 'translateY(-1px)'
+                                        background:
+                                          "linear-gradient(135deg,#2e7d32 0%,#43a047 100%)",
+                                        boxShadow:
+                                          "0 3px 10px rgba(46,125,50,0.35)",
+                                        "&:hover": {
+                                          background:
+                                            "linear-gradient(135deg,#27672b 0%,#3b8a3f 100%)",
+                                          boxShadow:
+                                            "0 5px 16px rgba(46,125,50,0.5)",
+                                          transform: "translateY(-1px)",
                                         },
-                                        '&:active': { transform: 'scale(.95)' }
+                                        "&:active": { transform: "scale(.95)" },
                                       }}
                                     >
                                       Gửi hợp đồng
                                     </Button>
                                   )}
                                   {/* Gửi lại hợp đồng */}
-                                  {order.status === 'CONTRACT_DISCUSS' && (
+                                  {order.status === "CONTRACT_DISCUSS" && (
                                     <Button
                                       variant="contained"
                                       size="small"
                                       startIcon={<UploadIcon />}
-                                      onClick={() => { setSelectedOrder(order); getContractIdForOrder(order.id); }}
+                                      onClick={() => {
+                                        setSelectedOrder(order);
+                                        getContractIdForOrder(order.id);
+                                      }}
                                       sx={{
-                                        textTransform: 'none',
-                                        fontSize: '0.65rem',
+                                        textTransform: "none",
+                                        fontSize: "0.65rem",
                                         borderRadius: 2,
                                         px: 1.5,
                                         py: 0.6,
-                                        background: 'linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%)',
-                                        color: '#222',
-                                        boxShadow: '0 3px 10px rgba(245,158,11,0.35)',
-                                        '&:hover': {
-                                          background: 'linear-gradient(135deg,#d98206 0%,#e6a814 100%)',
-                                          boxShadow: '0 5px 16px rgba(245,158,11,0.5)',
-                                          transform: 'translateY(-1px)'
+                                        background:
+                                          "linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%)",
+                                        color: "#222",
+                                        boxShadow:
+                                          "0 3px 10px rgba(245,158,11,0.35)",
+                                        "&:hover": {
+                                          background:
+                                            "linear-gradient(135deg,#d98206 0%,#e6a814 100%)",
+                                          boxShadow:
+                                            "0 5px 16px rgba(245,158,11,0.5)",
+                                          transform: "translateY(-1px)",
                                         },
-                                        '&:active': { transform: 'scale(.95)' },
-                                        width: '100%'
+                                        "&:active": { transform: "scale(.95)" },
+                                        width: "100%",
                                       }}
                                     >
                                       Gửi lại hợp đồng
                                     </Button>
                                   )}
                                   {/* Xem hợp đồng */}
-                                  {['CONTRACT_SIGNED','CONTRACT_SENT','CONTRACT_CONFIRMED','CONTRACT_DISCUSS','CONTRACT_RESIGNED','PRODUCTION_COMPLETED','ORDER_COMPLETED'].includes(order.status) && (
+                                  {[
+                                    "CONTRACT_SIGNED",
+                                    "CONTRACT_SENT",
+                                    "CONTRACT_CONFIRMED",
+                                    "CONTRACT_DISCUSS",
+                                    "CONTRACT_RESIGNED",
+                                    "PRODUCTION_COMPLETED",
+                                    "ORDER_COMPLETED",
+                                  ].includes(order.status) && (
                                     <Button
                                       variant="contained"
                                       size="small"
-                                      startIcon={contractViewLoading ? <CircularProgress size={14} /> : <DescriptionIcon />}
-                                      onClick={() => { setSelectedOrder(order); handleViewContract(order.id); }}
+                                      startIcon={
+                                        contractViewLoading ? (
+                                          <CircularProgress size={14} />
+                                        ) : (
+                                          <DescriptionIcon />
+                                        )
+                                      }
+                                      onClick={() => {
+                                        setSelectedOrder(order);
+                                        handleViewContract(order.id);
+                                      }}
                                       disabled={contractViewLoading}
                                       sx={{
-                                        textTransform: 'none',
-                                        fontSize: '0.65rem',
+                                        textTransform: "none",
+                                        fontSize: "0.65rem",
                                         borderRadius: 2,
                                         px: 1.5,
                                         py: 0.4,
-                                        background: 'linear-gradient(135deg,#1976d2 0%,#2196f3 100%)',
-                                        boxShadow: '0 3px 10px rgba(25,118,210,0.35)',
-                                        '&:hover': {
-                                          background: 'linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)',
-                                          boxShadow: '0 5px 16px rgba(25,118,210,0.5)',
-                                          transform: 'translateY(-1px)'
+                                        background:
+                                          "linear-gradient(135deg,#1976d2 0%,#2196f3 100%)",
+                                        boxShadow:
+                                          "0 3px 10px rgba(25,118,210,0.35)",
+                                        "&:hover": {
+                                          background:
+                                            "linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)",
+                                          boxShadow:
+                                            "0 5px 16px rgba(25,118,210,0.5)",
+                                          transform: "translateY(-1px)",
                                         },
-                                        '&:active': { transform: 'scale(.95)' }
+                                        "&:active": { transform: "scale(.95)" },
                                       }}
                                     >
-                                      {contractViewLoading ? 'Đang tải...' : 'Xem hợp đồng'}
+                                      {contractViewLoading
+                                        ? "Đang tải..."
+                                        : "Xem hợp đồng"}
                                     </Button>
                                   )}
                                   {/* NEW: Cash confirm construction deposit (after contract confirmed) */}
@@ -3480,26 +3508,33 @@ const CustomerRequests = () => {
                                     </Button>
                                   )}
                                   {/* Xác nhận hoàn tất khi khách đã ký */}
-                                  {order.status === 'CONTRACT_SIGNED' && (
+                                  {order.status === "CONTRACT_SIGNED" && (
                                     <Button
                                       variant="contained"
                                       size="small"
                                       startIcon={<DescriptionIcon />}
-                                      onClick={() => { setSelectedOrder(order); handleContractSigned(order.id); }}
+                                      onClick={() => {
+                                        setSelectedOrder(order);
+                                        handleContractSigned(order.id);
+                                      }}
                                       sx={{
-                                        textTransform: 'none',
-                                        fontSize: '0.65rem',
+                                        textTransform: "none",
+                                        fontSize: "0.65rem",
                                         borderRadius: 2,
                                         px: 1.5,
                                         py: 0.4,
-                                        background: 'linear-gradient(135deg,#388e3c 0%,#4caf50 100%)',
-                                        boxShadow: '0 3px 10px rgba(56,142,60,0.35)',
-                                        '&:hover': {
-                                          background: 'linear-gradient(135deg,#2e7d32 0%,#43a047 100%)',
-                                          boxShadow: '0 5px 16px rgba(56,142,60,0.5)',
-                                          transform: 'translateY(-1px)'
+                                        background:
+                                          "linear-gradient(135deg,#388e3c 0%,#4caf50 100%)",
+                                        boxShadow:
+                                          "0 3px 10px rgba(56,142,60,0.35)",
+                                        "&:hover": {
+                                          background:
+                                            "linear-gradient(135deg,#2e7d32 0%,#43a047 100%)",
+                                          boxShadow:
+                                            "0 5px 16px rgba(56,142,60,0.5)",
+                                          transform: "translateY(-1px)",
                                         },
-                                        '&:active': { transform: 'scale(.95)' }
+                                        "&:active": { transform: "scale(.95)" },
                                       }}
                                     >
                                       Xác nhận hoàn tất
@@ -5112,8 +5147,13 @@ const CustomerRequests = () => {
           <DialogTitle>
             {(() => {
               // Hiển thị orderCode nếu có (ưu tiên), fallback ID
-              const orderLabel = contractDialog.orderCode || contractDialog.contract?.orderCode || contractDialog.orderId;
-              return `Thông tin hợp đồng - Đơn hàng ${orderLabel ? '#' + orderLabel : ''}`;
+              const orderLabel =
+                contractDialog.orderCode ||
+                contractDialog.contract?.orderCode ||
+                contractDialog.orderId;
+              return `Thông tin hợp đồng - Đơn hàng ${
+                orderLabel ? "#" + orderLabel : ""
+              }`;
             })()}
             <IconButton
               aria-label="close"
@@ -5157,24 +5197,31 @@ const CustomerRequests = () => {
                       const status = contractDialog.contract.status;
                       // Bản đồ dịch trạng thái hợp đồng sang tiếng Việt
                       const viMap = {
-                        SENT: 'Đã gửi',
-                        SIGNED: 'Đã ký',
-                        REVISED: 'Đã chỉnh sửa',
-                        RESIGNED: 'Đã ký lại',
-                        PENDING: 'Đang chờ',
-                        DISCUSSING: 'Đang thảo luận',
-                        NEED_RESIGNED: 'Cần ký lại',
-                        CONFIRMED: 'Đã xác nhận',
+                        SENT: "Đã gửi",
+                        SIGNED: "Đã ký",
+                        REVISED: "Đã chỉnh sửa",
+                        RESIGNED: "Đã ký lại",
+                        PENDING: "Đang chờ",
+                        DISCUSSING: "Đang thảo luận",
+                        NEED_RESIGNED: "Cần ký lại",
+                        CONFIRMED: "Đã xác nhận",
                       };
                       const chipLabel = viMap[status] || status;
-                      let chipColor = 'default';
-                      if (status === 'SIGNED') chipColor = 'success';
-                      else if (status === 'SENT') chipColor = 'info';
-                      else if (status === 'DISCUSSING') chipColor = 'warning';
-                      else if (status === 'NEED_RESIGNED') chipColor = 'warning';
-                      else if (status === 'RESIGNED') chipColor = 'secondary';
-                      else if (status === 'CONFIRMED') chipColor = 'success';
-                      return <Chip label={chipLabel} color={chipColor} size="small" />;
+                      let chipColor = "default";
+                      if (status === "SIGNED") chipColor = "success";
+                      else if (status === "SENT") chipColor = "info";
+                      else if (status === "DISCUSSING") chipColor = "warning";
+                      else if (status === "NEED_RESIGNED")
+                        chipColor = "warning";
+                      else if (status === "RESIGNED") chipColor = "secondary";
+                      else if (status === "CONFIRMED") chipColor = "success";
+                      return (
+                        <Chip
+                          label={chipLabel}
+                          color={chipColor}
+                          size="small"
+                        />
+                      );
                     })()}
                   </Grid>
 
@@ -5294,32 +5341,35 @@ const CustomerRequests = () => {
                         : "Xem hợp đồng đã ký"}
                     </Button>
                     {/* Yêu cầu ký lại nằm trong dialog nếu hợp đồng ở trạng thái đã ký trong hệ thống */}
-                    {selectedOrder && selectedOrder.status === 'CONTRACT_SIGNED' && (
-                      <Button
-                        variant="contained"
-                        color="warning"
-                        onClick={() => handleContractResign(selectedOrder.id)}
-                        sx={{
-                          ml: 2,
-                          textTransform: 'none',
-                          fontSize: '0.7rem',
-                          borderRadius: 2,
-                          px: 1.5,
-                          py: 0.6,
-                          background: 'linear-gradient(135deg,#ed6c02 0%,#ff9800 100%)',
-                          color: '#222',
-                          boxShadow: '0 3px 10px rgba(237,108,2,0.35)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg,#d35400 0%,#fb8c00 100%)',
-                            boxShadow: '0 5px 16px rgba(237,108,2,0.5)',
-                            transform: 'translateY(-1px)'
-                          },
-                          '&:active': { transform: 'scale(.95)' }
-                        }}
-                      >
-                        Yêu cầu ký lại
-                      </Button>
-                    )}
+                    {selectedOrder &&
+                      selectedOrder.status === "CONTRACT_SIGNED" && (
+                        <Button
+                          variant="contained"
+                          color="warning"
+                          onClick={() => handleContractResign(selectedOrder.id)}
+                          sx={{
+                            ml: 2,
+                            textTransform: "none",
+                            fontSize: "0.7rem",
+                            borderRadius: 2,
+                            px: 1.5,
+                            py: 0.6,
+                            background:
+                              "linear-gradient(135deg,#ed6c02 0%,#ff9800 100%)",
+                            color: "#222",
+                            boxShadow: "0 3px 10px rgba(237,108,2,0.35)",
+                            "&:hover": {
+                              background:
+                                "linear-gradient(135deg,#d35400 0%,#fb8c00 100%)",
+                              boxShadow: "0 5px 16px rgba(237,108,2,0.5)",
+                              transform: "translateY(-1px)",
+                            },
+                            "&:active": { transform: "scale(.95)" },
+                          }}
+                        >
+                          Yêu cầu ký lại
+                        </Button>
+                      )}
                   </Box>
                 )}
 
@@ -6260,6 +6310,7 @@ const CustomerRequests = () => {
                 )}
 
                 {/* Update Status Section (ẩn nếu trạng thái trước đàm phán hoặc từ đàm phán trở đi theo yêu cầu mới) */}
+
                 {selectedOrder && !['PENDING_CONTRACT','CONTRACT_SENT','CONTRACT_DISCUSS','CONTRACT_SIGNED','CONTRACT_RESIGNED','CONTRACT_CONFIRMED','IN_PROGRESS','PENDING_DESIGN','NEED_DEPOSIT_DESIGN','DEPOSITED_DESIGN','NEED_FULLY_PAID_DESIGN','WAITING_FINAL_DESIGN','DESIGN_COMPLETED'].includes(selectedOrder.status) && (
                   <Box sx={{ mt: 4 }}>
                     <Typography variant="h6" gutterBottom>
@@ -6273,110 +6324,213 @@ const CustomerRequests = () => {
                         gutterBottom
                       >
                         Chuyển đến trạng thái:
+
                       </Typography>
 
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 1,
-                          mt: 2,
-                        }}
-                      >
-                        {/* Contract Phase */}
-                        {[
-                          "PENDING_CONTRACT",
-                          "CONTRACT_SENT",
-                          "CONTRACT_DISCUSS",
-                          "CONTRACT_SIGNED",
-                          "CONTRACT_RESIGNED",
-                        ].includes(selectedOrder.status) && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                              width: "100%",
-                            }}
-                          >
-                            <Typography variant="subtitle2" color="primary">
-                              Giai đoạn hợp đồng:
-                            </Typography>
+                      <Paper variant="outlined" sx={{ p: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          Chuyển đến trạng thái:
+                        </Typography>
+
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 1,
+                            mt: 2,
+                          }}
+                        >
+                          {/* Contract Phase */}
+                          {[
+                            "PENDING_CONTRACT",
+                            "CONTRACT_SENT",
+                            "CONTRACT_DISCUSS",
+                            "CONTRACT_SIGNED",
+                            "CONTRACT_RESIGNED",
+                          ].includes(selectedOrder.status) && (
                             <Box
-                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                                width: "100%",
+                              }}
                             >
-                              {/* Đã ẩn nút tải lên hợp đồng cho trạng thái PENDING_CONTRACT theo yêu cầu */}
+                              <Typography variant="subtitle2" color="primary">
+                                Giai đoạn hợp đồng:
+                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 1,
+                                }}
+                              >
+                                {/* Đã ẩn nút tải lên hợp đồng cho trạng thái PENDING_CONTRACT theo yêu cầu */}
 
-                              {selectedOrder.status === "CONTRACT_SENT" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_SIGNED"
-                                      )
-                                    }
-                                  >
-                                    Đã ký hợp đồng
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_DISCUSS"
-                                      )
-                                    }
-                                  >
-                                    Đàm phán hợp đồng
-                                  </Button>
-                                </>
-                              )}
+                                {selectedOrder.status === "CONTRACT_SENT" && (
+                                  <>
+                                    <Button
+                                      variant="contained"
+                                      color="primary"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "CONTRACT_SIGNED"
+                                        )
+                                      }
+                                    >
+                                      Đã ký hợp đồng
+                                    </Button>
+                                    <Button
+                                      variant="contained"
+                                      color="secondary"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "CONTRACT_DISCUSS"
+                                        )
+                                      }
+                                    >
+                                      Đàm phán hợp đồng
+                                    </Button>
+                                  </>
+                                )}
 
-                              {selectedOrder.status === "CONTRACT_DISCUSS" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    startIcon={
-                                      fetchingContract ? (
-                                        <CircularProgress size={16} />
+                                {selectedOrder.status ===
+                                  "CONTRACT_DISCUSS" && (
+                                  <>
+                                    <Button
+                                      variant="contained"
+                                      color="primary"
+                                      size="small"
+                                      startIcon={
+                                        fetchingContract ? (
+                                          <CircularProgress size={16} />
+                                        ) : (
+                                          <CloudUploadIcon />
+                                        )
+                                      }
+                                      disabled={
+                                        actionLoading || fetchingContract
+                                      }
+                                      onClick={() =>
+                                        getContractIdForOrder(selectedOrder.id)
+                                      }
+                                      sx={{ mr: 1 }}
+                                    >
+                                      {fetchingContract
+                                        ? "Đang tải..."
+                                        : "Upload hợp đồng chỉnh sửa"}
+                                    </Button>
+                                    <Button
+                                      variant="contained"
+                                      color="primary"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "CONTRACT_RESIGNED"
+                                        )
+                                      }
+                                    >
+                                      Ký lại hợp đồng
+                                    </Button>
+                                    <Button
+                                      variant="contained"
+                                      color="success"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "CONTRACT_CONFIRMED"
+                                        )
+                                      }
+                                    >
+                                      Xác nhận hợp đồng
+                                    </Button>
+                                  </>
+                                )}
+
+                                {selectedOrder.status === "CONTRACT_SIGNED" && (
+                                  <>
+                                    <Button
+                                      variant="contained"
+                                      color="success"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleContractSigned(selectedOrder.id)
+                                      }
+                                    >
+                                      {actionLoading ? (
+                                        <CircularProgress
+                                          size={16}
+                                          color="inherit"
+                                        />
                                       ) : (
-                                        <CloudUploadIcon />
-                                      )
-                                    }
-                                    disabled={actionLoading || fetchingContract}
-                                    onClick={() =>
-                                      getContractIdForOrder(selectedOrder.id)
-                                    }
-                                    sx={{ mr: 1 }}
-                                  >
-                                    {fetchingContract
-                                      ? "Đang tải..."
-                                      : "Upload hợp đồng chỉnh sửa"}
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleUpdateOrderStatus(
-                                        selectedOrder.id,
-                                        "CONTRACT_RESIGNED"
-                                      )
-                                    }
-                                  >
-                                    Ký lại hợp đồng
-                                  </Button>
+                                        "Xác nhận hợp đồng"
+                                      )}
+                                    </Button>
+
+                                    {/* Nút xem hợp đồng */}
+                                    <Button
+                                      variant="outlined"
+                                      color="info"
+                                      size="small"
+                                      disabled={contractViewLoading}
+                                      onClick={() =>
+                                        handleViewContract(selectedOrder.id)
+                                      }
+                                      startIcon={
+                                        contractViewLoading ? (
+                                          <CircularProgress size={16} />
+                                        ) : (
+                                          <VisibilityIcon />
+                                        )
+                                      }
+                                      sx={{ ml: 1 }}
+                                    >
+                                      {contractViewLoading
+                                        ? "Đang tải..."
+                                        : "Xem hợp đồng"}
+                                    </Button>
+
+                                    {/* Nút yêu cầu gửi lại hợp đồng */}
+                                    <Button
+                                      variant="outlined"
+                                      color="warning"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleContractResign(selectedOrder.id)
+                                      }
+                                      sx={{ ml: 1 }}
+                                    >
+                                      {actionLoading ? (
+                                        <CircularProgress
+                                          size={16}
+                                          color="inherit"
+                                        />
+                                      ) : (
+                                        "Yêu cầu gửi lại hợp đồng"
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+
+                                {selectedOrder.status ===
+                                  "CONTRACT_RESIGNED" && (
                                   <Button
                                     variant="contained"
                                     color="success"
@@ -6391,134 +6545,152 @@ const CustomerRequests = () => {
                                   >
                                     Xác nhận hợp đồng
                                   </Button>
-                                </>
-                              )}
+                                )}
+                              </Box>
+                            </Box>
+                          )}
 
-                              {selectedOrder.status === "CONTRACT_SIGNED" && (
-                                <>
+                          {/* Production Phase */}
+                          {[
+                            "CONTRACT_CONFIRMED",
+                            "DEPOSITED",
+                            "IN_PROGRESS",
+                            "PRODUCING",
+                          ].includes(selectedOrder.status) && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                                width: "100%",
+                              }}
+                            >
+                              <Typography variant="subtitle2" color="primary">
+                                Giai đoạn sản xuất:
+                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 1,
+                                }}
+                              >
+                                {selectedOrder.status ===
+                                  "CONTRACT_CONFIRMED" && (
+                                  <>
+                                    <Button
+                                      variant="contained"
+                                      color="warning"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "DEPOSITED"
+                                        )
+                                      }
+                                    >
+                                      Đã đặt cọc
+                                    </Button>
+                                    <Button
+                                      variant="contained"
+                                      color="primary"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "IN_PROGRESS"
+                                        )
+                                      }
+                                    >
+                                      Bắt đầu thực hiện
+                                    </Button>
+                                  </>
+                                )}
+
+                                {selectedOrder.status === "DEPOSITED" && (
+                                  <>
+                                    <Button
+                                      variant="contained"
+                                      color="primary"
+                                      size="small"
+                                      disabled={actionLoading}
+                                      onClick={() =>
+                                        handleUpdateOrderStatus(
+                                          selectedOrder.id,
+                                          "IN_PROGRESS"
+                                        )
+                                      }
+                                    >
+                                      Bắt đầu thực hiện
+                                    </Button>
+                                  </>
+                                )}
+
+                                {selectedOrder.status === "IN_PROGRESS" && (
+                                  <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "PRODUCING"
+                                      )
+                                    }
+                                  >
+                                    Đang sản xuất
+                                  </Button>
+                                )}
+
+                                {selectedOrder.status === "PRODUCING" && (
                                   <Button
                                     variant="contained"
                                     color="success"
                                     size="small"
                                     disabled={actionLoading}
                                     onClick={() =>
-                                      handleContractSigned(selectedOrder.id)
-                                    }
-                                  >
-                                    {actionLoading ? (
-                                      <CircularProgress
-                                        size={16}
-                                        color="inherit"
-                                      />
-                                    ) : (
-                                      "Xác nhận hợp đồng"
-                                    )}
-                                  </Button>
-
-                                  {/* Nút xem hợp đồng */}
-                                  <Button
-                                    variant="outlined"
-                                    color="info"
-                                    size="small"
-                                    disabled={contractViewLoading}
-                                    onClick={() =>
-                                      handleViewContract(selectedOrder.id)
-                                    }
-                                    startIcon={
-                                      contractViewLoading ? (
-                                        <CircularProgress size={16} />
-                                      ) : (
-                                        <VisibilityIcon />
-                                      )
-                                    }
-                                    sx={{ ml: 1 }}
-                                  >
-                                    {contractViewLoading
-                                      ? "Đang tải..."
-                                      : "Xem hợp đồng"}
-                                  </Button>
-
-                                  {/* Nút yêu cầu gửi lại hợp đồng */}
-                                  <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
-                                      handleContractResign(selectedOrder.id)
-                                    }
-                                    sx={{ ml: 1 }}
-                                  >
-                                    {actionLoading ? (
-                                      <CircularProgress
-                                        size={16}
-                                        color="inherit"
-                                      />
-                                    ) : (
-                                      "Yêu cầu gửi lại hợp đồng"
-                                    )}
-                                  </Button>
-                                </>
-                              )}
-
-                              {selectedOrder.status === "CONTRACT_RESIGNED" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "CONTRACT_CONFIRMED"
-                                    )
-                                  }
-                                >
-                                  Xác nhận hợp đồng
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Production Phase */}
-                        {[
-                          "CONTRACT_CONFIRMED",
-                          "DEPOSITED",
-                          "IN_PROGRESS",
-                          "PRODUCING",
-                        ].includes(selectedOrder.status) && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                              width: "100%",
-                            }}
-                          >
-                            <Typography variant="subtitle2" color="primary">
-                              Giai đoạn sản xuất:
-                            </Typography>
-                            <Box
-                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
-                            >
-                              {selectedOrder.status ===
-                                "CONTRACT_CONFIRMED" && (
-                                <>
-                                  <Button
-                                    variant="contained"
-                                    color="warning"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() =>
                                       handleUpdateOrderStatus(
                                         selectedOrder.id,
-                                        "DEPOSITED"
+                                        "PRODUCTION_COMPLETED"
                                       )
                                     }
                                   >
-                                    Đã đặt cọc
+                                    Hoàn thành sản xuất
                                   </Button>
+                                )}
+                              </Box>
+                            </Box>
+                          )}
+
+                          {/* Delivery Phase */}
+                          {[
+                            "PRODUCTION_COMPLETED",
+                            "DELIVERING",
+                            "INSTALLED",
+                          ].includes(selectedOrder.status) && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                                width: "100%",
+                              }}
+                            >
+                              <Typography variant="subtitle2" color="primary">
+                                Giai đoạn giao hàng:
+                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 1,
+                                }}
+                              >
+                                {selectedOrder.status ===
+                                  "PRODUCTION_COMPLETED" && (
                                   <Button
                                     variant="contained"
                                     color="primary"
@@ -6527,17 +6699,15 @@ const CustomerRequests = () => {
                                     onClick={() =>
                                       handleUpdateOrderStatus(
                                         selectedOrder.id,
-                                        "IN_PROGRESS"
+                                        "DELIVERING"
                                       )
                                     }
                                   >
-                                    Bắt đầu thực hiện
+                                    Đang giao hàng
                                   </Button>
-                                </>
-                              )}
+                                )}
 
-                              {selectedOrder.status === "DEPOSITED" && (
-                                <>
+                                {selectedOrder.status === "DELIVERING" && (
                                   <Button
                                     variant="contained"
                                     color="primary"
@@ -6546,132 +6716,39 @@ const CustomerRequests = () => {
                                     onClick={() =>
                                       handleUpdateOrderStatus(
                                         selectedOrder.id,
-                                        "IN_PROGRESS"
+                                        "INSTALLED"
                                       )
                                     }
                                   >
-                                    Bắt đầu thực hiện
+                                    Đã lắp đặt
                                   </Button>
-                                </>
-                              )}
+                                )}
 
-                              {selectedOrder.status === "IN_PROGRESS" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "PRODUCING"
-                                    )
-                                  }
-                                >
-                                  Đang sản xuất
-                                </Button>
-                              )}
-
-                              {selectedOrder.status === "PRODUCING" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "PRODUCTION_COMPLETED"
-                                    )
-                                  }
-                                >
-                                  Hoàn thành sản xuất
-                                </Button>
-                              )}
+                                {selectedOrder.status === "INSTALLED" && (
+                                  <Button
+                                    variant="contained"
+                                    color="success"
+                                    size="small"
+                                    disabled={actionLoading}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(
+                                        selectedOrder.id,
+                                        "COMPLETED"
+                                      )
+                                    }
+                                  >
+                                    Hoàn tất
+                                  </Button>
+                                )}
+                              </Box>
                             </Box>
-                          </Box>
-                        )}
+                          )}
 
-                        {/* Delivery Phase */}
-                        {[
-                          "PRODUCTION_COMPLETED",
-                          "DELIVERING",
-                          "INSTALLED",
-                        ].includes(selectedOrder.status) && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                              width: "100%",
-                            }}
-                          >
-                            <Typography variant="subtitle2" color="primary">
-                              Giai đoạn giao hàng:
-                            </Typography>
-                            <Box
-                              sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
-                            >
-                              {selectedOrder.status ===
-                                "PRODUCTION_COMPLETED" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "DELIVERING"
-                                    )
-                                  }
-                                >
-                                  Đang giao hàng
-                                </Button>
-                              )}
-
-                              {selectedOrder.status === "DELIVERING" && (
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "INSTALLED"
-                                    )
-                                  }
-                                >
-                                  Đã lắp đặt
-                                </Button>
-                              )}
-
-                              {selectedOrder.status === "INSTALLED" && (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleUpdateOrderStatus(
-                                      selectedOrder.id,
-                                      "COMPLETED"
-                                    )
-                                  }
-                                >
-                                  Hoàn tất
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Đã loại bỏ nút Hủy đơn hàng theo yêu cầu */}
-                      </Box>
-                    </Paper>
-                  </Box>
-                )}
+                          {/* Đã loại bỏ nút Hủy đơn hàng theo yêu cầu */}
+                        </Box>
+                      </Paper>
+                    </Box>
+                  )}
               </Box>
             ) : (
               <Box sx={{ textAlign: "center", py: 4 }}>
