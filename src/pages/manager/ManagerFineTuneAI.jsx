@@ -146,6 +146,7 @@ import {
   addTopicToModelChatBot,
   addTopicFromExistingModel,
   deleteChatBotTopicById,
+  copyTopicsFromPreviousModelAuto,
   selectChatBotTopicsByModel,
   selectChatBotTopicsByTopic,
   selectChatBotTopicLoading,
@@ -404,6 +405,40 @@ const ManagerFineTuneAI = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
+  // Auto-hide snackbar after 4 seconds
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar((prev) => ({ ...prev, open: false }));
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
+
+  // Auto-hide alert after 5 seconds
+  useEffect(() => {
+    if (alert) {
+      const timer = setTimeout(() => {
+        setAlert(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alert]);
+
+  // Auto-hide alertDialog after 7 seconds
+  useEffect(() => {
+    if (alertDialog.open) {
+      const timer = setTimeout(() => {
+        setAlertDialog({
+          open: false,
+          title: "",
+          message: "",
+        });
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [alertDialog.open]);
+
   // Auto-hide topicAlert after 3 seconds
   useEffect(() => {
     if (topicAlert) {
@@ -658,36 +693,41 @@ const ManagerFineTuneAI = () => {
     }
   }, [selectedModelId, showTopicsDialog]);
 
-  const handleTrainingFileChange = (e) => {
-    setTrainingFile(e.target.files[0]);
+  const handleTrainingFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setTrainingFile(file);
     setUploadResult(null);
     setAlert(null);
+
+    // Tự động upload file khi được chọn
+    await handleUploadTrainingFileAuto(file);
   };
 
-  const handleUploadTrainingFile = async () => {
-    if (!trainingFile) {
-      setAlert({ type: "warning", message: "Vui lòng chọn file." });
+  const handleUploadTrainingFileAuto = async (file) => {
+    if (!file) {
+      showSnackbar("Vui lòng chọn file.", "warning");
       return;
     }
 
     // Kiểm tra nếu đã có file được upload
     if (uploadedFile) {
-      setAlert({
-        type: "warning",
-        message:
-          "Đã có file được upload. Vui lòng xóa file cũ trước khi upload file mới.",
-      });
+      showSnackbar(
+        "Đã có file được upload. Vui lòng xóa file cũ trước khi upload file mới.",
+        "warning"
+      );
       return;
     }
 
     // Reset progress states
     setUploadProgress(0);
     setUploadCompleted(false);
-    setAlert(null);
 
+    let progressInterval;
     try {
       // Simulate upload progress
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
@@ -699,12 +739,12 @@ const ManagerFineTuneAI = () => {
 
       let result;
       if (fileType === "jsonl") {
-        result = await dispatch(uploadFileFineTune(trainingFile)).unwrap();
+        result = await dispatch(uploadFileFineTune(file)).unwrap();
       } else {
         result = await dispatch(
           uploadFileExcelModelChat({
-            file: trainingFile,
-            fileName: trainingFile.name,
+            file: file,
+            fileName: file.name,
           })
         ).unwrap();
       }
@@ -722,32 +762,58 @@ const ManagerFineTuneAI = () => {
         setUploadProgress(0);
         setUploadCompleted(false);
       }, 3000);
+
+      showSnackbar("Upload file thành công!", "success");
     } catch (error) {
-      clearInterval(progressInterval);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       setUploadProgress(0);
       setUploadCompleted(false);
-      setAlert({ type: "error", message: error || "Lỗi khi upload file" });
+      showSnackbar(error || "Lỗi khi upload file", "error");
     }
   };
 
   const handleDeleteUploadedFile = async (fileId) => {
     if (!fileId) {
-      setAlert({ type: "error", message: "Không tìm thấy ID file để xóa." });
+      showSnackbar("Không tìm thấy ID file để xóa.", "error");
+      return;
+    }
+
+    // Kiểm tra xem có đang trong quá trình tinh chỉnh không
+    if (trainingStatus === "loading") {
+      showSnackbar(
+        "Không thể xóa file khi đang trong quá trình tinh chỉnh. Vui lòng dừng quá trình tinh chỉnh trước.",
+        "error"
+      );
+      return;
+    }
+
+    // Kiểm tra xem có job đang chạy không
+    if (
+      fineTuningJobId &&
+      (currentJobStatus === "running" ||
+        currentJobStatus === "validating_files")
+    ) {
+      showSnackbar(
+        "Không thể xóa file khi có job tinh chỉnh đang chạy. Vui lòng hủy job trước hoặc đợi job hoàn thành.",
+        "error"
+      );
       return;
     }
 
     setIsDeletingFile(true);
     try {
       await dispatch(deleteFineTuneFile(fileId)).unwrap();
-      setAlert({
-        type: "success",
-        message: "Đã xóa file thành công. Bây giờ bạn có thể upload file mới.",
-      });
+      showSnackbar(
+        "Đã xóa file thành công. Bây giờ bạn có thể upload file mới.",
+        "success"
+      );
       setUploadResult(null);
       setTrainingFile(null); // Clear the file input
       // Note: uploadedFile state will be automatically cleared by Redux after deleteFineTuneFile.fulfilled
     } catch (error) {
-      setAlert({ type: "error", message: error || "Lỗi khi xóa file" });
+      showSnackbar(error || "Lỗi khi xóa file", "error");
     } finally {
       setIsDeletingFile(false);
     }
@@ -755,38 +821,30 @@ const ManagerFineTuneAI = () => {
 
   const handleTrain = async () => {
     if (!uploadedFile) {
-      setAlert({
-        type: "warning",
-        message: "Vui lòng upload file trước khi tinh chỉnh.",
-      });
+      showSnackbar("Vui lòng upload file trước khi tinh chỉnh.", "warning");
       return;
     }
     if (!selectedModel) {
-      setAlert({
-        type: "warning",
-        message: "Vui lòng chọn model trước khi tinh chỉnh.",
-      });
+      showSnackbar("Vui lòng chọn model trước khi tinh chỉnh.", "warning");
       return;
     }
 
     // Kiểm tra nếu đã có job đang chạy hoặc đã hoàn thành
     if (fineTuningJobId && trainingStatus !== "idle") {
       if (trainingStatus === "loading") {
-        setAlert({
-          type: "warning",
-          message:
-            "Đã có job tinh chỉnh đang chạy. Vui lòng đợi hoặc huỷ job hiện tại.",
-        });
+        showSnackbar(
+          "Đã có job tinh chỉnh đang chạy. Vui lòng đợi hoặc huỷ job hiện tại.",
+          "warning"
+        );
         return;
       } else if (
         trainingStatus === "succeeded" ||
         trainingStatus === "failed"
       ) {
-        setAlert({
-          type: "info",
-          message:
-            "Job trước đã hoàn thành. Vui lòng nhấn 'Bắt đầu mới' để tạo job mới.",
-        });
+        showSnackbar(
+          "Job trước đã hoàn thành. Vui lòng nhấn 'Bắt đầu mới' để tạo job mới.",
+          "info"
+        );
         return;
       }
     }
@@ -801,12 +859,17 @@ const ManagerFineTuneAI = () => {
         })
       ).unwrap();
 
-      setAlert({ type: "success", message: "Tinh chỉnh model thành công!" });
+      showSnackbar("Tinh chỉnh model thành công!", "success");
     } catch (error) {
-      setAlert({
-        type: "error",
-        message: error || "Lỗi khi tinh chỉnh model AI",
-      });
+      // Xử lý lỗi đơn giản - hiển thị qua Snackbar
+      let errorMessage = "Lỗi khi tinh chỉnh model AI";
+
+      if (typeof error === "string" && error.includes("Lỗi bên thứ 3")) {
+        errorMessage =
+          "Lỗi bên thứ 3. Vui lòng thử lại sau hoặc chọn model khác.";
+      }
+
+      showSnackbar(errorMessage, "error");
     }
   };
 
@@ -1275,12 +1338,12 @@ const ManagerFineTuneAI = () => {
 
   const handleDeleteChatBotTopic = (id) => {
     showConfirmDialog(
-      "Xác nhận xóa ChatBot Topic",
-      "Bạn có chắc muốn xóa liên kết này?",
+      "Xác nhận xóa chủ đề chatbot",
+      "Bạn có chắc muốn xóa chủ đề này?",
       async () => {
         try {
           await dispatch(deleteChatBotTopicById(id)).unwrap();
-          showSnackbar("Xóa ChatBot Topic thành công!", "success");
+          showSnackbar("Xóa chủ đề chatbot thành công!", "success");
 
           // Refresh topics for current model
           if (selectedModelForTopics) {
@@ -1381,169 +1444,54 @@ const ManagerFineTuneAI = () => {
 
   // Handler for copying topics from previous model
   const handleCopyTopicsFromPreviousModel = async () => {
-    if (!selectedModelId) return;
-
-    // Tìm model hiện tại
-    const currentModel = managementFineTunedModels.find(
-      (model) => model.id === selectedModelId
-    );
-
-    if (!currentModel) {
-      showSnackbar("Không tìm thấy model hiện tại", "error");
+    if (!selectedModelId) {
+      showSnackbar("Vui lòng chọn model để copy topics", "error");
       return;
     }
-
-    // Tìm model trước đó (model được tạo trước model hiện tại theo thời gian)
-    const previousModels = managementFineTunedModels
-      .filter(
-        (model) =>
-          model.id !== selectedModelId &&
-          new Date(model.createdAt) < new Date(currentModel.createdAt)
-      )
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sắp xếp theo thời gian giảm dần
-
-    if (previousModels.length === 0) {
-      showSnackbar(
-        "Không có model nào được tạo trước model này để copy topics",
-        "warning"
-      );
-      return;
-    }
-
-    const previousModel = previousModels[0]; // Lấy model gần nhất được tạo trước đó
 
     try {
-      // Luôn fetch fresh data để đảm bảo accuracy trong copy process
-      console.log("Fetching fresh topics for copy process...");
+      console.log(
+        `🚀 Copying topics from previous model for: ${selectedModelId}`
+      );
 
-      // Lấy danh sách topics hiện tại của model (fresh fetch)
-      const currentTopicsResponse = await dispatch(
-        fetchChatBotTopicsByModelId(selectedModelId)
+      // Gọi API để copy topics từ model trước đó (backend tự động tìm model trước đó)
+      const result = await dispatch(
+        copyTopicsFromPreviousModelAuto(selectedModelId)
       ).unwrap();
 
-      console.log("Raw current topics response:", currentTopicsResponse);
+      console.log("✅ Copy topics completed:", result);
 
-      // Parse current topics response safely
-      const currentTopics = parseTopicsResponse(
-        currentTopicsResponse,
-        "current topics"
-      );
-      const currentTopicIds = currentTopics
-        .map((topic) => topic.topicId || topic.id)
-        .filter(Boolean);
+      // Parse kết quả
+      const copiedTopics = Array.isArray(result.data)
+        ? result.data
+        : result.data?.result || result.result || [];
 
-      console.log(
-        "Current topics for model",
-        selectedModelId,
-        ":",
-        currentTopics
-      );
-      console.log("Current topic IDs:", currentTopicIds);
-
-      // Lấy danh sách topics của model trước đó
-      const previousModelTopicsResponse = await dispatch(
-        fetchChatBotTopicsByModelId(previousModel.id)
-      ).unwrap();
-
-      console.log("Raw previous topics response:", previousModelTopicsResponse);
-
-      // Parse previous model topics response safely
-      const previousModelTopics = parseTopicsResponse(
-        previousModelTopicsResponse,
-        "previous model topics"
-      );
-
-      console.log("Previous model topics:", previousModelTopics);
-
-      // Lọc ra những topics chưa tồn tại trong model hiện tại
-      const topicsToAdd = previousModelTopics.filter((topic) => {
-        const topicId = topic.topicId || topic.id;
-        const exists = currentTopicIds.includes(topicId);
-        console.log(
-          `🔍 Topic ${topicId}: exists=${exists}, will copy=${!exists}`
-        );
-        return topicId && !exists;
-      });
-
-      console.log(`📋 Topics filter result:`);
-      console.log(`  - Previous model topics: ${previousModelTopics.length}`);
-      console.log(`  - Current model topics: ${currentTopics.length}`);
-      console.log(`  - Topics to copy: ${topicsToAdd.length}`);
-      console.log(
-        `  - Topics to add:`,
-        topicsToAdd.map((t) => t.topicId || t.id)
-      );
-
-      if (topicsToAdd.length === 0) {
+      // Hiển thị thông báo
+      if (copiedTopics.length > 0) {
         showSnackbar(
-          `Model hiện tại đã có tất cả topics từ model ${previousModel.modelName}. Không có topic nào để copy.`,
-          "info"
-        );
-        return;
-      }
-
-      // Copy từng topic một cách tuần tự để tránh conflict
-      let successCount = 0;
-      let errorCount = 0;
-
-      console.log(`Starting to copy ${topicsToAdd.length} topics...`);
-
-      for (const topic of topicsToAdd) {
-        const topicId = topic.topicId || topic.id;
-        console.log(`Copying topic ${topicId}...`);
-
-        try {
-          const result = await dispatch(
-            assignTopicToModelChat({
-              modelChatBotId: selectedModelId,
-              topicId: topicId,
-            })
-          ).unwrap();
-
-          console.log(`✅ Successfully copied topic ${topicId}:`, result);
-          successCount++;
-        } catch (error) {
-          console.error(`❌ Failed to copy topic ${topicId}:`, error);
-          errorCount++;
-        }
-      }
-
-      // Chờ một chút để server cập nhật
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Refresh topics một lần duy nhất để cập nhật UI
-      if (successCount > 0) {
-        try {
-          await dispatch(fetchChatBotTopicsByModelId(selectedModelId)).unwrap();
-          console.log("Refreshed topics successfully after copy");
-        } catch (refreshError) {
-          console.error("Error refreshing topics after copy:", refreshError);
-        }
-      }
-
-      // Hiển thị kết quả
-      if (successCount > 0 && errorCount === 0) {
-        showSnackbar(
-          `Đã copy thành công ${successCount} topics từ model: ${previousModel.modelName}`,
+          `Đã copy thành công ${copiedTopics.length} topics từ model trước đó`,
           "success"
         );
-      } else if (successCount > 0 && errorCount > 0) {
-        showSnackbar(
-          `Copy hoàn tất: ${successCount} thành công, ${errorCount} thất bại từ model: ${previousModel.modelName}`,
-          "warning"
-        );
+
+        // Refresh danh sách topics sau khi copy thành công
+        setTimeout(() => {
+          dispatch(fetchChatBotTopicsByModelId(selectedModelId));
+        }, 1000);
       } else {
         showSnackbar(
-          `Không thể copy topics từ model ${previousModel.modelName}`,
-          "error"
+          "Không có topics nào được copy. Model này có thể chưa có model trước đó hoặc đã có tất cả topics.",
+          "info"
         );
       }
     } catch (error) {
-      console.error("Error copying topics:", error);
-      showSnackbar(
-        `Lỗi khi copy topics từ model ${previousModel.modelName}: ${error}`,
-        "error"
-      );
+      console.error("❌ Error copying topics:", error);
+
+      const errorMessage =
+        typeof error === "string"
+          ? error
+          : error?.message || "Lỗi khi copy topics từ model trước đó";
+
+      showSnackbar(errorMessage, "error");
     }
   };
 
@@ -1683,16 +1631,7 @@ const ManagerFineTuneAI = () => {
                   onChange={handleTrainingFileChange}
                 />
               </Button>
-              <Button
-                variant="outlined"
-                onClick={handleUploadTrainingFile}
-                disabled={
-                  fineTuneStatus === "loading" || !trainingFile || uploadedFile
-                }
-                sx={{ borderRadius: 2 }}
-              >
-                Upload
-              </Button>
+              {/* Nút Upload đã được ẩn vì giờ upload tự động khi chọn file */}
             </Box>
 
             {/* Hiển thị file đã upload */}
@@ -1720,23 +1659,45 @@ const ManagerFineTuneAI = () => {
                         "File dữ liệu"}
                     </Typography>
                   </Box>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    size="small"
-                    startIcon={
-                      isDeletingFile ? (
-                        <CircularProgress size={16} />
-                      ) : (
-                        <DeleteIcon />
-                      )
+                  <Tooltip
+                    title={
+                      trainingStatus === "loading" ||
+                      (fineTuningJobId &&
+                        (currentJobStatus === "running" ||
+                          currentJobStatus === "validating_files"))
+                        ? "Không thể xóa file khi đang trong quá trình tinh chỉnh"
+                        : "Xóa file đã upload"
                     }
-                    onClick={() => handleDeleteUploadedFile(uploadedFile.id)}
-                    disabled={fineTuneStatus === "loading" || isDeletingFile}
-                    sx={{ borderRadius: 2 }}
                   >
-                    {isDeletingFile ? "Đang xóa..." : "Xóa file"}
-                  </Button>
+                    <span>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={
+                          isDeletingFile ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <DeleteIcon />
+                          )
+                        }
+                        onClick={() =>
+                          handleDeleteUploadedFile(uploadedFile.id)
+                        }
+                        disabled={
+                          fineTuneStatus === "loading" ||
+                          isDeletingFile ||
+                          trainingStatus === "loading" ||
+                          (fineTuningJobId &&
+                            (currentJobStatus === "running" ||
+                              currentJobStatus === "validating_files"))
+                        }
+                        sx={{ borderRadius: 2 }}
+                      >
+                        {isDeletingFile ? "Đang xóa..." : "Xóa file"}
+                      </Button>
+                    </span>
+                  </Tooltip>
                 </Box>
                 {uploadedFile.id && (
                   <Typography
@@ -2387,7 +2348,6 @@ const ManagerFineTuneAI = () => {
                   <TableCell sx={{ fontWeight: 700 }}>Model</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>File</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Thời gian tạo</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Hành động</TableCell>
                 </TableRow>
               </TableHead>
@@ -2412,11 +2372,6 @@ const ManagerFineTuneAI = () => {
                         icon={getStatusIcon(job.status)}
                         sx={{ textTransform: "capitalize", fontWeight: 500 }}
                       />
-                    </TableCell>
-                    <TableCell>
-                      {job.created_at
-                        ? new Date(job.created_at).toLocaleString()
-                        : ""}
                     </TableCell>
                     <TableCell>
                       <Tooltip title="Xem chi tiết">
@@ -2639,7 +2594,6 @@ const ManagerFineTuneAI = () => {
                     <TableCell sx={{ fontWeight: 700 }}>Tên file</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Mục đích</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Kích thước</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Ngày upload</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
@@ -2674,15 +2628,6 @@ const ManagerFineTuneAI = () => {
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">
                             {(file.bytes / 1024).toFixed(1)} KB
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {file.created_at
-                              ? new Date(file.created_at * 1000).toLocaleString(
-                                  "vi-VN"
-                                )
-                              : ""}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -2726,11 +2671,26 @@ const ManagerFineTuneAI = () => {
                               </IconButton>
                             </Tooltip>
 
-                            <Tooltip title="Xóa file">
+                            <Tooltip
+                              title={
+                                trainingStatus === "loading" ||
+                                (fineTuningJobId &&
+                                  (currentJobStatus === "running" ||
+                                    currentJobStatus === "validating_files"))
+                                  ? "Không thể xóa file khi đang trong quá trình tinh chỉnh"
+                                  : "Xóa file"
+                              }
+                            >
                               <IconButton
                                 size="small"
                                 color="error"
                                 onClick={() => setConfirmDeleteFileId(file.id)}
+                                disabled={
+                                  trainingStatus === "loading" ||
+                                  (fineTuningJobId &&
+                                    (currentJobStatus === "running" ||
+                                      currentJobStatus === "validating_files"))
+                                }
                                 sx={{
                                   bgcolor: "#ffebee",
                                   "&:hover": {
@@ -2752,7 +2712,7 @@ const ManagerFineTuneAI = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                         <Typography variant="body1" color="text.secondary">
                           Không có file nào
                         </Typography>
@@ -5188,7 +5148,6 @@ const ManagerFineTuneAI = () => {
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={3000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
