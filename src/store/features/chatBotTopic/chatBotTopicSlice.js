@@ -8,6 +8,7 @@ import {
     addTopicFromModel,
     deleteChatBotTopic,
     copyTopicsFromModel,
+    copyTopicsFromPreviousModel as copyTopicsFromPreviousModelAPI,
 } from '../../../api/chatBotTopicService';
 
 const initialState = {
@@ -122,6 +123,19 @@ export const copyTopicsFromPreviousModel = createAsyncThunk(
             return response.result || response;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || 'Lỗi khi copy topics từ model khác');
+        }
+    }
+);
+
+// Copy topics từ model trước đó (API tự động tìm model trước đó)
+export const copyTopicsFromPreviousModelAuto = createAsyncThunk(
+    'chatBotTopic/copyTopicsFromPreviousModelAuto',
+    async (targetModelId, { rejectWithValue }) => {
+        try {
+            const response = await copyTopicsFromPreviousModelAPI(targetModelId);
+            return { modelId: targetModelId, data: response.result || response };
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.message || 'Lỗi khi copy topics từ model trước đó');
         }
     }
 );
@@ -289,6 +303,43 @@ const chatBotTopicSlice = createSlice({
                 }
             })
             .addCase(copyTopicsFromPreviousModel.rejected, (state, action) => {
+                state.createLoading = false;
+                state.error = action.payload;
+            })
+
+            // copyTopicsFromPreviousModelAuto
+            .addCase(copyTopicsFromPreviousModelAuto.pending, (state) => {
+                state.createLoading = true;
+                state.error = null;
+            })
+            .addCase(copyTopicsFromPreviousModelAuto.fulfilled, (state, action) => {
+                state.createLoading = false;
+                state.success = 'Copy topics từ model trước đó thành công';
+                
+                const { modelId, data } = action.payload;
+                const topics = Array.isArray(data) ? data : (data?.result || []);
+                
+                if (topics.length > 0) {
+                    // Cập nhật chatBotTopicsByModel
+                    if (state.chatBotTopicsByModel[modelId]) {
+                        // Merge với topics hiện có, tránh duplicate
+                        const existingIds = state.chatBotTopicsByModel[modelId].map(t => t.id);
+                        const newTopics = topics.filter(t => !existingIds.includes(t.id));
+                        state.chatBotTopicsByModel[modelId] = [
+                            ...state.chatBotTopicsByModel[modelId],
+                            ...newTopics
+                        ];
+                    } else {
+                        state.chatBotTopicsByModel[modelId] = topics;
+                    }
+                    
+                    // Cập nhật chatBotTopics global list
+                    const globalExistingIds = state.chatBotTopics.map(t => t.id);
+                    const newGlobalTopics = topics.filter(t => !globalExistingIds.includes(t.id));
+                    state.chatBotTopics = [...state.chatBotTopics, ...newGlobalTopics];
+                }
+            })
+            .addCase(copyTopicsFromPreviousModelAuto.rejected, (state, action) => {
                 state.createLoading = false;
                 state.error = action.payload;
             });

@@ -106,12 +106,23 @@ export const deleteChatBotTopic = async (id) => {
     }
 };
 
-// Copy topics từ model khác
+// Copy topics từ model khác - API theo spec backend
 export const copyTopicsFromModel = async (targetModelId, sourceModelId) => {
     try {
         const response = await apiClient.post(`/api/model-chat/${targetModelId}/chat-bot-topic`, {
             sourceModelId: sourceModelId
         });
+        return response.data;
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        throw error;
+    }
+};
+
+// Copy tất cả topics từ model trước đó (không cần sourceModelId - backend tự tìm)
+export const copyTopicsFromPreviousModel = async (targetModelId) => {
+    try {
+        const response = await apiClient.post(`/api/model-chat/${targetModelId}/chat-bot-topic`);
         return response.data;
     } catch (error) {
         console.error('❌ API Error:', error);

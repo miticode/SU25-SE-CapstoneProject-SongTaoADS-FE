@@ -4587,11 +4587,19 @@ const OrderHistory = () => {
 
                                 {/* Cancel Order */}
                                 {[
+                                  // Existing contract-related statuses
                                   "PENDING_CONTRACT",
                                   "CONTRACT_SENT",
                                   "CONTRACT_SIGNED",
                                   "CONTRACT_DISCUSS",
                                   "CONTRACT_RESIGNED",
+                                  // Newly allowed early design lifecycle statuses
+                                  "PENDING_DESIGN",
+                                  "NEED_DEPOSIT_DESIGN",
+                                  "DEPOSITED_DESIGN",
+                                  "NEED_FULLY_PAID_DESIGN",
+                                  "WAITING_FINAL_DESIGN",
+                                  "DESIGN_COMPLETED",
                                 ].includes(order.status) && (
                                   <Button
                                     variant="outlined"
@@ -5715,34 +5723,6 @@ const OrderHistory = () => {
                                 </Button>
                               )}
 
-                              {[
-                                "CONTRACT_SENT",
-                                "CONTRACT_SIGNED",
-                                "CONTRACT_RESIGNED",
-                                "CONTRACT_CONFIRMED",
-                              ].includes(
-                                (order.status || "").toUpperCase()
-                              ) && (
-                                <Button
-                                  variant="outlined"
-                                  color="info"
-                                  size="small"
-                                  onClick={() => handleGetContract(order.id)}
-                                  disabled={contractLoading}
-                                  startIcon={
-                                    contractLoading ? (
-                                      <CircularProgress size={16} />
-                                    ) : null
-                                  }
-                                  sx={{
-                                    minWidth: "fit-content",
-                                    whiteSpace: "nowrap", // Không cho phép text trong button xuống dòng
-                                    flexShrink: 0, // Không cho button bị co lại
-                                  }}
-                                >
-                                  Xem hợp đồng
-                                </Button>
-                              )}
                               {order.status === "CONTRACT_CONFIRMED" && (
                                 <Button
                                   variant="contained"
