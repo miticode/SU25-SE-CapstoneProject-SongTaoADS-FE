@@ -1069,7 +1069,7 @@ const ManagerFineTuneAI = () => {
 
         showAlertDialog(
           "Không thể xóa chủ đề",
-          `Chủ đề này đang được sử dụng trong các model chat: ${modelNames}. Vui lòng xóa khỏi model chat trước khi xóa chủ đề.`
+          `Chủ đề này đang được sử dụng trong các model chatbot. Vui lòng xóa khỏi model chatbot trước khi xóa chủ đề.`
         );
         return;
       }
@@ -4042,69 +4042,92 @@ const ManagerFineTuneAI = () => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        managementFineTunedModels.map((model, index) => (
-                          <TableRow key={model.id} hover>
-                            <TableCell>
-                              <Typography
-                                variant="body2"
-                                fontWeight={500}
-                                align="center"
-                              >
-                                {(managementPage - 1) * managementPageSize +
-                                  index +
-                                  1}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
-                                {model.modelName}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                {model.previousModelName || "N/A"}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={
-                                  model.active ? "Hoạt động" : "Không hoạt động"
-                                }
-                                color={model.active ? "success" : "default"}
-                                size="small"
-                                sx={{ fontWeight: 500 }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                {model.createdAt
-                                  ? new Date(model.createdAt).toLocaleString(
-                                      "vi-VN"
-                                    )
-                                  : "N/A"}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Tooltip title="Xem Topics">
-                                <IconButton
-                                  onClick={() =>
-                                    handleViewModelTopics(model.id)
-                                  }
-                                  color="primary"
-                                  size="small"
+                        managementFineTunedModels.map((model, index) => {
+                          // Debug log để kiểm tra data
+                          console.log(`Model ${index + 1}:`, {
+                            id: model.id,
+                            modelName: model.modelName,
+                            previousModelName: model.previousModelName,
+                            active: model.active,
+                            createdAt: model.createdAt,
+                          });
+
+                          return (
+                            <TableRow key={model.id} hover>
+                              <TableCell>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={500}
+                                  align="center"
                                 >
-                                  <VisibilityIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                                  {(managementPage - 1) * managementPageSize +
+                                    index +
+                                    1}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {model.modelName}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Tooltip
+                                  title={`Model gốc: ${
+                                    model.previousModelName ||
+                                    "Model ChatGPT gốc"
+                                  }`}
+                                  placement="top"
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ cursor: "help" }}
+                                  >
+                                    {model.previousModelName ||
+                                      "gpt-4o-mini-2024-07-18"}
+                                  </Typography>
+                                </Tooltip>
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={
+                                    model.active
+                                      ? "Hoạt động"
+                                      : "Không hoạt động"
+                                  }
+                                  color={model.active ? "success" : "default"}
+                                  size="small"
+                                  sx={{ fontWeight: 500 }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {model.createdAt
+                                    ? new Date(model.createdAt).toLocaleString(
+                                        "vi-VN"
+                                      )
+                                    : "N/A"}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Tooltip title="Xem Topics">
+                                  <IconButton
+                                    onClick={() =>
+                                      handleViewModelTopics(model.id)
+                                    }
+                                    color="primary"
+                                    size="small"
+                                  >
+                                    <VisibilityIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -4282,29 +4305,12 @@ const ManagerFineTuneAI = () => {
                           if (!currentModel)
                             return "Không tìm thấy model hiện tại";
 
-                          const previousModels = managementFineTunedModels
-                            .filter(
-                              (model) =>
-                                model.id !== selectedModelId &&
-                                new Date(model.createdAt) <
-                                  new Date(currentModel.createdAt)
-                            )
-                            .sort(
-                              (a, b) =>
-                                new Date(b.createdAt) - new Date(a.createdAt)
-                            );
-
-                          if (previousModels.length === 0) {
-                            return "Không có model nào được tạo trước model này";
+                          // Hiển thị previousModelName của model hiện tại
+                          if (!currentModel.previousModelName) {
+                            return "Model này không có model trước đó để copy topics";
                           }
 
-                          return `Copy các topics chưa có từ model: ${
-                            previousModels[0].modelName
-                          } (${new Date(
-                            previousModels[0].createdAt
-                          ).toLocaleString(
-                            "vi-VN"
-                          )}) - Tự động bỏ qua topics đã tồn tại`;
+                          return `Copy các topics từ model: ${currentModel.previousModelName}`;
                         })()}
                       >
                         <span>
@@ -4315,21 +4321,15 @@ const ManagerFineTuneAI = () => {
                             disabled={
                               chatBotTopicCreateLoading ||
                               (() => {
-                                // Kiểm tra xem có model nào được tạo trước model hiện tại không
+                                // Kiểm tra xem model hiện tại có previousModelName không
                                 const currentModel =
                                   managementFineTunedModels.find(
                                     (model) => model.id === selectedModelId
                                   );
                                 if (!currentModel) return true;
 
-                                const hasEarlierModels =
-                                  managementFineTunedModels.some(
-                                    (model) =>
-                                      model.id !== selectedModelId &&
-                                      new Date(model.createdAt) <
-                                        new Date(currentModel.createdAt)
-                                  );
-                                return !hasEarlierModels;
+                                // Disable nếu không có previousModelName
+                                return !currentModel.previousModelName;
                               })()
                             }
                             startIcon={
