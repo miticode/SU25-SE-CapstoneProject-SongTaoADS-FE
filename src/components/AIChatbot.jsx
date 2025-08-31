@@ -34,6 +34,7 @@ import {
 } from "../store/features/chat/chatSlice";
 import { selectIsAuthenticated } from "../store/features/auth/authSlice";
 import { setCurrentThread } from "../store/features/chat/chatSlice";
+import { saveChatMessages, clearChatMessages } from "../utils/chatStorage";
 
 const FAQS = [
   "Tôi muốn thiết kế biển quảng cáo",
@@ -137,10 +138,10 @@ const AIChatbot = () => {
     }
   }, [chatMessages, open]);
 
-  // Save messages to localStorage
+  // Save messages to localStorage only when authenticated
   useEffect(() => {
-    localStorage.setItem("ai_chatbot_messages", JSON.stringify(messages));
-  }, [messages]);
+    saveChatMessages(messages, isAuthenticated);
+  }, [messages, isAuthenticated]);
 
   // Auto focus input when open
   useEffect(() => {
@@ -188,6 +189,13 @@ const AIChatbot = () => {
       dispatch(addUserMessage("Vui lòng đăng nhập để được hỗ trợ"));
     }
   }, [open, isAuthenticated, chatMessages.length, dispatch]);
+
+  // Xóa chat messages khi người dùng chưa đăng nhập để đảm bảo bảo mật
+  useEffect(() => {
+    if (!isAuthenticated) {
+      clearChatMessages();
+    }
+  }, [isAuthenticated]);
 
   const handleSend = async (msg) => {
     if ((!input.trim() && !msg) || isBusy) return;

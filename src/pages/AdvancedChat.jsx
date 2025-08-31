@@ -676,32 +676,102 @@ const AdvancedChat = () => {
 
             {/* Scrollable Content */}
             {topicLoading || chatBotTopicLoading ? (
-              <Box sx={{ textAlign: "center", py: 4 }}>
+              <Box sx={{ textAlign: "center", py: 6 }}>
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
                 >
-                  <SmartToy
-                    sx={{
-                      fontSize: 48,
-                      color: "rgba(255, 255, 255, 0.3)",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    color="rgba(156, 163, 175, 0.8)"
-                    variant="h6"
-                    sx={{ mb: 1 }}
+                  {/* Loading Spinner */}
+                  <Box sx={{ position: "relative", mb: 3 }}>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        border: "3px solid rgba(255, 255, 255, 0.1)",
+                        borderTop: "3px solid rgba(255, 255, 255, 0.8)",
+                        display: "inline-block",
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      <SmartToy
+                        sx={{
+                          fontSize: 24,
+                          color: "rgba(255, 255, 255, 0.7)",
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                  
+                  {/* Loading Text */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
                   >
-                    {selectedModelChatBot
-                      ? `Đang tải chủ đề cho ${selectedModelChatBot.name}...`
-                      : "Đang tải chủ đề..."}
-                  </Typography>
-                  <Typography color="rgba(156, 163, 175, 0.6)" variant="body2">
-                    {selectedModelChatBot
-                      ? "Vui lòng chờ trong giây lát..."
-                      : "Đang chuẩn bị dữ liệu..."}
-                  </Typography>
+                    <Typography
+                      color="rgba(255, 255, 255, 0.9)"
+                      variant="h6"
+                      sx={{ mb: 1, fontWeight: 500 }}
+                    >
+                      {selectedModelChatBot
+                        ? `Đang tải chủ đề cho ${selectedModelChatBot.name}`
+                        : "Đang tải chủ đề tư vấn"}
+                    </Typography>
+                    <Typography 
+                      color="rgba(156, 163, 175, 0.7)" 
+                      variant="body2"
+                      sx={{ mb: 2 }}
+                    >
+                      {selectedModelChatBot
+                        ? "Vui lòng chờ trong giây lát..."
+                        : "Đang chuẩn bị dữ liệu..."}
+                    </Typography>
+                    
+                    {/* Progress Dots */}
+                    <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(255, 255, 255, 0.6)",
+                        }}
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(255, 255, 255, 0.6)",
+                        }}
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(255, 255, 255, 0.6)",
+                        }}
+                      />
+                    </Box>
+                  </motion.div>
                 </motion.div>
               </Box>
             ) : (
@@ -737,34 +807,93 @@ const AdvancedChat = () => {
                       </Typography>
                     </Box>
                   ) : !selectedModelChatBot ? (
-                    <Box sx={{ py: 4, textAlign: "center" }}>
-                      <SmartToy
-                        sx={{
-                          fontSize: 48,
-                          color: "rgba(255, 255, 255, 0.3)",
-                          mb: 2,
-                        }}
-                      />
-                      <Typography
-                        color="rgba(156, 163, 175, 0.8)"
-                        variant="h6"
-                        sx={{ mb: 1 }}
+                    <Box sx={{ py: 6, textAlign: "center" }}>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5 }}
                       >
-                        Chào mừng đến với Advanced Chat
-                      </Typography>
-                      <Typography
-                        color="rgba(156, 163, 175, 0.6)"
-                        variant="body2"
-                      >
-                        Hệ thống đang tự động tìm và kích hoạt model chatbot
-                      </Typography>
-                      <Typography
-                        color="rgba(156, 163, 175, 0.5)"
-                        variant="caption"
-                        sx={{ mt: 2, display: "block" }}
-                      >
-                        💡 Chỉ các model đang hoạt động mới được sử dụng
-                      </Typography>
+                        {/* Model Selection Loading */}
+                        <Box sx={{ position: "relative", mb: 3 }}>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                            style={{
+                              width: 60,
+                              height: 60,
+                              borderRadius: "50%",
+                              border: "3px solid rgba(255, 255, 255, 0.1)",
+                              borderTop: "3px solid rgba(255, 255, 255, 0.6)",
+                              display: "inline-block",
+                            }}
+                          />
+                          <Box
+                            sx={{
+                              position: "absolute",
+                              top: "50%",
+                              left: "50%",
+                              transform: "translate(-50%, -50%)",
+                            }}
+                          >
+                            <SmartToy
+                              sx={{
+                                fontSize: 24,
+                                color: "rgba(255, 255, 255, 0.7)",
+                              }}
+                            />
+                          </Box>
+                        </Box>
+                        
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2, duration: 0.5 }}
+                        >
+                          <Typography
+                            color="rgba(255, 255, 255, 0.9)"
+                            variant="h6"
+                            sx={{ mb: 1, fontWeight: 500 }}
+                          >
+                            Chào mừng đến với Advanced Chat
+                          </Typography>
+                          <Typography
+                            color="rgba(156, 163, 175, 0.7)"
+                            variant="body2"
+                            sx={{ mb: 2 }}
+                          >
+                            Hệ thống đang tự động tìm và kích hoạt model chatbot
+                          </Typography>
+                          
+                          {/* Status Indicator */}
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 2 }}>
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                backgroundColor: "rgba(34, 197, 94, 0.8)",
+                              }}
+                            />
+                            <Typography
+                              color="rgba(34, 197, 94, 0.8)"
+                              variant="caption"
+                              sx={{ fontWeight: 500 }}
+                            >
+                              Đang tìm kiếm model hoạt động
+                            </Typography>
+                          </Box>
+                          
+                          <Typography
+                            color="rgba(156, 163, 175, 0.5)"
+                            variant="caption"
+                            sx={{ display: "block" }}
+                          >
+                            💡 Chỉ các model đang hoạt động mới được sử dụng
+                          </Typography>
+                        </motion.div>
+                      </motion.div>
                     </Box>
                   ) : (
                     <List sx={{ p: 0 }}>
@@ -937,41 +1066,77 @@ const AdvancedChat = () => {
                             </motion.div>
                           ))
                         ) : (
-                          <Box sx={{ textAlign: "center", py: 4 }}>
-                            <SmartToy
-                              sx={{
-                                fontSize: 48,
-                                color: "rgba(255, 255, 255, 0.3)",
-                                mb: 2,
-                              }}
-                            />
-                            <Typography
-                              color="rgba(156, 163, 175, 0.8)"
-                              variant="h6"
-                              sx={{ mb: 1 }}
+                          <Box sx={{ textAlign: "center", py: 6 }}>
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 0.5 }}
                             >
-                              {selectedModelChatBot
-                                ? `Model ${selectedModelChatBot.name} chưa có chủ đề`
-                                : "Chưa chọn Model ChatBot"}
-                            </Typography>
-                            <Typography
-                              color="rgba(156, 163, 175, 0.6)"
-                              variant="body2"
-                            >
-                              {selectedModelChatBot
-                                ? "Model này chưa có chủ đề nào được thiết lập. Vui lòng liên hệ staff để thiết lập chủ đề cho model này."
-                                : "Vui lòng chọn một Model ChatBot ở bên trái để xem các chủ đề và câu hỏi tương ứng"}
-                            </Typography>
-                            {selectedModelChatBot && (
-                              <Typography
-                                color="rgba(156, 163, 175, 0.5)"
-                                variant="caption"
-                                sx={{ mt: 2, display: "block" }}
+                              <Box sx={{ position: "relative", mb: 3 }}>
+                                <SmartToy
+                                  sx={{
+                                    fontSize: 48,
+                                    color: "rgba(255, 255, 255, 0.3)",
+                                    mb: 2,
+                                  }}
+                                />
+                              </Box>
+                              
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
                               >
-                                🔧 Staff cần thiết lập ChatBot Topics cho model
-                                này
-                              </Typography>
-                            )}
+                                <Typography
+                                  color="rgba(255, 255, 255, 0.9)"
+                                  variant="h6"
+                                  sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                  {selectedModelChatBot
+                                    ? `Model "${selectedModelChatBot.name}" chưa có chủ đề`
+                                    : "Chưa chọn Model ChatBot"}
+                                </Typography>
+                                <Typography
+                                  color="rgba(156, 163, 175, 0.7)"
+                                  variant="body2"
+                                  sx={{ mb: 2 }}
+                                >
+                                  {selectedModelChatBot
+                                    ? "Model này chưa có chủ đề nào được thiết lập. Vui lòng liên hệ staff để thiết lập chủ đề cho model này."
+                                    : "Vui lòng chọn một Model ChatBot để xem các chủ đề và câu hỏi tương ứng"}
+                                </Typography>
+                                {selectedModelChatBot && (
+                                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 2 }}>
+                                    <motion.div
+                                      animate={{ scale: [1, 1.2, 1] }}
+                                      transition={{ duration: 1.5, repeat: Infinity }}
+                                      style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: "50%",
+                                        backgroundColor: "rgba(245, 158, 11, 0.8)",
+                                      }}
+                                    />
+                                    <Typography
+                                      color="rgba(245, 158, 11, 0.8)"
+                                      variant="caption"
+                                      sx={{ fontWeight: 500 }}
+                                    >
+                                      Cần thiết lập ChatBot Topics
+                                    </Typography>
+                                  </Box>
+                                )}
+                                <Typography
+                                  color="rgba(156, 163, 175, 0.5)"
+                                  variant="caption"
+                                  sx={{ display: "block" }}
+                                >
+                                  {selectedModelChatBot 
+                                    ? " Staff cần thiết lập ChatBot Topics cho model này"
+                                    : " Vui lòng đợi hệ thống tự động chọn model"}
+                                </Typography>
+                              </motion.div>
+                            </motion.div>
                           </Box>
                         )}
                       </AnimatePresence>
