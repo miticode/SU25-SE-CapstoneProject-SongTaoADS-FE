@@ -5,6 +5,7 @@ import {
   markNotificationAsRead,
   sendNotificationToUser,
   sendNotificationToRole,
+  sendNewOrderNotification,
 } from "../../../api/notificationService";
 
 // Định nghĩa mapping loại thông báo
@@ -102,6 +103,22 @@ export const sendNotificationToRoleThunk = createAsyncThunk(
   }
 );
 
+// Gửi thông báo đơn hàng mới theo orderCode
+export const sendNewOrderNotificationThunk = createAsyncThunk(
+  "notification/sendNewOrderNotification",
+  async (orderCode, { rejectWithValue }) => {
+    try {
+      const response = await sendNewOrderNotification(orderCode);
+      if (response.success) {
+        return response.data; // { result, timestamp, message }
+      }
+      return rejectWithValue(response.error);
+    } catch (error) {
+      return rejectWithValue(error.message || "Failed to send new order notification");
+    }
+  }
+);
+
 const initialState = {
   notifications: [], // User notifications
   roleNotifications: [], // Role-based notifications
@@ -119,6 +136,9 @@ const initialState = {
   lastMessage: null, // Message từ API response
   sendNotificationMessage: null, // Message from send notification API
   sendRoleNotificationMessage: null, // Message from send role notification API
+  sendNewOrderNotificationMessage: null, // Message from new order notification API
+  sendingNewOrderNotification: false,
+  sendNewOrderNotificationError: null,
   unreadCount: 0, // Số lượng thông báo user chưa đọc
   roleUnreadCount: 0, // Số lượng thông báo role chưa đọc
   pagination: {
@@ -154,6 +174,9 @@ const notificationSlice = createSlice({
     },
     clearSendRoleNotificationMessage: (state) => {
       state.sendRoleNotificationMessage = null;
+    },
+    clearSendNewOrderNotificationMessage: (state) => {
+      state.sendNewOrderNotificationMessage = null;
     },
     updateUnreadCount: (state) => {
       state.unreadCount = state.notifications.filter(
@@ -280,6 +303,28 @@ const notificationSlice = createSlice({
       .addCase(sendNotificationToRoleThunk.rejected, (state, action) => {
         state.sendingRoleNotification = false;
         state.sendRoleNotificationError = action.payload;
+      })
+      // Send new order notification
+      .addCase(sendNewOrderNotificationThunk.pending, (state) => {
+        state.sendingNewOrderNotification = true;
+        state.sendNewOrderNotificationError = null;
+        state.sendNewOrderNotificationMessage = null;
+      })
+      .addCase(sendNewOrderNotificationThunk.fulfilled, (state, action) => {
+        state.sendingNewOrderNotification = false;
+        state.sendNewOrderNotificationMessage = action.payload.message;
+        state.lastUpdated = action.payload.timestamp;
+        // Nếu server trả về một notification object trong result, có thể thêm vào danh sách
+        if (action.payload.result && action.payload.result.notificationId) {
+          state.notifications.unshift(action.payload.result);
+          if (!action.payload.result.isRead) {
+            state.unreadCount += 1;
+          }
+        }
+      })
+      .addCase(sendNewOrderNotificationThunk.rejected, (state, action) => {
+        state.sendingNewOrderNotification = false;
+        state.sendNewOrderNotificationError = action.payload;
       });
   },
 });
@@ -289,6 +334,7 @@ export const {
   clearLastMessage,
   clearSendNotificationMessage,
   clearSendRoleNotificationMessage,
+  clearSendNewOrderNotificationMessage,
   updateUnreadCount, 
   addNotificationRealtime,
   addRoleNotificationRealtime
@@ -319,6 +365,9 @@ export const selectLastUpdated = (state) => state.notification.lastUpdated;
 export const selectLastMessage = (state) => state.notification.lastMessage;
 export const selectSendNotificationMessage = (state) => state.notification.sendNotificationMessage;
 export const selectSendRoleNotificationMessage = (state) => state.notification.sendRoleNotificationMessage;
+export const selectSendingNewOrderNotification = (state) => state.notification.sendingNewOrderNotification;
+export const selectSendNewOrderNotificationMessage = (state) => state.notification.sendNewOrderNotificationMessage;
+export const selectSendNewOrderNotificationError = (state) => state.notification.sendNewOrderNotificationError;
 
 // Selector để lấy thông báo chưa đọc
 export const selectUnreadNotifications = (state) => 
