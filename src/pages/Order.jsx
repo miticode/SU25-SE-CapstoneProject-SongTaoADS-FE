@@ -62,6 +62,7 @@ import {
 } from "../store/features/background/backgroundSlice";
 import { getImageFromS3 } from "../api/s3Service";
 import "../styles/OrderPage.css";
+import { sendNewOrderNotificationThunk } from "../store/features/notification/notificationSlice";
 
 // Component để load ảnh từ S3 với auto-detect tỷ lệ
 const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, showDimensions = false, onClick }) => {
@@ -2602,6 +2603,11 @@ const Order = () => {
                       fullWidth
                       onClick={() => {
                         setUserClickedMainButtons(true);
+                        // Lấy orderCode trước khi clear localStorage
+                        const orderCodeToNotify = currentOrder?.orderCode || (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.orderCode);
+                        if (orderCodeToNotify) {
+                          dispatch(sendNewOrderNotificationThunk(orderCodeToNotify));
+                        }
                         clearAllOrderLocalStorage();
                         navigate("/order-history");
                       }}
@@ -2625,6 +2631,10 @@ const Order = () => {
                       fullWidth
                       onClick={() => {
                         setUserClickedMainButtons(true);
+                        const orderCodeToNotify = currentOrder?.orderCode || (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.orderCode);
+                        if (orderCodeToNotify) {
+                          dispatch(sendNewOrderNotificationThunk(orderCodeToNotify));
+                        }
                         clearAllOrderLocalStorage();
                         navigate("/");
                       }}
