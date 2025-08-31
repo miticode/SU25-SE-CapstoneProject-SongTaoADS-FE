@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearChatMessages } from "../utils/chatStorage";
 
 // Sử dụng URL backend từ biến môi trường
 const API_URL = import.meta.env.VITE_API_URL;
@@ -43,10 +44,10 @@ authService.interceptors.response.use(
     }
 
     const originalRequest = error.config || {};
-  // Cho phép truyền cờ skipAuthRefresh ở mức request:
-  // authService.get('/secure', { skipAuthRefresh: true }) để bỏ qua logic refresh
-  const { skipAuthRefresh } = originalRequest;
-  const requestUrl = originalRequest.url || "";
+    // Cho phép truyền cờ skipAuthRefresh ở mức request:
+    // authService.get('/secure', { skipAuthRefresh: true }) để bỏ qua logic refresh
+    const { skipAuthRefresh } = originalRequest;
+    const requestUrl = originalRequest.url || "";
     const hasAccessToken = !!localStorage.getItem("accessToken");
     const isRefreshEndpoint = requestUrl.includes("/api/auth/refresh-token");
     const isLoginEndpoint = requestUrl.includes("/api/auth/login");
@@ -182,10 +183,13 @@ export const loginApi = async (credentials) => {
     const { success, result, message } = response.data;
 
     if (success) {
-      // Lưu access token vào localStorage
+      // Lưu access token vào localStorage và xóa chat messages cũ
       if (result.accessToken) {
         console.log("Saving access token to localStorage");
         localStorage.setItem("accessToken", result.accessToken);
+        // Xóa chat messages cũ để tránh hiển thị lịch sử chat của người dùng trước
+        clearChatMessages();
+        console.log("Cleared previous chat messages during login");
       } else {
         console.warn("No access token in response");
       }
@@ -242,9 +246,12 @@ export const logoutApi = async () => {
 
     console.log("Logout response:", response.data);
 
-    // Sau khi API trả về thành công, mới xóa token
+    // Sau khi API trả về thành công, mới xóa token và chat messages
     localStorage.removeItem("accessToken");
     console.log("Access token removed from localStorage");
+
+    // Xóa chat messages để tránh người dùng khác thấy lịch sử chat
+    clearChatMessages();
 
     // Reset trạng thái đăng nhập
     authState.isAuthenticated = false;
@@ -254,9 +261,10 @@ export const logoutApi = async () => {
   } catch (error) {
     console.error("Logout error:", error.response?.data || error.message);
 
-    // Nếu lỗi là do token hết hạn hoặc không hợp lệ (401), vẫn xóa token
+    // Nếu lỗi là do token hết hạn hoặc không hợp lệ (401), vẫn xóa token và chat messages
     if (error.response?.status === 401) {
       localStorage.removeItem("accessToken");
+      clearChatMessages();
       authState.isAuthenticated = false;
       authState.user = null;
       console.log("Token invalid/expired, removed from localStorage");
@@ -379,6 +387,9 @@ export const refreshTokenApi = async () => {
         `[${new Date().toLocaleTimeString()}] Token refresh successful`
       );
       localStorage.setItem("accessToken", result.accessToken);
+
+      // Xóa chat messages cũ khi refresh token để đảm bảo tính bảo mật
+      clearChatMessages();
 
       if (result.user) {
         updateAuthState(true, result.user);
@@ -566,9 +577,12 @@ export const outboundAuthenticationApi = async (code) => {
     console.log("Outbound authentication response:", response.data);
 
     if (success && result?.accessToken) {
-      // Lưu access token vào localStorage
+      // Lưu access token vào localStorage và xóa chat messages cũ
       console.log("Saving access token from outbound authentication");
       localStorage.setItem("accessToken", result.accessToken);
+
+      // Xóa chat messages cũ để tránh hiển thị lịch sử chat của người dùng trước
+      clearChatMessages();
 
       // Cập nhật trạng thái đăng nhập
       authState.isAuthenticated = true;

@@ -8,6 +8,9 @@ import {
   forgotPasswordApi, // Thêm import hàm mới
   outboundAuthenticationApi, // Thêm import hàm outbound authentication
 } from "../../../api/authService";
+import { clearChatMessages } from "../../../utils/chatStorage";
+import { resetChat } from "../chat/chatSlice";
+
 
 // Initial state
 const initialState = {
@@ -61,15 +64,19 @@ export const register = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   "/auth/logout",
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     const response = await logoutApi();
 
     if (!response.success) {
       return rejectWithValue(response.error || "Logout failed");
     }
 
-    // Xóa token khỏi localStorage
+    // Xóa token và chat messages khỏi localStorage
     localStorage.removeItem("accessToken");
+    clearChatMessages();
+
+    // Reset chat messages trong Redux store
+    dispatch(resetChat());
 
     return null;
   }
@@ -107,7 +114,7 @@ export const fetchProfile = createAsyncThunk(
 // Thunk để login và tự động fetch profile
 export const loginAndFetchProfile = createAsyncThunk(
   "auth/loginAndFetchProfile",
-  async (credentials, { rejectWithValue }) => {
+  async (credentials, { rejectWithValue, dispatch }) => {
     try {
       // Bước 1: Đăng nhập
       const loginResponse = await loginApi(credentials);
@@ -116,9 +123,14 @@ export const loginAndFetchProfile = createAsyncThunk(
         return rejectWithValue(loginResponse.error || "Đăng nhập thất bại");
       }
 
-      // Lưu token ngay lập tức
+      // Lưu token ngay lập tức và xóa chat messages cũ
       if (loginResponse.data.accessToken) {
         localStorage.setItem("accessToken", loginResponse.data.accessToken);
+        // Xóa chat messages cũ để tránh hiển thị lịch sử chat của người dùng trước
+        clearChatMessages();
+        // Reset chat messages trong Redux store
+        dispatch(resetChat());
+        console.log("Cleared previous chat messages during loginAndFetchProfile");
       }
 
       // Bước 2: Lấy thông tin profile
