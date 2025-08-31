@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { Snackbar, Alert, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { clearAllChatMessagesOnAppStart } from "./utils/chatStorage";
 
 import {
   syncAuthState,
@@ -179,9 +180,16 @@ const App = () => {
       }
     };
 
-    // Chỉ init auth khi component mount lần đầu
-    initAuth();
-  }, [dispatch]); // Chỉ chạy một lần khi component mount (đã có guard bằng ref)
+      // Chỉ init auth khi component mount lần đầu
+  initAuth();
+}, [dispatch]); // Chỉ chạy một lần khi component mount (đã có guard bằng ref)
+
+// Xóa tất cả chat messages khi khởi động ứng dụng để đảm bảo không có dữ liệu cũ
+useEffect(() => {
+  clearAllChatMessagesOnAppStart();
+}, []); // Chỉ chạy một lần khi component mount
+
+
 
   // Token refresh effect - tách riêng
   useEffect(() => {

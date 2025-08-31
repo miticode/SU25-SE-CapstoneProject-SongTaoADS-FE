@@ -494,3 +494,47 @@ export const sendNotificationToRole = async (role, message) => {
 };
 
 export default notificationService;
+
+// Hàm gửi thông báo đơn hàng mới (new-order) với orderCode (query param)
+export const sendNewOrderNotification = async (orderCode) => {
+  try {
+    console.log("Gọi API gửi thông báo đơn hàng mới với orderCode:", orderCode);
+
+    if (!orderCode || typeof orderCode !== 'string' || orderCode.trim().length === 0) {
+      return { success: false, error: "Mã đơn hàng (orderCode) không hợp lệ." };
+    }
+
+    const accessToken = localStorage.getItem("accessToken");
+    console.log("Access Token:", accessToken ? "Có token" : "Không có token");
+    if (!accessToken) {
+      return { success: false, error: "Không tìm thấy token xác thực. Vui lòng đăng nhập lại." };
+    }
+
+    // POST với query param orderCode, không cần body
+    const response = await notificationService.post('/api/notifications/new-order', null, { params: { orderCode: orderCode.trim() } });
+    const { success, timestamp, message, result } = response.data;
+
+    if (success) {
+      return { success: true, data: { result, timestamp, message } };
+    }
+    return { success: false, error: message || "Không thể gửi thông báo đơn hàng mới" };
+  } catch (error) {
+    console.error("Error sending new order notification:", error.response?.data || error);
+    if (error.code === 'ERR_NETWORK') {
+      return { success: false, error: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng." };
+    }
+    if (error.response?.status === 401) {
+      return { success: false, error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." };
+    }
+    if (error.response?.status === 403) {
+      return { success: false, error: "Bạn không có quyền gửi thông báo này." };
+    }
+    if (error.response?.status === 404) {
+      return { success: false, error: "Endpoint không tồn tại hoặc orderCode không tìm thấy." };
+    }
+    if (error.response?.status === 400) {
+      return { success: false, error: error.response?.data?.message || "Dữ liệu gửi không hợp lệ." };
+    }
+    return { success: false, error: error.response?.data?.message || "Không thể gửi thông báo đơn hàng mới. Vui lòng thử lại." };
+  }
+};
