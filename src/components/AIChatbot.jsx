@@ -38,8 +38,9 @@ import { saveChatMessages, clearChatMessages } from "../utils/chatStorage";
 
 const FAQS = [
   "Tôi muốn thiết kế biển quảng cáo",
-  "Tôi muốn hỏi về dịch vụ",
+  "Biển hiệu truyền thống là gì?",
   "Tôi muốn đặt biển quảng cáo",
+  "Giá nền bảng Alu Arado 3mm (rẻ) là bao nhiêu?"
   ];
 
 const TypingIndicator = () => (

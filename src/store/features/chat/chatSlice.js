@@ -216,7 +216,7 @@ export const uploadFileExcelModelChat = createAsyncThunk(
 // Lấy danh sách tất cả các model đã fine-tune (model-chat, có phân trang)
 export const fetchFineTunedModelsModelChat = createAsyncThunk(
   'chat/fetchFineTunedModelsModelChat',
-  async ({ page = 1, size = 10 } = {}, { rejectWithValue }) => {
+  async ({ page = 1, size = 20 } = {}, { rejectWithValue }) => {
     const response = await getFineTunedModelsModelChatApi(page, size);
     if (!response.success) return rejectWithValue(response.error);
     return response.result;

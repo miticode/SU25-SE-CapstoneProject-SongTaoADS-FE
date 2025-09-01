@@ -203,6 +203,7 @@ const renderStatusChip = (status) => (
 );
 
 const ManagerFineTuneAI = () => {
+  const [isTesting, setIsTesting] = useState(false);
   const dispatch = useDispatch();
   const modelChatFineTunedModels = useSelector(selectModelChatFineTunedModels);
   const modelChatFineTunedModelsStatus = useSelector(
@@ -568,7 +569,7 @@ const ManagerFineTuneAI = () => {
   }, [fineTuneJobs]);
 
   useEffect(() => {
-    dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 10 }));
+    dispatch(fetchFineTunedModelsModelChat({ page: 1, size: 15 }));
   }, [dispatch]);
 
   // Chỉ giữ lại 1 useEffect này, KHÔNG tự động chọn model đầu tiên
@@ -1497,10 +1498,11 @@ const ManagerFineTuneAI = () => {
 
   const handleManagementPageChange = (event, newPage) => {
     setManagementPage(newPage);
+    // Khi chuyển trang, sẽ tự động gọi useEffect bên dưới để fetch dữ liệu mới
   };
 
   const handleManagementPageSizeChange = (event) => {
-    setManagementPageSize(event.target.value);
+    setManagementPageSize(parseInt(event.target.value, 10));
     setManagementPage(1);
   };
 
@@ -1969,7 +1971,7 @@ const ManagerFineTuneAI = () => {
                 onOpen={() => {
                   if (modelChatFineTunedModelsStatus === "idle") {
                     dispatch(
-                      fetchFineTunedModelsModelChat({ page: 1, size: 10 })
+                      fetchFineTunedModelsModelChat({ page: 1, size: 15 })
                     );
                   }
                 }}
@@ -2045,6 +2047,7 @@ const ManagerFineTuneAI = () => {
                     variant="contained"
                     onClick={async () => {
                       if (!selectedSucceededJob || !chatPrompt.trim()) return;
+                      setIsTesting(true);
                       try {
                         const res = await dispatch(
                           testChat({
@@ -2058,12 +2061,16 @@ const ManagerFineTuneAI = () => {
                           "Lỗi khi kiểm tra model: " +
                             (error || "Không thể kết nối")
                         );
+                      } finally {
+                        setIsTesting(false);
                       }
                     }}
-                    disabled={!selectedSucceededJob || !chatPrompt.trim()}
+                    disabled={
+                      isTesting || !selectedSucceededJob || !chatPrompt.trim()
+                    }
                     sx={{ minWidth: 100, height: 56 }}
                   >
-                    {fineTuneStatus === "loading" ? (
+                    {isTesting ? (
                       <CircularProgress size={20} color="inherit" />
                     ) : (
                       "Test"
@@ -2122,19 +2129,6 @@ const ManagerFineTuneAI = () => {
                 )}
 
                 {/* Thông tin model */}
-                <Box mt={2} p={2} bgcolor="#f5f5f5" borderRadius={1}>
-                  <Typography variant="caption" color="text.secondary">
-                    <strong>Model ID:</strong> {selectedSucceededJob.id} |
-                    <strong> Tạo lúc:</strong>{" "}
-                    {new Date(selectedSucceededJob.createdAt).toLocaleString(
-                      "vi-VN"
-                    )}{" "}
-                    |<strong> Trạng thái:</strong>{" "}
-                    {selectedSucceededJob.active
-                      ? "Đang sử dụng"
-                      : "Chưa sử dụng"}
-                  </Typography>
-                </Box>
               </Box>
             )}
 
@@ -2204,7 +2198,7 @@ const ManagerFineTuneAI = () => {
               onOpen={() => {
                 if (modelChatFineTunedModelsStatus === "idle") {
                   dispatch(
-                    fetchFineTunedModelsModelChat({ page: 1, size: 10 })
+                    fetchFineTunedModelsModelChat({ page: 1, size: 15 })
                   );
                 }
               }}
@@ -2273,7 +2267,7 @@ const ManagerFineTuneAI = () => {
                   setAlert(null); // Ẩn alert cũ nếu có
                   // Refresh lại danh sách model tinh chỉnh để cập nhật trạng thái active
                   dispatch(
-                    fetchFineTunedModelsModelChat({ page: 1, size: 10 })
+                    fetchFineTunedModelsModelChat({ page: 1, size: 15 })
                   );
                 } catch (error) {
                   setIntegrateAlert({
@@ -3355,8 +3349,10 @@ const ManagerFineTuneAI = () => {
                   <CircularProgress />
                 </Box>
               ) : (
-                <TableContainer sx={{ borderRadius: 2, overflow: "hidden" }}>
-                  <Table>
+                <TableContainer
+                  sx={{ borderRadius: 2, maxHeight: 400, overflowY: "auto" }}
+                >
+                  <Table stickyHeader>
                     <TableHead sx={{ bgcolor: "#e8f5e9" }}>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
@@ -3858,81 +3854,6 @@ const ManagerFineTuneAI = () => {
               )}
 
               {/* Enhanced Statistics */}
-              <Box
-                mt={3}
-                p={3}
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)",
-                  borderRadius: 3,
-                  border: "1px solid #e0e0e0",
-                }}
-              >
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  mb={2}
-                >
-                  <Typography variant="h6" fontWeight={600} color="#1565c0">
-                    Thống kê câu hỏi
-                  </Typography>
-                  {currentTopicForQuestions && (
-                    <Chip
-                      label={currentTopicForQuestions.title}
-                      color="primary"
-                      size="small"
-                      sx={{ fontWeight: 600 }}
-                    />
-                  )}
-                </Box>
-                <Box display="flex" gap={3} flexWrap="wrap">
-                  <Box
-                    textAlign="center"
-                    p={2}
-                    bgcolor="white"
-                    borderRadius={2}
-                    minWidth={120}
-                  >
-                    <Typography variant="h4" color="#2e7d32" fontWeight={700}>
-                      {questionsByTopic.length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Tổng câu hỏi
-                    </Typography>
-                  </Box>
-                  {questionFilter && (
-                    <Box
-                      textAlign="center"
-                      p={2}
-                      bgcolor="white"
-                      borderRadius={2}
-                      minWidth={120}
-                    >
-                      <Typography variant="h4" color="#ed6c02" fontWeight={700}>
-                        {filteredQuestions.length}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Kết quả tìm kiếm
-                      </Typography>
-                    </Box>
-                  )}
-                  <Box
-                    textAlign="center"
-                    p={2}
-                    bgcolor="white"
-                    borderRadius={2}
-                    minWidth={120}
-                  >
-                    <Typography variant="h4" color="#1976d2" fontWeight={700}>
-                      {questionsByTopic.filter((q) => q.answer).length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Có câu trả lời
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
             </DialogContent>
             <DialogActions>
               <Button
@@ -4134,41 +4055,39 @@ const ManagerFineTuneAI = () => {
                 </TableContainer>
 
                 {/* Pagination */}
-                {managementFineTunedModelsPagination &&
-                  managementFineTunedModelsPagination.totalPages > 1 && (
-                    <Box
-                      display="flex"
-                      justifyContent="center"
-                      alignItems="center"
-                      mt={2}
-                      gap={2}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        Trang {managementFineTunedModelsPagination.currentPage}{" "}
-                        / {managementFineTunedModelsPagination.totalPages}
-                      </Typography>
-                      <Pagination
-                        count={managementFineTunedModelsPagination.totalPages}
-                        page={managementPage}
-                        onChange={handleManagementPageChange}
-                        color="primary"
-                        size="small"
-                      />
-                      <FormControl size="small" sx={{ minWidth: 80 }}>
-                        <InputLabel>Kích thước</InputLabel>
-                        <Select
-                          value={managementPageSize}
-                          label="Kích thước"
-                          onChange={handleManagementPageSizeChange}
-                        >
-                          <MenuItem value={5}>5</MenuItem>
-                          <MenuItem value={10}>10</MenuItem>
-                          <MenuItem value={20}>20</MenuItem>
-                          <MenuItem value={50}>50</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Box>
-                  )}
+                {managementFineTunedModelsPagination && (
+                  <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    mt={2}
+                    gap={2}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      Trang {managementFineTunedModelsPagination.currentPage} /{" "}
+                      {managementFineTunedModelsPagination.totalPages}
+                    </Typography>
+                    <Pagination
+                      count={managementFineTunedModelsPagination.totalPages}
+                      page={managementPage}
+                      onChange={handleManagementPageChange}
+                      color="primary"
+                      size="small"
+                    />
+                    <FormControl size="small" sx={{ minWidth: 80 }}>
+                      <InputLabel>Kích thước</InputLabel>
+                      <Select
+                        value={managementPageSize}
+                        label="Kích thước"
+                        onChange={handleManagementPageSizeChange}
+                      >
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={20}>20</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                )}
               </>
             )}
           </Paper>
