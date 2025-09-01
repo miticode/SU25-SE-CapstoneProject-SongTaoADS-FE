@@ -28,6 +28,15 @@ const CustomDesign = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  // Scroll to top whenever this page is mounted
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } catch {
+      // Fallback for older browsers
+      window.scrollTo(0, 0);
+    }
+  }, []);
   const [selectedType, setSelectedType] = useState(null);
   const [selectedTypeId, setSelectedTypeId] = useState("");
   const [productTypes, setProductTypes] = useState([]);
@@ -360,7 +369,7 @@ const CustomDesign = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+  <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -671,11 +680,37 @@ const CustomDesign = () => {
               </div>
             </div>
             {/* Submit Button */}
-            <div className="flex justify-center pt-6">
+            <div className="flex justify-center gap-4 pt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  // Điều hướng về bước 4 của trang AI Design.
+                  // AIDesign.jsx đọc query param ?step=billboard&type=PRODUCT_TYPE_ID để set currentStep=4.
+                  const typeId = selectedTypeId || selectedType?.id;
+                  if (typeId) {
+                    navigate(`/ai-design?step=billboard&type=${typeId}`);
+                  } else {
+                    navigate('/ai-design?step=billboard');
+                  }
+                }}
+                className="group inline-flex items-center px-6 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm font-medium shadow-md hover:shadow-lg hover:border-blue-400 hover:text-blue-600 transition-all duration-200 cursor-pointer"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-5 h-5 mr-2 transition-transform group-hover:-translate-x-1"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Quay lại 
+              </button>
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-8 rounded-lg transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <FaCheckCircle className="mr-2" />
                 Xác Nhận Thiết Kế
@@ -701,7 +736,7 @@ const CustomDesign = () => {
               <span className="font-medium">{snackbar.message}</span>
               <button
                 onClick={() => setSnackbar({ ...snackbar, open: false })}
-                className="ml-4 text-current hover:text-gray-600 transition-colors duration-200 transform hover:scale-110"
+                className="ml-4 text-current hover:text-gray-600 transition-colors duration-200 transform hover:scale-110 cursor-pointer"
               >
                 ✕
               </button>

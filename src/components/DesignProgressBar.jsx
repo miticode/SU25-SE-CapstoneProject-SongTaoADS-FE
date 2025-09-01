@@ -20,22 +20,22 @@ const DesignProgressBar = ({ status, order, compact = false }) => {
     },
     { 
       key: 'NEED_DEPOSIT_DESIGN', 
-      label: compact ? 'Cần cọc TK' : 'Cần đặt cọc thiết kế',
+      label: compact ? 'Cần cọc thiết kế' : 'Cần đặt cọc thiết kế',
       shortLabel: 'Cần cọc',
       description: 'Cần thanh toán cọc để bắt đầu thiết kế',
       icon: AccountBalance
     },
     { 
       key: 'DEPOSITED_DESIGN', 
-      label: compact ? 'Đã cọc TK' : 'Đã cọc thiết kế',
+      label: compact ? 'Đã cọc thiết kế' : 'Đã cọc thiết kế',
       shortLabel: 'Đã cọc',
       description: 'Đã thanh toán cọc thiết kế, bắt đầu thiết kế',
       icon: Payment
     },
     { 
       key: 'NEED_FULLY_PAID_DESIGN', 
-      label: compact ? 'Cần TT đủ' : 'Cần thanh toán đủ',
-      shortLabel: 'Cần TT',
+      label: compact ? 'Cần thanh toán đủ' : 'Cần thanh toán đủ',
+      shortLabel: 'Cần thanh toán',
       description: 'Cần thanh toán đầy đủ để hoàn thành thiết kế',
       icon: MonetizationOn
     },

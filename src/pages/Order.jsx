@@ -1867,9 +1867,7 @@ const Order = () => {
                                 {finalHasConstruction ? "Có thi công" : "Không thi công"}
                               </Typography>
                             </div>
-                            <Typography variant="caption" className="text-orange-700 block mt-1">
-                              Custom Design Request ID: {finalCustomDesignRequestId}
-                            </Typography>
+                          
                           </div>
                         </div>
                       </>

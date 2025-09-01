@@ -18,14 +18,14 @@ const OrderProgressBar = ({ status, order, compact = false }) => {
     const base = [
       {
         key: 'PENDING_CONTRACT',
-        label: compact ? 'Chờ HĐ' : 'Chờ hợp đồng',
+        label: compact ? 'Chờ hợp đồng' : 'Chờ hợp đồng',
         shortLabel: 'Chờ HĐ',
         description: 'Đơn hàng đang chờ tạo hợp đồng',
         icon: Assignment,
       },
       {
         key: 'CONTRACT_SENT',
-        label: compact ? 'Đã gửi HĐ' : 'Đã gửi hợp đồng',
+        label: compact ? 'Đã gửi hợp đồng' : 'Đã gửi hợp đồng',
         shortLabel: 'Đã gửi',
         description: 'Hợp đồng đã được gửi cho khách hàng',
         icon: Send,
@@ -46,7 +46,7 @@ const OrderProgressBar = ({ status, order, compact = false }) => {
     // Luôn có bước ký hợp đồng
     base.push({
       key: 'CONTRACT_SIGNED',
-      label: compact ? 'Đã ký HĐ' : 'Đã ký hợp đồng',
+      label: compact ? 'Đã ký hợp đồng' : 'Đã ký hợp đồng',
       shortLabel: 'Đã ký',
       description: 'Khách hàng đã ký hợp đồng',
       icon: Create,

@@ -138,6 +138,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import DesignProgressBar from "../components/DesignProgressBar";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 const statusMap = {
   // Status cho orders (đơn hàng) - các status mới
@@ -1345,7 +1346,17 @@ const OrderHistory = () => {
   };
 
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  const [tab, setTab] = useState(0);
+  // Khởi tạo tab từ localStorage để sau khi reload vẫn giữ nguyên tab
+  const getInitialTab = () => {
+    try {
+      const saved = localStorage.getItem("orderHistoryTab");
+      if (saved !== null) return parseInt(saved, 10) || 0;
+    } catch {
+      // ignore read error
+    }
+    return 0;
+  };
+  const [tab, setTab] = useState(getInitialTab);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [constructionLoading, setConstructionLoading] = useState(false);
@@ -2921,7 +2932,14 @@ const OrderHistory = () => {
     }
   };
 
-  const handleTabChange = (event, newValue) => setTab(newValue);
+  const handleTabChange = (event, newValue) => {
+    setTab(newValue);
+    try {
+      localStorage.setItem("orderHistoryTab", String(newValue));
+    } catch {
+      // ignore write error
+    }
+  };
 
   // Helper function to format file size
   const formatFileSize = (bytes) => {
@@ -4262,6 +4280,29 @@ const OrderHistory = () => {
                   ) : (
                     "Tìm kiếm"
                   )}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="medium"
+                  startIcon={orderLoading ? <CircularProgress size={16} /> : <RefreshIcon fontSize="small" />}
+                  disabled={orderLoading || searchStatus === "loading"}
+                  onClick={() => {
+                    // Nếu đang ở trạng thái search thì refetch search, ngược lại refetch danh sách đơn
+                    if (searchQuery) {
+                      dispatch(
+                        searchCustomerOrders({
+                          query: searchQuery,
+                          page: 1,
+                          size: 10,
+                        })
+                      );
+                    } else {
+                      refreshOrdersData();
+                    }
+                  }}
+                  sx={{ fontWeight: 600, borderRadius: 3 }}
+                >
+                  Làm mới
                 </Button>
                 {searchQuery && (
                   <Button
@@ -5918,6 +5959,28 @@ const OrderHistory = () => {
           </>
         ) : (
           <Stack spacing={3}>
+            {/* Refresh button for Custom Design Requests tab */}
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button
+                variant="contained"
+                color="secondary"
+                size="small"
+                startIcon={
+                  customStatus === "loading" ? (
+                    <CircularProgress size={16} />
+                  ) : (
+                    <RefreshIcon fontSize="small" />
+                  )
+                }
+                disabled={customStatus === "loading"}
+                onClick={() => {
+                  refreshCustomDesignData();
+                }}
+                sx={{ borderRadius: 3, fontWeight: 600, textTransform: "none" }}
+              >
+                Làm mới
+              </Button>
+            </Box>
             {customStatus === "loading" ? (
               <Box
                 display="flex"
@@ -8937,9 +9000,9 @@ const OrderHistory = () => {
                 Thông tin hợp đồng
               </Typography>
             </Box>
-            <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+            {/* <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
               Đơn hàng #{contractDialog.orderId}
-            </Typography>
+            </Typography> */}
             <IconButton
               aria-label="close"
               onClick={handleCloseContractDialog}
@@ -8998,7 +9061,7 @@ const OrderHistory = () => {
                       gap: 2,
                     }}
                   >
-                    <Box
+                    {/* <Box
                       sx={{
                         background: "rgba(255, 255, 255, 0.7)",
                         backdropFilter: "blur(10px)",
@@ -9017,7 +9080,7 @@ const OrderHistory = () => {
                       <Typography variant="h6" fontWeight={600} color="primary">
                         #{contractDialog.contract.id}
                       </Typography>
-                    </Box>
+                    </Box> */}
 
                     <Box
                       sx={{

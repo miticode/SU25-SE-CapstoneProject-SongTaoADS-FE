@@ -201,7 +201,7 @@ const Signup = () => {
         <div className="text-left mb-6">
           <Link
             to="/"
-            className="inline-flex items-center text-gray-600 hover:text-green-600 font-medium transition-colors duration-300 group"
+            className="cursor-pointer inline-flex items-center text-gray-600 hover:text-green-600 font-medium transition-colors duration-300 group"
           >
             <FaArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
             Quay lại trang chủ
@@ -414,7 +414,7 @@ const Signup = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
+                  className="cursor-pointer absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
                   disabled={status === "loading"}
                 >
                   {showPassword ? (
@@ -486,7 +486,7 @@ const Signup = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
+                  className="cursor-pointer absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-green-500 transition-colors duration-300"
                   disabled={status === "loading"}
                 >
                   {showConfirmPassword ? (
@@ -559,7 +559,7 @@ const Signup = () => {
           <button
             type="submit"
             disabled={status === "loading" || verificationStatus === "loading"}
-            className={`group relative w-full py-4 px-6 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-2xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 overflow-hidden ${
+            className={`cursor-pointer group relative w-full py-4 px-6 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-2xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 overflow-hidden ${
               status === "loading" || verificationStatus === "loading"
                 ? "opacity-70 cursor-not-allowed"
                 : "hover:from-green-700 hover:to-blue-700"
@@ -619,7 +619,7 @@ const Signup = () => {
           </p>
           <Link
             to={`/auth/login?verify=required&email=${encodeURIComponent(email)}`}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
+            className="cursor-pointer inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300"
           >
             Đi đến trang đăng nhập
             <svg
@@ -644,7 +644,7 @@ const Signup = () => {
             Đã có tài khoản?{" "}
             <Link
               to="/auth/login"
-              className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
+              className="cursor-pointer text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
             >
               Đăng nhập ngay
             </Link>
