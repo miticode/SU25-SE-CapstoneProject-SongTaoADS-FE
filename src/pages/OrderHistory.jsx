@@ -8636,7 +8636,7 @@ const OrderHistory = () => {
                   </Card>
                 )}
 
-               
+
                 {/* Dialog offer giá khác */}
                 <Dialog
                   open={offerDialog.open}
@@ -10288,13 +10288,13 @@ const OrderHistory = () => {
                     : notification.severity === "warning"
                     ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
                     : "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-                  color: "white",
+                color: "white",
                   "&:hover": {
                     transform: "translateY(-1px)",
                     boxShadow: "0 6px 20px rgba(0, 0, 0, 0.2)",
-                  },
-                }}
-              >
+              },
+            }}
+          >
                 Đóng
               </Button>
             </Box>

@@ -1093,7 +1093,7 @@ const AdvancedChat = () => {
                                   sx={{ mb: 1, fontWeight: 500 }}
                                 >
                                   {selectedModelChatBot
-                                    ? `Model "${selectedModelChatBot.name}" chưa có chủ đề`
+                                    ? "Hiện tại chế độ nâng cao không khả dụng, vui lòng quay lại sau"
                                     : "Chưa chọn Model ChatBot"}
                                 </Typography>
                                 <Typography
@@ -1102,38 +1102,8 @@ const AdvancedChat = () => {
                                   sx={{ mb: 2 }}
                                 >
                                   {selectedModelChatBot
-                                    ? "Model này chưa có chủ đề nào được thiết lập. Vui lòng liên hệ staff để thiết lập chủ đề cho model này."
+                                    ? ""
                                     : "Vui lòng chọn một Model ChatBot để xem các chủ đề và câu hỏi tương ứng"}
-                                </Typography>
-                                {selectedModelChatBot && (
-                                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 2 }}>
-                                    <motion.div
-                                      animate={{ scale: [1, 1.2, 1] }}
-                                      transition={{ duration: 1.5, repeat: Infinity }}
-                                      style={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: "50%",
-                                        backgroundColor: "rgba(245, 158, 11, 0.8)",
-                                      }}
-                                    />
-                                    <Typography
-                                      color="rgba(245, 158, 11, 0.8)"
-                                      variant="caption"
-                                      sx={{ fontWeight: 500 }}
-                                    >
-                                      Cần thiết lập ChatBot Topics
-                                    </Typography>
-                                  </Box>
-                                )}
-                                <Typography
-                                  color="rgba(156, 163, 175, 0.5)"
-                                  variant="caption"
-                                  sx={{ display: "block" }}
-                                >
-                                  {selectedModelChatBot 
-                                    ? " Staff cần thiết lập ChatBot Topics cho model này"
-                                    : " Vui lòng đợi hệ thống tự động chọn model"}
                                 </Typography>
                               </motion.div>
                             </motion.div>
