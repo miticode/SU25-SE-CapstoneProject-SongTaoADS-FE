@@ -108,10 +108,11 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 4 }}>
         <Card sx={{ 
             flex: 1,
-        borderRadius: 3,
+            borderRadius: 3,
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,
+            cursor: 'pointer',
             boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
             "&:hover": {
               transform: 'translateY(-2px)',
@@ -141,6 +142,7 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,
+            cursor: 'pointer',
             boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
             "&:hover": {
               transform: 'translateY(-2px)',
@@ -170,6 +172,7 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,
+            cursor: 'pointer',
             boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
             "&:hover": {
               transform: 'translateY(-2px)',
@@ -202,6 +205,7 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,
+            cursor: 'pointer',
             boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
             "&:hover": {
               transform: 'translateY(-2px)',
@@ -231,6 +235,7 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             bgcolor: '#1e293b',
             color: 'white',
             height: 130,
+            cursor: 'pointer',
             boxShadow: '0 4px 20px rgba(30, 41, 59, 0.15)',
             "&:hover": {
               transform: 'translateY(-2px)',
@@ -274,7 +279,7 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
                     contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0' }}
                   />
                   <Legend />
-                  <Bar dataKey="value" radius={[6,6,0,0]}>
+                  <Bar dataKey="value" radius={[6,6,0,0]} style={{ cursor: 'pointer' }}>
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
@@ -288,7 +293,7 @@ const DashboardContent = ({ stats = {}, loading = false, error = null }) => {
             <Box sx={{ height: 320, position: 'relative' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3}>
+                  <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} style={{ cursor: 'pointer' }}>
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} stroke="#fff" strokeWidth={2} />
                     ))}
