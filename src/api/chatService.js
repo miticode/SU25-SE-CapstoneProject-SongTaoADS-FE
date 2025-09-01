@@ -212,7 +212,7 @@ export const uploadFileExcelModelChatApi = async (file, fileName) => {
 };
 
 // Lấy danh sách tất cả các model đã fine-tune (model-chat, có phân trang)
-export const getFineTunedModelsModelChatApi = async (page = 1, size = 10) => {
+export const getFineTunedModelsModelChatApi = async (page = 1, size = 20) => {
   try {
     const response = await chatService.get(`/api/model-chat/models-fine-tune?page=${page}&size=${size}`);
     const { success, result, message } = response.data;
