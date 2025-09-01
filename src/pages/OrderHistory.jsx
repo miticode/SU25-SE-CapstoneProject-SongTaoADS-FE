@@ -1483,6 +1483,19 @@ const OrderHistory = () => {
     severity: "success",
   });
 
+  // Auto-hide notification after 6 seconds
+  useEffect(() => {
+    let timer;
+    if (notification.open) {
+      timer = setTimeout(() => {
+        setNotification((prev) => ({ ...prev, open: false }));
+      }, 6000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [notification.open]);
+
   // const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [cancelingOrderId, setCancelingOrderId] = useState(null);
@@ -7226,6 +7239,280 @@ const OrderHistory = () => {
                   </CardContent>
                 </Card>
 
+                {/* Price Proposals Section */}
+                <Card
+                  sx={{
+                    m: 0,
+                    borderRadius: 0,
+                    borderTop: "1px solid #e2e8f0",
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ px: 3, py: 2.5 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      color="#1e293b"
+                      mb={2}
+                      sx={{ fontSize: "1.1rem" }}
+                    >
+                      Lịch Sử Báo Giá{" "}
+                      {priceProposals.length > 0 &&
+                        `(${priceProposals.length})`}
+                    </Typography>
+
+                    {loadingProposals ? (
+                      <Box display="flex" justifyContent="center" py={2}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : priceProposals.length === 0 ? (
+                      <Typography
+                        variant="body2"
+                        color="#64748b"
+                        sx={{ fontSize: "1rem", fontStyle: "italic" }}
+                      >
+                        Chưa có báo giá nào.
+                      </Typography>
+                    ) : (
+                      <Stack spacing={2}>
+                        {priceProposals.map((proposal, index) => (
+                          <Paper
+                            key={proposal.id}
+                            elevation={0}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 1.5,
+                              border:
+                                proposal.status === "APPROVED"
+                                  ? "2px solid #10b981"
+                                  : "1px solid #e2e8f0",
+                              bgcolor:
+                                proposal.status === "APPROVED"
+                                  ? "rgba(16, 185, 129, 0.05)"
+                                  : "#f8fafc",
+                            }}
+                          >
+                            <Grid container spacing={2} alignItems="center">
+                              <Grid item xs={12} sm={2}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  color="#1e293b"
+                                  sx={{ fontSize: "1rem" }}
+                                >
+                                  Báo giá #{index + 1}
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6} sm={2}>
+                                <Typography
+                                  variant="caption"
+                                  color="#64748b"
+                                  sx={{
+                                    fontSize: "0.8rem",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Giá báo
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  sx={{ fontSize: "1rem" }}
+                                >
+                                  {proposal.totalPrice?.toLocaleString("vi-VN")}
+                                  ₫
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6} sm={2}>
+                                <Typography
+                                  variant="caption"
+                                  color="#64748b"
+                                  sx={{
+                                    fontSize: "0.8rem",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Cọc
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  sx={{ fontSize: "1rem" }}
+                                >
+                                  {proposal.depositAmount?.toLocaleString(
+                                    "vi-VN"
+                                  )}
+                                  ₫
+                                </Typography>
+                              </Grid>
+                              {(proposal.totalPriceOffer ||
+                                proposal.depositAmountOffer) && (
+                                <>
+                                  <Grid item xs={6} sm={2}>
+                                    <Typography
+                                      variant="caption"
+                                      color="#64748b"
+                                      sx={{
+                                        fontSize: "0.8rem",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
+                                      Offer
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                      sx={{
+                                        fontSize: "1rem",
+                                        color: "#f59e0b",
+                                      }}
+                                    >
+                                      {proposal.totalPriceOffer?.toLocaleString(
+                                        "vi-VN"
+                                      ) || "0"}
+                                      ₫
+                                    </Typography>
+                                  </Grid>
+                                  <Grid item xs={6} sm={1}>
+                                    <Typography
+                                      variant="caption"
+                                      color="#64748b"
+                                      sx={{
+                                        fontSize: "0.65rem",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
+                                      Cọc offer
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={600}
+                                      sx={{
+                                        fontSize: "0.8rem",
+                                        color: "#f59e0b",
+                                      }}
+                                    >
+                                      {proposal.depositAmountOffer?.toLocaleString(
+                                        "vi-VN"
+                                      ) || "0"}
+                                      ₫
+                                    </Typography>
+                                  </Grid>
+                                </>
+                              )}
+                              <Grid
+                                item
+                                xs={6}
+                                sm={
+                                  proposal.totalPriceOffer ||
+                                  proposal.depositAmountOffer
+                                    ? 2
+                                    : 3
+                                }
+                              >
+                                <Chip
+                                  label={
+                                    proposal.status === "APPROVED"
+                                      ? "Đã chấp nhận"
+                                      : proposal.status === "REJECTED"
+                                      ? "Đã từ chối"
+                                      : "Chờ xác nhận"
+                                  }
+                                  size="small"
+                                  sx={{
+                                    bgcolor:
+                                      proposal.status === "APPROVED"
+                                        ? "#10b981"
+                                        : proposal.status === "REJECTED"
+                                        ? "#ef4444"
+                                        : "#f59e0b",
+                                    color: "white",
+                                    fontWeight: 600,
+                                    fontSize: "0.65rem",
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={6} sm={1}>
+                                <Typography
+                                  variant="caption"
+                                  color="#64748b"
+                                  sx={{ fontSize: "0.7rem" }}
+                                >
+                                  {proposal.createdAt
+                                    ? new Date(
+                                        proposal.createdAt
+                                      ).toLocaleDateString("vi-VN")
+                                    : "N/A"}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+
+                            {proposal.rejectionReason && (
+                              <Box
+                                mt={1}
+                                p={1}
+                                bgcolor="rgba(239, 68, 68, 0.1)"
+                                borderRadius={1}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="#ef4444"
+                                  sx={{
+                                    fontSize: "0.7rem",
+                                    fontStyle: "italic",
+                                  }}
+                                >
+                                  Lý do từ chối: {proposal.rejectionReason}
+                                </Typography>
+                              </Box>
+                            )}
+
+                            {["PENDING", "NEGOTIATING"].includes(
+                              proposal.status
+                            ) && (
+                              <Box mt={1.5} display="flex" gap={1}>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleApproveProposal(proposal.id)
+                                  }
+                                  sx={{
+                                    bgcolor: "#10b981",
+                                    "&:hover": { bgcolor: "#059669" },
+                                    fontSize: "0.7rem",
+                                    px: 2,
+                                    py: 0.5,
+                                  }}
+                                >
+                                  Chấp nhận
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  color="warning"
+                                  size="small"
+                                  disabled={actionLoading}
+                                  onClick={() =>
+                                    handleOpenOfferDialog(proposal.id)
+                                  }
+                                  sx={{
+                                    fontSize: "0.7rem",
+                                    px: 2,
+                                    py: 0.5,
+                                  }}
+                                >
+                                  Thương lượng
+                                </Button>
+                              </Box>
+                            )}
+                          </Paper>
+                        ))}
+                      </Stack>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Demo Thiết Kế Section */}
                 {demoList.length > 0 && (
                   <Card
@@ -7247,7 +7534,7 @@ const OrderHistory = () => {
                           mb={1}
                           letterSpacing="-0.015em"
                         >
-                          Demo Thiết Kế
+                           Thiết Kế Mẫu
                         </Typography>
                         <Typography
                           variant="body2"
@@ -7542,7 +7829,7 @@ const OrderHistory = () => {
                                   >
                                     {demoActionLoading
                                       ? "Đang xử lý..."
-                                      : "Chấp nhận demo"}
+                                      : "Chấp nhận thiết kế mẫu"}
                                   </Button>
                                   <Button
                                     variant="outlined"
@@ -7551,7 +7838,7 @@ const OrderHistory = () => {
                                     disabled={demoActionLoading}
                                     sx={{ fontWeight: 600, px: 3 }}
                                   >
-                                    Từ chối demo
+                                    Từ chối thiết kế mẫu
                                   </Button>
                                 </Stack>
                               </Box>
@@ -8349,280 +8636,7 @@ const OrderHistory = () => {
                   </Card>
                 )}
 
-                {/* Price Proposals Section */}
-                <Card
-                  sx={{
-                    m: 0,
-                    borderRadius: 0,
-                    borderTop: "1px solid #e2e8f0",
-                    boxShadow: "none",
-                  }}
-                >
-                  <CardContent sx={{ px: 3, py: 2.5 }}>
-                    <Typography
-                      variant="subtitle1"
-                      fontWeight={600}
-                      color="#1e293b"
-                      mb={2}
-                      sx={{ fontSize: "1.1rem" }}
-                    >
-                      Lịch Sử Báo Giá{" "}
-                      {priceProposals.length > 0 &&
-                        `(${priceProposals.length})`}
-                    </Typography>
-
-                    {loadingProposals ? (
-                      <Box display="flex" justifyContent="center" py={2}>
-                        <CircularProgress size={24} />
-                      </Box>
-                    ) : priceProposals.length === 0 ? (
-                      <Typography
-                        variant="body2"
-                        color="#64748b"
-                        sx={{ fontSize: "1rem", fontStyle: "italic" }}
-                      >
-                        Chưa có báo giá nào.
-                      </Typography>
-                    ) : (
-                      <Stack spacing={2}>
-                        {priceProposals.map((proposal, index) => (
-                          <Paper
-                            key={proposal.id}
-                            elevation={0}
-                            sx={{
-                              p: 1.5,
-                              borderRadius: 1.5,
-                              border:
-                                proposal.status === "APPROVED"
-                                  ? "2px solid #10b981"
-                                  : "1px solid #e2e8f0",
-                              bgcolor:
-                                proposal.status === "APPROVED"
-                                  ? "rgba(16, 185, 129, 0.05)"
-                                  : "#f8fafc",
-                            }}
-                          >
-                            <Grid container spacing={2} alignItems="center">
-                              <Grid item xs={12} sm={2}>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={600}
-                                  color="#1e293b"
-                                  sx={{ fontSize: "1rem" }}
-                                >
-                                  Báo giá #{index + 1}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={6} sm={2}>
-                                <Typography
-                                  variant="caption"
-                                  color="#64748b"
-                                  sx={{
-                                    fontSize: "0.8rem",
-                                    textTransform: "uppercase",
-                                  }}
-                                >
-                                  Giá báo
-                                </Typography>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={600}
-                                  sx={{ fontSize: "1rem" }}
-                                >
-                                  {proposal.totalPrice?.toLocaleString("vi-VN")}
-                                  ₫
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={6} sm={2}>
-                                <Typography
-                                  variant="caption"
-                                  color="#64748b"
-                                  sx={{
-                                    fontSize: "0.8rem",
-                                    textTransform: "uppercase",
-                                  }}
-                                >
-                                  Cọc
-                                </Typography>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={600}
-                                  sx={{ fontSize: "1rem" }}
-                                >
-                                  {proposal.depositAmount?.toLocaleString(
-                                    "vi-VN"
-                                  )}
-                                  ₫
-                                </Typography>
-                              </Grid>
-                              {(proposal.totalPriceOffer ||
-                                proposal.depositAmountOffer) && (
-                                <>
-                                  <Grid item xs={6} sm={2}>
-                                    <Typography
-                                      variant="caption"
-                                      color="#64748b"
-                                      sx={{
-                                        fontSize: "0.8rem",
-                                        textTransform: "uppercase",
-                                      }}
-                                    >
-                                      Offer
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight={600}
-                                      sx={{
-                                        fontSize: "1rem",
-                                        color: "#f59e0b",
-                                      }}
-                                    >
-                                      {proposal.totalPriceOffer?.toLocaleString(
-                                        "vi-VN"
-                                      ) || "0"}
-                                      ₫
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={6} sm={1}>
-                                    <Typography
-                                      variant="caption"
-                                      color="#64748b"
-                                      sx={{
-                                        fontSize: "0.65rem",
-                                        textTransform: "uppercase",
-                                      }}
-                                    >
-                                      Cọc offer
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight={600}
-                                      sx={{
-                                        fontSize: "0.8rem",
-                                        color: "#f59e0b",
-                                      }}
-                                    >
-                                      {proposal.depositAmountOffer?.toLocaleString(
-                                        "vi-VN"
-                                      ) || "0"}
-                                      ₫
-                                    </Typography>
-                                  </Grid>
-                                </>
-                              )}
-                              <Grid
-                                item
-                                xs={6}
-                                sm={
-                                  proposal.totalPriceOffer ||
-                                  proposal.depositAmountOffer
-                                    ? 2
-                                    : 3
-                                }
-                              >
-                                <Chip
-                                  label={
-                                    proposal.status === "APPROVED"
-                                      ? "Đã chấp nhận"
-                                      : proposal.status === "REJECTED"
-                                      ? "Đã từ chối"
-                                      : "Chờ xác nhận"
-                                  }
-                                  size="small"
-                                  sx={{
-                                    bgcolor:
-                                      proposal.status === "APPROVED"
-                                        ? "#10b981"
-                                        : proposal.status === "REJECTED"
-                                        ? "#ef4444"
-                                        : "#f59e0b",
-                                    color: "white",
-                                    fontWeight: 600,
-                                    fontSize: "0.65rem",
-                                  }}
-                                />
-                              </Grid>
-                              <Grid item xs={6} sm={1}>
-                                <Typography
-                                  variant="caption"
-                                  color="#64748b"
-                                  sx={{ fontSize: "0.7rem" }}
-                                >
-                                  {proposal.createdAt
-                                    ? new Date(
-                                        proposal.createdAt
-                                      ).toLocaleDateString("vi-VN")
-                                    : "N/A"}
-                                </Typography>
-                              </Grid>
-                            </Grid>
-
-                            {proposal.rejectionReason && (
-                              <Box
-                                mt={1}
-                                p={1}
-                                bgcolor="rgba(239, 68, 68, 0.1)"
-                                borderRadius={1}
-                              >
-                                <Typography
-                                  variant="caption"
-                                  color="#ef4444"
-                                  sx={{
-                                    fontSize: "0.7rem",
-                                    fontStyle: "italic",
-                                  }}
-                                >
-                                  Lý do từ chối: {proposal.rejectionReason}
-                                </Typography>
-                              </Box>
-                            )}
-
-                            {["PENDING", "NEGOTIATING"].includes(
-                              proposal.status
-                            ) && (
-                              <Box mt={1.5} display="flex" gap={1}>
-                                <Button
-                                  variant="contained"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleApproveProposal(proposal.id)
-                                  }
-                                  sx={{
-                                    bgcolor: "#10b981",
-                                    "&:hover": { bgcolor: "#059669" },
-                                    fontSize: "0.7rem",
-                                    px: 2,
-                                    py: 0.5,
-                                  }}
-                                >
-                                  Chấp nhận
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  color="warning"
-                                  size="small"
-                                  disabled={actionLoading}
-                                  onClick={() =>
-                                    handleOpenOfferDialog(proposal.id)
-                                  }
-                                  sx={{
-                                    fontSize: "0.7rem",
-                                    px: 2,
-                                    py: 0.5,
-                                  }}
-                                >
-                                  Thương lượng
-                                </Button>
-                              </Box>
-                            )}
-                          </Paper>
-                        ))}
-                      </Stack>
-                    )}
-                  </CardContent>
-                </Card>
-
+               
                 {/* Dialog offer giá khác */}
                 <Dialog
                   open={offerDialog.open}
@@ -10120,53 +10134,172 @@ const OrderHistory = () => {
           </DialogActions>
         </Dialog>
 
-        <Snackbar
-          open={notification.open}
-          autoHideDuration={6000}
-          onClose={() => setNotification((n) => ({ ...n, open: false }))}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        {/* Custom Full-Screen Right Slide Notification */}
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            right: notification.open ? 0 : "-100%",
+            width: "100%",
+            height: "100vh",
+            zIndex: 99999,
+            transition: "right 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+            pointerEvents: notification.open ? "auto" : "none",
+          }}
         >
-          <Alert
-            onClose={() => setNotification((n) => ({ ...n, open: false }))}
-            severity={notification.severity}
+          {/* Overlay */}
+          <Box
             sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
               width: "100%",
-              borderRadius: 3,
-              fontWeight: 600,
-              boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15)",
-              "&.MuiAlert-standardSuccess": {
-                background: "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
-                color: "white",
-                "& .MuiAlert-icon": {
-                  color: "white",
-                },
-              },
-              "&.MuiAlert-standardError": {
-                background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                color: "white",
-                "& .MuiAlert-icon": {
-                  color: "white",
-                },
-              },
-              "&.MuiAlert-standardWarning": {
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                color: "white",
-                "& .MuiAlert-icon": {
-                  color: "white",
-                },
-              },
-              "&.MuiAlert-standardInfo": {
-                background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-                color: "white",
-                "& .MuiAlert-icon": {
-                  color: "white",
-                },
-              },
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={() => setNotification((n) => ({ ...n, open: false }))}
+          />
+          
+          {/* Notification Panel */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: "400px",
+              height: "100%",
+              backgroundColor: "white",
+              boxShadow: "-10px 0 30px rgba(0, 0, 0, 0.3)",
+              display: "flex",
+              flexDirection: "column",
+              transform: notification.open ? "translateX(0)" : "translateX(100%)",
+              transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
-            {notification.message}
-          </Alert>
-        </Snackbar>
+            {/* Header */}
+            <Box
+              sx={{
+                p: 3,
+                borderBottom: "1px solid #e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: notification.severity === "success" 
+                  ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
+                  : notification.severity === "error"
+                  ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                  : notification.severity === "warning"
+                  ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                  : "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                color: "white",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.2rem",
+                  }}
+                >
+                  {notification.severity === "success" && "✓"}
+                  {notification.severity === "error" && "✕"}
+                  {notification.severity === "warning" && "⚠"}
+                  {notification.severity === "info" && "ℹ"}
+                </Box>
+                <Typography variant="h6" fontWeight={700}>
+                  {notification.severity === "success" && "Thành công"}
+                  {notification.severity === "error" && "Lỗi"}
+                  {notification.severity === "warning" && "Cảnh báo"}
+                  {notification.severity === "info" && "Thông tin"}
+                </Typography>
+              </Box>
+              <IconButton
+                onClick={() => setNotification((n) => ({ ...n, open: false }))}
+                sx={{
+                  color: "white",
+                  "&:hover": {
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  },
+                }}
+              >
+                ✕
+              </IconButton>
+            </Box>
+            
+            {/* Content */}
+            <Box
+              sx={{
+                flex: 1,
+                p: 3,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                textAlign: "center",
+              }}
+            >
+              <Typography
+                variant="h5"
+                sx={{
+                  mb: 2,
+                  fontWeight: 600,
+                  color: notification.severity === "success" 
+                    ? "#22c55e"
+                    : notification.severity === "error"
+                    ? "#dc2626"
+                    : notification.severity === "warning"
+                    ? "#d97706"
+                    : "#1d4ed8",
+                }}
+              >
+                {notification.message}
+              </Typography>
+              
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 3 }}
+              >
+                {notification.severity === "success" && "Yêu cầu của bạn đã được xử lý thành công!"}
+                {notification.severity === "error" && "Đã xảy ra lỗi. Vui lòng thử lại sau."}
+                {notification.severity === "warning" && "Vui lòng kiểm tra lại thông tin."}
+                {notification.severity === "info" && "Thông tin quan trọng cho bạn."}
+              </Typography>
+              
+              <Button
+                variant="contained"
+                onClick={() => setNotification((n) => ({ ...n, open: false }))}
+                sx={{
+                  borderRadius: 2,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 600,
+                  background: notification.severity === "success" 
+                    ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
+                    : notification.severity === "error"
+                    ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    : notification.severity === "warning"
+                    ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                    : "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                  color: "white",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 6px 20px rgba(0, 0, 0, 0.2)",
+                  },
+                }}
+              >
+                Đóng
+              </Button>
+            </Box>
+          </Box>
+        </Box>
 
         {/* Dialog tạo ticket */}
         <Dialog
@@ -10195,6 +10328,38 @@ const OrderHistory = () => {
             Yêu cầu hỗ trợ cho đơn hàng
           </DialogTitle>
           <DialogContent sx={{ p: 4 }}>
+            {/* Alert Messages - Hiển thị ở đầu */}
+            {createError && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  background:
+                    "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                  color: "white",
+                  "& .MuiAlert-icon": { color: "white" },
+                }}
+              >
+                {createError}
+              </Alert>
+            )}
+            {createStatus === "succeeded" && (
+              <Alert
+                severity="success"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  background:
+                    "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
+                  color: "white",
+                  "& .MuiAlert-icon": { color: "white" },
+                }}
+              >
+                Gửi yêu cầu hỗ trợ thành công!
+              </Alert>
+            )}
+
             {/* Hướng dẫn chung */}
             <Box
               sx={{
@@ -10326,36 +10491,6 @@ const OrderHistory = () => {
                 ))}
               </Box>
             </Box>
-            {createError && (
-              <Alert
-                severity="error"
-                sx={{
-                  mt: 2,
-                  borderRadius: 2,
-                  background:
-                    "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                  color: "white",
-                  "& .MuiAlert-icon": { color: "white" },
-                }}
-              >
-                {createError}
-              </Alert>
-            )}
-            {createStatus === "succeeded" && (
-              <Alert
-                severity="success"
-                sx={{
-                  mt: 2,
-                  borderRadius: 2,
-                  background:
-                    "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
-                  color: "white",
-                  "& .MuiAlert-icon": { color: "white" },
-                }}
-              >
-                Gửi yêu cầu hỗ trợ thành công!
-              </Alert>
-            )}
           </DialogContent>
           <DialogActions sx={{ p: 4, pt: 3, bgcolor: "#f8fafc", gap: 2 }}>
             <Button
