@@ -258,6 +258,7 @@ const ModernBillboardForm = ({
   const previousSubTotalsRef = React.useRef({});
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [coreAttributesValidation, setCoreAttributesValidation] = useState({});
+  // (Removed prevSizesConfirmedRef) We'll clear attributes any time sizesConfirmed=false
 
   // Hàm kiểm tra xem tất cả thuộc tính bắt buộc đã được chọn chưa
   const validateCoreAttributes = useCallback(() => {
@@ -754,6 +755,34 @@ const ModernBillboardForm = ({
     hasRestoredAttributesRef.current = false;
   }, [productTypeId]);
 
+  // ✅ Clear all attribute selections & pricing when switching product type (đảm bảo khi quay lại loại cũ không còn giá trị cũ)
+  useEffect(() => {
+    if (!productTypeId) return;
+
+    // Xóa các attribute id khỏi formData (dù attributes hiện tại còn là của loại cũ cũng OK)
+    setFormData((prev) => {
+      if (!prev) return prev;
+      if (!attributes || attributes.length === 0) return prev; // tránh thao tác khi chưa có gì
+      const newData = { ...prev };
+      attributes.forEach((attr) => {
+        delete newData[attr.id];
+      });
+      return newData;
+    });
+
+    // Reset giá & validation core
+    setAttributePrices({});
+    setCoreAttributesValidation({});
+    if (setCoreAttributesReady) setCoreAttributesReady(false);
+    hasRestoredAttributesRef.current = false;
+
+    // (Tuỳ chọn) Nếu muốn chắc chắn xoá cache attributeValues cũ: có thể bật dòng sau
+    // dispatch(clearAttributes()); // ⚠️ bỏ comment nếu cần clear luôn cache trong Redux
+
+    console.log("🔁 Đã clear attribute selections & pricing do đổi productTypeId", productTypeId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productTypeId]);
+
   useEffect(() => {
     if (attributes && attributes.length > 0) {
       // Fetch attribute values cho tất cả attributes với size lớn hơn
@@ -816,6 +845,31 @@ const ModernBillboardForm = ({
       hasRestoredAttributesRef.current = false;
     };
   }, [productTypeId]);
+
+  // ✅ Luôn clear attribute selections bất cứ khi nào sizesConfirmed = false (khi size bị clear)
+  useEffect(() => {
+    if (!sizesConfirmed) {
+      setFormData((prev) => {
+        if (!prev) return prev;
+        if (!attributes || attributes.length === 0) return prev;
+        let mutated = false;
+        const newData = { ...prev };
+        attributes.forEach((attr) => {
+          if (newData[attr.id]) {
+            delete newData[attr.id];
+            mutated = true;
+          }
+        });
+        return mutated ? newData : prev;
+      });
+      setAttributePrices({});
+      setCoreAttributesValidation({});
+      if (setCoreAttributesReady) setCoreAttributesReady(false);
+      hasRestoredAttributesRef.current = false;
+      // console debug
+      console.log("🧹 Đã clear attribute values vì sizesConfirmed=false");
+    }
+  }, [sizesConfirmed, attributes, setCoreAttributesReady]);
 
   // Effect riêng để khôi phục formData từ customerChoiceDetails khi tất cả dữ liệu đã sẵn sàng
   useEffect(() => {
