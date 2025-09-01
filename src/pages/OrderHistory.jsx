@@ -1477,24 +1477,6 @@ const OrderHistory = () => {
     rejectionReason: "",
   });
   const [actionLoading, setActionLoading] = useState(false);
-  const [notification, setNotification] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-
-  // Auto-hide notification after 6 seconds
-  useEffect(() => {
-    let timer;
-    if (notification.open) {
-      timer = setTimeout(() => {
-        setNotification((prev) => ({ ...prev, open: false }));
-      }, 6000);
-    }
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [notification.open]);
 
   // const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [depositLoadingId, setDepositLoadingId] = useState(null);
@@ -1915,11 +1897,6 @@ const OrderHistory = () => {
   );
   const handlePayRemaining = async (order) => {
     if (!order?.id) {
-      setNotification({
-        open: true,
-        message: "Thông tin đơn hàng không hợp lệ",
-        severity: "error",
-      });
       return;
     }
 
@@ -1935,30 +1912,10 @@ const OrderHistory = () => {
         if (checkoutUrl) {
           // Redirect đến trang thanh toán
           window.location.href = checkoutUrl;
-        } else {
-          setNotification({
-            open: true,
-            message: "Không thể tạo link thanh toán",
-            severity: "error",
-          });
         }
-      } else {
-        // Xử lý lỗi
-        const errorMessage =
-          resultAction.payload || "Có lỗi xảy ra khi tạo thanh toán";
-        setNotification({
-          open: true,
-          message: errorMessage,
-          severity: "error",
-        });
       }
     } catch (error) {
       console.error("Error paying remaining:", error);
-      setNotification({
-        open: true,
-        message: "Có lỗi xảy ra khi thanh toán",
-        severity: "error",
-      });
     } finally {
       // Clear loading cho order này
       setRemainingPaymentLoading((prev) => ({ ...prev, [order.id]: false }));
@@ -2278,12 +2235,6 @@ const OrderHistory = () => {
             ...prev,
             loading: false,
           }));
-          setNotification({
-            open: true,
-            message:
-              "Không thể tải ảnh: " + (result.message || "Lỗi không xác định"),
-            severity: "error",
-          });
         }
       } catch (error) {
         console.error("Error getting image from S3:", error);
@@ -2291,11 +2242,6 @@ const OrderHistory = () => {
           ...prev,
           loading: false,
         }));
-        setNotification({
-          open: true,
-          message: "Có lỗi xảy ra khi tải ảnh",
-          severity: "error",
-        });
       }
     };
 
@@ -2622,11 +2568,6 @@ const OrderHistory = () => {
           ...prev,
           loading: false,
         }));
-        setNotification({
-          open: true,
-          message: "Không thể tải ảnh",
-          severity: "error",
-        });
       }
     } catch (error) {
       console.error("Error loading next image:", error);
@@ -2634,11 +2575,6 @@ const OrderHistory = () => {
         ...prev,
         loading: false,
       }));
-      setNotification({
-        open: true,
-        message: "Có lỗi xảy ra khi tải ảnh",
-        severity: "error",
-      });
     }
   };
 
@@ -2671,11 +2607,6 @@ const OrderHistory = () => {
           ...prev,
           loading: false,
         }));
-        setNotification({
-          open: true,
-          message: "Không thể tải ảnh",
-          severity: "error",
-        });
       }
     } catch (error) {
       console.error("Error loading previous image:", error);
@@ -2683,20 +2614,10 @@ const OrderHistory = () => {
         ...prev,
         loading: false,
       }));
-      setNotification({
-        open: true,
-        message: "Có lỗi xảy ra khi tải ảnh",
-        severity: "error",
-      });
     }
   };
   const handleUploadSignedContract = async (contractId, file) => {
     if (!file) {
-      setNotification({
-        open: true,
-        message: "Vui lòng chọn file hợp đồng đã ký",
-        severity: "error",
-      });
       return;
     }
 
@@ -2707,11 +2628,6 @@ const OrderHistory = () => {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
     if (!allowedTypes.includes(file.type)) {
-      setNotification({
-        open: true,
-        message: "Chỉ chấp nhận file PDF, DOC, DOCX",
-        severity: "error",
-      });
       return;
     }
 
@@ -2726,12 +2642,6 @@ const OrderHistory = () => {
       );
 
       if (uploadSignedContract.fulfilled.match(result)) {
-        setNotification({
-          open: true,
-          message: "Upload hợp đồng đã ký thành công",
-          severity: "success",
-        });
-
         // Cập nhật lại contract dialog với dữ liệu mới
         setContractDialog((prev) => ({
           ...prev,
@@ -2742,30 +2652,15 @@ const OrderHistory = () => {
         if (user?.id) {
           refreshOrdersData();
         }
-      } else {
-        setNotification({
-          open: true,
-          message: result.payload || "Không thể upload hợp đồng đã ký",
-          severity: "error",
-        });
       }
     } catch (error) {
-      setNotification({
-        open: true,
-        message: "Lỗi khi upload hợp đồng đã ký",
-        severity: "error",
-      });
+      console.error("Error uploading signed contract:", error);
     } finally {
       setUploadingSignedContract(false);
     }
   };
   const handleDiscussContract = async (contractId) => {
     if (!contractId) {
-      setNotification({
-        open: true,
-        message: "Không có ID hợp đồng",
-        severity: "error",
-      });
       return;
     }
 
@@ -2773,12 +2668,6 @@ const OrderHistory = () => {
     try {
       const result = await dispatch(discussContract(contractId));
       if (discussContract.fulfilled.match(result)) {
-        setNotification({
-          open: true,
-          message: "Đã gửi yêu cầu thảo luận hợp đồng thành công",
-          severity: "success",
-        });
-
         // Cập nhật lại contract dialog với dữ liệu mới
         setContractDialog((prev) => ({
           ...prev,
@@ -2789,19 +2678,9 @@ const OrderHistory = () => {
         if (user?.id) {
           refreshOrdersData();
         }
-      } else {
-        setNotification({
-          open: true,
-          message: result.payload || "Không thể gửi yêu cầu thảo luận",
-          severity: "error",
-        });
       }
     } catch (error) {
-      setNotification({
-        open: true,
-        message: "Lỗi khi gửi yêu cầu thảo luận",
-        severity: "error",
-      });
+      console.error("Error discussing contract:", error);
     } finally {
       setDiscussLoading(false);
     }
@@ -2817,30 +2696,14 @@ const OrderHistory = () => {
 
   const handleViewContract = async (contractUrl) => {
     if (!contractUrl) {
-      setNotification({
-        open: true,
-        message: "Không có URL hợp đồng",
-        severity: "error",
-      });
       return;
     }
 
     setContractViewLoading(true);
     try {
       const result = await openFileInNewTab(contractUrl, 30);
-      if (!result.success) {
-        setNotification({
-          open: true,
-          message: result.message || "Không thể mở hợp đồng",
-          severity: "error",
-        });
-      }
     } catch (error) {
-      setNotification({
-        open: true,
-        message: "Lỗi khi mở hợp đồng",
-        severity: "error",
-      });
+      console.error("Error viewing contract:", error);
     } finally {
       setContractViewLoading(false);
     }
@@ -2855,19 +2718,9 @@ const OrderHistory = () => {
           contract: result.payload,
           orderId: orderId,
         });
-      } else {
-        setNotification({
-          open: true,
-          message: result.payload || "Không thể lấy thông tin hợp đồng",
-          severity: "error",
-        });
       }
     } catch (error) {
-      setNotification({
-        open: true,
-        message: "Lỗi khi lấy hợp đồng",
-        severity: "error",
-      });
+      console.error("Error getting contract:", error);
     }
   };
   const handleCloseContractDialog = () => {
@@ -2899,48 +2752,22 @@ const OrderHistory = () => {
         dispatch(createOrderFromDesignRequest(designRequestId)).then(
           (resultAction) => {
             if (createOrderFromDesignRequest.fulfilled.match(resultAction)) {
-              setNotification({
-                open: true,
-                message:
-                  "Đã chọn có thi công và tạo đơn hàng thành công! Vui lòng đợi hợp đồng từ chúng tôi.",
-                severity: "success",
-              });
-
               // Tải lại danh sách đơn hàng
               if (user?.id) {
                 refreshOrdersData();
               }
-            } else {
-              setNotification({
-                open: true,
-                message:
-                  resultAction.payload ||
-                  "Đã chọn có thi công nhưng không thể tạo đơn hàng!",
-                severity: "error",
-              });
             }
             setConstructionLoading(false);
           }
         );
       } else {
         // Nếu chọn "Không thi công" thì hiện thông báo bình thường
-        setNotification({
-          open: true,
-          message: "Đơn hàng sẽ không thi công, cảm ơn bạn",
-          severity: "success",
-        });
         setConstructionLoading(false);
       }
 
       // Cập nhật lại danh sách đơn thiết kế để hiển thị đúng trạng thái
       refreshCustomDesignData();
     } else {
-      setNotification({
-        open: true,
-        message:
-          "Không thể xác định yêu cầu thiết kế với ID: " + designRequestId,
-        severity: "error",
-      });
       setConstructionLoading(false);
     }
   };
@@ -3319,11 +3146,6 @@ const OrderHistory = () => {
   }, [openDetail, currentDesignRequest, dispatch]);
   useEffect(() => {
     if (uploadImageError) {
-      setNotification({
-        open: true,
-        message: `Lỗi upload ảnh: ${uploadImageError}`,
-        severity: "error",
-      });
       dispatch(clearImpressionError());
     }
   }, [uploadImageError, dispatch]);
@@ -3457,22 +3279,12 @@ const OrderHistory = () => {
         "image/gif",
       ];
       if (!allowedTypes.includes(file.type)) {
-        setNotification({
-          open: true,
-          message: "Chỉ cho phép upload file ảnh (JPEG, JPG, PNG, GIF)",
-          severity: "error",
-        });
         return;
       }
 
       // Validate file size (max 5MB)
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
-        setNotification({
-          open: true,
-          message: "Kích thước file không được vượt quá 5MB",
-          severity: "error",
-        });
         return;
       }
 
@@ -3523,11 +3335,6 @@ const OrderHistory = () => {
   };
   const handleSubmitImpression = async () => {
     if (!impressionForm.comment.trim()) {
-      setNotification({
-        open: true,
-        message: "Vui lòng nhập nhận xét về đơn hàng",
-        severity: "warning",
-      });
       return;
     }
 
@@ -3556,26 +3363,9 @@ const OrderHistory = () => {
               imageFile: selectedImage,
             })
           ).unwrap();
-
-          setNotification({
-            open: true,
-            message: "Gửi đánh giá và ảnh thành công! Cảm ơn bạn đã phản hồi.",
-            severity: "success",
-          });
         } catch (uploadError) {
-          setNotification({
-            open: true,
-            message:
-              "Gửi đánh giá thành công nhưng không thể upload ảnh. Vui lòng thử upload ảnh lại sau.",
-            severity: "warning",
-          });
+          console.error("Error uploading impression image:", uploadError);
         }
-      } else {
-        setNotification({
-          open: true,
-          message: "Gửi đánh giá thành công! Cảm ơn bạn đã phản hồi.",
-          severity: "success",
-        });
       }
 
       handleCloseImpressionDialog();
@@ -3585,12 +3375,8 @@ const OrderHistory = () => {
         await refreshOrdersData();
         await refreshImpressionsData(impressionDialog.orderId);
       }
-    } catch {
-      setNotification({
-        open: true,
-        message: "Không thể gửi đánh giá. Vui lòng thử lại.",
-        severity: "error",
-      });
+    } catch (error) {
+      console.error("Error submitting impression:", error);
     } finally {
       setSubmittingImpression(false);
     }
@@ -3624,31 +3410,13 @@ const OrderHistory = () => {
       const result = await dispatch(cancelOrder(orderId));
 
       if (cancelOrder.fulfilled.match(result)) {
-        setNotification({
-          open: true,
-          message: "Hủy đơn hàng thành công!",
-          severity: "success",
-        });
-
         // Refresh orders list
         if (user?.id) {
           await refreshOrdersData();
         }
-      } else {
-        setNotification({
-          open: true,
-          message:
-            result.payload || "Không thể hủy đơn hàng. Vui lòng thử lại.",
-          severity: "error",
-        });
       }
     } catch (error) {
       console.error("Error canceling order:", error);
-      setNotification({
-        open: true,
-        message: "Có lỗi xảy ra khi hủy đơn hàng",
-        severity: "error",
-      });
     } finally {
       setCancelingOrderId(null);
     }
@@ -3667,26 +3435,11 @@ const OrderHistory = () => {
     try {
       const res = await approvePriceProposal(proposalId);
       if (res.success) {
-        setNotification({
-          open: true,
-          message: "Chấp nhận báo giá thành công!",
-          severity: "success",
-        });
         // Refresh toàn bộ data
         await refreshCustomDesignData();
-      } else {
-        setNotification({
-          open: true,
-          message: res.error || "Chấp nhận báo giá thất bại",
-          severity: "error",
-        });
       }
     } catch (error) {
-      setNotification({
-        open: true,
-        message: "Có lỗi xảy ra khi chấp nhận báo giá",
-        severity: "error",
-      });
+      console.error("Error approving proposal:", error);
     } finally {
       setActionLoading(false);
     }
@@ -3827,28 +3580,13 @@ const OrderHistory = () => {
     try {
       const res = await offerPriceProposal(proposalId, data);
       if (res.success) {
-        setNotification({
-          open: true,
-          message: "Gửi offer giá mới thành công!",
-          severity: "success",
-        });
         handleCloseOfferDialog();
 
         // Refresh toàn bộ data
         await refreshCustomDesignData();
-      } else {
-        setNotification({
-          open: true,
-          message: res.error || "Gửi offer thất bại",
-          severity: "error",
-        });
       }
     } catch (error) {
-      setNotification({
-        open: true,
-        message: "Có lỗi xảy ra khi gửi offer",
-        severity: "error",
-      });
+      console.error("Error submitting offer:", error);
     } finally {
       setActionLoading(false);
     }
@@ -3862,21 +3600,12 @@ const OrderHistory = () => {
     setDemoActionLoading(true);
     try {
       await dispatch(approveDemoDesign(latestDemo.id)).unwrap();
-      setNotification({
-        open: true,
-        message: "Chấp nhận demo thành công!",
-        severity: "success",
-      });
       setOpenDetail(false);
 
       // Refresh data sau khi chấp nhận demo
       await refreshCustomDesignData();
     } catch (err) {
-      setNotification({
-        open: true,
-        message: err || "Chấp nhận demo thất bại",
-        severity: "error",
-      });
+      console.error("Error approving demo:", err);
     } finally {
       setDemoActionLoading(false);
     }
@@ -3901,11 +3630,6 @@ const OrderHistory = () => {
           data: data,
         })
       ).unwrap();
-      setNotification({
-        open: true,
-        message: "Từ chối demo thành công!",
-        severity: "success",
-      });
       setRejectDialogOpen(false);
       setRejectReason("");
       setFeedbackImage(null);
@@ -3914,11 +3638,7 @@ const OrderHistory = () => {
       // Refresh data sau khi từ chối demo
       await refreshCustomDesignData();
     } catch (err) {
-      setNotification({
-        open: true,
-        message: err || "Từ chối demo thất bại",
-        severity: "error",
-      });
+      console.error("Error rejecting demo:", err);
     } finally {
       setDemoActionLoading(false);
     }
@@ -3930,21 +3650,11 @@ const OrderHistory = () => {
     if (file) {
       // Kiểm tra loại file
       if (!file.type.startsWith("image/")) {
-        setNotification({
-          open: true,
-          message: "Vui lòng chọn file hình ảnh",
-          severity: "error",
-        });
         return;
       }
 
       // Kiểm tra kích thước file (giới hạn 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        setNotification({
-          open: true,
-          message: "Kích thước file không được vượt quá 10MB",
-          severity: "error",
-        });
         return;
       }
 
@@ -3962,11 +3672,6 @@ const OrderHistory = () => {
   // Thêm hàm xử lý đặt cọc thiết kế
   const handleDesignDeposit = (order) => {
     if (!order?.id) {
-      setNotification({
-        open: true,
-        message: "Thông tin đơn hàng không hợp lệ",
-        severity: "error",
-      });
       return;
     }
 
@@ -3978,32 +3683,17 @@ const OrderHistory = () => {
         const checkoutUrl = res.data?.checkoutUrl;
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
-        } else {
-          setNotification({
-            open: true,
-            message: res.error || "Không thể tạo link thanh toán",
-            severity: "error",
-          });
         }
       })
       .catch((err) => {
         setDepositLoadingId(null);
-        setNotification({
-          open: true,
-          message: err || "Không thể tạo link thanh toán",
-          severity: "error",
-        });
+        console.error("Error paying design deposit:", err);
       });
   };
 
   // Thêm hàm xử lý thanh toán đủ thiết kế
   const handleDesignRemaining = (order) => {
     if (!order?.id) {
-      setNotification({
-        open: true,
-        message: "Thông tin đơn hàng không hợp lệ",
-        severity: "error",
-      });
       return;
     }
 
@@ -4015,21 +3705,11 @@ const OrderHistory = () => {
         const checkoutUrl = res.data?.checkoutUrl;
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
-        } else {
-          setNotification({
-            open: true,
-            message: res.error || "Không thể tạo link thanh toán",
-            severity: "error",
-          });
         }
       })
       .catch((err) => {
         setPayingRemaining(false);
-        setNotification({
-          open: true,
-          message: err || "Không thể tạo link thanh toán",
-          severity: "error",
-        });
+        console.error("Error paying design remaining:", err);
       });
   };
 
@@ -9979,11 +9659,6 @@ const OrderHistory = () => {
                       }}
                       onError={(e) => {
                         e.target.style.display = "none";
-                        setNotification({
-                          open: true,
-                          message: "Không thể hiển thị ảnh",
-                          severity: "error",
-                        });
                       }}
                     />
                   ) : (
@@ -10133,173 +9808,6 @@ const OrderHistory = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
-        {/* Custom Full-Screen Right Slide Notification */}
-        <Box
-          sx={{
-            position: "fixed",
-            top: 0,
-            right: notification.open ? 0 : "-100%",
-            width: "100%",
-            height: "100vh",
-            zIndex: 99999,
-            transition: "right 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-            pointerEvents: notification.open ? "auto" : "none",
-          }}
-        >
-          {/* Overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              backdropFilter: "blur(4px)",
-            }}
-            onClick={() => setNotification((n) => ({ ...n, open: false }))}
-          />
-          
-          {/* Notification Panel */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              width: "400px",
-              height: "100%",
-              backgroundColor: "white",
-              boxShadow: "-10px 0 30px rgba(0, 0, 0, 0.3)",
-              display: "flex",
-              flexDirection: "column",
-              transform: notification.open ? "translateX(0)" : "translateX(100%)",
-              transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          >
-            {/* Header */}
-            <Box
-              sx={{
-                p: 3,
-                borderBottom: "1px solid #e5e7eb",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: notification.severity === "success" 
-                  ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
-                  : notification.severity === "error"
-                  ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                  : notification.severity === "warning"
-                  ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
-                  : "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-                color: "white",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: "50%",
-                    backgroundColor: "rgba(255, 255, 255, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1.2rem",
-                  }}
-                >
-                  {notification.severity === "success" && "✓"}
-                  {notification.severity === "error" && "✕"}
-                  {notification.severity === "warning" && "⚠"}
-                  {notification.severity === "info" && "ℹ"}
-                </Box>
-                <Typography variant="h6" fontWeight={700}>
-                  {notification.severity === "success" && "Thành công"}
-                  {notification.severity === "error" && "Lỗi"}
-                  {notification.severity === "warning" && "Cảnh báo"}
-                  {notification.severity === "info" && "Thông tin"}
-                </Typography>
-              </Box>
-              <IconButton
-                onClick={() => setNotification((n) => ({ ...n, open: false }))}
-                sx={{
-                  color: "white",
-                  "&:hover": {
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  },
-                }}
-              >
-                ✕
-              </IconButton>
-            </Box>
-            
-            {/* Content */}
-            <Box
-              sx={{
-                flex: 1,
-                p: 3,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                textAlign: "center",
-              }}
-            >
-              <Typography
-                variant="h5"
-                sx={{
-                  mb: 2,
-                  fontWeight: 600,
-                  color: notification.severity === "success" 
-                    ? "#22c55e"
-                    : notification.severity === "error"
-                    ? "#dc2626"
-                    : notification.severity === "warning"
-                    ? "#d97706"
-                    : "#1d4ed8",
-                }}
-              >
-                {notification.message}
-              </Typography>
-              
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 3 }}
-              >
-                {notification.severity === "success" && "Yêu cầu của bạn đã được xử lý thành công!"}
-                {notification.severity === "error" && "Đã xảy ra lỗi. Vui lòng thử lại sau."}
-                {notification.severity === "warning" && "Vui lòng kiểm tra lại thông tin."}
-                {notification.severity === "info" && "Thông tin quan trọng cho bạn."}
-              </Typography>
-              
-              <Button
-                variant="contained"
-                onClick={() => setNotification((n) => ({ ...n, open: false }))}
-                sx={{
-                  borderRadius: 2,
-                  px: 4,
-                  py: 1.5,
-                  fontWeight: 600,
-                  background: notification.severity === "success" 
-                    ? "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)"
-                    : notification.severity === "error"
-                    ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                    : notification.severity === "warning"
-                    ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
-                    : "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-                color: "white",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: "0 6px 20px rgba(0, 0, 0, 0.2)",
-              },
-            }}
-          >
-                Đóng
-              </Button>
-            </Box>
-          </Box>
-        </Box>
 
         {/* Dialog tạo ticket */}
         <Dialog
