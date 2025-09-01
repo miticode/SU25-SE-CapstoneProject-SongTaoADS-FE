@@ -69,6 +69,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 const DesignRequests = () => {
   const dispatch = useDispatch();
@@ -1369,6 +1370,37 @@ const DesignRequests = () => {
                   }}
                 >
                   {searchLoading ? "Đang tìm..." : "Tìm kiếm"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    // Làm mới dữ liệu: nếu đang search thì refetch search, ngược lại refetch danh sách
+                    if (isSearching && searchKeyword.trim() !== "") {
+                      handleSearch(searchKeyword);
+                    } else {
+                      refreshDesignRequestsData();
+                    }
+                  }}
+                  disabled={status === "loading" || searchLoading}
+                  startIcon={
+                    status === "loading" || searchLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <RefreshIcon />
+                    )
+                  }
+                  size="small"
+                  sx={{
+                    borderRadius: 2,
+                    borderColor: "#e2e8f0",
+                    color: "#475569",
+                    "&:hover": {
+                      borderColor: "#64748b",
+                      bgcolor: "#f1f5f9",
+                    },
+                  }}
+                >
+                  Làm mới
                 </Button>
               </Box>
             </Box>

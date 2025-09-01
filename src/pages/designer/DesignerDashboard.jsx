@@ -313,7 +313,7 @@ const DesignerDashboard = () => {
                     variant="outlined"
                     startIcon={<CalendarIcon />}
                     onClick={(e) => setDatePickerAnchor(e.currentTarget)}
-                    className="!rounded-xl !border-2 !border-indigo-200 !text-indigo-600 hover:!bg-indigo-50 hover:!border-indigo-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md"
+                    className="cursor-pointer !rounded-xl !border-2 !border-indigo-200 !text-indigo-600 hover:!bg-indigo-50 hover:!border-indigo-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md"
                     size="small"
                   >
                     Lọc ngày
@@ -323,7 +323,7 @@ const DesignerDashboard = () => {
                     startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
                     onClick={handleRefresh}
                     disabled={refreshing || dashboardStatus === 'loading'}
-                    className="!rounded-xl !border-2 !border-blue-200 !text-blue-600 hover:!bg-blue-50 hover:!border-blue-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md"
+                    className="cursor-pointer !rounded-xl !border-2 !border-blue-200 !text-blue-600 hover:!bg-blue-50 hover:!border-blue-300 !font-semibold !px-4 !py-2 !transition-all !duration-300 !shadow-sm hover:!shadow-md"
                     size="small"
                   >
                     {refreshing ? 'Đang làm mới...' : 'Làm mới'}
@@ -376,13 +376,13 @@ const DesignerDashboard = () => {
               placeholder="Tìm kiếm..."
               className="flex-1 px-3 py-2 bg-transparent text-white placeholder-white/70 focus:outline-none text-sm"
             />
-            <button className="p-2 text-white hover:bg-white/10 transition-colors">
+            <button className="p-2 text-white hover:bg-white/10 transition-colors cursor-pointer">
               <SearchIcon className="w-5 h-5" />
             </button>
           </div>
 
           {/* Mobile Search Button */}
-          <button className="lg:hidden p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105">
+          <button className="lg:hidden p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105 cursor-pointer">
             <SearchIcon className="w-5 h-5" />
           </button>
 
@@ -390,7 +390,7 @@ const DesignerDashboard = () => {
           <div className="relative">
             <button
               onClick={handleNotificationMenuOpen}
-              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105 relative"
+              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105 relative cursor-pointer"
             >
               <NotificationsIcon className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -404,7 +404,7 @@ const DesignerDashboard = () => {
           {/* User Avatar */}
           <button
             onClick={handleAvatarClick}
-            className="p-1 bg-white/10 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105"
+            className="p-1 bg-white/10 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105 cursor-pointer"
           >
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white font-semibold text-sm">
               D
@@ -419,7 +419,7 @@ const DesignerDashboard = () => {
         <div className="md:hidden fixed top-20 left-4 z-50">
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+            className="p-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -440,7 +440,7 @@ const DesignerDashboard = () => {
                   <h2 className="text-lg font-bold text-gray-800">Menu</h2>
                   <button 
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-1 hover:bg-gray-100 rounded"
+                    className="p-1 hover:bg-gray-100 rounded cursor-pointer"
                   >
                     ✕
                   </button>
@@ -598,7 +598,7 @@ const DesignerDashboard = () => {
           <div className="fixed z-50 top-16 right-4 w-48 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
             >
               <LogoutIcon className="w-5 h-5" />
               <span className="font-medium">Đăng xuất</span>
@@ -637,7 +637,7 @@ const DesignerDashboard = () => {
               </div>
               <button
                 onClick={() => closeAlertNotification(alert.id)}
-                className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 cursor-pointer"
               >
                 <CloseIcon className="w-4 h-4" />
               </button>
@@ -671,24 +671,79 @@ const DesignerDashboard = () => {
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-          <Box className="p-4 min-w-80">
-            <Typography variant="h6" className="!font-bold !mb-4">Chọn khoảng thời gian</Typography>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(7)} className="!rounded-lg">7 ngày qua</Button>
-              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(30)} className="!rounded-lg">30 ngày qua</Button>
-              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(90)} className="!rounded-lg">3 tháng qua</Button>
-              <Button variant="outlined" size="small" onClick={() => handleQuickDateSelect(365)} className="!rounded-lg">1 năm qua</Button>
+          <Box className="w-[90vw] max-w-md sm:max-w-lg md:max-w-xl p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Typography variant="h6" className="!font-bold !text-gray-800">Chọn khoảng thời gian</Typography>
+              <button
+                onClick={() => setDatePickerAnchor(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                aria-label="Đóng"
+              >
+                <CloseIcon fontSize="small" />
+              </button>
             </div>
-            <Divider className="!my-4" />
-            <div className="space-y-4">
-              <DatePicker label="Từ ngày" value={startDate} onChange={(v) => setStartDate(v)} slotProps={{ textField: { size: 'small', fullWidth: true }}} />
-              <DatePicker label="Đến ngày" value={endDate} onChange={(v) => setEndDate(v)} slotProps={{ textField: { size: 'small', fullWidth: true }}} />
+            {(() => { const diffDays = endDate.diff(startDate,'day'); return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
+                <Button
+                  variant={diffDays === 7 ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => handleQuickDateSelect(7)}
+                  className={`cursor-pointer !rounded-lg !text-xs sm:!text-sm !py-2 ${diffDays === 7 ? '!bg-indigo-600 !text-white' : ''}`}
+                >7 ngày</Button>
+                <Button
+                  variant={diffDays === 30 ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => handleQuickDateSelect(30)}
+                  className={`cursor-pointer !rounded-lg !text-xs sm:!text-sm !py-2 ${diffDays === 30 ? '!bg-indigo-600 !text-white' : ''}`}
+                >30 ngày</Button>
+                <Button
+                  variant={diffDays === 90 ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => handleQuickDateSelect(90)}
+                  className={`cursor-pointer !rounded-lg !text-xs sm:!text-sm !py-2 ${diffDays === 90 ? '!bg-indigo-600 !text-white' : ''}`}
+                >3 tháng</Button>
+                <Button
+                  variant={diffDays === 365 ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => handleQuickDateSelect(365)}
+                  className={`cursor-pointer !rounded-lg !text-xs sm:!text-sm !py-2 ${diffDays === 365 ? '!bg-indigo-600 !text-white' : ''}`}
+                >1 năm</Button>
+              </div>
+            ) })()}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Từ ngày</label>
+                <DatePicker 
+                  label={null}
+                  value={startDate} 
+                  onChange={(v) => setStartDate(v)} 
+                  slotProps={{ textField: { size: 'small', fullWidth: true }}} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Đến ngày</label>
+                <DatePicker 
+                  label={null}
+                  value={endDate} 
+                  onChange={(v) => setEndDate(v)} 
+                  slotProps={{ textField: { size: 'small', fullWidth: true }}} 
+                />
+              </div>
             </div>
-            <div className="flex gap-2 mt-4">
-              <Button variant="contained" onClick={handleDateChange} className="!rounded-lg !flex-1" disabled={dashboardStatus === 'loading'}>
+            <div className="flex flex-col sm:flex-row gap-2 mt-6">
+              <Button
+                variant="contained"
+                onClick={handleDateChange}
+                className="cursor-pointer !rounded-lg !flex-1 !font-semibold"
+                disabled={dashboardStatus === 'loading'}
+              >
                 {dashboardStatus === 'loading' ? 'Đang tải...' : 'Áp dụng'}
               </Button>
-              <Button variant="outlined" onClick={() => setDatePickerAnchor(null)} className="!rounded-lg !flex-1">Đóng</Button>
+              <Button
+                variant="outlined"
+                onClick={() => setDatePickerAnchor(null)}
+                className="cursor-pointer !rounded-lg !flex-1"
+              >Đóng</Button>
             </div>
           </Box>
         </LocalizationProvider>
