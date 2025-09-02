@@ -1954,7 +1954,19 @@ const OrderHistory = () => {
   // Function refresh cho orders (tab lịch sử đơn hàng)
   const refreshOrdersData = async () => {
     if (user?.id) {
+      // 1. Refresh danh sách orders
       await refreshOrders(currentPage);
+      // 2. Xóa cache order details để buộc fetch lại (designer mới cập nhật)
+      setOrderDetailsMap({});
+      setLoadingOrderDetails({});
+      // 3. Sau một vòng event loop (đảm bảo orders state đã cập nhật) refetch details
+      setTimeout(() => {
+        const targetOrders = (searchQuery ? searchResults : orders) || [];
+        targetOrders.forEach((o) => {
+          // force fetch: bỏ qua kiểm tra cache trong fetchOrderDetailsForOrder bằng cách xóa trước
+          fetchOrderDetailsForOrder(o.id);
+        });
+      }, 0);
     }
   };
 
@@ -4093,6 +4105,8 @@ const OrderHistory = () => {
                   const orderImpressions = getOrderImpressions(order.id);
                   const orderDetails = getOrderDetails(order.id);
                   const loadingDetails = isLoadingOrderDetails(order.id);
+                  // ✅ Lấy thông tin custom design từ order hoặc từ orderDetails (API details mới)
+                  const customDesign = order.customDesignRequests || orderDetails?.customDesignRequests || null;
 
                   return (
                     <Card
@@ -4476,25 +4490,57 @@ const OrderHistory = () => {
                                 border: "1px solid rgba(226, 232, 240, 0.8)",
                               }}
                             >
-                              <Typography
-                                variant="h5"
-                                fontWeight={700}
-                                sx={{
-                                  wordBreak: "break-all",
-                                  overflowWrap: "break-word",
-                                  color: "#4f46e5",
-                                  mb: 0.5,
-                                  fontSize: "1.25rem",
-                                }}
-                              >
-                                Mã Đơn: {order.orderCode || order.id}
-                              </Typography>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                                <Typography
+                                  variant="h5"
+                                  fontWeight={700}
+                                  sx={{
+                                    wordBreak: "break-all",
+                                    overflowWrap: "break-word",
+                                    color: "#4f46e5",
+                                    fontSize: "1.25rem",
+                                  }}
+                                >
+                                  Mã Đơn: {order.orderCode || order.id}
+                                </Typography>
+                                {(order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' || order.orderType === 'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION') && customDesign && (
+                                  <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    gap: 1,
+                                    px: 1.2,
+                                    py: 0.6,
+                                    backgroundColor: order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? 'rgba(33,150,243,0.06)' : 'rgba(255,152,0,0.08)',
+                                    border: '1px solid',
+                                    borderColor: order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? 'rgba(33,150,243,0.25)' : 'rgba(255,152,0,0.25)',
+                                    borderRadius: 2,
+                                    fontSize: 13,
+                                  }}>
+                                    <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13, fontWeight: 500, color: order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? '#1565c0' : '#e65100' }}>
+                                      Mã YC: <Box component='span' sx={{ fontWeight: 700 }}>{customDesign.code || '(N/A)'}</Box>
+                                    </Typography>
+                                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.3)' }} />
+                                    <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13, color: 'text.secondary' }}>
+                                      Designer:
+                                      <Box component='span' sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                        {customDesign.assignDesigner ? (customDesign.assignDesigner.fullName || customDesign.assignDesigner.email || '(Không rõ)') : 'Chưa phân công'}
+                                      </Box>
+                                      {customDesign.assignDesigner?.phone && (
+                                        <Box component='span' sx={{ fontSize: 12, color: 'text.secondary' }}>
+                                          SĐT: {customDesign.assignDesigner.phone}
+                                        </Box>
+                                      )}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
 
                               {(order.orderType ===
                                 "CUSTOM_DESIGN_WITH_CONSTRUCTION" ||
                                 order.orderType ===
                                   "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") &&
-                                order.customDesignRequests && (
+                                customDesign && (
                                   <Typography
                                     color="text.secondary"
                                     fontSize={14}
@@ -4519,12 +4565,11 @@ const OrderHistory = () => {
                                         ? "🏗️ Yêu cầu thiết kế (có thi công):"
                                         : "🎨 Yêu cầu thiết kế (không thi công):"}
                                     </b>{" "}
-                                    {order.customDesignRequests.requirements?.substring(
+                                    {customDesign.requirements?.substring(
                                       0,
                                       50
                                     )}
-                                    {order.customDesignRequests.requirements
-                                      ?.length > 50
+                                    {customDesign.requirements?.length > 50
                                       ? "..."
                                       : ""}
                                   </Typography>
