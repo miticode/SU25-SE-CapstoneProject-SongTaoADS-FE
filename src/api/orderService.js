@@ -446,17 +446,30 @@ export const getOrderDetailsApi = async (orderId) => {
 
     const response = await orderService.get(`/api/orders/${orderId}/details`);
 
-    const { success, result, message } = response.data;
+    const { success, result, message, timestamp } = response.data;
 
-    if (success) {
-      console.log("Kết quả trả về từ API lấy chi tiết đơn hàng:", {
-        success,
-        result,
-      });
-      return { success: true, data: result };
+    if (!success) {
+      return { success: false, error: message || "Invalid response format" };
     }
 
-    return { success: false, error: message || "Invalid response format" };
+    // API mới: result là mảng các detail
+    const detailsArray = Array.isArray(result) ? result : [];
+
+    // Lấy đại diện thông tin custom design / edited / order từ phần tử đầu tiên có chứa
+    const firstWithCustom = detailsArray.find((d) => d?.customDesignRequests);
+    const firstWithEdited = detailsArray.find((d) => d?.editedDesigns);
+    const firstWithOrder = detailsArray.find((d) => d?.orders);
+
+    const aggregated = {
+      details: detailsArray,
+      customDesignRequests: firstWithCustom?.customDesignRequests || null,
+      editedDesigns: firstWithEdited?.editedDesigns || null,
+      orders: firstWithOrder?.orders || null,
+      timestamp,
+      message,
+    };
+
+    return { success: true, data: aggregated };
   } catch (error) {
     console.error("Error fetching order details:", error.response?.data || error);
     return {

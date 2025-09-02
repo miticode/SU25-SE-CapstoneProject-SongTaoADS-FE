@@ -1,49 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Paper,
-  Stack,
-  Avatar,
-  Divider,
-  Grid,
-  Checkbox,
-  FormControlLabel,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  RadioGroup,
-  Radio,
-  Modal,
-  CircularProgress,
-} from "@mui/material";
-import PaymentIcon from "@mui/icons-material/Payment";
+import React, { useState, useEffect } from "react";
 import PageTransition from "../components/PageTransition";
 import StepIndicator from "../components/StepIndicator";
-import PayOSCheckout from "../components/PayOSCheckout";
-import { createPayOSDeposit } from "../api/paymentService";
-import {
-  updateOrderCustomerInfoApi,
-  getOrderByIdApi,
-  updateOrderAddressApi,
-} from "../api/orderService";
-import { getOrdersByUserIdApi } from "../api/orderService";
-import { getProfileApi } from "../api/authService";
-import { useLocation } from "react-router-dom";
-// Import Redux hooks và action
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 import { fetchOrderById } from "../store/features/order/orderSlice";
 import { payOrderDepositThunk } from "../store/features/payment/paymentSlice";
+import { updateOrderAddressApi, getOrdersByUserIdApi } from "../api/orderService";
+import { getProfileApi } from "../api/authService";
 
+// Cấu hình bước
 const steps = [
   { number: 1, label: "Thông tin cá nhân" },
   { number: 2, label: "Xem lại đơn hàng" },
   { number: 3, label: "Thanh toán" },
 ];
 
+// Phương thức thanh toán
 const paymentMethods = [
   {
     value: "payos",
@@ -59,73 +31,137 @@ const paymentMethods = [
   },
 ];
 
+// Helper hiển thị thông tin tài chính & đơn hàng
+const renderOrderFinancialSection = (order) => (
+  <div className="space-y-6">
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-4 text-sm sm:text-base">
+        <span className="text-slate-500 font-medium">Mã đơn hàng:</span>
+        <span className="font-semibold break-all text-right">{order.orderCode || order.id}</span>
+      </div>
+      <div className="flex items-start justify-between gap-4 text-sm sm:text-base">
+        <span className="text-slate-500 font-medium">Loại đơn hàng:</span>
+        <span className="font-semibold text-sky-600">{order.orderType === "AI_DESIGN" ? "AI Design" : order.orderType}</span>
+      </div>
+    </div>
+    <hr className="border-slate-200" />
+    <h3 className="text-base sm:text-lg font-semibold text-emerald-700 flex items-center gap-2">Chi tiết tài chính</h3>
+    <div className="space-y-2">
+      <div className="flex justify-between text-sm sm:text-base font-medium">
+        <span>💰 Tổng đơn hàng:</span>
+        <span className="text-green-600 font-bold">{order.totalOrderAmount?.toLocaleString("vi-VN") || order.totalAmount?.toLocaleString("vi-VN")} VND</span>
+      </div>
+      <div className="flex justify-between text-sm sm:text-base font-medium">
+        <span>🟡 Tiền cọc (tổng):</span>
+        <span className="text-amber-600">{order.totalOrderDepositAmount?.toLocaleString("vi-VN") || order.depositAmount?.toLocaleString("vi-VN")} VND</span>
+      </div>
+      <div className="flex justify-between text-sm sm:text-base font-medium">
+        <span>🔄 Số tiền còn lại:</span>
+        <span className="text-rose-600">{order.totalOrderRemainingAmount?.toLocaleString("vi-VN")}</span>
+      </div>
+    </div>
+    <div className="pt-4">
+      <h4 className="font-semibold text-sky-600 mb-2">🔨 Chi phí thi công</h4>
+      <div className="space-y-1 text-sm sm:text-base pl-1">
+        <div className="flex justify-between"><span className="text-slate-500">Tổng:</span><span className="font-medium">{order.totalConstructionAmount?.toLocaleString("vi-VN")} VND</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Đã cọc:</span><span className="font-medium text-green-600">{order.depositConstructionAmount?.toLocaleString("vi-VN")} VND</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Còn lại:</span><span className="font-medium text-amber-600">{order.remainingConstructionAmount?.toLocaleString("vi-VN")} VND</span></div>
+      </div>
+    </div>
+    <div className="pt-2">
+      <h4 className="font-semibold text-violet-600 mb-2">🎨 Chi phí thiết kế</h4>
+      <div className="space-y-1 text-sm sm:text-base pl-1">
+        <div className="flex justify-between"><span className="text-slate-500">Tổng:</span><span className="font-medium">{order.totalDesignAmount?.toLocaleString("vi-VN")} VND</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Đã cọc:</span><span className="font-medium text-green-600">{order.depositDesignAmount?.toLocaleString("vi-VN")} VND</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Còn lại:</span><span className="font-medium text-amber-600">{order.remainingDesignAmount?.toLocaleString("vi-VN")} VND</span></div>
+      </div>
+    </div>
+    <div className="pt-4 space-y-3">
+      <h3 className="text-base sm:text-lg font-semibold text-sky-700">Thông tin giao hàng</h3>
+      <div className="flex justify-between gap-4 text-sm sm:text-base">
+        <span className="text-slate-500">📍 Địa chỉ:</span>
+        <span className="font-medium text-right max-w-xs break-words">{order.address || "Chưa có địa chỉ"}</span>
+      </div>
+      {order.estimatedDeliveryDate && (
+        <div className="flex justify-between gap-4 text-sm sm:text-base">
+          <span className="text-slate-500">🚚 Ngày giao dự kiến:</span>
+          <span className="font-medium">{new Date(order.estimatedDeliveryDate).toLocaleDateString("vi-VN")}</span>
+        </div>
+      )}
+      {order.note && (
+        <div className="flex justify-between gap-4 text-sm sm:text-base">
+          <span className="text-slate-500">📝 Ghi chú:</span>
+          <span className="font-medium text-right max-w-xs break-words">{order.note}</span>
+        </div>
+      )}
+    </div>
+    {order.users && (
+      <div className="pt-4 space-y-2">
+        <h3 className="text-base sm:text-lg font-semibold text-sky-600">Thông tin khách hàng</h3>
+        <div className="flex justify-between text-sm sm:text-base"><span className="text-slate-500">👤 Họ tên:</span><span className="font-medium">{order.users.fullName}</span></div>
+        <div className="flex justify-between text-sm sm:text-base"><span className="text-slate-500">📧 Email:</span><span className="font-medium break-all">{order.users.email}</span></div>
+        {order.users.phone && <div className="flex justify-between text-sm sm:text-base"><span className="text-slate-500">📱 SĐT:</span><span className="font-medium">{order.users.phone}</span></div>}
+      </div>
+    )}
+    <div className="pt-4 space-y-1">
+      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Thời gian</h4>
+      <div className="flex justify-between text-xs sm:text-sm"><span className="text-slate-500">Tạo:</span><span>{new Date(order.createdAt).toLocaleString("vi-VN")}</span></div>
+      <div className="flex justify-between text-xs sm:text-sm"><span className="text-slate-500">Cập nhật:</span><span>{new Date(order.updatedAt).toLocaleString("vi-VN")}</span></div>
+    </div>
+    {order.customDesignRequests?.finalDesignImage && (
+      <div className="pt-4">
+        <h3 className="text-base sm:text-lg font-semibold text-violet-600 mb-2">🎨 Thiết kế cuối cùng</h3>
+        <img
+          onClick={() => window.open(order.customDesignRequests.finalDesignImage, "_blank")}
+          src={order.customDesignRequests.finalDesignImage}
+          alt="Thiết kế cuối cùng"
+          className="w-full max-w-sm rounded-lg border-2 border-slate-200 shadow-sm cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
+        />
+        {order.customDesignRequests.requirements && (
+          <p className="text-xs sm:text-sm text-slate-600 mt-2"><strong>Yêu cầu:</strong> {order.customDesignRequests.requirements}</p>
+        )}
+      </div>
+    )}
+  </div>
+);
+
 const Checkout = () => {
   const dispatch = useDispatch();
   const location = useLocation();
 
   // Redux selectors
   const currentOrder = useSelector((state) => state.order.currentOrder);
-  const currentOrderStatus = useSelector(
-    (state) => state.order.currentOrderStatus
-  );
-  const currentOrderError = useSelector(
-    (state) => state.order.currentOrderError
-  );
-
+  const currentOrderStatus = useSelector((state) => state.order.currentOrderStatus);
+  const currentOrderError = useSelector((state) => state.order.currentOrderError);
   const paymentLoading = useSelector((state) => state.payment.loading);
   const paymentError = useSelector((state) => state.payment.error);
-  const paymentSuccess = useSelector((state) => state.payment.success);
-  const orderDepositResult = useSelector(
-    (state) => state.payment.orderDepositResult
-  );
+  // Có thể dùng thêm paymentSuccess, orderDepositResult nếu cần hiển thị sau thanh toán
 
+  // Local state
   const [currentStep, setCurrentStep] = useState(1);
-  const [customer, setCustomer] = useState({
-    address: "",
-    note: "",
-  });
+  const [customer, setCustomer] = useState({ address: "", note: "" });
   const [agree, setAgree] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("payos");
-  const [loading, setLoading] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState("");
-  const [showPayOS, setShowPayOS] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [orderInfo, setOrderInfo] = useState(null);
-  const [updatedOrderInfo, setUpdatedOrderInfo] = useState(null); // Thêm state cho dữ liệu đã cập nhật
-  const payOSRef = useRef();
+  const [updatedOrderInfo, setUpdatedOrderInfo] = useState(null);
 
-  // Step 1: handle input
+  // Input handler
   const handleInputChange = (e) => {
-    setCustomer({ ...customer, [e.target.name]: e.target.value });
+    setCustomer((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Step navigation
+  // Step navigation logic
   const handleNext = async () => {
     if (currentStep === 1) {
       try {
         if (!orderId) throw new Error("Không tìm thấy orderId!");
-
-        // Sử dụng API mới để cập nhật địa chỉ và note
         const result = await updateOrderAddressApi(orderId, {
           address: customer.address,
           note: customer.note,
         });
-
-        console.log("Response từ updateOrderAddressApi:", result);
-
-        if (!result.success) {
-          throw new Error(result.error || "Cập nhật địa chỉ thất bại");
-        }
-
-        // Xử lý cả hai trường hợp: result.result hoặc result.data
         const updatedData = result.result || result.data;
-        console.log("Dữ liệu đã cập nhật từ API:", updatedData);
-
-        if (!updatedData) {
-          throw new Error("Không nhận được dữ liệu cập nhật từ API");
-        }
-
-        // Lưu dữ liệu đã được cập nhật
+        if (!result.success || !updatedData) throw new Error(result.error || "Cập nhật địa chỉ thất bại");
         setUpdatedOrderInfo(updatedData);
         setCurrentStep(2);
       } catch (err) {
@@ -133,1230 +169,206 @@ const Checkout = () => {
         console.error("Lỗi cập nhật địa chỉ:", err);
       }
     } else if (currentStep === 2) {
-      // Fetch order details khi chuyển sang step 3
-      if (orderId) {
-        dispatch(fetchOrderById(orderId));
-      }
+      if (orderId) dispatch(fetchOrderById(orderId));
       setCurrentStep(3);
-    } else {
-      setCurrentStep((s) => Math.min(s + 1, 3));
+    }
+  };
+  const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
+
+  // Payment handler
+  const handlePayment = async (e) => {
+    e.preventDefault();
+    if (!agree) return;
+    const orderToUse = currentOrder || updatedOrderInfo || orderInfo;
+    if (!orderToUse) {
+      alert("Không tìm thấy thông tin đơn hàng!");
+      return;
+    }
+    try {
+      const result = await dispatch(payOrderDepositThunk(orderToUse.id));
+      if (payOrderDepositThunk.fulfilled.match(result)) {
+        let checkoutUrl = null;
+        if (result.payload?.checkoutUrl) checkoutUrl = result.payload.checkoutUrl;
+        else if (result.payload?.data?.checkoutUrl) checkoutUrl = result.payload.data.checkoutUrl;
+        else if (result.payload?.result?.checkoutUrl) checkoutUrl = result.payload.result.checkoutUrl;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+        } else throw new Error("Không nhận được URL thanh toán từ PayOS");
+      } else {
+        const errorMessage = result.payload || "Không thể tạo link thanh toán PayOS";
+        alert(errorMessage);
+      }
+    } catch (err) {
+      console.error("[Payment] Lỗi chi tiết:", err);
+      alert(err.message || "Có lỗi xảy ra khi thanh toán");
     }
   };
 
-  const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
-
-  // Step 3: handle payment
- const handlePayment = async (e) => {
-  e.preventDefault();
-  if (!agree) {
-    console.log("[Payment] Người dùng chưa đồng ý điều khoản.");
-    return;
-  }
-
-  // Lấy thông tin đơn hàng
-  const orderToUse = currentOrder || updatedOrderInfo || orderInfo;
-  if (!orderToUse) {
-    alert("Không tìm thấy thông tin đơn hàng!");
-    return;
-  }
-
-  console.log(
-    "[Payment] Thông tin đơn hàng trước khi thanh toán:",
-    orderToUse
-  );
-
-  try {
-    // Dispatch Redux thunk để thanh toán
-    console.log(
-      "[Payment] Gọi payOrderDepositThunk với orderId:",
-      orderToUse.id
-    );
-    const result = await dispatch(payOrderDepositThunk(orderToUse.id));
-
-    if (payOrderDepositThunk.fulfilled.match(result)) {
-      // Thanh toán thành công
-      console.log(
-        "[Payment] Kết quả thanh toán thành công:",
-        result.payload
-      );
-
-      // Cập nhật logic lấy checkout URL
-      let checkoutUrl = null;
-      
-      // Kiểm tra các vị trí có thể có checkoutUrl
-      if (result.payload?.checkoutUrl) {
-        checkoutUrl = result.payload.checkoutUrl;
-      } else if (result.payload?.data?.checkoutUrl) {
-        checkoutUrl = result.payload.data.checkoutUrl;
-      } else if (result.payload?.result?.checkoutUrl) {
-        checkoutUrl = result.payload.result.checkoutUrl;
-      }
-
-      console.log("[Payment] CheckoutUrl found:", checkoutUrl);
-
-      if (checkoutUrl) {
-        console.log("[Payment] Redirecting to:", checkoutUrl);
-        // Chuyển hướng đến PayOS
-        window.location.href = checkoutUrl;
-      } else {
-        console.error("[Payment] Response structure:", result.payload);
-        throw new Error("Không nhận được URL thanh toán từ PayOS");
-      }
-    } else {
-      // Thanh toán thất bại
-      const errorMessage =
-        result.payload || "Không thể tạo link thanh toán PayOS";
-      console.error("[Payment] Lỗi thanh toán:", errorMessage);
-      alert(errorMessage);
-    }
-  } catch (err) {
-    console.error("[Payment] Lỗi chi tiết:", err);
-    alert(err.message || "Có lỗi xảy ra khi thanh toán");
-  }
-};
+  // Effects
   useEffect(() => {
-    if (paymentSuccess && orderDepositResult) {
-      console.log("[Payment] Thanh toán thành công:", orderDepositResult);
-      // Có thể thêm logic xử lý sau khi thanh toán thành công
-    }
-
-    if (paymentError) {
-      console.error("[Payment] Lỗi thanh toán:", paymentError);
-      alert(`Lỗi thanh toán: ${paymentError}`);
-    }
-  }, [paymentSuccess, paymentError, orderDepositResult]);
-  // Effect to fetch order details when entering step 2
-  useEffect(() => {
-    if (currentStep === 2 && orderId && !currentOrder) {
-      dispatch(fetchOrderById(orderId));
-    }
-  }, [currentStep, orderId, dispatch, currentOrder]);
+    if (paymentError) alert(`Lỗi thanh toán: ${paymentError}`);
+  }, [paymentError]);
 
   useEffect(() => {
-    // Ưu tiên lấy thông tin từ location.state (được truyền từ OrderHistory)
+    if (currentStep === 2 && orderId && !currentOrder) dispatch(fetchOrderById(orderId));
+  }, [currentStep, orderId, currentOrder, dispatch]);
+
+  useEffect(() => {
     if (location.state?.orderId && location.state?.orderInfo) {
       setOrderId(location.state.orderId);
       setOrderInfo(location.state.orderInfo);
-      // Đặt địa chỉ và note ban đầu từ orderInfo
       setCustomer({
         address: location.state.orderInfo.address || "",
         note: location.state.orderInfo.note || "",
       });
       return;
     }
-
-    // Fallback: lấy từ localStorage
     const checkoutOrderId = localStorage.getItem("checkoutOrderId");
     const checkoutOrderInfo = localStorage.getItem("checkoutOrderInfo");
-
     if (checkoutOrderId && checkoutOrderInfo) {
-      console.log("Sử dụng thông tin từ localStorage:", {
-        checkoutOrderId,
-        checkoutOrderInfo,
-      });
       const parsedOrderInfo = JSON.parse(checkoutOrderInfo);
       setOrderId(checkoutOrderId);
       setOrderInfo(parsedOrderInfo);
-      setCustomer({
-        address: parsedOrderInfo.address || "",
-        note: parsedOrderInfo.note || "",
-      });
+      setCustomer({ address: parsedOrderInfo.address || "", note: parsedOrderInfo.note || "" });
       return;
     }
-
-    // Fallback cuối cùng: lấy từ API (như code cũ)
     getProfileApi().then((profileRes) => {
-      if (profileRes.success && profileRes.data && profileRes.data.id) {
+      if (profileRes.success && profileRes.data?.id) {
         const userId = profileRes.data.id;
         localStorage.setItem("userId", userId);
         getOrdersByUserIdApi(userId).then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          if (res.success && Array.isArray(res.data) && res.data.length) {
             const pendingOrder = res.data.find((o) => o.status === "PENDING");
-            const selectedOrder = pendingOrder ? pendingOrder : res.data[0];
+            const selectedOrder = pendingOrder || res.data[0];
             setOrderId(selectedOrder.id);
             setOrderInfo(selectedOrder);
-            setCustomer({
-              address: selectedOrder.address || "",
-              note: selectedOrder.note || "",
-            });
-            console.log("Order lấy được từ API:", selectedOrder);
+            setCustomer({ address: selectedOrder.address || "", note: selectedOrder.note || "" });
           } else {
             setOrderInfo(null);
-            console.log("Không tìm thấy đơn hàng nào cho userId:", userId, res);
           }
         });
       } else {
         setOrderInfo(null);
-        console.log("Không lấy được userId từ getProfileApi", profileRes);
       }
     });
   }, [location.state]);
 
+  const orderForStep2 = currentOrder || updatedOrderInfo || orderInfo;
+  const isLoadingOrder = currentOrderStatus === "loading";
+  const isErrorOrder = currentOrderStatus === "failed";
+
   return (
     <PageTransition>
-      <Box
-        minHeight="100vh"
-        sx={{
-          background: "linear-gradient(120deg, #f8fafc 60%, #f3f6fb 100%)",
-        }}
-      >
-        <Box maxWidth="lg" mx="auto" py={6} px={{ xs: 1, md: 4 }}>
-          <StepIndicator
-            steps={steps}
-            currentStep={currentStep}
-            onStepClick={setCurrentStep}
-          />
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={4}
-            alignItems="flex-start"
-          >
-            <Box flex={1}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: { xs: 2, md: 4 },
-                  borderRadius: 4,
-                  background: "#fff",
-                }}
-              >
-                {/* STEP 1: Thông tin cá nhân và địa chỉ */}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 py-8 px-2 sm:px-4">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <StepIndicator steps={steps} currentStep={currentStep} onStepClick={setCurrentStep} />
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 sm:p-8 transition-all">
                 {currentStep === 1 && (
-                  <Stack spacing={4}>
-                    <Typography fontWeight={700} mb={2}>
-                      1. Nhập địa chỉ nhận hàng và ghi chú
-                    </Typography>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12}>
-                        <TextField
-                          label="Địa chỉ nhận hàng *"
-                          name="address"
-                          value={customer.address}
-                          onChange={handleInputChange}
-                          fullWidth
-                          required
-                          placeholder="Nhập địa chỉ giao hàng đầy đủ"
-                          helperText="Vui lòng nhập địa chỉ chi tiết để chúng tôi có thể giao hàng chính xác"
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          label="Ghi chú đơn hàng"
-                          name="note"
-                          value={customer.note}
-                          onChange={handleInputChange}
-                          fullWidth
-                          multiline
-                          rows={3}
-                          placeholder="Nhập ghi chú cho đơn hàng (không bắt buộc)"
-                          helperText="Ví dụ: Giao hàng vào giờ hành chính, gọi trước khi giao, v.v."
-                        />
-                      </Grid>
-                    </Grid>
-
-                    <Stack
-                      direction="row"
-                      spacing={2}
-                      justifyContent="flex-end"
-                    >
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleNext}
-                        disabled={!customer.address.trim()}
-                        sx={{ minWidth: 120 }}
-                      >
-                        Tiếp tục
-                      </Button>
-                    </Stack>
-                  </Stack>
+                  <div className="space-y-6">
+                    <h2 className="font-bold text-lg sm:text-xl">1. Nhập địa chỉ nhận hàng và ghi chú</h2>
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-slate-600">Địa chỉ nhận hàng *</label>
+                        <input type="text" name="address" value={customer.address} onChange={handleInputChange} required placeholder="Nhập địa chỉ giao hàng đầy đủ" className="w-full rounded-lg border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-2.5 text-sm sm:text-base transition outline-none" />
+                        <p className="text-xs text-slate-500">Vui lòng nhập địa chỉ chi tiết để chúng tôi có thể giao hàng chính xác</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-slate-600">Ghi chú đơn hàng</label>
+                        <textarea name="note" value={customer.note} onChange={handleInputChange} rows={3} placeholder="Nhập ghi chú (không bắt buộc)" className="w-full rounded-lg border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-2.5 text-sm sm:text-base transition outline-none resize-y" />
+                        <p className="text-xs text-slate-500">Ví dụ: Giao giờ hành chính, gọi trước khi giao...</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button onClick={handleNext} disabled={!customer.address.trim()} className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-sky-600 text-white text-sm font-semibold shadow hover:bg-sky-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition">Tiếp tục</button>
+                    </div>
+                  </div>
                 )}
-
-                {/* STEP 2: Xem lại đơn hàng */}
                 {currentStep === 2 && (
-                  <Stack spacing={4}>
-                    <Typography fontWeight={700} mb={2}>
-                      2. Xem lại đơn hàng
-                    </Typography>
-
-                    {/* Loading state cho việc fetch order */}
-                    {currentOrderStatus === "loading" && (
-                      <Box display="flex" justifyContent="center" py={4}>
-                        <CircularProgress />
-                        <Typography ml={2}>
-                          Đang tải thông tin đơn hàng...
-                        </Typography>
-                      </Box>
+                  <div className="space-y-6">
+                    <h2 className="font-bold text-lg sm:text-xl">2. Xem lại đơn hàng</h2>
+                    {isLoadingOrder && (
+                      <div className="flex items-center justify-center gap-3 py-6">
+                        <span className="h-5 w-5 rounded-full border-2 border-sky-500 border-t-transparent animate-spin" />
+                        <span className="text-sm text-slate-600">Đang tải thông tin đơn hàng...</span>
+                      </div>
                     )}
-
-                    {/* Error state */}
-                    {currentOrderStatus === "failed" && (
-                      <Paper
-                        elevation={1}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          background: "#fff3f3",
-                          border: "1px solid #ffcdd2",
-                        }}
-                      >
-                        <Typography color="error" textAlign="center">
-                          Lỗi:{" "}
-                          {currentOrderError ||
-                            "Không thể tải thông tin đơn hàng"}
-                        </Typography>
-                      </Paper>
+                    {isErrorOrder && (
+                      <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-center text-rose-600 text-sm font-medium">Lỗi: {currentOrderError || "Không thể tải thông tin đơn hàng"}</div>
                     )}
-
-                    {/* Hiển thị thông tin đơn hàng từ Redux (ưu tiên cao nhất) */}
-                    {currentOrderStatus === "succeeded" && currentOrder && (
-                      <Paper
-                        elevation={2}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          background: "#f8f9fa",
-                          border: "1px solid #e9ecef",
-                        }}
-                      >
-                        <Typography
-                          variant="h6"
-                          fontWeight={600}
-                          mb={2}
-                          color="primary"
-                        >
-                          Thông tin đơn hàng
-                        </Typography>
-                        
-                        {/* Thông tin cơ bản */}
-                        <Stack spacing={2} mb={3}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              Mã đơn hàng:
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600}>
-                              {currentOrder.orderCode || currentOrder.id}
-                            </Typography>
-                          </Stack>
-                          
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              Loại đơn hàng:
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600} color="info.main">
-                              {currentOrder.orderType === "AI_DESIGN" ? "AI Design" : currentOrder.orderType}
-                            </Typography>
-                          </Stack>
-
-                        </Stack>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        {/* Thông tin tài chính chi tiết */}
-                        <Typography variant="h6" fontWeight={600} mb={2} color="secondary.main">
-                          Chi tiết tài chính
-                        </Typography>
-                        
-                        <Stack spacing={2} mb={3}>
-                          {/* Tổng đơn hàng */}
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary" fontWeight={600}>
-                              💰 Tổng đơn hàng:
-                            </Typography>
-                            <Typography variant="h6" fontWeight={700} color="success.main">
-                              {currentOrder.totalOrderAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-
-                          {/* Tiền cọc tổng */}
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary" fontWeight={600}>
-                              🟡 Tiền cọc (tổng):
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600} color="warning.main">
-                              {currentOrder.totalOrderDepositAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-
-                          {/* Số tiền còn lại */}
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary" fontWeight={600}>
-                              🔄 Số tiền còn lại:
-                            </Typography>
-                            <Typography variant="body1" fontWeight={600} color="error.main">
-                              {currentOrder.totalOrderRemainingAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        {/* Chi phí thi công */}
-                        <Typography variant="subtitle1" fontWeight={600} mb={2} color="info.main">
-                          🔨 Chi phí thi công
-                        </Typography>
-                        <Stack spacing={1} mb={3} sx={{ pl: 2 }}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Tổng chi phí thi công:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              {currentOrder.totalConstructionAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Đã cọc thi công:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600} color="success.main">
-                              {currentOrder.depositConstructionAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Còn lại thi công:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600} color="warning.main">
-                              {currentOrder.remainingConstructionAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        {/* Chi phí thiết kế */}
-                        <Typography variant="subtitle1" fontWeight={600} mb={2} color="secondary.main">
-                          🎨 Chi phí thiết kế
-                        </Typography>
-                        <Stack spacing={1} mb={3} sx={{ pl: 2 }}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Tổng chi phí thiết kế:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              {currentOrder.totalDesignAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Đã cọc thiết kế:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600} color="success.main">
-                              {currentOrder.depositDesignAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Còn lại thiết kế:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600} color="warning.main">
-                              {currentOrder.remainingDesignAmount?.toLocaleString("vi-VN")} VND
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        {/* Thông tin giao hàng và ghi chú */}
-                        <Typography variant="h6" fontWeight={600} mb={2} color="primary.main">
-                          Thông tin giao hàng
-                        </Typography>
-                        <Stack spacing={2} mb={3}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body1" color="text.secondary">
-                              📍 Địa chỉ giao hàng:
-                            </Typography>
-                            <Typography
-                              variant="body1"
-                              fontWeight={500}
-                              sx={{ maxWidth: 300, textAlign: "right" }}
-                            >
-                              {currentOrder.address || "Chưa có địa chỉ"}
-                            </Typography>
-                          </Stack>
-
-                          {currentOrder.estimatedDeliveryDate && (
-                            <Stack direction="row" justifyContent="space-between">
-                              <Typography variant="body1" color="text.secondary">
-                                🚚 Ngày giao dự kiến:
-                              </Typography>
-                              <Typography variant="body1" fontWeight={500}>
-                                {new Date(currentOrder.estimatedDeliveryDate).toLocaleDateString("vi-VN")}
-                              </Typography>
-                            </Stack>
-                          )}
-
-                          {currentOrder.note && (
-                            <Stack direction="row" justifyContent="space-between">
-                              <Typography variant="body1" color="text.secondary">
-                                📝 Ghi chú:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={500}
-                                sx={{ maxWidth: 300, textAlign: "right" }}
-                              >
-                                {currentOrder.note}
-                              </Typography>
-                            </Stack>
-                          )}
-                        </Stack>
-
-                        {/* Thông tin khách hàng */}
-                        {currentOrder.users && (
-                          <>
-                            <Divider sx={{ my: 2 }} />
-                            <Typography variant="h6" fontWeight={600} mb={2} color="info.main">
-                              Thông tin khách hàng
-                            </Typography>
-                            <Stack spacing={2} mb={3}>
-                              <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body1" color="text.secondary">
-                                  👤 Họ tên:
-                                </Typography>
-                                <Typography variant="body1" fontWeight={500}>
-                                  {currentOrder.users.fullName}
-                                </Typography>
-                              </Stack>
-                              <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="body1" color="text.secondary">
-                                  📧 Email:
-                                </Typography>
-                                <Typography variant="body1" fontWeight={500}>
-                                  {currentOrder.users.email}
-                                </Typography>
-                              </Stack>
-                              {currentOrder.users.phone && (
-                                <Stack direction="row" justifyContent="space-between">
-                                  <Typography variant="body1" color="text.secondary">
-                                    📱 Số điện thoại:
-                                  </Typography>
-                                  <Typography variant="body1" fontWeight={500}>
-                                    {currentOrder.users.phone}
-                                  </Typography>
-                                </Stack>
-                              )}
-                            </Stack>
-                          </>
-                        )}
-
-                        {/* Thông tin thời gian */}
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" fontWeight={600} mb={2} color="text.secondary">
-                          Thông tin thời gian
-                        </Typography>
-                        <Stack spacing={1}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Ngày tạo:
-                            </Typography>
-                            <Typography variant="body2">
-                              {new Date(currentOrder.createdAt).toLocaleString("vi-VN")}
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Cập nhật lần cuối:
-                            </Typography>
-                            <Typography variant="body2">
-                              {new Date(currentOrder.updatedAt).toLocaleString("vi-VN")}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        {/* Hiển thị thiết kế nếu có */}
-                        {currentOrder.customDesignRequests?.finalDesignImage && (
-                          <>
-                            <Divider sx={{ my: 2 }} />
-                            <Typography variant="h6" fontWeight={600} mb={2} color="secondary.main">
-                              🎨 Thiết kế cuối cùng
-                            </Typography>
-                            <Box
-                              component="img"
-                              src={currentOrder.customDesignRequests.finalDesignImage}
-                              alt="Thiết kế cuối cùng"
-                              sx={{
-                                width: "100%",
-                                maxWidth: 400,
-                                height: "auto",
-                                borderRadius: 2,
-                                border: "2px solid #e0e0e0",
-                                boxShadow: 2,
-                                cursor: "pointer",
-                                transition: "transform 0.2s",
-                                "&:hover": {
-                                  transform: "scale(1.02)",
-                                },
-                              }}
-                              onClick={() =>
-                                window.open(
-                                  currentOrder.customDesignRequests.finalDesignImage,
-                                  "_blank"
-                                )
-                              }
-                            />
-                            {currentOrder.customDesignRequests.requirements && (
-                              <Typography variant="body2" color="text.secondary" mt={1}>
-                                <strong>Yêu cầu thiết kế:</strong> {currentOrder.customDesignRequests.requirements}
-                              </Typography>
-                            )}
-                          </>
-                        )}
-                      </Paper>
+                    {orderForStep2 && !isLoadingOrder && (
+                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-5">
+                        <h3 className="text-lg font-semibold text-sky-700">Thông tin đơn hàng</h3>
+                        {renderOrderFinancialSection(orderForStep2)}
+                      </div>
                     )}
-
-                    {/* Hiển thị thông tin đã cập nhật từ bước 1 (ưu tiên thứ 2) */}
-                    {!currentOrder &&
-                      updatedOrderInfo &&
-                      currentOrderStatus !== "loading" && (
-                        <Paper
-                          elevation={2}
-                          sx={{
-                            p: 3,
-                            borderRadius: 3,
-                            background: "#f8f9fa",
-                            border: "1px solid #e9ecef",
-                          }}
-                        >
-                          <Typography
-                            variant="h6"
-                            fontWeight={600}
-                            mb={2}
-                            color="primary"
-                          >
-                            Thông tin đơn hàng (Đã cập nhật)
-                          </Typography>
-                          {updatedOrderInfo.customDesignRequests
-                            ?.finalDesignImage && (
-                            <Box mb={3}>
-                              <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                mb={2}
-                                color="secondary"
-                              >
-                                Thiết kế cuối cùng
-                              </Typography>
-                              <Box
-                                component="img"
-                                src={
-                                  updatedOrderInfo.customDesignRequests
-                                    .finalDesignImage
-                                }
-                                alt="Thiết kế cuối cùng"
-                                sx={{
-                                  width: "100%",
-                                  maxWidth: 400,
-                                  height: "auto",
-                                  borderRadius: 2,
-                                  border: "2px solid #e0e0e0",
-                                  boxShadow: 2,
-                                  cursor: "pointer",
-                                  transition: "transform 0.2s",
-                                  "&:hover": {
-                                    transform: "scale(1.02)",
-                                  },
-                                }}
-                                onClick={() =>
-                                  window.open(
-                                    updatedOrderInfo.customDesignRequests
-                                      .finalDesignImage,
-                                    "_blank"
-                                  )
-                                }
-                              />
-                            </Box>
-                          )}
-                          <Stack spacing={2}>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Mã đơn hàng:
-                              </Typography>
-                              <Typography variant="body1" fontWeight={600}>
-                                {updatedOrderInfo.id}
-                              </Typography>
-                            </Stack>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Tổng tiền:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={600}
-                                color="success.main"
-                              >
-                                {updatedOrderInfo.totalAmount?.toLocaleString(
-                                  "vi-VN"
-                                )}{" "}
-                                VND
-                              </Typography>
-                            </Stack>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Tiền cọc:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={600}
-                                color="warning.main"
-                              >
-                                {updatedOrderInfo.depositAmount?.toLocaleString(
-                                  "vi-VN"
-                                )}{" "}
-                                VND
-                              </Typography>
-                            </Stack>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Trạng thái:
-                              </Typography>
-                              <Typography variant="body1" fontWeight={600}>
-                                {updatedOrderInfo.status}
-                              </Typography>
-                            </Stack>
-                            <Divider />
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Địa chỉ giao hàng:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={500}
-                                sx={{ maxWidth: 300, textAlign: "right" }}
-                              >
-                                {updatedOrderInfo.address || "Chưa có địa chỉ"}
-                              </Typography>
-                            </Stack>
-                            {updatedOrderInfo.note && (
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                              >
-                                <Typography
-                                  variant="body1"
-                                  color="text.secondary"
-                                >
-                                  Ghi chú:
-                                </Typography>
-                                <Typography
-                                  variant="body1"
-                                  fontWeight={500}
-                                  sx={{ maxWidth: 300, textAlign: "right" }}
-                                >
-                                  {updatedOrderInfo.note}
-                                </Typography>
-                              </Stack>
-                            )}
-                            {updatedOrderInfo.customDesignRequests
-                              ?.requirements && (
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                              >
-                                <Typography
-                                  variant="body1"
-                                  color="text.secondary"
-                                >
-                                  Yêu cầu thiết kế:
-                                </Typography>
-                                <Typography
-                                  variant="body1"
-                                  fontWeight={500}
-                                  sx={{ maxWidth: 300, textAlign: "right" }}
-                                >
-                                  {
-                                    updatedOrderInfo.customDesignRequests
-                                      .requirements
-                                  }
-                                </Typography>
-                              </Stack>
-                            )}
-                          </Stack>
-                        </Paper>
-                      )}
-
-                    {/* Fallback với orderInfo gốc (ưu tiên thấp nhất) */}
-                    {!currentOrder &&
-                      !updatedOrderInfo &&
-                      orderInfo &&
-                      currentOrderStatus !== "loading" && (
-                        <Paper
-                          elevation={2}
-                          sx={{
-                            p: 3,
-                            borderRadius: 3,
-                            background: "#f8f9fa",
-                            border: "1px solid #e9ecef",
-                          }}
-                        >
-                          <Typography
-                            variant="h6"
-                            fontWeight={600}
-                            mb={2}
-                            color="primary"
-                          >
-                            Thông tin đơn hàng (Gốc)
-                          </Typography>
-                          {orderInfo.customDesignRequests?.finalDesignImage && (
-                            <Box mb={3}>
-                              <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                mb={2}
-                                color="secondary"
-                              >
-                                Thiết kế cuối cùng
-                              </Typography>
-                              <Box
-                                component="img"
-                                src={
-                                  orderInfo.customDesignRequests
-                                    .finalDesignImage
-                                }
-                                alt="Thiết kế cuối cùng"
-                                sx={{
-                                  width: "100%",
-                                  maxWidth: 400,
-                                  height: "auto",
-                                  borderRadius: 2,
-                                  border: "2px solid #e0e0e0",
-                                  boxShadow: 2,
-                                  cursor: "pointer",
-                                  transition: "transform 0.2s",
-                                  "&:hover": {
-                                    transform: "scale(1.02)",
-                                  },
-                                }}
-                                onClick={() =>
-                                  window.open(
-                                    orderInfo.customDesignRequests
-                                      .finalDesignImage,
-                                    "_blank"
-                                  )
-                                }
-                              />
-                            </Box>
-                          )}
-                          <Stack spacing={2}>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Mã đơn hàng:
-                              </Typography>
-                              <Typography variant="body1" fontWeight={600}>
-                                {orderInfo.id}
-                              </Typography>
-                            </Stack>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Tổng tiền:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={600}
-                                color="success.main"
-                              >
-                                {orderInfo.totalAmount?.toLocaleString("vi-VN")}{" "}
-                                VND
-                              </Typography>
-                            </Stack>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Tiền cọc:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={600}
-                                color="warning.main"
-                              >
-                                {orderInfo.depositAmount?.toLocaleString(
-                                  "vi-VN"
-                                )}{" "}
-                                VND
-                              </Typography>
-                            </Stack>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Trạng thái:
-                              </Typography>
-                              <Typography variant="body1" fontWeight={600}>
-                                {orderInfo.status}
-                              </Typography>
-                            </Stack>
-                            <Divider />
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                            >
-                              <Typography
-                                variant="body1"
-                                color="text.secondary"
-                              >
-                                Địa chỉ giao hàng:
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                fontWeight={500}
-                                sx={{ maxWidth: 300, textAlign: "right" }}
-                              >
-                                {customer.address || "Chưa có địa chỉ"}
-                              </Typography>
-                            </Stack>
-                            {customer.note && (
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                              >
-                                <Typography
-                                  variant="body1"
-                                  color="text.secondary"
-                                >
-                                  Ghi chú:
-                                </Typography>
-                                <Typography
-                                  variant="body1"
-                                  fontWeight={500}
-                                  sx={{ maxWidth: 300, textAlign: "right" }}
-                                >
-                                  {customer.note}
-                                </Typography>
-                              </Stack>
-                            )}
-                          </Stack>
-                        </Paper>
-                      )}
-
-                    <Stack
-                      direction="row"
-                      spacing={2}
-                      justifyContent="flex-end"
-                    >
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={handleBack}
-                      >
-                        Quay lại
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleNext}
-                        sx={{ minWidth: 120 }}
-                        disabled={currentOrderStatus === "loading"}
-                      >
-                        Tiếp tục thanh toán
-                      </Button>
-                    </Stack>
-                  </Stack>
+                    <div className="flex justify-end gap-3 flex-wrap">
+                      <button onClick={handleBack} className="px-5 py-2.5 rounded-lg border border-sky-200 text-sky-700 bg-white hover:bg-sky-50 text-sm font-semibold cursor-pointer transition">Quay lại</button>
+                      <button onClick={handleNext} disabled={isLoadingOrder} className="px-5 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 shadow text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition">Tiếp tục thanh toán</button>
+                    </div>
+                  </div>
                 )}
-
-                {/* STEP 3: Thanh toán */}
                 {currentStep === 3 && (
-                  <Stack spacing={4}>
-                    <Typography fontWeight={700} mb={2}>
-                      3. Chọn phương thức thanh toán
-                    </Typography>
-
-                    {/* Tóm tắt đơn hàng trong step 3 */}
+                  <div className="space-y-6">
+                    <h2 className="font-bold text-lg sm:text-xl">3. Chọn phương thức thanh toán</h2>
                     {(currentOrder || updatedOrderInfo || orderInfo) && (
-                      <Paper
-                        elevation={1}
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          background: "#f0f7ff",
-                          border: "1px solid #e3f2fd",
-                        }}
-                      >
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight={600}
-                          mb={1}
-                          color="primary"
-                        >
-                          Tóm tắt thanh toán
-                        </Typography>
-                        <Stack spacing={1}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Mã đơn hàng:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={500}>
-                              {
-                                (currentOrder || updatedOrderInfo || orderInfo)
-                                  ?.orderCode || (currentOrder || updatedOrderInfo || orderInfo)?.id
-                              }
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Số tiền thanh toán (cọc):
-                            </Typography>
-                            <Typography
-                              variant="h6"
-                              fontWeight={700}
-                              color="warning.main"
-                            >
-                              {(
-                                currentOrder ||
-                                updatedOrderInfo ||
-                                orderInfo
-                              )?.totalOrderDepositAmount?.toLocaleString("vi-VN") || 
-                              (currentOrder ||
-                                updatedOrderInfo ||
-                                orderInfo
-                              )?.depositAmount?.toLocaleString("vi-VN")}{" "}
-                              VND
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Tổng giá trị đơn hàng:
-                            </Typography>
-                            <Typography variant="body2" fontWeight={500} color="success.main">
-                              {(
-                                currentOrder ||
-                                updatedOrderInfo ||
-                                orderInfo
-                              )?.totalOrderAmount?.toLocaleString("vi-VN") ||
-                              (currentOrder ||
-                                updatedOrderInfo ||
-                                orderInfo
-                              )?.totalAmount?.toLocaleString("vi-VN")}{" "}
-                              VND
-                            </Typography>
-                          </Stack>
-                         
-                        </Stack>
-                      </Paper>
+                      <div className="p-4 rounded-xl border bg-sky-50 border-sky-100 space-y-3">
+                        <h4 className="text-sm font-semibold text-sky-700 uppercase tracking-wide">Tóm tắt thanh toán</h4>
+                        <div className="space-y-2 text-sm sm:text-base">
+                          <div className="flex justify-between"><span className="text-slate-500">Mã đơn hàng:</span><span className="font-medium">{(currentOrder || updatedOrderInfo || orderInfo)?.orderCode || (currentOrder || updatedOrderInfo || orderInfo)?.id}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">Số tiền cọc:</span><span className="font-semibold text-amber-600 text-base">{(currentOrder || updatedOrderInfo || orderInfo)?.totalOrderDepositAmount?.toLocaleString("vi-VN") || (currentOrder || updatedOrderInfo || orderInfo)?.depositAmount?.toLocaleString("vi-VN")} VND</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">Tổng giá trị:</span><span className="font-medium text-green-600">{(currentOrder || updatedOrderInfo || orderInfo)?.totalOrderAmount?.toLocaleString("vi-VN") || (currentOrder || updatedOrderInfo || orderInfo)?.totalAmount?.toLocaleString("vi-VN")} VND</span></div>
+                        </div>
+                      </div>
                     )}
-
-                    <RadioGroup
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                    >
-                      <Stack direction="row" spacing={2}>
-                        {paymentMethods.map((method) => (
-                          <FormControlLabel
-                            key={method.value}
-                            value={method.value}
-                            control={
-                              <Radio checked={paymentMethod === method.value} />
-                            }
-                            label={
-                              <Stack
-                                direction="row"
-                                alignItems="center"
-                                spacing={1.5}
-                              >
-                                {method.icon}
-                                <Typography fontWeight={600}>
-                                  {method.label}
-                                </Typography>
-                              </Stack>
-                            }
-                            sx={{
-                              border:
-                                paymentMethod === method.value
-                                  ? "2px solid #1976d2"
-                                  : "1px solid #eee",
-                              borderRadius: 2,
-                              px: 2,
-                              py: 1,
-                              bgcolor:
-                                paymentMethod === method.value
-                                  ? "#f5faff"
-                                  : "#fff",
-                              minWidth: 160,
-                              m: 0,
-                            }}
-                          />
-                        ))}
-                      </Stack>
-                    </RadioGroup>
-
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={agree}
-                          onChange={(e) => setAgree(e.target.checked)}
-                          color="primary"
-                        />
-                      }
-                      label={
-                        <Typography fontSize={14}>
-                          Tôi đồng ý với các{" "}
-                          <a
-                            href="#"
-                            style={{
-                              color: "#1976d2",
-                              textDecoration: "underline",
-                            }}
-                          >
-                            điều khoản sử dụng
-                          </a>
-                        </Typography>
-                      }
-                      sx={{ alignItems: "flex-start" }}
-                    />
-
-                    {/* Hiển thị loading state khi đang thanh toán */}
+                    <div className="flex flex-wrap gap-4">
+                      {paymentMethods.map((m) => {
+                        const active = paymentMethod === m.value;
+                        return (
+                          <label key={m.value} className={`cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl border transition text-sm font-medium min-w-[140px] ${active ? "border-sky-500 bg-sky-50 ring-2 ring-sky-200" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                            <input type="radio" name="payment" value={m.value} checked={active} onChange={(e) => setPaymentMethod(e.target.value)} className="hidden" />
+                            {m.icon}
+                            <span>{m.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+                      <input type="checkbox" className="mt-[3px] h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                      <span> Tôi đồng ý với các <a href="#" className="text-sky-600 underline">điều khoản sử dụng</a></span>
+                    </label>
                     {paymentLoading && (
-                      <Paper
-                        elevation={1}
-                        sx={{
-                          p: 3,
-                          borderRadius: 3,
-                          background: "#fff3cd",
-                          border: "1px solid #ffeaa7",
-                        }}
-                      >
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                        >
-                          <CircularProgress size={24} sx={{ mr: 2 }} />
-                          <Typography color="text.secondary">
-                            Đang xử lý thanh toán...
-                          </Typography>
-                        </Box>
-                      </Paper>
+                      <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 flex items-center gap-3 text-amber-700 text-sm">
+                        <span className="h-5 w-5 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+                        <span>Đang xử lý thanh toán...</span>
+                      </div>
                     )}
-
-                    {/* Cập nhật logic kiểm tra trạng thái và nút thanh toán */}
                     {(() => {
-                      const order =
-                        currentOrder || updatedOrderInfo || orderInfo;
-                      const allowedStatusesForPayment = [
-                        "PENDING",
-                        "CONTRACT_CONFIRMED",
-                      ];
-                      const canPay =
-                        order &&
-                        allowedStatusesForPayment.includes(order.status);
-
+                      const order = currentOrder || updatedOrderInfo || orderInfo;
+                      const statuses = ["PENDING", "CONTRACT_CONFIRMED"];
+                      const canPay = order && statuses.includes(order.status);
                       return (
-                        <Stack
-                          direction="row"
-                          spacing={2}
-                          justifyContent="flex-end"
-                        >
-                          <Button
-                            variant="outlined"
-                            color="primary"
-                            onClick={handleBack}
-                            disabled={paymentLoading}
-                          >
-                            Quay lại
-                          </Button>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={
-                              paymentLoading ? (
-                                <CircularProgress size={20} />
-                              ) : (
-                                <PaymentIcon />
-                              )
-                            }
-                            onClick={handlePayment}
-                            disabled={
-                              paymentLoading ||
-                              loading ||
-                              !agree ||
-                              !order ||
-                              !canPay
-                            }
-                          >
-                            {paymentLoading ? "Đang xử lý..." : "Thanh toán"}
-                          </Button>
-                        </Stack>
+                        <div className="flex justify-end gap-3 flex-wrap">
+                          <button onClick={handleBack} disabled={paymentLoading} className="px-5 py-2.5 rounded-lg border border-sky-200 bg-white text-sky-700 hover:bg-sky-50 text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">Quay lại</button>
+                          <button onClick={handlePayment} disabled={paymentLoading || !agree || !order || !canPay} className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-sky-600 to-cyan-600 text-white text-sm font-semibold shadow hover:from-sky-700 hover:to-cyan-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition">{paymentLoading && <span className="h-4 w-4 rounded-full border-2 border-white/70 border-t-transparent animate-spin" />}<span>{paymentLoading ? "Đang xử lý..." : "Thanh toán"}</span></button>
+                        </div>
                       );
                     })()}
-
-                    {/* Thông báo lỗi trạng thái */}
                     {(() => {
-                      const order =
-                        currentOrder || updatedOrderInfo || orderInfo;
-                      const allowedStatusesForPayment = [
-                        "PENDING",
-                        "CONTRACT_CONFIRMED",
-                      ];
-                      const canPay =
-                        order &&
-                        allowedStatusesForPayment.includes(order.status);
-
-                      if (order && !canPay) {
-                        return (
-                          <Typography color="error" mt={2}>
-                            Đơn hàng có trạng thái "{order.status}" không thể
-                            thanh toán. Chỉ có thể thanh toán với trạng thái:{" "}
-                            {allowedStatusesForPayment.join(", ")}
-                          </Typography>
-                        );
-                      }
+                      const order = currentOrder || updatedOrderInfo || orderInfo;
+                      const statuses = ["PENDING", "CONTRACT_CONFIRMED"];
+                      const canPay = order && statuses.includes(order.status);
+                      if (order && !canPay) return <p className="text-sm text-rose-600">Đơn hàng ở trạng thái "{order.status}" không thể thanh toán. Chỉ hỗ trợ: {statuses.join(", ")}</p>;
                       return null;
                     })()}
-                  </Stack>
+                  </div>
                 )}
-              </Paper>
-            </Box>
-          </Stack>
-        </Box>
-      </Box>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </PageTransition>
   );
 };
