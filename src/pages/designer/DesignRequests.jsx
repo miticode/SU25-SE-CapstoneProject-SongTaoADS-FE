@@ -57,7 +57,6 @@ import {
   selectDemoSubImages,
   updateDemoDesignImage,
   updateDemoDesignDescription,
-  deleteDemoSubImage,
 } from "../../store/features/demo/demoSlice";
 import { fetchImageFromS3 } from "../../store/features/s3/s3Slice";
 import { getPresignedUrl } from "../../api/s3Service";
@@ -75,6 +74,7 @@ const DesignRequests = () => {
   const dispatch = useDispatch();
   const { user } = useAuthSelector((state) => state.auth);
   const designerId = user?.id;
+  const [feedbackImageS3Url, setFeedbackImageS3Url] = useState(null); // ảnh phản hồi khách hàng
 
   // Helper function để format thông tin file
   const formatFileSize = (bytes) => {
@@ -143,6 +143,8 @@ const DesignRequests = () => {
   const [demoFormError, setDemoFormError] = useState("");
   const [updateDemoMode, setUpdateDemoMode] = useState(false);
   const [latestDemo, setLatestDemo] = useState(null);
+  const [demoHistory, setDemoHistory] = useState([]); // lịch sử toàn bộ demo
+  const [demoHistoryLoading, setDemoHistoryLoading] = useState(false);
   const [openFinalDesignDialog, setOpenFinalDesignDialog] = useState(false);
   const [finalDesignForm, setFinalDesignForm] = useState({
     finalDesignImage: null,
@@ -155,6 +157,30 @@ const DesignRequests = () => {
 
   // State để lưu S3 URL cho demo chính
   const [mainDemoS3Url, setMainDemoS3Url] = useState(null);
+  // State lưu URL ảnh từng phiên bản demo trong lịch sử
+  const [demoImageUrls, setDemoImageUrls] = useState({});
+  // Fetch feedback image URL khi có customerFeedbackImage (đặt sau khi khai báo latestDemo & mainDemoS3Url)
+  useEffect(() => {
+    const fetchFeedbackImage = async () => {
+      if (latestDemo && latestDemo.customerFeedbackImage) {
+        try {
+          if (latestDemo.customerFeedbackImage === latestDemo.demoImage && mainDemoS3Url) {
+            setFeedbackImageS3Url(mainDemoS3Url);
+            return;
+          }
+          const result = await dispatch(
+            fetchImageFromS3(latestDemo.customerFeedbackImage)
+          ).unwrap();
+          if (result?.url) setFeedbackImageS3Url(result.url);
+        } catch (e) {
+          console.error("Failed to fetch customer feedback image", e);
+        }
+      } else {
+        setFeedbackImageS3Url(null);
+      }
+    };
+    fetchFeedbackImage();
+  }, [latestDemo, dispatch, mainDemoS3Url]);
 
   // State để lưu S3 URLs cho final design sub-images
   const [finalDesignS3Urls, setFinalDesignS3Urls] = useState({});
@@ -355,7 +381,7 @@ const DesignRequests = () => {
           setRequests([]);
         });
     }
-  }, [designerId, dispatch, pagination.currentPage, pagination.pageSize]);
+  }, [designerId, dispatch, pagination.currentPage, pagination.pageSize, customerDetails]);
 
   // ===== CÁC FUNCTION REFRESH =====
 
@@ -406,11 +432,13 @@ const DesignRequests = () => {
   const refreshDemoData = async (requestId) => {
     if (requestId) {
       try {
+        setDemoHistoryLoading(true);
         const res = await dispatch(getDemoDesigns(requestId)).unwrap();
+        setDemoHistory(res || []);
         if (res && res.length > 0) {
-          const latestDemo = res[res.length - 1];
-          setLatestDemo(latestDemo);
-          await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
+          const latest = res[res.length - 1];
+          setLatestDemo(latest);
+          await dispatch(getDemoSubImages(latest.id)).unwrap();
           setS3ImageUrls({});
           setMainDemoS3Url(null);
         } else {
@@ -420,7 +448,10 @@ const DesignRequests = () => {
         }
       } catch (error) {
         console.error("Error refreshing demo data:", error);
+        setDemoHistory([]);
+        setLatestDemo(null);
       }
+      finally { setDemoHistoryLoading(false); }
     }
   };
 
@@ -438,15 +469,15 @@ const DesignRequests = () => {
   };
 
   // Refresh tất cả data (thông minh)
-  const refreshAllData = async () => {
-    if (selectedRequest) {
-      await refreshDesignRequestsData();
-      await refreshDemoData(selectedRequest.id);
-      await refreshFinalDesignData(selectedRequest.id);
-    } else {
-      await refreshDesignRequestsData();
-    }
-  };
+  // const refreshAllData = async () => {
+  //   if (selectedRequest) {
+  //     await refreshDesignRequestsData();
+  //     await refreshDemoData(selectedRequest.id);
+  //     await refreshFinalDesignData(selectedRequest.id);
+  //   } else {
+  //     await refreshDesignRequestsData();
+  //   }
+  // }; // currently unused
 
   // Function để reset về trang đầu tiên khi tìm kiếm
   const resetToFirstPage = () => {
@@ -514,6 +545,36 @@ const DesignRequests = () => {
     };
     fetchMainDemoS3Url();
   }, [latestDemo, dispatch, mainDemoS3Url]);
+
+  // Fetch S3 URL cho từng ảnh demo trong lịch sử (trừ cái mới nhất đã có ở mainDemoS3Url)
+  useEffect(() => {
+    const fetchHistoryImages = async () => {
+      if (!demoHistory || demoHistory.length === 0) return;
+      const newUrls = {};
+      for (const d of demoHistory) {
+        if (!d.demoImage) continue; // không có ảnh
+        // Dùng URL đã fetch của demo mới nhất nếu trùng
+        if (latestDemo && d.id === latestDemo.id) {
+          if (mainDemoS3Url) newUrls[d.id] = mainDemoS3Url;
+          continue;
+        }
+        if (!demoImageUrls[d.id]) {
+          try {
+            const r = await dispatch(fetchImageFromS3(d.demoImage)).unwrap();
+            if (r?.url) newUrls[d.id] = r.url;
+          } catch (e) {
+            console.error('Error fetching history demo image', d.demoImage, e);
+          }
+        }
+      }
+      if (Object.keys(newUrls).length > 0) {
+        setDemoImageUrls(prev => ({ ...prev, ...newUrls }));
+      }
+    };
+    fetchHistoryImages();
+    // Không đưa demoImageUrls vào dependencies để tránh lặp vô hạn (chỉ cập nhật khi history/latest/main thay đổi)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoHistory, latestDemo, mainDemoS3Url, dispatch]);
 
   // Fetch S3 URLs cho final design sub images
   useEffect(() => {
@@ -846,7 +907,7 @@ const DesignRequests = () => {
   };
 
   // Function tìm kiếm với debounce
-  const handleSearch = async (keyword) => {
+  const handleSearch = React.useCallback(async (keyword) => {
     if (!designerId) return;
 
     setSearchLoading(true);
@@ -934,7 +995,7 @@ const DesignRequests = () => {
     } finally {
       setSearchLoading(false);
     }
-  };
+  }, [designerId, dispatch, pagination.pageSize, customerDetails]);
 
   // Function xóa tìm kiếm và quay về danh sách gốc
   const handleClearSearch = async () => {
@@ -1029,7 +1090,7 @@ const DesignRequests = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchKeyword, designerId]); // Thêm designerId vào dependencies
+  }, [searchKeyword, designerId, handleSearch]); // Thêm designerId & handleSearch vào dependencies
 
   // Cập nhật useEffect để xử lý pagination cho cả tìm kiếm và danh sách gốc
   useEffect(() => {
@@ -2502,6 +2563,105 @@ const DesignRequests = () => {
 
                     {/* Demo Status */}
                     <Box mt={2.5} pt={2} borderTop="1px solid #e2e8f0">
+                      {/* Lịch sử demo */}
+                      <Box mb={3}>
+                        <Typography
+                          variant="body2"
+                          color="#64748b"
+                          fontWeight={600}
+                          mb={1}
+                          sx={{ fontSize: '0.9rem', textTransform:'uppercase' }}
+                        >
+                          Lịch sử demo ({demoHistory.length})
+                        </Typography>
+                        {demoHistoryLoading ? (
+                          <Box sx={{ display:'flex', alignItems:'center', gap:1, p:1 }}>
+                            <CircularProgress size={16} />
+                            <Typography variant="caption" color="text.secondary">Đang tải lịch sử demo...</Typography>
+                          </Box>
+                        ) : demoHistory.length === 0 ? (
+                          <Typography variant="caption" color="text.secondary">Chưa có demo nào.</Typography>
+                        ) : (
+                          <Box sx={{
+                            maxHeight: 240,
+                            overflowY: 'auto',
+                            border: '1px solid #e2e8f0',
+                            borderRadius:2,
+                            p:1,
+                            background:'#fff'
+                          }}>
+                            {demoHistory.map(d => {
+                              const isLatest = latestDemo && d.id === latestDemo.id;
+                              const thumbnailUrl = demoImageUrls[d.id] || (isLatest ? mainDemoS3Url : null);
+                              return (
+                                <Box key={d.id} sx={{
+                                  display:'flex',
+                                  alignItems:'flex-start',
+                                  gap:1.5,
+                                  p:1,
+                                  mb:0.5,
+                                  border:'1px solid #f1f5f9',
+                                  borderRadius:1.5,
+                                  background:isLatest ? 'linear-gradient(90deg,#eef2ff,#fff)' : '#f8fafc',
+                                }}>
+                                  <Box sx={{ minWidth:54 }}>
+                                    <Typography variant="caption" fontWeight={600} color="#334155">Ver {d.version}</Typography>
+                                    <Chip size="small" label={d.status === 'APPROVED' ? 'APPROVED' : d.status === 'REJECTED' ? 'REJECTED' : d.status}
+                                      sx={{
+                                        mt:0.5,
+                                        height:20,
+                                        fontSize:'0.6rem',
+                                        fontWeight:600,
+                                        bgcolor: d.status==='APPROVED'? '#dcfce7': d.status==='REJECTED'? '#fee2e2':'#fef9c3',
+                                        color: d.status==='APPROVED'? '#15803d': d.status==='REJECTED'? '#b91c1c':'#92400e'
+                                      }} />
+                                  </Box>
+                                  <Box sx={{ flex:1 }}>
+                                    <Typography variant="caption" color="#475569" sx={{ display:'block', fontWeight:500 }}>{d.designerDescription || 'Không mô tả'}</Typography>
+                                    {d.customerNote && (
+                                      <Typography variant="caption" color="#64748b" sx={{ display:'block', mt:0.25 }}>Khách: {d.customerNote}</Typography>
+                                    )}
+                                    <Typography variant="caption" color="#94a3b8" sx={{ display:'block', mt:0.5 }}>
+                                      {new Date(d.updatedAt || d.createdAt).toLocaleString('vi-VN')}
+                                      {isLatest && ' • Mới nhất'}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ width:50, flexShrink:0, cursor: d.demoImage ? 'pointer':'default', position:'relative' }}
+                                    onClick={async ()=>{
+                                      if(!d.demoImage) return;
+                                      // Nếu đã có URL thì mở luôn, chưa có thì fetch
+                                      if (thumbnailUrl) {
+                                        handleOpenImageViewer(thumbnailUrl, `Demo v${d.version}`);
+                                      } else {
+                                        try {
+                                          const r = await dispatch(fetchImageFromS3(d.demoImage)).unwrap();
+                                          if(r?.url) {
+                                            setDemoImageUrls(prev => ({ ...prev, [d.id]: r.url }));
+                                            handleOpenImageViewer(r.url, `Demo v${d.version}`);
+                                          }
+                                        } catch(e){ console.error('Open demo image failed', e);} 
+                                      }
+                                    }}>
+                                    {d.demoImage ? (
+                                      thumbnailUrl ? (
+                                        <Box component='img' src={thumbnailUrl}
+                                          alt={'demo'} sx={{ width:50, height:50, objectFit:'cover', borderRadius:1, border:'1px solid #e2e8f0', background:'#fff' }}
+                                          onError={e=>{e.target.style.display='none';}}/>
+                                      ) : (
+                                        <Box sx={{ width:50, height:50, display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #e2e8f0', borderRadius:1, background:'#fff' }}>
+                                          <CircularProgress size={14} />
+                                        </Box>
+                                      )
+                                    ) : (
+                                      <Box sx={{ width:50, height:50, border:'1px dashed #e2e8f0', borderRadius:1, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'#94a3b8' }}>No img</Box>
+                                    ) }
+                                  </Box>
+                                </Box>
+                              );
+                            })}
+                          </Box>
+                        )}
+                      </Box>
                       <Typography
                         variant="body2"
                         color="#64748b"
@@ -2537,6 +2697,75 @@ const DesignRequests = () => {
                           fontWeight: 600,
                         }}
                       />
+                      {latestDemo.status === "REJECTED" && ( 
+                        <Box
+                          mt={2}
+                          sx={{
+                            p: 2,
+                            border: "1px solid #fecaca",
+                            bgcolor: "#fef2f2",
+                            borderRadius: 2,
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            color="#dc2626"
+                            fontWeight={600}
+                            sx={{ display: 'flex', alignItems: 'center', mb: latestDemo.customerNote ? 1 : 0 }}
+                          >
+                            ❌ Lý do khách hàng từ chối
+                          </Typography>
+                          {latestDemo.customerNote && (
+                            <Typography variant="body2" color="#7f1d1d" sx={{ whiteSpace: 'pre-line' }}>
+                              {latestDemo.customerNote}
+                            </Typography>
+                          )}
+                          {latestDemo.customerFeedbackImage && (
+                            <Box mt={2}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display:'block', mb:0.5 }}>
+                                Ảnh phản hồi của khách hàng:
+                              </Typography>
+                              {feedbackImageS3Url ? (
+                                <Box
+                                  component="img"
+                                  src={feedbackImageS3Url}
+                                  alt="Ảnh phản hồi khách hàng"
+                                  sx={{
+                                    width: '100%',
+                                    maxWidth: 300,
+                                    maxHeight: 240,
+                                    objectFit: 'cover',
+                                    borderRadius: 2,
+                                    border: '1px solid #e2e8f0',
+                                    cursor: 'pointer',
+                                    transition: 'all .25s',
+                                    '&:hover': { transform: 'scale(1.02)', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }
+                                  }}
+                                  onClick={() => handleOpenImageViewer(feedbackImageS3Url,'Ảnh phản hồi khách hàng')}
+                                  onError={(e)=>{ e.target.style.display='none'; }}
+                                />
+                              ) : (
+                                <Box
+                                  sx={{
+                                    height:120,
+                                    display:'flex',
+                                    alignItems:'center',
+                                    justifyContent:'center',
+                                    border:'1px dashed #e2e8f0',
+                                    borderRadius:2,
+                                    background:'#fff'
+                                  }}
+                                >
+                                  <CircularProgress size={18} />
+                                  <Typography variant="caption" color="text.secondary" sx={{ ml:1 }}>
+                                    Đang tải ảnh phản hồi...
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
+                      )}
                     </Box>
                   </CardContent>
                 </Card>
