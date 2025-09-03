@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const Carousel = ({ items, autoSlideInterval = 5000 }) => {
   const [current, setCurrent] = useState(0);
+  const navigate = useNavigate();
   
   // Auto slide carousel
   useEffect(() => {
@@ -54,7 +56,10 @@ const Carousel = ({ items, autoSlideInterval = 5000 }) => {
                       {item.description}
                     </p>
                     <div className="mt-6">
-                      <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                      <button 
+                        onClick={() => navigate('/service')}
+                        className="cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                      >
                         Khám phá ngay →
                       </button>
                     </div>
@@ -73,13 +78,13 @@ const Carousel = ({ items, autoSlideInterval = 5000 }) => {
       {/* Navigation arrows */}
       <button 
         onClick={prevSlide}
-        className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md z-10 transition-all duration-300 hover:scale-110 group border border-white/20 opacity-0 group-hover:opacity-100"
+        className="cursor-pointer absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md z-10 transition-all duration-300 hover:scale-110 group border border-white/20 opacity-0 group-hover:opacity-100"
       >
         <FaChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform duration-300" />
       </button>
       <button 
         onClick={nextSlide}
-        className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md z-10 transition-all duration-300 hover:scale-110 group border border-white/20 opacity-0 group-hover:opacity-100"
+        className="cursor-pointer absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md z-10 transition-all duration-300 hover:scale-110 group border border-white/20 opacity-0 group-hover:opacity-100"
       >
         <FaChevronRight size={24} className="group-hover:translate-x-1 transition-transform duration-300" />
       </button>
@@ -90,7 +95,7 @@ const Carousel = ({ items, autoSlideInterval = 5000 }) => {
           <button 
             key={index}
             onClick={() => goToSlide(index)}
-            className={`transition-all duration-300 rounded-full border-2 ${
+            className={`cursor-pointer transition-all duration-300 rounded-full border-2 ${
               index === current 
                 ? 'bg-gradient-to-r from-[#2B2F4A] to-[#3B4164] w-12 h-4 border-[#2B2F4A] shadow-lg' 
                 : 'bg-gray-300 hover:bg-gray-400 w-4 h-4 border-gray-300 hover:scale-110'

@@ -355,91 +355,96 @@ const SalesDashboard = () => {
           open={Boolean(datePickerAnchor)}
           anchorEl={datePickerAnchor}
           onClose={() => setDatePickerAnchor(null)}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{
+            paper: {
+              className: '!rounded-2xl !shadow-2xl !border !border-gray-200 !bg-white/90 backdrop-blur-sm max-w-[95vw] w-full sm:!w-[480px] !overflow-visible'
+            }
           }}
         >
           <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-            <Box className="p-4 min-w-80">
-              <Typography variant="h6" className="!font-bold !mb-4">
-                Chọn khoảng thời gian
-              </Typography>
-              
-              {/* Quick select buttons */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => handleQuickDateSelect(7)}
-                  className="!rounded-lg"
-                >
-                  7 ngày qua
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => handleQuickDateSelect(30)}
-                  className="!rounded-lg"
-                >
-                  30 ngày qua
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => handleQuickDateSelect(90)}
-                  className="!rounded-lg"
-                >
-                  3 tháng qua
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => handleQuickDateSelect(365)}
-                  className="!rounded-lg"
-                >
-                  1 năm qua
-                </Button>
-              </div>
-              
-              <Divider className="!my-4" />
-              
-              {/* Date pickers */}
-              <div className="space-y-4">
-                <DatePicker
-                  label="Từ ngày"
-                  value={startDate}
-                  onChange={(newValue) => setStartDate(newValue)}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-                <DatePicker
-                  label="Đến ngày"
-                  value={endDate}
-                  onChange={(newValue) => setEndDate(newValue)}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </div>
-              
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="contained"
-                  onClick={handleDateChange}
-                  className="!rounded-lg !flex-1"
-                  disabled={saleOrdersStatsStatus === 'loading'}
-                >
-                  {saleOrdersStatsStatus === 'loading' ? 'Đang tải...' : 'Áp dụng'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setDatePickerAnchor(null)}
-                  className="!rounded-lg !flex-1"
-                >
-                  Đóng
-                </Button>
+            <Box className="relative p-4 sm:p-6">
+              {/* Decorative gradient ring */}
+              <div className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-blue-200/40 via-indigo-200/30 to-purple-200/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <Typography variant="h6" className="!font-extrabold !bg-clip-text !text-transparent !bg-gradient-to-r !from-blue-600 !to-indigo-600 !mb-1 !text-base sm:!text-lg">
+                      Chọn khoảng thời gian
+                    </Typography>
+                    <p className="text-[11px] sm:text-xs text-gray-500 font-medium tracking-wide uppercase">Lọc dữ liệu theo khoảng ngày</p>
+                  </div>
+                  <button
+                    onClick={() => setDatePickerAnchor(null)}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                    aria-label="Đóng"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Quick ranges */}
+                <div className="mb-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: '7 ngày', value: 7 },
+                      { label: '30 ngày', value: 30 },
+                      { label: '3 tháng', value: 90 },
+                      { label: '1 năm', value: 365 }
+                    ].map(r => (
+                      <button
+                        key={r.value}
+                        onClick={() => handleQuickDateSelect(r.value)}
+                        className="group/btn relative overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:border-indigo-300 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-blue-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 transition-all"
+                      >
+                        <span className="relative z-10">{r.label} qua</span>
+                        <span className="absolute inset-0 opacity-0 group-hover/btn:opacity-100 bg-gradient-to-br from-indigo-100/60 via-blue-100/40 to-purple-100/60 transition-opacity" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative flex flex-col sm:flex-row sm:items-stretch gap-4 sm:gap-5">
+                  <div className="flex-1 space-y-4">
+                    <div className="p-3 rounded-xl border border-gray-200 bg-white/70 hover:border-indigo-300 transition-colors">
+                      <DatePicker
+                        label="Từ ngày"
+                        value={startDate}
+                        onChange={(newValue) => setStartDate(newValue)}
+                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                      />
+                    </div>
+                    <div className="p-3 rounded-xl border border-gray-200 bg-white/70 hover:border-indigo-300 transition-colors">
+                      <DatePicker
+                        label="Đến ngày"
+                        value={endDate}
+                        onChange={(newValue) => setEndDate(newValue)}
+                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                  <Button
+                    variant="contained"
+                    onClick={handleDateChange}
+                    className="!rounded-xl !flex-1 !bg-gradient-to-r !from-blue-600 !to-indigo-600 hover:!from-blue-700 hover:!to-indigo-700 !font-semibold !shadow-md hover:!shadow-lg !text-white !py-2.5"
+                    disabled={saleOrdersStatsStatus === 'loading'}
+                  >
+                    {saleOrdersStatsStatus === 'loading' ? 'Đang tải...' : 'Áp dụng bộ lọc'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setDatePickerAnchor(null)}
+                    className="!rounded-xl !flex-1 !font-semibold !border-gray-300 hover:!border-gray-400 hover:!bg-gray-50 !py-2.5"
+                  >
+                    Đóng
+                  </Button>
+                </div>
               </div>
             </Box>
           </LocalizationProvider>

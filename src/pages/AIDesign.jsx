@@ -2096,6 +2096,33 @@ const AIDesign = () => {
   const attributeError = useSelector(selectAttributeError);
   const customerDetail = useSelector(selectCustomerDetail);
 
+  // ===================== PERSIST / RESTORE currentOrder (customerChoice) ID - Case 4 =====================
+  // Sau reload Redux store mất -> currentOrder?.id undefined gây lỗi "Không tìm thấy thông tin khách hàng" khi xác nhận kích thước.
+  // Giải pháp tối thiểu: lưu ID vào localStorage khi có và khôi phục lại bằng cách fetch.
+  const restoreAttemptedRef = useRef(false);
+
+  // Lưu lại id mỗi khi có currentOrder mới
+  useEffect(() => {
+    if (currentOrder?.id) {
+      localStorage.setItem("currentCustomerChoiceId", currentOrder.id);
+    }
+  }, [currentOrder?.id]);
+
+  // Khôi phục sau reload nếu chưa có currentOrder trong store
+  useEffect(() => {
+    if (!currentOrder?.id && !restoreAttemptedRef.current) {
+      const savedId = localStorage.getItem("currentCustomerChoiceId");
+      if (savedId) {
+        restoreAttemptedRef.current = true;
+        // Fetch tối thiểu cần thiết để trả lại ngữ cảnh trước khi user nhập size
+        dispatch(fetchCustomerChoice(savedId));
+        dispatch(fetchCustomerChoiceSizes(savedId));
+        dispatch(fetchCustomerChoiceDetails(savedId));
+      }
+    }
+  }, [currentOrder?.id, dispatch]);
+  // ================================================================================================
+
   // Get all design templates data
   const allDesignTemplates = useSelector(selectAllDesignTemplates);
   const suggestedTemplates = useSelector(selectSuggestedTemplates);
@@ -2116,16 +2143,16 @@ const AIDesign = () => {
   const designTemplates = isAiGenerated
     ? suggestedTemplates
     : allDesignTemplates;
-  const designTemplateStatus = isAiGenerated
+  const _designTemplateStatus = isAiGenerated
     ? suggestionsStatus
-    : allDesignTemplateStatus;
-  const designTemplateError = isAiGenerated
+    : allDesignTemplateStatus; // unused in this scope
+  const _designTemplateError = isAiGenerated
     ? suggestionsError
-    : allDesignTemplateError;
+    : allDesignTemplateError; // unused in this scope
 
   const [customerNote, setCustomerNote] = useState("");
-  const aiStatus = useSelector(selectAIStatus);
-  const aiError = useSelector(selectAIError);
+  const _aiStatus = useSelector(selectAIStatus); // unused
+  const _aiError = useSelector(selectAIError); // unused
   const currentAIDesign = useSelector(selectCurrentAIDesign);
   const generatedImage = useSelector(selectGeneratedImage);
   const imageGenerationStatus = useSelector(selectImageGenerationStatus);
@@ -2140,33 +2167,40 @@ const AIDesign = () => {
   const [isExporting, setIsExporting] = useState(false);
 
   // State để track progress history để hiển thị chi tiết
-  const [progressHistory, setProgressHistory] = useState([]);
-  const [progressDelta, setProgressDelta] = useState(0);
+  // eslint-disable-next-line no-unused-vars
+  const [progressHistory, setProgressHistory] = useState([]); // used later in progress tracking
+  // eslint-disable-next-line no-unused-vars
+  const [progressDelta, setProgressDelta] = useState(0); // used later in progress tracking
   const [lastProgressUpdate, setLastProgressUpdate] = useState(null);
-  const [isOrdering, setIsOrdering] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [isOrdering, setIsOrdering] = useState(false); // used later in order confirmation UI
 
   // State để theo dõi việc đã xuất thiết kế trong phiên hiện tại
   const [hasExportedInCurrentSession, setHasExportedInCurrentSession] =
     useState(false);
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [uploadImagePreview, setUploadImagePreview] = useState("");
+  // eslint-disable-next-line no-unused-vars
+  const [uploadedImage, setUploadedImage] = useState(null); // used in image upload
+  // eslint-disable-next-line no-unused-vars
+  const [uploadImagePreview, setUploadImagePreview] = useState(""); // used in image upload
   const [processedLogoUrl, setProcessedLogoUrl] = useState("");
   const hasFetchedDataRef = useRef(false);
   const hasRestoredDataRef = useRef(false);
-  const [currentSubStep, setCurrentSubStep] = useState("template"); // 'template' hoặc 'background'
+  // eslint-disable-next-line no-unused-vars
+  const [currentSubStep, setCurrentSubStep] = useState("template"); // used in UI flow
   const backgroundSuggestions = useSelector(selectAllBackgroundSuggestions);
-  const backgroundStatus = useSelector(selectBackgroundStatus);
-  const backgroundError = useSelector(selectBackgroundError);
-  const selectedBackground = useSelector(selectSelectedBackground);
+  const _backgroundStatus = useSelector(selectBackgroundStatus); // unused
+  const _backgroundError = useSelector(selectBackgroundError); // unused
+  const _selectedBackground = useSelector(selectSelectedBackground); // unused
   const [selectedBackgroundId, setSelectedBackgroundId] = useState(null);
   const [backgroundPresignedUrls, setBackgroundPresignedUrls] = useState({});
   const [loadingBackgroundUrls, setLoadingBackgroundUrls] = useState({});
-  const [imageLoadError, setImageLoadError] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [imageLoadError, setImageLoadError] = useState(null); // used when loading images
   const [selectedBackgroundForCanvas, setSelectedBackgroundForCanvas] =
     useState(null);
   const editedDesign = useSelector(selectEditedDesign);
-  const editedDesignStatus = useSelector(selectEditedDesignStatus);
-  const editedDesignError = useSelector(selectEditedDesignError);
+  const _editedDesignStatus = useSelector(selectEditedDesignStatus); // unused
+  const _editedDesignError = useSelector(selectEditedDesignError); // unused
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [iconPage, setIconPage] = useState(1);
   const icons = useSelector(selectAllIcons);
@@ -2181,7 +2215,7 @@ const AIDesign = () => {
     {}
   ); // Loading states
   const [backgroundRetryAttempts, setBackgroundRetryAttempts] = useState({});
-  const [backgroundFetchTimeouts, setBackgroundFetchTimeouts] = useState({});
+  const [_backgroundFetchTimeouts, _setBackgroundFetchTimeouts] = useState({}); // unused
   const [businessInfo, setBusinessInfo] = useState({
     companyName: "",
     address: "",
@@ -2200,7 +2234,7 @@ const AIDesign = () => {
   const [fontSizePixelValue, setFontSizePixelValue] = useState(256); // Giá trị mặc định
 
   const customerChoiceDetails = useSelector(selectCustomerChoiceDetails);
-  const totalAmount = useSelector(selectTotalAmount);
+  const _totalAmount = useSelector(selectTotalAmount); // unused here
   const pixelValueData = useSelector(selectPixelValue);
   const pixelValueStatus = useSelector(selectPixelValueStatus);
   const canvasRef = useRef(null);
@@ -2434,7 +2468,7 @@ const AIDesign = () => {
     fetchDesignTemplateImage,
   ]);
 
-  const handleIconLoadError = async (icon, retryCount = 0) => {
+  const _handleIconLoadError = async (icon, retryCount = 0) => {
     if (retryCount >= 2) {
       console.log(`Max retries reached for icon ${icon.id}`);
       return null;

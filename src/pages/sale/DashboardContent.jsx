@@ -608,6 +608,12 @@ const ContractorListDialog = memo(({ open, onClose, contractors, order, generate
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Danh sách nhà thầu khả dụng (isAvailable = true)
+  const availableContractors = useMemo(
+    () => (contractors || []).filter(c => c?.isAvailable),
+    [contractors]
+  );
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (open) {
@@ -658,10 +664,10 @@ const ContractorListDialog = memo(({ open, onClose, contractors, order, generate
         </DialogTitle>
         <DialogContent>
           <Box sx={{ py: 2 }}>
-            {contractors && contractors.length > 0 ? (
+    {availableContractors && availableContractors.length > 0 ? (
               <>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Chọn nhà thầu và báo ngày giao dự kiến cho đơn hàng {order ? generateOrderCode(order, 0) : '#N/A'} ({contractors.length} nhà thầu có sẵn)
+      Chọn nhà thầu và báo ngày giao dự kiến cho đơn hàng {order ? generateOrderCode(order, 0) : '#N/A'} ({availableContractors.length} nhà thầu khả dụng)
                 </Typography>
                 
                 {/* Date Picker */}
@@ -693,7 +699,7 @@ const ContractorListDialog = memo(({ open, onClose, contractors, order, generate
                   onChange={(e) => setSelectedContractorId(e.target.value)}
                 >
                   <Grid container spacing={2} sx={{ mt: 1 }}>
-                    {contractors.map((contractor) => (
+                    {availableContractors.map((contractor) => (
                       <Grid item xs={12} md={6} key={contractor.id}>
                         <Card
                           elevation={selectedContractorId === contractor.id ? 4 : 2}
@@ -804,14 +810,14 @@ const ContractorListDialog = memo(({ open, onClose, contractors, order, generate
                   </Grid>
                 </RadioGroup>
               </>
-            ) : (
+    ) : (
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <ShippingIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Chưa có nhà thầu nào để báo ngày giao
+      Chưa có nhà thầu khả dụng để báo ngày giao
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Hiện tại chưa có nhà thầu nào có sẵn để báo ngày giao dự kiến cho đơn hàng này
+      Tất cả nhà thầu hiện không khả dụng. Vui lòng thử lại sau hoặc liên hệ quản trị để cập nhật tình trạng.
                 </Typography>
               </Box>
             )}
@@ -838,7 +844,7 @@ const ContractorListDialog = memo(({ open, onClose, contractors, order, generate
 ContractorListDialog.displayName = "ContractorListDialog";
 
 // Component OrderDetailDialog
-const OrderDetailDialog = memo(({ open, onClose, order, orderDetails, generateOrderCode }) => {
+const OrderDetailDialog = memo(({ open, onClose, order, orderDetails, generateOrderCode, loading = false }) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>
@@ -1048,7 +1054,15 @@ const OrderDetailDialog = memo(({ open, onClose, order, orderDetails, generateOr
             </Box>
           )}
 
-          {Array.isArray(orderDetails) && orderDetails.length > 0 ? (
+          {loading && (!orderDetails || orderDetails.length === 0) && (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <CircularProgress />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Đang tải chi tiết đơn hàng...
+              </Typography>
+            </Box>
+          )}
+          {!loading && Array.isArray(orderDetails) && orderDetails.length > 0 ? (
             <>
               <Typography
                 variant="h6"
@@ -1456,7 +1470,7 @@ const OrderDetailDialog = memo(({ open, onClose, order, orderDetails, generateOr
                 ))}
               </Grid>
             </>
-          ) : (
+          ) : !loading ? (
             <Box sx={{ textAlign: "center", py: 4 }}>
               <DescriptionIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -1466,7 +1480,7 @@ const OrderDetailDialog = memo(({ open, onClose, order, orderDetails, generateOr
                 Thông tin chi tiết đơn hàng sẽ được hiển thị ở đây
               </Typography>
             </Box>
-          )}
+          ) : null}
         </Box>
       </DialogContent>
       <DialogActions>
@@ -2132,6 +2146,7 @@ const DashboardContent = ({
   
   // State lưu orderDetails cho từng đơn hàng
   const [orderDetailsMap, setOrderDetailsMap] = useState({});
+  const [orderDetailsLoading, setOrderDetailsLoading] = useState(false); // loading cho dialog chi tiết
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -2230,15 +2245,21 @@ const DashboardContent = ({
           console.log(`Fetching details for order ${order.id}`);
           const res = await getOrderDetailsApi(order.id);
           console.log(`Order ${order.id} details response:`, res);
-          // Sử dụng res.data thay vì res.result vì API trả về data
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            console.log(`Order ${order.id} has ${res.data.length} details`);
-            return { orderId: order.id, details: res.data };
+          if (res.success) {
+            // API wrapper trả về data là object { details: [...], ... }
+            const detailsArray = Array.isArray(res.data)
+              ? res.data
+              : Array.isArray(res.data?.details)
+                ? res.data.details
+                : [];
+            if (detailsArray.length > 0) {
+              console.log(`Order ${order.id} has ${detailsArray.length} details`);
+              return { orderId: order.id, details: detailsArray };
+            } else {
+              console.log(`Order ${order.id} - Empty details array`);
+            }
           } else {
-            console.log(
-              `Order ${order.id} - No details or invalid format:`,
-              res
-            );
+            console.log(`Order ${order.id} - Response not success`, res);
           }
         }
         return null;
@@ -2522,38 +2543,49 @@ const DashboardContent = ({
 
   // Handler wrapper cho xem chi tiết - lấy contractors nếu cần
   const handleViewDetail = useCallback(async (orderId) => {
-    // Tìm order để kiểm tra trạng thái
     const order = orders.find(o => o.id === orderId);
-    
-    // Nếu đơn hàng ở trạng thái DEPOSITED, lấy danh sách contractors và mở dialog
-    if (order && order.status === 'DEPOSITED') {
+    if (!order) return;
+
+    // Trường hợp DEPOSITED: mở dialog chọn nhà thầu
+    if (order.status === 'DEPOSITED') {
       try {
         await dispatch(fetchAllContractors()).unwrap();
-        console.log('Đã lấy danh sách contractors cho đơn hàng DEPOSITED');
-        
-        // Mở dialog hiển thị danh sách nhà thầu
-        setContractorDialog({
-          open: true,
-          order: order,
-        });
-        
-        return; // Không gọi onViewDetail gốc cho trạng thái DEPOSITED
+        setContractorDialog({ open: true, order });
       } catch (error) {
         console.error('Lỗi khi lấy danh sách contractors:', error);
-        setSnackbar({
-          open: true,
-          message: "Có lỗi khi tải danh sách nhà thầu",
-          severity: "warning",
-        });
+        setSnackbar({ open: true, message: "Có lỗi khi tải danh sách nhà thầu", severity: "warning" });
       }
-    } else {
-      // Cho các trạng thái khác, mở dialog chi tiết đơn hàng
-      const orderDetails = orderDetailsMap[orderId];
-      setOrderDetailDialog({
-        open: true,
-        order: order,
-        orderDetails: orderDetails || [],
-      });
+      return;
+    }
+
+    // Các trạng thái khác: nếu chưa có chi tiết thì fetch on-demand
+    const cached = orderDetailsMap[orderId];
+    if (cached && cached.length > 0) {
+      setOrderDetailDialog({ open: true, order, orderDetails: cached });
+      return;
+    }
+
+    // Chưa có: mở dialog với loading
+    setOrderDetailDialog({ open: true, order, orderDetails: [] });
+    setOrderDetailsLoading(true);
+    try {
+      const res = await getOrderDetailsApi(orderId);
+      if (res.success) {
+        const detailsArray = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.details)
+            ? res.data.details
+            : [];
+        setOrderDetailsMap(prev => ({ ...prev, [orderId]: detailsArray }));
+        setOrderDetailDialog(prev => ({ ...prev, orderDetails: detailsArray }));
+      } else {
+        setSnackbar({ open: true, message: res.error || 'Không tải được chi tiết đơn hàng', severity: 'error' });
+      }
+    } catch (e) {
+      console.error('Fetch order details on-demand error:', e);
+      setSnackbar({ open: true, message: 'Lỗi khi tải chi tiết đơn hàng', severity: 'error' });
+    } finally {
+      setOrderDetailsLoading(false);
     }
   }, [dispatch, orders, orderDetailsMap]);
 
@@ -3373,6 +3405,7 @@ const DashboardContent = ({
         order={orderDetailDialog.order}
         orderDetails={orderDetailDialog.orderDetails}
         generateOrderCode={generateOrderCode}
+        loading={orderDetailsLoading}
       />
 
       {/* Cash Construction Deposit Confirmation Dialog */}

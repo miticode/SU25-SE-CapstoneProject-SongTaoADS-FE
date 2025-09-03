@@ -5,7 +5,6 @@ import {
   fetchAttributesByProductTypeId,
   selectAllAttributes,
   selectAttributeStatus,
-  resetAttributeStatus,
 } from "../../store/features/attribute/attributeSlice";
 import {
   Box,
@@ -79,8 +78,9 @@ const AttributeValueManager = () => {
   const [selectedProductTypeId, setSelectedProductTypeId] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const { attributeValues, isLoading, isSuccess, isError, message } =
-    useSelector((state) => state.attributeValue);
+  const { attributeValues, isLoading } = useSelector(
+    (state) => state.attributeValue
+  );
   const [selectedId, setSelectedId] = useState(null);
   const [toggleDialog, setToggleDialog] = useState({
     open: false,
@@ -91,7 +91,6 @@ const AttributeValueManager = () => {
     message: "",
     severity: "success",
   });
-  const [selectedAttributeValues, setSelectedAttributeValues] = useState([]);
   const [viewValuesDialog, setViewValuesDialog] = useState(false);
   const [selectedAttributeId, setSelectedAttributeId] = useState(null);
   const [selectedAttributeName, setSelectedAttributeName] = useState("");
@@ -117,9 +116,6 @@ const AttributeValueManager = () => {
   // Fetch attributes when product type changes
   useEffect(() => {
     if (selectedProductTypeId) {
-      // Reset attribute values when changing product type
-      setSelectedAttributeValues([]);
-
       // Fetch attributes by product type ID
       dispatch(fetchAttributesByProductTypeId(selectedProductTypeId))
         .unwrap()
@@ -131,7 +127,7 @@ const AttributeValueManager = () => {
           console.error("Error fetching attributes:", error);
         });
     } else {
-      setSelectedAttributeValues([]);
+      // No product type selected
     }
   }, [dispatch, selectedProductTypeId]);
 
@@ -808,7 +804,7 @@ const AttributeValueManager = () => {
                         setForm({ ...form, isAvailable: !form.isAvailable })
                       }
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                        form.isAvailable ? "bg-green-500" : "bg-gray-300"
+                        form.isAvailable ? "bg-yellow-500" : "bg-red-500"
                       }`}
                     >
                       <span
@@ -819,7 +815,7 @@ const AttributeValueManager = () => {
                     </button>
                     <span
                       className={`text-sm font-medium ${
-                        form.isAvailable ? "text-green-600" : "text-gray-500"
+                        form.isAvailable ? "text-yellow-600" : "text-red-600"
                       }`}
                     >
                       {form.isAvailable ? "Khả dụng" : "Không khả dụng"}
@@ -1049,7 +1045,7 @@ const AttributeValueManager = () => {
                           <Chip
                             label="Khả dụng"
                             size="small"
-                            color="success"
+                            color="warning"
                             variant="outlined"
                           />
                         ) : (
@@ -1084,9 +1080,23 @@ const AttributeValueManager = () => {
                                 <ToggleOnIcon />
                               )
                             }
-                            color={value.isAvailable ? "error" : "success"}
                             onClick={() => handleToggleStatus(value)}
-                            sx={{ borderRadius: 2, textTransform: "none" }}
+                            sx={{
+                              borderRadius: 2,
+                              textTransform: "none",
+                              color: value.isAvailable ? "#EAB308" : "#EF4444",
+                              borderColor: value.isAvailable
+                                ? "rgba(234,179,8,0.5)"
+                                : "rgba(239,68,68,0.5)",
+                              "&:hover": {
+                                backgroundColor: value.isAvailable
+                                  ? "rgba(234,179,8,0.08)"
+                                  : "rgba(239,68,68,0.08)",
+                                borderColor: value.isAvailable
+                                  ? "#EAB308"
+                                  : "#EF4444",
+                              },
+                            }}
                           >
                             {value.isAvailable ? "Ẩn" : "Hiển thị"}
                           </Button>
@@ -1129,7 +1139,7 @@ const AttributeValueManager = () => {
           className={`text-white ${
             toggleDialog.attributeValue?.isAvailable
               ? "bg-gradient-to-r from-red-500 to-pink-500"
-              : "bg-gradient-to-r from-green-500 to-emerald-500"
+              : "bg-yellow-500"
           }`}
         >
           <div className="flex items-center space-x-3">
@@ -1150,7 +1160,7 @@ const AttributeValueManager = () => {
                 className={`text-sm ${
                   toggleDialog.attributeValue?.isAvailable
                     ? "text-red-100"
-                    : "text-green-100"
+                    : "text-yellow-100"
                 }`}
               >
                 Thay đổi trạng thái hiển thị
@@ -1166,7 +1176,7 @@ const AttributeValueManager = () => {
                 className={`w-16 h-16 rounded-full flex items-center justify-center ${
                   toggleDialog.attributeValue.isAvailable
                     ? "bg-red-100"
-                    : "bg-green-100"
+                    : "bg-yellow-100"
                 }`}
               >
                 {toggleDialog.attributeValue.isAvailable ? (
@@ -1176,7 +1186,7 @@ const AttributeValueManager = () => {
                   />
                 ) : (
                   <ToggleOnIcon
-                    className="text-green-500"
+                    className="text-yellow-500"
                     sx={{ fontSize: 32 }}
                   />
                 )}
@@ -1193,7 +1203,7 @@ const AttributeValueManager = () => {
                   className={`text-sm p-3 rounded-lg ${
                     toggleDialog.attributeValue.isAvailable
                       ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
-                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                      : "text-yellow-800 bg-yellow-50 border border-yellow-200"
                   }`}
                 >
                   {toggleDialog.attributeValue.isAvailable
@@ -1222,7 +1232,7 @@ const AttributeValueManager = () => {
               className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
                 toggleDialog.attributeValue?.isAvailable
                   ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
-                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  : "bg-yellow-500 hover:bg-yellow-600"
               }`}
               startIcon={
                 toggleDialog.attributeValue?.isAvailable ? (

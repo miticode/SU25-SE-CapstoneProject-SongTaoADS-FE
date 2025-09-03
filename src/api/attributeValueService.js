@@ -195,4 +195,36 @@ export const toggleAttributeValueStatusApi = async (attributeValueId, attributeV
     };
   }
 };
+
+// Lấy chi tiết một attribute value theo ID
+export const getAttributeValueByIdApi = async (attributeValueId) => {
+  try {
+    const response = await attributeValueService.get(`/api/attribute-values/${attributeValueId}`);
+    const { success, result, message } = response.data;
+    if (success && result) {
+      const processedData = {
+        id: result.id,
+        name: result.name,
+        unit: result.unit,
+        materialPrice: result.materialPrice,
+        unitPrice: result.unitPrice,
+        isMultiplier: result.isMultiplier,
+        isAvailable: result.isAvailable,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        attributeId: result.attributes?.id,
+        attributeName: result.attributes?.name,
+        attributeDescription: result.attributes?.description,
+        attributeOrderCode: result.attributes?.orderCode,
+      };
+      return { success: true, data: processedData };
+    }
+    return { success: false, error: message || 'Invalid response format' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch attribute value detail'
+    };
+  }
+};
 export default attributeValueService;

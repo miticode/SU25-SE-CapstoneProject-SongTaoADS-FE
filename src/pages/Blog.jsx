@@ -1,108 +1,124 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-import {
-  FaSearch,
-  FaCalendar,
-  FaUser,
-  FaBookOpen,
-  FaArrowRight,
-} from "react-icons/fa";
+import { FaSearch, FaCalendar, FaUser, FaBookOpen } from "react-icons/fa";
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
 
 const Blog = () => {
-  const blogPosts = [
-    {
-      id: 1,
-      title: "5 Trends Transforming Modern Signage Design",
-      excerpt:
-        "Discover the latest innovations and design approaches that are revolutionizing the advertising signage industry in 2025.",
-      image:
-        "https://images.unsplash.com/photo-1581287053822-fd7bf4f4bfec?auto=format&fit=crop&q=80&w=800",
-      category: "Design Trends",
-      date: "May 15, 2025",
-      author: "Minh Nguyen",
-      readTime: "7 min read",
-    },
-    {
-      id: 2,
-      title: "How LED Technology is Changing Outdoor Advertising",
-      excerpt:
-        "LED displays are transforming the way businesses communicate with their audience. Learn how this technology is reshaping the signage landscape.",
-      image:
-        "https://images.unsplash.com/photo-1581287053822-fd7bf4f4bfec?auto=format&fit=crop&q=80&w=800",
-      category: "Technology",
-      date: "May 10, 2025",
-      author: "Tran Hoang",
-      readTime: "5 min read",
-    },
-    {
-      id: 3,
-      title: "Sustainable Materials for Eco-Friendly Signage Solutions",
-      excerpt:
-        "Explore environmentally responsible options for creating effective advertising signs that minimize environmental impact.",
-      image:
-        "https://images.unsplash.com/photo-1530099486328-e021101a494a?auto=format&fit=crop&q=80&w=800",
-      category: "Sustainability",
-      date: "May 5, 2025",
-      author: "Linh Pham",
-      readTime: "6 min read",
-    },
-    {
-      id: 4,
-      title: "Creating Eye-Catching Window Displays for Retail",
-      excerpt:
-        "Learn proven strategies to design window displays that stop pedestrians in their tracks and drive foot traffic into stores.",
-      image:
-        "https://images.unsplash.com/photo-1530099486328-e021101a494a?auto=format&fit=crop&q=80&w=800",
-      category: "Retail Design",
-      date: "April 28, 2025",
-      author: "Hai Le",
-      readTime: "8 min read",
-    },
-    {
-      id: 5,
-      title: "Integrating Digital and Physical Signage: A Hybrid Approach",
-      excerpt:
-        "Discover how to create cohesive advertising campaigns that seamlessly blend traditional physical signs with digital components.",
-      image:
-        "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&q=80&w=800",
-      category: "Strategy",
-      date: "April 22, 2025",
-      author: "Thao Nguyen",
-      readTime: "9 min read",
-    },
-    {
-      id: 6,
-      title: "The Psychology of Color in Advertising Signage",
-      excerpt:
-        "Understanding how different colors affect consumer behavior and how to use this knowledge in your signage design strategy.",
-      image:
-        "https://images.unsplash.com/photo-1550831106-2747f0d6a81c?auto=format&fit=crop&q=80&w=800",
-      category: "Design Theory",
-      date: "April 18, 2025",
-      author: "Duc Tran",
-      readTime: "6 min read",
-    },
-  ];
+  // Fallback image in case remote URLs are blocked or fail
+  const fallbackImage =
+    "https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=1200&q=60";
+
+  const blogPosts = useMemo(
+    () => [
+      {
+        id: 1,
+        title: "5 xu hướng đang định hình thiết kế biển quảng cáo hiện đại",
+        excerpt:
+          "Cập nhật những đổi mới về vật liệu, công nghệ và bố cục giúp biển hiệu nổi bật và hiệu quả hơn trong năm 2025.",
+        image: "https://images.unsplash.com/photo-1670817978397-fd68cd915094?q=80&w=1172&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        category: "Xu hướng thiết kế",
+        date: "15/05/2025",
+        author: "Minh Nguyen",
+        readTime: "7 phút đọc",
+      },
+      {
+        id: 2,
+        title: "Công nghệ LED đang thay đổi quảng cáo ngoài trời như thế nào",
+        excerpt:
+          "Màn hình LED thế hệ mới giúp truyền tải thông điệp sống động, tiết kiệm năng lượng và dễ bảo trì hơn.",
+        image: "https://images.unsplash.com/photo-1699368364033-b8d35b3ad7d6?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        category: "Công nghệ",
+        date: "10/05/2025",
+        author: "Tran Hoang",
+        readTime: "5 phút đọc",
+      },
+      {
+        id: 3,
+        title:
+          "Vật liệu bền vững cho giải pháp biển hiệu thân thiện môi trường",
+        excerpt:
+          "Từ mica tái chế đến gỗ FSC và mực in ít VOC – lựa chọn thông minh để giảm tác động môi trường.",
+        image: "https://images.unsplash.com/photo-1513757378314-e46255f6ed16?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        category: "Bền vững",
+        date: "05/05/2025",
+        author: "Linh Pham",
+        readTime: "6 phút đọc",
+      },
+      {
+        id: 4,
+        title: "Bí quyết thiết kế cửa sổ trưng bày bắt mắt cho bán lẻ",
+        excerpt:
+          "Tối ưu điểm nhìn, ánh sáng và tương phản để dừng chân khách qua đường và tăng lưu lượng vào cửa hàng.",
+        image:
+          "https://images.unsplash.com/photo-1736665813752-f15663994b6f?q=80&w=1228&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        category: "Thiết kế bán lẻ",
+        date: "28/04/2025",
+        author: "Hai Le",
+        readTime: "8 phút đọc",
+      },
+      {
+        id: 5,
+        title: "Kết hợp biển hiệu số và truyền thống: Chiến lược hybrid",
+        excerpt:
+          "Xây dựng chiến dịch nhất quán khi phối hợp màn hình số, đèn LED với biển hộp đèn, chữ nổi…",
+        image: "https://plus.unsplash.com/premium_photo-1722944969145-f9e57dcc6e75?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        category: "Chiến lược",
+        date: "22/04/2025",
+        author: "Thao Nguyen",
+        readTime: "9 phút đọc",
+      },
+      {
+        id: 6,
+        title: "Tâm lý màu sắc trong biển quảng cáo",
+        excerpt:
+          "Màu nóng – lạnh tác động đến cảm xúc và hành vi như thế nào? Ứng dụng vào bố cục biển hiệu.",
+        image: "https://plus.unsplash.com/premium_photo-1723983556172-ee1932896694?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        category: "Lý thuyết thiết kế",
+        date: "18/04/2025",
+        author: "Duc Tran",
+        readTime: "6 phút đọc",
+      },
+    ],
+    []
+  );
 
   // Popular categories
   const categories = [
-    "Design Trends",
-    "Technology",
-    "Sustainability",
-    "Retail Design",
-    "Strategy",
-    "Design Theory",
-    "Materials",
-    "Case Studies",
+    "Tất cả",
+    "Xu hướng thiết kế",
+    "Công nghệ",
+    "Bền vững",
+    "Thiết kế bán lẻ",
+    "Chiến lược",
+    "Lý thuyết thiết kế",
+    "Vật liệu",
+    "Nghiên cứu điển hình",
   ];
 
   // Recent posts for sidebar
-  const recentPosts = blogPosts.slice(0, 3);
+  const recentPosts = useMemo(() => blogPosts.slice(0, 3), [blogPosts]);
+
+  // UI state: search + category filter
+  const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+
+  const filteredPosts = useMemo(() => {
+    return blogPosts.filter((p) => {
+      const matchCategory =
+        selectedCategory === "Tất cả" || p.category === selectedCategory;
+      const norm = (s) => s.toLowerCase();
+      const matchQuery =
+        !query.trim() ||
+        norm(p.title).includes(norm(query)) ||
+        norm(p.excerpt).includes(norm(query)) ||
+        norm(p.author).includes(norm(query));
+      return matchCategory && matchQuery;
+    });
+  }, [blogPosts, query, selectedCategory]);
 
   return (
     <motion.div
@@ -119,7 +135,13 @@ const Blog = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 to-indigo-900/70 z-0"></div>
         <img
           src="https://media.istockphoto.com/id/2052899752/vi/anh/%C4%91%C3%A1m-%C4%91%C3%B4ng-qu%E1%BA%A3ng-tr%C6%B0%E1%BB%9Dng-xi%E1%BA%BFc-london-piccadilly-c%E1%BB%A7a-v%C6%B0%C6%A1ng-qu%E1%BB%91c-anh.jpg?s=2048x2048&w=is&k=20&c=h0kCV1DGRCmRP61DLvv-Sr8oIrKjWmGWCJs7P6YiNu0="
-          alt="Decorative"
+          alt="Background biển quảng cáo"
+          loading="eager"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = fallbackImage;
+          }}
           className="absolute inset-0 w-full h-full object-cover opacity-40 z-0 pointer-events-none select-none"
         />
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -147,8 +169,39 @@ const Blog = () => {
               Tin Tức Mới Nhất
             </h2>
 
+            {/* Search + active filter */}
+            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="relative w-full md:max-w-md">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Tìm kiếm bài viết, tác giả, chủ đề..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {selectedCategory !== "Tất cả" && (
+                <div className="text-sm text-gray-600">
+                  Lọc theo:{" "}
+                  <span className="font-semibold">{selectedCategory}</span>
+                  <button
+                    onClick={() => setSelectedCategory("Tất cả")}
+                    className="ml-2 text-blue-600 hover:underline"
+                  >
+                    Xóa lọc
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="grid md:grid-cols-2 gap-8">
-              {blogPosts.map((post) => (
+              {filteredPosts.length === 0 && (
+                <div className="col-span-full text-center text-gray-500 py-10">
+                  Không tìm thấy bài viết phù hợp.
+                </div>
+              )}
+              {filteredPosts.map((post) => (
                 <motion.div
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -160,6 +213,12 @@ const Blog = () => {
                     <img
                       src={post.image}
                       alt={post.title}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = fallbackImage;
+                      }}
                       className="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500"
                     />
                     <span className="absolute top-3 left-3 bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
@@ -224,11 +283,10 @@ const Blog = () => {
                 Về Các Tin Tức
               </h3>
               <p className="text-gray-600 mb-6">
-                Chào mừng đến với blog thiết kế quảng cáo biển hiệu. Chúng tôi
-                chia sẻ các bài viết về thiết kế quảng cáo biển hiệu, các ý
-                tưởng sáng tạo và các mẹo thực hành để giúp doanh nghiệp của bạn
-                đứng ra khỏi đám đông với thông điệp hiệu quả thông qua các biển
-                hiệu.
+                Chào mừng đến với blog về thiết kế và thi công biển hiệu quảng
+                cáo. Tại đây, chúng tôi chia sẻ ý tưởng sáng tạo, công nghệ mới,
+                vật liệu và quy trình thi công để giúp thương hiệu của bạn nổi
+                bật, dễ nhận diện và bền bỉ theo thời gian.
               </p>
               <Link
                 to="/aboutus"
@@ -246,14 +304,23 @@ const Blog = () => {
             >
               <h3 className="text-xl font-bold text-gray-900 mb-4">Danh Mục</h3>
               <div className="flex flex-wrap gap-2">
-                {categories.map((category, index) => (
-                  <span
-                    key={index}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm cursor-pointer transition-colors"
-                  >
-                    {category}
-                  </span>
-                ))}
+                {categories.map((category, index) => {
+                  const active = selectedCategory === category;
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedCategory(category)}
+                      className={
+                        `px-3 py-1 rounded-full text-sm transition-colors ` +
+                        (active
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 hover:bg-gray-200 text-gray-800")
+                      }
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
 

@@ -1,0 +1,11 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='600' viewBox='0 0 1200 600'>
+  <defs>
+    <linearGradient id='g3' x1='0%' y1='0%' x2='0%' y2='100%'>
+      <stop offset='0%' stop-color='#505694'/>
+      <stop offset='100%' stop-color='#2B2F4A'/>
+    </linearGradient>
+  </defs>
+  <rect width='1200' height='600' fill='url(#g3)'/>
+  <text x='50%' y='45%' fill='#ffffff' font-size='76' font-family='Arial, sans-serif' text-anchor='middle'>Tự động hoá quy trình</text>
+  <text x='50%' y='60%' fill='#7dd3fc' font-size='40' font-family='Arial, sans-serif' text-anchor='middle'>Tiết kiệm chi phí - Tăng hiệu quả</text>
+</svg>

@@ -60,9 +60,7 @@ import {
   ToggleOff as ToggleOffIcon,
   Help as HelpIcon,
 } from "@mui/icons-material";
-import {
-  updateProductTypeApi,
-} from "../../api/productTypeService";
+import { updateProductTypeApi } from "../../api/productTypeService";
 import { getPresignedUrl } from "../../api/s3Service";
 import FormulaGuide from "../../components/FormulaGuide";
 import dayjs from "dayjs";
@@ -74,10 +72,10 @@ const ProductTypeImage = ({ imageKey }) => {
 
   useEffect(() => {
     const loadImage = async () => {
-      if (!imageKey || imageKey.trim() === '') {
+      if (!imageKey || imageKey.trim() === "") {
         return;
       }
-      
+
       setLoading(true);
       try {
         const result = await getPresignedUrl(imageKey, 60); // 60 phút
@@ -94,33 +92,33 @@ const ProductTypeImage = ({ imageKey }) => {
     loadImage();
   }, [imageKey]);
 
-  if (!imageKey || imageKey.trim() === '') {
+  if (!imageKey || imageKey.trim() === "") {
     return (
       <Avatar
-        sx={{ 
-          width: 50, 
-          height: 50, 
-          bgcolor: 'grey.200',
-          borderRadius: 2 
+        sx={{
+          width: 50,
+          height: 50,
+          bgcolor: "grey.200",
+          borderRadius: 2,
         }}
         variant="rounded"
       >
-        <ImageIcon sx={{ color: 'grey.400' }} />
+        <ImageIcon sx={{ color: "grey.400" }} />
       </Avatar>
     );
   }
 
   if (loading) {
     return (
-      <Box 
-        sx={{ 
-          width: 50, 
-          height: 50, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
+      <Box
+        sx={{
+          width: 50,
+          height: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           borderRadius: 2,
-          bgcolor: 'grey.100'
+          bgcolor: "grey.100",
         }}
       >
         <CircularProgress size={20} />
@@ -131,12 +129,12 @@ const ProductTypeImage = ({ imageKey }) => {
   return (
     <Avatar
       src={imageUrl}
-      sx={{ 
-        width: 50, 
-        height: 50, 
+      sx={{
+        width: 50,
+        height: 50,
         borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'grey.300'
+        border: "1px solid",
+        borderColor: "grey.300",
       }}
       variant="rounded"
     >
@@ -150,27 +148,26 @@ const ProductTypeManager = ({ setActiveTab }) => {
   const productTypes = useSelector(selectAllProductTypes);
   const status = useSelector(selectProductTypeStatus);
   const error = useSelector(selectProductTypeError);
-  
+
   // Add status và error cho việc tạo mới
   const addStatus = useSelector(selectAddProductTypeStatus);
-  
+
   // Status và error cho việc cập nhật hình ảnh
   const updateImageStatus = useSelector(selectUpdateImageStatus);
   const updateImageError = useSelector(selectUpdateImageError);
-  
 
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState("add"); // 'add' | 'edit'
-  
+
   // Cập nhật state form với các trường mới
-  const [form, setForm] = useState({ 
-    name: "", 
+  const [form, setForm] = useState({
+    name: "",
     calculateFormula: "",
     isAiGenerated: false,
     isAvailable: false,
-    productTypeImage: null
+    productTypeImage: null,
   });
-  
+
   const [imagePreview, setImagePreview] = useState(null);
   const [_originalImage, setOriginalImage] = useState(null); // Lưu ảnh gốc
   const [imageChanged, setImageChanged] = useState(false); // Theo dõi thay đổi ảnh
@@ -179,8 +176,8 @@ const ProductTypeManager = ({ setActiveTab }) => {
     open: false,
     message: "",
     severity: "success",
-  }); 
-  const [openFormulaGuide, setOpenFormulaGuide] = useState(false); 
+  });
+  const [openFormulaGuide, setOpenFormulaGuide] = useState(false);
   useEffect(() => {
     dispatch(fetchProductTypes());
   }, [dispatch]);
@@ -197,12 +194,12 @@ const ProductTypeManager = ({ setActiveTab }) => {
   }, [updateImageError]);
   const handleOpenAdd = () => {
     setDialogMode("add");
-    setForm({ 
-      name: "", 
+    setForm({
+      name: "",
       calculateFormula: "",
       isAiGenerated: false,
       isAvailable: false,
-      productTypeImage: null
+      productTypeImage: null,
     });
     setImagePreview(null);
     setEditId(null);
@@ -216,7 +213,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
       calculateFormula: row.calculateFormula || "",
       isAiGenerated: row.isAiGenerated || false,
       isAvailable: row.isAvailable !== undefined ? row.isAvailable : true,
-      productTypeImage: null
+      productTypeImage: null,
     });
     setImagePreview(row.image || null);
     setOriginalImage(row.image || null);
@@ -240,7 +237,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
     const file = event.target.files[0];
     if (file) {
       // Kiểm tra file type
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         setSnackbar({
           open: true,
           message: "Vui lòng chọn file hình ảnh!",
@@ -248,7 +245,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
         });
         return;
       }
-      
+
       // Kiểm tra file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setSnackbar({
@@ -261,7 +258,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
 
       setForm({ ...form, productTypeImage: file });
       setImageChanged(true); // Đánh dấu ảnh đã thay đổi
-      
+
       // Tạo preview
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -287,9 +284,9 @@ const ProductTypeManager = ({ setActiveTab }) => {
         isAiGenerated: form.isAiGenerated,
         productTypeImage: form.productTypeImage,
       };
-      
+
       const result = await dispatch(addProductType(formData));
-      
+
       if (addProductType.fulfilled.match(result)) {
         // Refresh danh sách product types
         dispatch(fetchProductTypes());
@@ -327,10 +324,12 @@ const ProductTypeManager = ({ setActiveTab }) => {
 
         // Nếu hình ảnh có thay đổi, cập nhật hình ảnh
         if (imageChanged && form.productTypeImage) {
-          const imageResult = await dispatch(updateProductTypeImage({
-            productTypeId: editId,
-            imageFile: form.productTypeImage,
-          }));
+          const imageResult = await dispatch(
+            updateProductTypeImage({
+              productTypeId: editId,
+              imageFile: form.productTypeImage,
+            })
+          );
 
           if (!updateProductTypeImage.fulfilled.match(imageResult)) {
             setSnackbar({
@@ -375,7 +374,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
         dispatch(fetchProductTypes());
         setSnackbar({
           open: true,
-          message: `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} thành công!`,
+          message: `${newStatus ? "Kích hoạt" : "Vô hiệu hóa"} thành công!`,
           severity: "success",
         });
       } else {
@@ -400,12 +399,15 @@ const ProductTypeManager = ({ setActiveTab }) => {
   };
 
   return (
-  <div className="p-6 bg-gradient-to-br from-gray-50 via-green-50 to-green-100 min-h-full">
+    <div className="p-6 bg-gradient-to-br from-gray-50 via-green-50 to-green-100 min-h-full">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <Typography variant="h4" className="!font-bold !text-gray-800 !mb-2">
+            <Typography
+              variant="h4"
+              className="!font-bold !text-gray-800 !mb-2"
+            >
               🏷️ Quản lý loại biển hiệu
             </Typography>
             <Typography variant="body1" className="!text-gray-600">
@@ -425,10 +427,12 @@ const ProductTypeManager = ({ setActiveTab }) => {
         {status === "loading" && (
           <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <CircularProgress size={20} className="text-blue-600" />
-            <Typography className="!text-blue-700">Đang tải dữ liệu...</Typography>
+            <Typography className="!text-blue-700">
+              Đang tải dữ liệu...
+            </Typography>
           </div>
         )}
-        
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
             <Typography className="!text-red-700">{error}</Typography>
@@ -442,13 +446,27 @@ const ProductTypeManager = ({ setActiveTab }) => {
           <Table stickyHeader>
             <TableHead>
               <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50">
-                <TableCell className="!font-bold !text-gray-700 !py-4">Hình ảnh</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4">Tên</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4">Công thức tính toán</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4">Trạng thái</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4">Ngày tạo</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4">Ngày cập nhật</TableCell>
-                <TableCell className="!font-bold !text-gray-700 !py-4 !text-right">Thao Tác</TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Hình ảnh
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Tên
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Công thức tính toán
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Trạng thái
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Ngày tạo
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4">
+                  Ngày cập nhật
+                </TableCell>
+                <TableCell className="!font-bold !text-gray-700 !py-4 !text-right">
+                  Thao Tác
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -457,11 +475,24 @@ const ProductTypeManager = ({ setActiveTab }) => {
                   <TableCell colSpan={7} align="center" className="!py-16">
                     <div className="flex flex-col items-center">
                       <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        <svg
+                          className="w-12 h-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                          />
                         </svg>
                       </div>
-                      <Typography variant="h6" className="!font-bold !text-gray-500 !mb-2">
+                      <Typography
+                        variant="h6"
+                        className="!font-bold !text-gray-500 !mb-2"
+                      >
                         Chưa có loại biển hiệu nào
                       </Typography>
                       <Typography className="!text-gray-400 !mb-4">
@@ -491,15 +522,16 @@ const ProductTypeManager = ({ setActiveTab }) => {
                       </Typography>
                     </TableCell>
                     <TableCell className="!py-4">
-                      {row.calculateFormula && row.calculateFormula.trim() !== "" ? (
+                      {row.calculateFormula &&
+                      row.calculateFormula.trim() !== "" ? (
                         <div className="bg-gray-50 rounded-lg p-3 max-w-[200px]">
                           <Typography
                             variant="body2"
                             className="!font-mono !text-gray-700 !text-sm !leading-relaxed"
                             title={row.calculateFormula}
                           >
-                            {row.calculateFormula.length > 50 
-                              ? `${row.calculateFormula.substring(0, 50)}...` 
+                            {row.calculateFormula.length > 50
+                              ? `${row.calculateFormula.substring(0, 50)}...`
                               : row.calculateFormula}
                           </Typography>
                         </div>
@@ -514,22 +546,28 @@ const ProductTypeManager = ({ setActiveTab }) => {
                       )}
                     </TableCell>
                     <TableCell className="!py-4">
-                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                        row.isAvailable 
-                          ? 'bg-green-100 text-green-700 border border-green-200'
-                          : 'bg-gray-100 text-gray-600 border border-gray-200'
-                      }`}>
-                        {row.isAvailable ? "✅ Có sẵn" : " Không có sẵn"}
+                      <span
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                          row.isAvailable
+                            ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                            : "bg-red-100 text-red-700 border border-red-200"
+                        }`}
+                      >
+                        {row.isAvailable ? "✅ Có sẵn" : "⛔ Không có sẵn"}
                       </span>
                     </TableCell>
                     <TableCell className="!py-4">
                       <Typography className="!text-gray-600">
-                        {row.createdAt ? dayjs(row.createdAt).format("DD/MM/YYYY") : "—"}
+                        {row.createdAt
+                          ? dayjs(row.createdAt).format("DD/MM/YYYY")
+                          : "—"}
                       </Typography>
                     </TableCell>
                     <TableCell className="!py-4">
                       <Typography className="!text-gray-600">
-                        {row.updatedAt ? dayjs(row.updatedAt).format("DD/MM/YYYY") : "—"}
+                        {row.updatedAt
+                          ? dayjs(row.updatedAt).format("DD/MM/YYYY")
+                          : "—"}
                       </Typography>
                     </TableCell>
                     <TableCell align="right" className="!py-4">
@@ -545,12 +583,16 @@ const ProductTypeManager = ({ setActiveTab }) => {
                           onClick={() => handleToggleStatus(row)}
                           className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
                             row.isAvailable
-                              ? 'bg-green-100 hover:bg-green-200 text-green-600'
-                              : 'bg-red-100 hover:bg-red-200 text-red-600'
+                              ? "bg-yellow-100 hover:bg-yellow-200 text-yellow-500"
+                              : "bg-red-100 hover:bg-red-200 text-red-500"
                           }`}
                           title={row.isAvailable ? "Vô hiệu hóa" : "Kích hoạt"}
                         >
-                          {row.isAvailable ? <ToggleOnIcon className="!text-sm" /> : <ToggleOffIcon className="!text-sm" />}
+                          {row.isAvailable ? (
+                            <ToggleOnIcon className="!text-sm" />
+                          ) : (
+                            <ToggleOffIcon className="!text-sm" />
+                          )}
                         </button>
                       </div>
                     </TableCell>
@@ -569,16 +611,18 @@ const ProductTypeManager = ({ setActiveTab }) => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          className: "!rounded-2xl !shadow-2xl !max-h-[90vh]"
+          className: "!rounded-2xl !shadow-2xl !max-h-[90vh]",
         }}
       >
         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5 border-b border-gray-200 relative">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              dialogMode === "edit" 
-                ? 'bg-blue-100 text-blue-600' 
-                : 'bg-emerald-100 text-emerald-600'
-            }`}>
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                dialogMode === "edit"
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-emerald-100 text-emerald-600"
+              }`}
+            >
               {dialogMode === "edit" ? <EditIcon /> : <AddIcon />}
             </div>
             <div>
@@ -594,7 +638,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
               </Typography>
             </div>
           </div>
-          
+
           <button
             onClick={handleCloseDialog}
             className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors duration-200"
@@ -614,7 +658,9 @@ const ProductTypeManager = ({ setActiveTab }) => {
                 type="text"
                 name="name"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
+                onChange={(e) =>
+                  setForm({ ...form, name: e.target.value.toUpperCase() })
+                }
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-700 placeholder-gray-400 font-medium"
                 placeholder="Nhập tên loại biển hiệu"
                 autoFocus
@@ -629,27 +675,29 @@ const ProductTypeManager = ({ setActiveTab }) => {
               <label className="block text-sm font-semibold text-gray-700">
                 Hình ảnh loại biển hiệu
               </label>
-              
+
               <input
                 accept="image/*"
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
                 id="image-upload"
                 type="file"
                 onChange={handleImageChange}
               />
-              
+
               <div className="flex flex-col sm:flex-row gap-4 sm:items-start">
                 <label htmlFor="image-upload">
                   <button
                     type="button"
                     className="w-full sm:w-auto px-6 py-3 border-2 border-emerald-200 text-emerald-600 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-200 font-semibold flex items-center justify-center gap-2 cursor-pointer"
-                    onClick={() => document.getElementById('image-upload').click()}
+                    onClick={() =>
+                      document.getElementById("image-upload").click()
+                    }
                   >
                     <UploadIcon />
                     Chọn hình ảnh
                   </button>
                 </label>
-                
+
                 {imagePreview && (
                   <div className="relative group">
                     <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50">
@@ -669,7 +717,7 @@ const ProductTypeManager = ({ setActiveTab }) => {
                   </div>
                 )}
               </div>
-              
+
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                 <div className="flex items-start gap-2">
                   <InfoOutlinedIcon className="!text-blue-500 !text-lg mt-0.5" />
@@ -690,40 +738,56 @@ const ProductTypeManager = ({ setActiveTab }) => {
               <label className="block text-sm font-semibold text-gray-700">
                 Cài đặt loại biển hiệu
               </label>
-              
+
               <div className="grid grid-cols-1 gap-4">
                 {/* AI Generated */}
-                <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
-                  form.isAiGenerated 
-                    ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' 
-                    : 'bg-gray-50 border-gray-200'
-                }`}>
+                <div
+                  className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+                    form.isAiGenerated
+                      ? "bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200"
+                      : "bg-gray-50 border-gray-200"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        form.isAiGenerated ? 'bg-purple-100' : 'bg-gray-200'
-                      }`}>
-                        {form.isAiGenerated ? '🤖' : '👨‍💻'}
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          form.isAiGenerated ? "bg-purple-100" : "bg-gray-200"
+                        }`}
+                      >
+                        {form.isAiGenerated ? "🤖" : "👨‍💻"}
                       </div>
                       <div>
-                        <Typography variant="body1" className="!font-semibold !text-gray-800">
+                        <Typography
+                          variant="body1"
+                          className="!font-semibold !text-gray-800"
+                        >
                           Được tạo bởi AI
                         </Typography>
-                        <Typography variant="caption" className="!text-gray-600">
-                          {form.isAiGenerated ? "Tạo bởi trí tuệ nhân tạo" : "Tạo thủ công"}
+                        <Typography
+                          variant="caption"
+                          className="!text-gray-600"
+                        >
+                          {form.isAiGenerated
+                            ? "Tạo bởi trí tuệ nhân tạo"
+                            : "Tạo thủ công"}
                         </Typography>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, isAiGenerated: !form.isAiGenerated })}
+                      onClick={() =>
+                        setForm({ ...form, isAiGenerated: !form.isAiGenerated })
+                      }
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                        form.isAiGenerated ? 'bg-purple-500' : 'bg-gray-300'
+                        form.isAiGenerated ? "bg-purple-500" : "bg-gray-300"
                       }`}
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                        form.isAiGenerated ? 'translate-x-6' : 'translate-x-1'
-                      }`} />
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                          form.isAiGenerated ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
                     </button>
                   </div>
                 </div>
@@ -741,7 +805,9 @@ const ProductTypeManager = ({ setActiveTab }) => {
                   <textarea
                     name="calculateFormula"
                     value={form.calculateFormula}
-                    onChange={(e) => setForm({ ...form, calculateFormula: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, calculateFormula: e.target.value })
+                    }
                     rows={4}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 font-mono text-sm resize-none text-gray-700 placeholder-gray-400"
                     placeholder="Nhập công thức tính toán (tùy chọn)"
@@ -766,39 +832,57 @@ const ProductTypeManager = ({ setActiveTab }) => {
                   <label className="block text-sm font-semibold text-gray-700">
                     Trạng thái hoạt động
                   </label>
-                  
+
                   <div className="grid grid-cols-1 gap-4">
-                    <div className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
-                      form.isAvailable 
-                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-emerald-200' 
-                        : 'bg-gray-50 border-gray-200'
-                    }`}>
+                    <div
+                      className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+                        form.isAvailable
+                          ? "bg-yellow-50 border-yellow-200"
+                          : "bg-red-50 border-red-200"
+                      }`}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            form.isAvailable ? 'bg-emerald-100' : 'bg-gray-200'
-                          }`}>
-                            {form.isAvailable ? '✅' : '⏸️'}
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              form.isAvailable ? "bg-yellow-100" : "bg-red-100"
+                            }`}
+                          >
+                            {form.isAvailable ? "✅" : "⏸️"}
                           </div>
                           <div>
-                            <Typography variant="body1" className="!font-semibold !text-gray-800">
+                            <Typography
+                              variant="body1"
+                              className="!font-semibold !text-gray-800"
+                            >
                               Trạng thái hoạt động
                             </Typography>
-                            <Typography variant="caption" className="!text-gray-600">
-                              {form.isAvailable ? "Sẵn sàng sử dụng" : "Tạm dừng hoạt động"}
+                            <Typography
+                              variant="caption"
+                              className="!text-gray-600"
+                            >
+                              {form.isAvailable
+                                ? "Sẵn sàng sử dụng"
+                                : "Tạm dừng hoạt động"}
                             </Typography>
                           </div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })}
+                          onClick={() =>
+                            setForm({ ...form, isAvailable: !form.isAvailable })
+                          }
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                            form.isAvailable ? 'bg-emerald-500' : 'bg-gray-300'
+                            form.isAvailable ? "bg-yellow-500" : "bg-red-500"
                           }`}
                         >
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                            form.isAvailable ? 'translate-x-6' : 'translate-x-1'
-                          }`} />
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                              form.isAvailable
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
                         </button>
                       </div>
                     </div>
@@ -813,25 +897,37 @@ const ProductTypeManager = ({ setActiveTab }) => {
           <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button
               onClick={handleCloseDialog}
-              disabled={addStatus === "loading" || updateImageStatus === "loading"}
+              disabled={
+                addStatus === "loading" || updateImageStatus === "loading"
+              }
               className="order-2 sm:order-1 w-full sm:w-auto px-6 py-2.5 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-100 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Hủy bỏ
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!form.name.trim() || addStatus === "loading" || updateImageStatus === "loading"}
+              disabled={
+                !form.name.trim() ||
+                addStatus === "loading" ||
+                updateImageStatus === "loading"
+              }
               className="order-1 sm:order-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {(addStatus === "loading" || updateImageStatus === "loading") ? (
+              {addStatus === "loading" || updateImageStatus === "loading" ? (
                 <>
                   <CircularProgress size={18} className="text-white" />
                   {dialogMode === "edit" ? "Đang lưu..." : "Đang thêm..."}
                 </>
               ) : (
                 <>
-                  {dialogMode === "edit" ? <EditIcon className="!text-sm" /> : <AddIcon className="!text-sm" />}
-                  {dialogMode === "edit" ? "Lưu thay đổi" : "Thêm loại biển hiệu"}
+                  {dialogMode === "edit" ? (
+                    <EditIcon className="!text-sm" />
+                  ) : (
+                    <AddIcon className="!text-sm" />
+                  )}
+                  {dialogMode === "edit"
+                    ? "Lưu thay đổi"
+                    : "Thêm loại biển hiệu"}
                 </>
               )}
             </button>
@@ -840,8 +936,8 @@ const ProductTypeManager = ({ setActiveTab }) => {
       </Dialog>
 
       {/* Formula Guide Dialog */}
-      <FormulaGuide 
-        open={openFormulaGuide} 
+      <FormulaGuide
+        open={openFormulaGuide}
         onClose={() => setOpenFormulaGuide(false)}
         onNavigate={(pageId) => setActiveTab?.(pageId)}
       />

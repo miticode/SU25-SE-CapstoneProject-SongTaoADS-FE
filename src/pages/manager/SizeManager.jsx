@@ -41,6 +41,7 @@ const SizeManager = () => {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
   const [toggleDialog, setToggleDialog] = useState({
     open: false,
     size: null,
@@ -65,6 +66,7 @@ const SizeManager = () => {
     setEditMode(true);
     setForm({ name: size.name, description: size.description || "" });
     setSelectedId(size.id);
+    setSelectedSize(size);
     setOpenDialog(true);
   };
 
@@ -72,6 +74,7 @@ const SizeManager = () => {
     setOpenDialog(false);
     setForm({ name: "", description: "" });
     setSelectedId(null);
+    setSelectedSize(null);
   };
 
   const handleChange = (e) => {
@@ -80,7 +83,9 @@ const SizeManager = () => {
 
   const handleSubmit = () => {
     if (editMode) {
-      dispatch(updateSize({ id: selectedId, data: form }));
+      // Preserve current availability when updating (PUT requires full object)
+      const isAvailable = selectedSize?.isAvailable ?? true;
+      dispatch(updateSize({ id: selectedId, data: { ...form, isAvailable } }));
       setSnackbar({
         open: true,
         message: "Cập nhật thành công!",
@@ -236,7 +241,7 @@ const SizeManager = () => {
                     <TableCell className="!py-4">
                       <Chip
                         label={size.isAvailable ? "Hoạt động" : "Tạm ngưng"}
-                        color={size.isAvailable ? "success" : "error"}
+                        color={size.isAvailable ? "warning" : "error"}
                         size="small"
                         variant="outlined"
                       />
@@ -254,8 +259,8 @@ const SizeManager = () => {
                           onClick={() => handleToggleStatus(size)}
                           className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
                             size.isAvailable
-                              ? "bg-red-100 hover:bg-red-200 text-red-600"
-                              : "bg-green-100 hover:bg-green-200 text-green-600"
+                              ? "bg-yellow-100 hover:bg-yellow-200 text-yellow-600"
+                              : "bg-red-100 hover:bg-red-200 text-red-600"
                           }`}
                           title={size.isAvailable ? "Tạm ngưng" : "Kích hoạt"}
                         >
@@ -388,16 +393,16 @@ const SizeManager = () => {
         <div
           className={`px-6 py-5 border-b border-gray-200 ${
             toggleDialog.size?.isAvailable
-              ? "bg-gradient-to-r from-red-50 to-pink-50"
-              : "bg-gradient-to-r from-green-50 to-emerald-50"
+              ? "bg-yellow-50"
+              : "bg-gradient-to-r from-red-50 to-pink-50"
           }`}
         >
           <div className="flex items-center gap-3">
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                 toggleDialog.size?.isAvailable
-                  ? "bg-red-100 text-red-600"
-                  : "bg-green-100 text-green-600"
+                  ? "bg-yellow-100 text-yellow-500"
+                  : "bg-red-100 text-red-600"
               }`}
             >
               {toggleDialog.size?.isAvailable ? (
@@ -431,7 +436,7 @@ const SizeManager = () => {
                 className={`mt-4 p-4 border rounded-xl ${
                   toggleDialog.size.isAvailable
                     ? "bg-yellow-50 border-yellow-200"
-                    : "bg-blue-50 border-blue-200"
+                    : "bg-red-50 border-red-200"
                 }`}
               >
                 <Typography
@@ -439,12 +444,12 @@ const SizeManager = () => {
                   className={
                     toggleDialog.size.isAvailable
                       ? "!text-yellow-800"
-                      : "!text-blue-800"
+                      : "!text-red-800"
                   }
                 >
                   {toggleDialog.size.isAvailable
                     ? "⚠️ Kích thước sẽ được tạm ngưng và không hiển thị trong hệ thống."
-                    : "ℹ️ Kích thước sẽ được kích hoạt và có thể sử dụng trong hệ thống."}
+                    : "⚠️ Kích thước sẽ được kích hoạt và có thể sử dụng trong hệ thống."}
                 </Typography>
               </div>
             </>
@@ -463,8 +468,8 @@ const SizeManager = () => {
               onClick={handleConfirmToggleStatus}
               className={`order-1 sm:order-2 w-full sm:w-auto px-6 py-3 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold flex items-center justify-center gap-2 ${
                 toggleDialog.size?.isAvailable
-                  ? "bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700"
-                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  ? "bg-yellow-500 hover:bg-yellow-600"
+                  : "bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700"
               }`}
             >
               {toggleDialog.size?.isAvailable ? (
