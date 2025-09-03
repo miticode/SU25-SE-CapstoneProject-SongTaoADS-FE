@@ -41,6 +41,7 @@ const SizeManager = () => {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
   const [toggleDialog, setToggleDialog] = useState({
     open: false,
     size: null,
@@ -65,6 +66,7 @@ const SizeManager = () => {
     setEditMode(true);
     setForm({ name: size.name, description: size.description || "" });
     setSelectedId(size.id);
+    setSelectedSize(size);
     setOpenDialog(true);
   };
 
@@ -72,6 +74,7 @@ const SizeManager = () => {
     setOpenDialog(false);
     setForm({ name: "", description: "" });
     setSelectedId(null);
+    setSelectedSize(null);
   };
 
   const handleChange = (e) => {
@@ -80,7 +83,9 @@ const SizeManager = () => {
 
   const handleSubmit = () => {
     if (editMode) {
-      dispatch(updateSize({ id: selectedId, data: form }));
+      // Preserve current availability when updating (PUT requires full object)
+      const isAvailable = selectedSize?.isAvailable ?? true;
+      dispatch(updateSize({ id: selectedId, data: { ...form, isAvailable } }));
       setSnackbar({
         open: true,
         message: "Cập nhật thành công!",
