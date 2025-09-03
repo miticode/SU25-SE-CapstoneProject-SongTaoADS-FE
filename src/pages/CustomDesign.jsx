@@ -23,6 +23,7 @@ import {
 import { createCustomDesignRequest } from "../store/features/customeDesign/customerDesignSlice";
 import { fetchProfile, selectAuthUser } from "../store/features/auth/authSlice";
 import { fetchImageFromS3, selectS3Image } from "../store/features/s3/s3Slice";
+import { getAttributeValueByIdApi } from "../api/attributeValueService";
 
 const CustomDesign = () => {
   const location = useLocation();
@@ -58,6 +59,9 @@ const CustomDesign = () => {
     severity: "success",
   });
   const [hasOrder, setHasOrder] = useState(false);
+  // Danh sách thuộc tính đã được làm giàu (bổ sung unitPrice, isMultiplier)
+  const [enrichedAttributes, setEnrichedAttributes] = useState([]);
+  const [isEnriching, setIsEnriching] = useState(false);
 
   // Lấy user từ Redux auth
   const user = useSelector(selectAuthUser);
@@ -155,6 +159,44 @@ const CustomDesign = () => {
     console.log("CustomDesign - customerDetail:", customerDetail);
     console.log("CustomDesign - logoUrl from S3:", logoUrl);
   }, [customerDetail, logoUrl]);
+
+  // Enrich attributeValues để có unitPrice & isMultiplier giống logic ở AIDesign (case 4)
+  useEffect(() => {
+    const enrich = async () => {
+      if (!customerChoiceDetailsList || customerChoiceDetailsList.length === 0) {
+        setEnrichedAttributes([]);
+        return;
+      }
+      setIsEnriching(true);
+      const cache = {};
+      const result = await Promise.all(
+        customerChoiceDetailsList.map(async (item) => {
+          const av = item.attributeValues || {};
+          // Nếu đã có unitPrice hoặc isMultiplier thì không cần fetch
+          if (av.unitPrice !== undefined || av.isMultiplier !== undefined) {
+            return item;
+          }
+          if (!av.id) return item;
+          if (cache[av.id]) {
+            return { ...item, attributeValues: { ...av, ...cache[av.id] } };
+          }
+          try {
+            const { success, data } = await getAttributeValueByIdApi(av.id);
+            if (success && data) {
+              cache[av.id] = data;
+              return { ...item, attributeValues: { ...av, ...data } };
+            }
+          } catch (e) {
+            console.warn("Enrich attribute value failed", av.id, e);
+          }
+          return item;
+        })
+      );
+      setEnrichedAttributes(result);
+      setIsEnriching(false);
+    };
+    enrich();
+  }, [customerChoiceDetailsList]);
 
   const handleConfirm = async () => {
     // Lấy customerChoiceId từ location.state hoặc currentOrder
@@ -551,10 +593,16 @@ const CustomDesign = () => {
                 </h2>
               </div>
 
-              {customerChoiceDetailsList &&
-              customerChoiceDetailsList.length > 0 ? (
+              {(enrichedAttributes.length > 0
+                ? enrichedAttributes
+                : customerChoiceDetailsList) &&
+              (enrichedAttributes.length > 0
+                ? enrichedAttributes
+                : customerChoiceDetailsList).length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {customerChoiceDetailsList.map((attr) => (
+                  {(enrichedAttributes.length > 0
+                    ? enrichedAttributes
+                    : customerChoiceDetailsList).map((attr) => (
                     <div
                       key={attr.id}
                       className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md transition-all duration-300 hover:scale-105 group cursor-pointer"
@@ -564,16 +612,33 @@ const CustomDesign = () => {
                           attr.attributeValues?.name ||
                           attr.attributeValuesId}
                       </h4>
-                      <span className="bg-green-100 text-green-800 text-sm px-2 py-1 rounded group-hover:bg-green-200 transition-colors duration-200">
-                        {attr.subTotal?.toLocaleString("vi-VN") || 0} VND
-                      </span>
+                      {(() => {
+                        const av = attr.attributeValues || {};
+                        const isMultiplier = av.isMultiplier === true;
+                        const unitPrice = av.unitPrice;
+                        if (isMultiplier && unitPrice !== undefined) {
+                          const multiplier = unitPrice / 10; // giống logic AIDesign
+                          return (
+                            <span className="bg-purple-100 text-purple-700 text-sm px-2 py-1 rounded group-hover:bg-purple-200 transition-colors duration-200">
+                              Hệ số: <span className="font-semibold">×{multiplier.toLocaleString('vi-VN')}</span>
+                            </span>
+                          );
+                        }
+                        // Mặc định hiển thị giá
+                        const money = (attr.subTotal || 0).toLocaleString('vi-VN');
+                        return (
+                          <span className="bg-green-100 text-green-800 text-sm px-2 py-1 rounded group-hover:bg-green-200 transition-colors duration-200">
+                            Giá: <span className="font-semibold">{money} VND</span>
+                          </span>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors duration-200">
                   <FaListAlt className="mx-auto text-gray-400 text-3xl mb-2" />
-                  <p className="text-gray-500">Chưa chọn thuộc tính nào</p>
+                  <p className="text-gray-500">{isEnriching ? 'Đang tải thuộc tính...' : 'Chưa chọn thuộc tính nào'}</p>
                   <p className="text-sm text-gray-400">
                     Vui lòng chọn các thuộc tính cần thiết
                   </p>
