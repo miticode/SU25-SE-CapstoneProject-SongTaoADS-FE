@@ -1,0 +1,11 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='600' viewBox='0 0 1200 600'>
+  <defs>
+    <linearGradient id='g1' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#10111b'/>
+      <stop offset='100%' stop-color='#2B2F4A'/>
+    </linearGradient>
+  </defs>
+  <rect width='1200' height='600' fill='url(#g1)'/>
+  <text x='50%' y='45%' fill='#fff' font-size='80' font-family='Arial, sans-serif' text-anchor='middle'>Song Tạo ADS</text>
+  <text x='50%' y='60%' fill='#ffce3d' font-size='42' font-family='Arial, sans-serif' text-anchor='middle'>Thiết kế biển hiệu thông minh</text>
+</svg>
