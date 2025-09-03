@@ -675,12 +675,14 @@ const orderSlice = createSlice({
       .addCase(deleteOrderDetail.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
-        
-        // Cập nhật order details nếu có
+        const removedId = action.payload.orderDetailId;
+        // Hỗ trợ cả hai dạng: mảng thuần hoặc object { details: [] }
         if (state.orderDetails) {
-          state.orderDetails = state.orderDetails.filter(
-            detail => detail.id !== action.payload.orderDetailId
-          );
+          if (Array.isArray(state.orderDetails)) {
+            state.orderDetails = state.orderDetails.filter(d => d.id !== removedId);
+          } else if (Array.isArray(state.orderDetails.details)) {
+            state.orderDetails.details = state.orderDetails.details.filter(d => d.id !== removedId);
+          }
         }
         
         // Cập nhật timestamp và message

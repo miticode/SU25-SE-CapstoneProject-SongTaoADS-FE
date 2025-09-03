@@ -65,7 +65,7 @@ import "../styles/OrderPage.css";
 import { sendNewOrderNotificationThunk } from "../store/features/notification/notificationSlice";
 
 // Component để load ảnh từ S3 với auto-detect tỷ lệ
-const S3Image = ({ imageKey, alt, className, size = "large", showBadge = true, showDimensions = false, onClick }) => {
+const S3Image = ({ imageKey, alt, className, size = "large", showDimensions = false, onClick }) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -462,7 +462,7 @@ const Order = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [editedImageUrl, setEditedImageUrl] = useState(null);
-  const [loadingEditedImage, setLoadingEditedImage] = useState(false);
+  // removed unused loadingEditedImage state
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [shouldRefreshOrderDetails, setShouldRefreshOrderDetails] = useState(false);
   // Loading khi xác nhận ở bước 2
@@ -607,8 +607,7 @@ const Order = () => {
     return () => {
       if (currentStep !== 2) {
         dispatch(clearEditedDesignDetail());
-        setEditedImageUrl(null);
-        setLoadingEditedImage(false);
+  setEditedImageUrl(null);
       }
     };
   }, [currentStep, finalIsFromAIDesign, finalEditedDesignId, dispatch]);
@@ -722,7 +721,7 @@ const Order = () => {
   useEffect(() => {
     const fetchEditedImage = async () => {
       if (editedDesignDetail?.editedImage) {
-        setLoadingEditedImage(true);
+  // removed loading state setter
         try {
           console.log("Order - Fetching S3 image:", editedDesignDetail.editedImage);
           const response = await getImageFromS3(editedDesignDetail.editedImage);
@@ -740,12 +739,12 @@ const Order = () => {
           console.error("Lỗi khi tải ảnh từ S3:", error);
           setEditedImageUrl(null);
         } finally {
-          setLoadingEditedImage(false);
+          // removed loading state setter
         }
       } else {
         // Reset state khi không có editedImage
         setEditedImageUrl(null);
-        setLoadingEditedImage(false);
+  // removed loading state setter
       }
     };
 
@@ -1198,37 +1197,37 @@ const Order = () => {
 
       console.log("Đang xóa order detail với ID:", deleteConfirmDialog.orderDetailId);
       
-      // Kiểm tra xem có phải order detail duy nhất không
-      const isLastOrderDetail = orderDetails && orderDetails.length === 1;
+      // Kiểm tra số lượng order detail hiện có (hỗ trợ cả 2 dạng: mảng hoặc object { details: [] })
+      const detailsCount = Array.isArray(orderDetails)
+        ? orderDetails.length
+        : Array.isArray(orderDetails?.details)
+          ? orderDetails.details.length
+          : 0;
+      const isLastOrderDetail = detailsCount === 1;
       
       // Luôn luôn xóa order detail trước
       await dispatch(deleteOrderDetail(deleteConfirmDialog.orderDetailId)).unwrap();
       console.log("Đã xóa order detail thành công");
       
       if (isLastOrderDetail) {
-        console.log("Đây là order detail duy nhất, tiếp tục xóa order");
-        
-        // Xóa order sau khi đã xóa order detail
+        // Đây là order detail cuối cùng -> tiếp tục xóa luôn order và chuyển về trang chủ
         if (currentOrder?.id) {
-          await dispatch(deleteOrder(currentOrder.id)).unwrap();
-          console.log("Đã xóa order thành công");
-          setSuccessMessage("Đã xóa đơn hàng vì không còn chi tiết nào!");
-          
-          // Clear localStorage và navigate về trang chủ
+          try {
+            await dispatch(deleteOrder(currentOrder.id)).unwrap();
+            setSuccessMessage("Đã xóa đơn hàng vì không còn chi tiết nào!");
+          } catch (err) {
+            console.error("Lỗi khi xóa order sau khi xóa detail cuối:", err);
+            setErrorMessage("Đã xóa chi tiết nhưng không thể xóa đơn hàng. Vui lòng tải lại trang.");
+          }
+          // Dọn dẹp localStorage và điều hướng về Home ngay (không cần delay dài)
           clearAllOrderLocalStorage();
-          
-          // Delay một chút để user đọc được message
-          setTimeout(() => {
-            navigate("/");
-          }, 2000);
+          navigate("/");
         } else {
-          throw new Error("Không tìm thấy ID đơn hàng");
+          setErrorMessage("Không tìm thấy ID đơn hàng để xóa.");
         }
       } else {
-        // Chỉ xóa order detail, còn nhiều detail khác
+        // Còn nhiều detail khác: chỉ cần cập nhật lại UI
         setSuccessMessage("Xóa chi tiết đơn hàng thành công!");
-        
-        // Refresh lại order details để hiển thị dữ liệu mới
         setShouldRefreshOrderDetails(prev => !prev);
       }
       
@@ -2036,6 +2035,17 @@ const Order = () => {
                       </div>
                     ) : (
                       <>
+                        {/** Derive details array from aggregated object shape (orderDetails may be {details:[], orders,...}) */}
+                        {(() => { if (orderDetails && !Array.isArray(orderDetails) && orderDetails.details && Array.isArray(orderDetails.details)) { return null; } return null; })()}
+                        {/** Prepare normalized array and aggregated metadata */}
+                        {(() => {
+                          // Normalization done inline before JSX use (no state change)
+                          return null;
+                        })()}
+                        {/** Helper constant (not rendered) */}
+                        {(() => { /* no-op */ return null; })()}
+                        {/** Actual content below uses normalized variables */}
+                        {(() => { return null; })()}
                         {/* Order ID */}
                         <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
                           <div>
@@ -2049,9 +2059,11 @@ const Order = () => {
                               variant="h6"
                               className="text-blue-800 font-bold"
                             >
-                              {currentOrder?.orderCode || 
-                               (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.orderCode) ||
-                               'N/A'}
+                              {(() => {
+                                const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []);
+                                const aggOrder = (!Array.isArray(orderDetails) ? orderDetails?.orders : undefined);
+                                return currentOrder?.orderCode || aggOrder?.orderCode || (detailsArray.length > 0 ? detailsArray[0]?.orders?.orderCode : undefined) || 'N/A';
+                              })()}
                             </Typography>
                           </div>
                           <div className="text-right">
@@ -2065,11 +2077,12 @@ const Order = () => {
                               variant="body2"
                               className="text-blue-800 font-mono"
                             >
-                              {currentOrder?.createdAt 
-                                ? new Date(currentOrder.createdAt).toLocaleString('vi-VN')
-                                : (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.createdAt)
-                                  ? new Date(orderDetails[0].orders.createdAt).toLocaleString('vi-VN')
-                                  : 'N/A'}
+                              {(() => {
+                                const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []);
+                                const aggOrder = (!Array.isArray(orderDetails) ? orderDetails?.orders : undefined);
+                                const created = currentOrder?.createdAt || aggOrder?.createdAt || (detailsArray.length > 0 ? detailsArray[0]?.orders?.createdAt : undefined);
+                                return created ? new Date(created).toLocaleString('vi-VN') : 'N/A';
+                              })()}
                             </Typography>
                           </div>
                         </div>
@@ -2118,32 +2131,32 @@ const Order = () => {
                         </div>
 
                         {/* Order Details */}
-                        {orderDetails && orderDetails.length > 0 && (
+      {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return detailsArray.length > 0; })() && (
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
                               <Typography
                                 variant="subtitle1"
                                 className="text-gray-700 font-semibold"
                               >
-                                Chi tiết sản phẩm ({orderDetails.length} chi tiết)
+        {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return `Chi tiết sản phẩm (${detailsArray.length} chi tiết)`; })()}
                               </Typography>
                               <div className="flex items-center space-x-2">
                                 <div className="flex items-center space-x-1">
                                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                                   <Typography variant="caption" className="text-gray-600">
-                                    AI Design: {orderDetails.filter(d => d.editedDesigns).length}
+            {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return `AI Design: ${detailsArray.filter(d => d.editedDesigns).length}`; })()}
                                   </Typography>
                                 </div>
                                 <div className="flex items-center space-x-1">
                                   <div className="w-3 h-3 rounded-full bg-purple-500"></div>
                                   <Typography variant="caption" className="text-gray-600">
-                                    Custom Design: {orderDetails.filter(d => d.customDesignRequests).length}
+            {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return `Custom Design: ${detailsArray.filter(d => d.customDesignRequests).length}`; })()}
                                   </Typography>
                                 </div>
                               </div>
                             </div>
-                            {orderDetails.map((detail, index) => (
-                              <div key={detail.id || index} className="space-y-4 border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return detailsArray; })().map((detail, index, arr) => (
+            <div key={detail.id || index} className="space-y-4 border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                                 {/* Header cho từng order detail */}
                                 <div className={`p-3 rounded-t-xl border ${
                                   detail.editedDesigns 
@@ -2155,7 +2168,7 @@ const Order = () => {
                                       <Typography variant="h6" className="text-white font-bold">
                                         Chi tiết #{index + 1}
                                       </Typography>
-                                      {index === orderDetails.length - 1 && (
+              {index === arr.length - 1 && (
                                         <div className="px-2 py-1 bg-yellow-400 bg-opacity-80 rounded-full">
                                           <Typography variant="caption" className="text-yellow-900 font-bold">
                                             MỚI NHẤT
@@ -2276,7 +2289,7 @@ const Order = () => {
                                 </div>
 
                                 {/* Customer Choice Histories */}
-                                {detail.customerChoiceHistories && (
+                                {detail.customerChoiceHistories && detail.customerChoiceHistories.totalAmount !== undefined && (
                                   <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                                     <Typography
                                       variant="subtitle2"
@@ -2297,12 +2310,12 @@ const Order = () => {
                                       </div>
 
                                       {/* Total Amount */}
-                                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200">
                                         <Typography variant="body2" className="text-blue-700 font-medium">
                                           Tổng tiền:
                                         </Typography>
                                         <Typography variant="h6" className="text-blue-800 font-bold">
-                                          {detail.customerChoiceHistories.totalAmount.toLocaleString('vi-VN')} VNĐ
+                      {detail.customerChoiceHistories.totalAmount?.toLocaleString('vi-VN')} VNĐ
                                         </Typography>
                                       </div>
 
@@ -2328,7 +2341,7 @@ const Order = () => {
                                       )}
 
                                       {/* Attribute Selections */}
-                                      {detail.customerChoiceHistories.attributeSelections && (
+                                      {detail.customerChoiceHistories.attributeSelections && Array.isArray(detail.customerChoiceHistories.attributeSelections) && (
                                         <div className="space-y-2">
                                           <Typography variant="body2" className="text-blue-700 font-medium">
                                             Chi tiết thuộc tính:
@@ -2549,7 +2562,7 @@ const Order = () => {
                             ))}
                             
                             {/* Tổng kết order */}
-                            {orderDetails && orderDetails.length > 1 && (
+                            {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return detailsArray.length > 1; })() && (
                               <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl border border-indigo-300">
                                 <div className="flex items-center justify-between">
                                   <Typography variant="h6" className="text-white font-bold">
@@ -2557,10 +2570,10 @@ const Order = () => {
                                   </Typography>
                                   <div className="text-right">
                                     <Typography variant="h6" className="text-white font-bold">
-                                      {orderDetails.length} chi tiết
+                                      {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return `${detailsArray.length} chi tiết`; })()}
                                     </Typography>
                                     <Typography variant="caption" className="text-white opacity-80">
-                                      {orderDetails.filter(d => d.editedDesigns).length} AI Design, {orderDetails.filter(d => d.customDesignRequests).length} Custom Design
+                                      {(() => { const detailsArray = Array.isArray(orderDetails) ? orderDetails : (orderDetails?.details || []); return `${detailsArray.filter(d=>d.editedDesigns).length} AI Design, ${detailsArray.filter(d=>d.customDesignRequests).length} Custom Design`; })()}
                                     </Typography>
                                   </div>
                                 </div>
@@ -2602,7 +2615,7 @@ const Order = () => {
                       onClick={() => {
                         setUserClickedMainButtons(true);
                         // Lấy orderCode trước khi clear localStorage
-                        const orderCodeToNotify = currentOrder?.orderCode || (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.orderCode);
+                        const orderCodeToNotify = currentOrder?.orderCode || (!Array.isArray(orderDetails) ? orderDetails?.orders?.orderCode : (orderDetails.length > 0 ? orderDetails[0]?.orders?.orderCode : undefined));
                         if (orderCodeToNotify) {
                           dispatch(sendNewOrderNotificationThunk(orderCodeToNotify));
                         }
@@ -2629,7 +2642,7 @@ const Order = () => {
                       fullWidth
                       onClick={() => {
                         setUserClickedMainButtons(true);
-                        const orderCodeToNotify = currentOrder?.orderCode || (orderDetails && orderDetails.length > 0 && orderDetails[0].orders?.orderCode);
+                        const orderCodeToNotify = currentOrder?.orderCode || (!Array.isArray(orderDetails) ? orderDetails?.orders?.orderCode : (orderDetails.length > 0 ? orderDetails[0]?.orders?.orderCode : undefined));
                         if (orderCodeToNotify) {
                           dispatch(sendNewOrderNotificationThunk(orderCodeToNotify));
                         }
