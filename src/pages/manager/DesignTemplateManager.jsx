@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
@@ -113,38 +113,41 @@ const DesignTemplateManager = () => {
     dispatch(fetchProductTypes());
   }, [dispatch]);
 
-  // Lấy danh sách design template khi mount
+  // Lấy danh sách design template với pagination
+  const loadDesignTemplates = useCallback(
+    async (page = 1, size = 10) => {
+      try {
+        const aspectRatioParam =
+          selectedAspectRatio === "all" ? undefined : selectedAspectRatio;
+        const response = await dispatch(
+          fetchAllDesignTemplates({ page, size, aspectRatio: aspectRatioParam })
+        );
+        if (response.meta.requestStatus === "fulfilled") {
+          const {
+            currentPage,
+            totalPages,
+            pageSize: size,
+            totalElements,
+          } = response.payload.pagination;
+          setApiPagination({
+            currentPage,
+            totalPages,
+            pageSize: size,
+            totalElements,
+          });
+          setCurrentPage(currentPage);
+        }
+      } catch (error) {
+        console.error("Lỗi khi load design templates:", error);
+      }
+    },
+    [dispatch, selectedAspectRatio]
+  );
+
+  // Lấy danh sách design template khi mount và khi pageSize thay đổi
   useEffect(() => {
     loadDesignTemplates(1, pageSize);
-  }, [dispatch, pageSize]);
-
-  // Lấy danh sách design template với pagination
-  const loadDesignTemplates = async (page = 1, size = 10) => {
-    try {
-      const aspectRatioParam =
-        selectedAspectRatio === "all" ? undefined : selectedAspectRatio;
-      const response = await dispatch(
-        fetchAllDesignTemplates({ page, size, aspectRatio: aspectRatioParam })
-      );
-      if (response.meta.requestStatus === "fulfilled") {
-        const {
-          currentPage,
-          totalPages,
-          pageSize: size,
-          totalElements,
-        } = response.payload.pagination;
-        setApiPagination({
-          currentPage,
-          totalPages,
-          pageSize: size,
-          totalElements,
-        });
-        setCurrentPage(currentPage);
-      }
-    } catch (error) {
-      console.error("Lỗi khi load design templates:", error);
-    }
-  };
+  }, [loadDesignTemplates, pageSize]);
 
   // Cập nhật apiPagination từ Redux state khi component mount hoặc state thay đổi
   useEffect(() => {
@@ -186,8 +189,7 @@ const DesignTemplateManager = () => {
         dispatch(fetchImageFromS3(template.image));
       }
     });
-    // KHÔNG đưa s3Images vào dependencies!
-  }, [designTemplates, dispatch]);
+  }, [designTemplates, dispatch, s3Images]);
 
   // Preload S3 image cho modal chi tiết
   useEffect(() => {
@@ -199,7 +201,7 @@ const DesignTemplateManager = () => {
     ) {
       dispatch(fetchImageFromS3(selectedTemplate.image));
     }
-  }, [openDetail, selectedTemplate, dispatch]);
+  }, [openDetail, selectedTemplate, dispatch, s3Images]);
 
   // Handler cho filter aspect ratio
   const handleAspectRatioFilter = (ratio) => {
@@ -521,7 +523,7 @@ const DesignTemplateManager = () => {
                   <Stack direction="row" spacing={1} alignItems="center" mt={1}>
                     <Chip
                       label={template.isAvailable ? "Hiển thị" : "Ẩn"}
-                      color={template.isAvailable ? "success" : "default"}
+                      color={template.isAvailable ? "warning" : "error"}
                       size="small"
                     />
                     <Typography variant="caption" color="text.secondary">
@@ -550,8 +552,13 @@ const DesignTemplateManager = () => {
                   </Tooltip>
                   <Tooltip title={template.isAvailable ? "Tạm ẩn" : "Hiển thị"}>
                     <IconButton
-                      color={template.isAvailable ? "error" : "success"}
                       onClick={() => handleToggleStatus(template)}
+                      sx={{
+                        color: template.isAvailable ? "#EAB308" : "#EF4444",
+                        "&:hover": {
+                          color: template.isAvailable ? "#CA8A04" : "#DC2626",
+                        },
+                      }}
                     >
                       {template.isAvailable ? (
                         <ToggleOffIcon />
@@ -740,8 +747,8 @@ const DesignTemplateManager = () => {
         <DialogTitle
           className={`text-white ${
             toggleDialog.template?.isAvailable
-              ? "bg-gradient-to-r from-red-500 to-pink-500"
-              : "bg-gradient-to-r from-green-500 to-emerald-500"
+              ? "bg-yellow-500"
+              : "bg-gradient-to-r from-red-500 to-pink-500"
           }`}
         >
           <div className="flex items-center space-x-3">
@@ -777,18 +784,18 @@ const DesignTemplateManager = () => {
               <div
                 className={`w-16 h-16 rounded-full flex items-center justify-center ${
                   toggleDialog.template.isAvailable
-                    ? "bg-red-100"
-                    : "bg-green-100"
+                    ? "bg-yellow-100"
+                    : "bg-red-100"
                 }`}
               >
                 {toggleDialog.template.isAvailable ? (
                   <ToggleOffIcon
-                    className="text-red-500"
+                    className="text-yellow-600"
                     sx={{ fontSize: 32 }}
                   />
                 ) : (
                   <ToggleOnIcon
-                    className="text-green-500"
+                    className="text-red-500"
                     sx={{ fontSize: 32 }}
                   />
                 )}
@@ -804,12 +811,12 @@ const DesignTemplateManager = () => {
                   className={`text-sm p-3 rounded-lg ${
                     toggleDialog.template.isAvailable
                       ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
-                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                      : "text-red-800 bg-red-50 border border-red-200"
                   }`}
                 >
                   {toggleDialog.template.isAvailable
                     ? "⚠️ Thiết kế mẫu sẽ được ẩn khỏi danh sách hiển thị cho người dùng."
-                    : "ℹ️ Thiết kế mẫu sẽ được hiển thị trở lại cho người dùng."}
+                    : "⚠️ Thiết kế mẫu sẽ được hiển thị trở lại cho người dùng."}
                 </Typography>
               </div>
             </div>
@@ -830,8 +837,8 @@ const DesignTemplateManager = () => {
               variant="contained"
               className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
                 toggleDialog.template?.isAvailable
-                  ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
-                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  ? "bg-yellow-500 hover:bg-yellow-600"
+                  : "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
               }`}
               startIcon={
                 toggleDialog.template?.isAvailable ? (
