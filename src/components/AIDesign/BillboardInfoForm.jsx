@@ -215,7 +215,8 @@ const BillboardInfoForm = ({
         variants={containerVariants}
       >
         <ModernBillboardForm
-          attributes={attributes}
+          // Chỉ truyền các attribute có isAvailable = true (case 4)
+          attributes={(attributes || []).filter((attr) => attr.isAvailable)}
           status={attributeStatus}
           productTypeId={billboardType}
           productTypeName={
