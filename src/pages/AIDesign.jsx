@@ -3726,9 +3726,9 @@ const AIDesign = () => {
   const descSize = Math.max(18, Math.round(titleSize * 0.7));
   let titleObj=null, descObj=null; const verticalGapTD = Math.max(12, gapRow * 0.25);
   const columnLeft = companyObj ? companyObj.left : (cw - cw*0.5)/2; const maxColWidth = companyObj ? companyObj.width : cw*0.5;
-  titleObj = createTb('TIÊU ĐỀ CỦA BẠN', { left: columnLeft, top: (companyObj? companyObj.top + companyH + verticalGapTD : topRowY), fontFamily:'UTM Conestoga', fontSize:titleSize, fill:'#000', fontWeight:'bold', name:'layout1-title', textAlign:'left' }, maxColWidth);
+  titleObj = createTb('TIÊU ĐỀ CỦA BẠN', { left: columnLeft, top: (companyObj? companyObj.top + companyH + verticalGapTD : topRowY), fontFamily:'Times New Roman', fontSize:titleSize, fill:'#000', fontWeight:'bold', name:'layout1-title', textAlign:'left' }, maxColWidth);
   fabricCanvas.add(titleObj); titleObj.setCoords();
-  descObj = createTb('MÔ TẢ CỦA BẠN', { left: columnLeft, top: titleObj.top + titleObj.getScaledHeight() + verticalGapTD, fontFamily:'UTM Conestoga', fontSize:descSize, fill:'#000', name:'layout1-description', textAlign:'left' }, maxColWidth);
+  descObj = createTb('MÔ TẢ CỦA BẠN', { left: columnLeft, top: titleObj.top + titleObj.getScaledHeight() + verticalGapTD, fontFamily:'Times New Roman', fontSize:descSize, fill:'#000', name:'layout1-description', textAlign:'left' }, maxColWidth);
   fabricCanvas.add(descObj); descObj.setCoords();
   // Create address & contact objects (initial top temp, will reposition to bottom)
   const row2Y = descObj.top + descObj.getScaledHeight() + gapRow; let addressObj=null, contactObj=null; const maxSecondaryWidth=cw*0.42; if(businessPresets.address){ addressObj=createTb(`Địa chỉ: ${businessPresets.address}`, {left:0, top:row2Y, fontFamily:'UTM Amerika Sans', fontSize:secondarySize, fill:'#000', name:'layout1-address', textAlign:'right'}, maxSecondaryWidth); fabricCanvas.add(addressObj); addressObj.setCoords(); } if(businessPresets.contactInfo){ contactObj=createTb(`ĐT : ${businessPresets.contactInfo}`, {left:0, top:row2Y, fontFamily:'UTM Amerika Sans', fontSize:secondarySize, fill:'#000', name:'layout1-contactInfo', textAlign:'right'}, maxSecondaryWidth); fabricCanvas.add(contactObj); contactObj.setCoords(); }
@@ -3780,9 +3780,9 @@ const AIDesign = () => {
   // Adjusted ratio so company name is 2x title
   const titleSize2 = 21; // fixed title size per request
     const descSize2 = Math.max(18, Math.round(titleSize2 * 0.7));
-  const titleTb = createTb('TIÊU ĐỀ CỦA BẠN', { left:0, top:0, fontFamily:'UTM Conestoga', fontSize:titleSize2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'layout2-title' }, cw*0.7);
+  const titleTb = createTb('TIÊU ĐỀ CỦA BẠN', { left:0, top:0, fontFamily:'Times New Roman', fontSize:titleSize2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'layout2-title' }, cw*0.7);
     fabricCanvas.add(titleTb); titleTb.setCoords(); topObjects.push(titleTb);
-  const descTb = createTb('MÔ TẢ CỦA BẠN', { left:0, top:0, fontFamily:'UTM Conestoga', fontSize:descSize2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'layout2-description' }, cw*0.7);
+  const descTb = createTb('MÔ TẢ CỦA BẠN', { left:0, top:0, fontFamily:'Times New Roman', fontSize:descSize2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'layout2-description' }, cw*0.7);
     fabricCanvas.add(descTb); descTb.setCoords(); topObjects.push(descTb);
 
     // Stack from a fixed top margin instead of vertical centering (Case 7 requirement)
@@ -3885,9 +3885,9 @@ const AIDesign = () => {
   const titleSizeP1 = Math.max(24, companyNameSize * 0.5);
     const descSizeP1 = Math.max(18, Math.round(titleSizeP1 * 0.7));
     const colLeft1 = companyObj ? companyObj.left : startX; const maxColWidth1 = companyObj ? companyObj.width : cw*0.5;
-  const titleP1 = createTb('TIÊU ĐỀ CỦA BẠN', { left: colLeft1, top: (companyObj? companyObj.top + companyHeight + gapRow*0.3 : topRowY), fontFamily:'UTM Conestoga', fontSize:titleSizeP1, fill:'#000', fontWeight:'bold', name:'portrait1-title' }, maxColWidth1);
+  const titleP1 = createTb('TIÊU ĐỀ CỦA BẠN', { left: colLeft1, top: (companyObj? companyObj.top + companyHeight + gapRow*0.3 : topRowY), fontFamily:'Times New Roman', fontSize:titleSizeP1, fill:'#000', fontWeight:'bold', name:'portrait1-title' }, maxColWidth1);
     fabricCanvas.add(titleP1); titleP1.setCoords();
-  const descP1 = createTb('MÔ TẢ CỦA BẠN', { left: colLeft1, top: titleP1.top + titleP1.getScaledHeight() + gapRow*0.25, fontFamily:'UTM Conestoga', fontSize:descSizeP1, fill:'#000', name:'portrait1-description' }, maxColWidth1);
+  const descP1 = createTb('MÔ TẢ CỦA BẠN', { left: colLeft1, top: titleP1.top + titleP1.getScaledHeight() + gapRow*0.25, fontFamily:'Times New Roman', fontSize:descSizeP1, fill:'#000', name:'portrait1-description' }, maxColWidth1);
     fabricCanvas.add(descP1); descP1.setCoords();
 
     const row2Y = descP1.top + descP1.getScaledHeight() + gapRow; // temp top for address/contact
@@ -3933,8 +3933,8 @@ const AIDesign = () => {
   // Adjusted ratio so company name is 2x title
   const titleSizeP2 = 21; // fixed title size per request
     const descSizeP2 = Math.max(18, Math.round(titleSizeP2 * 0.7));
-  const titleP2 = createTb('TIÊU ĐỀ CỦA BẠN', { left:0, top:0, fontFamily:'UTM Conestoga', fontSize:titleSizeP2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'portrait2-title' }, cw*0.8); fabricCanvas.add(titleP2); titleP2.setCoords(); stacked.push(titleP2);
-  const descP2 = createTb('MÔ TẢ CỦA BẠN', { left:0, top:0, fontFamily:'UTM Conestoga', fontSize:descSizeP2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'portrait2-description' }, cw*0.8); fabricCanvas.add(descP2); descP2.setCoords(); stacked.push(descP2);
+  const titleP2 = createTb('TIÊU ĐỀ CỦA BẠN', { left:0, top:0, fontFamily:'Times New Roman', fontSize:titleSizeP2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'portrait2-title' }, cw*0.8); fabricCanvas.add(titleP2); titleP2.setCoords(); stacked.push(titleP2);
+  const descP2 = createTb('MÔ TẢ CỦA BẠN', { left:0, top:0, fontFamily:'Times New Roman', fontSize:descSizeP2, fill:'#000', fontWeight:'bold', textAlign:'center', name:'portrait2-description' }, cw*0.8); fabricCanvas.add(descP2); descP2.setCoords(); stacked.push(descP2);
   // Case 7: stack from a fixed top margin instead of vertical centering
   // Adjusted: move logo higher (second tweak)
   const topMargin = Math.max(ch * 0.035, 32); // was 0.05 & 40
@@ -3974,8 +3974,8 @@ const AIDesign = () => {
   // Adjusted ratio so company name is 2x title
   const titleSizeS1 = Math.max(24, companyNameSize * 0.5); const descSizeS1 = Math.max(18, Math.round(titleSizeS1*0.7));
   const colLeftS1 = companyObj ? companyObj.left : startX; const maxColWidthS1 = companyObj ? companyObj.width : cw*0.5;
-  const titleS1 = createTb('TIÊU ĐỀ CỦA BẠN', { left:colLeftS1, top:(companyObj? companyObj.top+companyH+gapRow*0.3 : topRowY), fontFamily:'UTM Conestoga', fontSize:titleSizeS1, fill:'#000', fontWeight:'bold', name:'square1-title' }, maxColWidthS1); fabricCanvas.add(titleS1); titleS1.setCoords();
-  const descS1 = createTb('MÔ TẢ CỦA BẠN', { left:colLeftS1, top:titleS1.top + titleS1.getScaledHeight() + gapRow*0.25, fontFamily:'UTM Conestoga', fontSize:descSizeS1, fill:'#000', name:'square1-description' }, maxColWidthS1); fabricCanvas.add(descS1); descS1.setCoords();
+  const titleS1 = createTb('TIÊU ĐỀ CỦA BẠN', { left:colLeftS1, top:(companyObj? companyObj.top+companyH+gapRow*0.3 : topRowY), fontFamily:'Times New Roman', fontSize:titleSizeS1, fill:'#000', fontWeight:'bold', name:'square1-title' }, maxColWidthS1); fabricCanvas.add(titleS1); titleS1.setCoords();
+  const descS1 = createTb('MÔ TẢ CỦA BẠN', { left:colLeftS1, top:titleS1.top + titleS1.getScaledHeight() + gapRow*0.25, fontFamily:'Times New Roman', fontSize:descSizeS1, fill:'#000', name:'square1-description' }, maxColWidthS1); fabricCanvas.add(descS1); descS1.setCoords();
   const row2Y = descS1.top + descS1.getScaledHeight() + gapRow; let addressObj=null, contactObj=null; const maxSecondaryWidth=cw*0.42; if(businessPresets.address){ addressObj=createTb(`Địa chỉ: ${businessPresets.address}`, {left:0, top:row2Y, fontFamily:'UTM Amerika Sans', fontSize:secondarySize, fill:'#000', name:'square1-address', textAlign:'right'}, maxSecondaryWidth); fabricCanvas.add(addressObj); addressObj.setCoords(); } if(businessPresets.contactInfo){ contactObj=createTb(`ĐT : ${businessPresets.contactInfo}`, {left:0, top:row2Y, fontFamily:'UTM Amerika Sans', fontSize:secondarySize, fill:'#000', name:'square1-contactInfo', textAlign:'right'}, maxSecondaryWidth); fabricCanvas.add(contactObj); contactObj.setCoords(); }
   positionAddressContactBottom(addressObj, contactObj, gapHorizontal, 'square1', 18);
   fabricCanvas.requestRenderAll(); console.log('Applied Square Layout 1 (bottom address/contact)');
@@ -4010,8 +4010,8 @@ const AIDesign = () => {
   // Adjusted ratio so company name is 2x title
   const titleSizeSq2 = 21; // fixed title size per request
   const descSizeSq2 = Math.max(18, Math.round(titleSizeSq2*0.7));
-  const titleSq2 = createTb('TIÊU ĐỀ CỦA BẠN', { left:0, top:0, fontFamily:'UTM Conestoga', fontSize:titleSizeSq2, fill:'#000', fontWeight:'bold', name:'square2-title', textAlign:'center' }, cw*0.8); fabricCanvas.add(titleSq2); titleSq2.setCoords(); centerObjs.push(titleSq2);
-  const descSq2 = createTb('MÔ TẢ CỦA BẠN', { left:0, top:0, fontFamily:'UTM Conestoga', fontSize:descSizeSq2, fill:'#000', fontWeight:'bold', name:'square2-description', textAlign:'center' }, cw*0.8); fabricCanvas.add(descSq2); descSq2.setCoords(); centerObjs.push(descSq2);
+  const titleSq2 = createTb('TIÊU ĐỀ CỦA BẠN', { left:0, top:0, fontFamily:'Times New Roman', fontSize:titleSizeSq2, fill:'#000', fontWeight:'bold', name:'square2-title', textAlign:'center' }, cw*0.8); fabricCanvas.add(titleSq2); titleSq2.setCoords(); centerObjs.push(titleSq2);
+  const descSq2 = createTb('MÔ TẢ CỦA BẠN', { left:0, top:0, fontFamily:'Times New Roman', fontSize:descSizeSq2, fill:'#000', fontWeight:'bold', name:'square2-description', textAlign:'center' }, cw*0.8); fabricCanvas.add(descSq2); descSq2.setCoords(); centerObjs.push(descSq2);
   // Case 7: remove vertical centering; start from a top margin
   // Adjusted: move logo higher (second tweak)
   const topMargin = Math.max(ch * 0.032, 30); // was 0.045 & 38

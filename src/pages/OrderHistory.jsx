@@ -4175,12 +4175,17 @@ const OrderHistory = () => {
                 {(searchQuery ? searchResults : orders).map((order) => {
                   // ✅ Sử dụng helper function thay vì useSelector
                   const orderImpressions = getOrderImpressions(order.id);
-                  const orderDetails = getOrderDetails(order.id);
+                  // API mới trả về object: { details: [], customDesignRequests, editedDesigns, orders, ... }
+                  const orderDetailsData = getOrderDetails(order.id);
+                  // Bảo toàn tương thích cũ: nếu đã lưu thẳng mảng thì dùng luôn, nếu là object thì lấy .details
+                  const orderDetails = Array.isArray(orderDetailsData)
+                    ? orderDetailsData
+                    : orderDetailsData?.details || [];
                   const loadingDetails = isLoadingOrderDetails(order.id);
-                  // ✅ Lấy thông tin custom design từ order hoặc từ orderDetails (API details mới)
+                  // ✅ Lấy thông tin custom design từ order hoặc từ object details mới
                   const customDesign =
                     order.customDesignRequests ||
-                    orderDetails?.customDesignRequests ||
+                    orderDetailsData?.customDesignRequests ||
                     null;
 
                   return (

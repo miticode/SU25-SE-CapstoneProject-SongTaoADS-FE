@@ -74,6 +74,8 @@ const DesignRequests = () => {
   const dispatch = useDispatch();
   const { user } = useAuthSelector((state) => state.auth);
   const designerId = user?.id;
+  // S3 URL for customer's feedback image (derived from latestDemo.customerFeedbackImage)
+  const [customerFeedbackS3Url, setCustomerFeedbackS3Url] = useState(null);
 
   // Helper function để format thông tin file
   const formatFileSize = (bytes) => {
@@ -144,6 +146,7 @@ const DesignRequests = () => {
   const [demoFormError, setDemoFormError] = useState("");
   const [updateDemoMode, setUpdateDemoMode] = useState(false);
   const [latestDemo, setLatestDemo] = useState(null);
+  // (removed) demoHistory states were unused; keep logic simple
   const [openFinalDesignDialog, setOpenFinalDesignDialog] = useState(false);
   const [finalDesignForm, setFinalDesignForm] = useState({
     finalDesignImage: null,
@@ -156,9 +159,6 @@ const DesignRequests = () => {
 
   // State để lưu S3 URL cho demo chính
   const [mainDemoS3Url, setMainDemoS3Url] = useState(null);
-
-  // State để lưu S3 URL cho ảnh phản hồi của khách (nếu có)
-  const [customerFeedbackS3Url, setCustomerFeedbackS3Url] = useState(null);
 
   // State để lưu S3 URLs cho final design sub-images
   const [finalDesignS3Urls, setFinalDesignS3Urls] = useState({});
@@ -363,7 +363,13 @@ const DesignRequests = () => {
           setRequests([]);
         });
     }
-  }, [designerId, dispatch, pagination.currentPage, pagination.pageSize]);
+  }, [
+    designerId,
+    dispatch,
+    pagination.currentPage,
+    pagination.pageSize,
+    customerDetails,
+  ]);
 
   // ===== CÁC FUNCTION REFRESH =====
 
@@ -416,9 +422,9 @@ const DesignRequests = () => {
       try {
         const res = await dispatch(getDemoDesigns(requestId)).unwrap();
         if (res && res.length > 0) {
-          const latestDemo = res[res.length - 1];
-          setLatestDemo(latestDemo);
-          await dispatch(getDemoSubImages(latestDemo.id)).unwrap();
+          const latest = res[res.length - 1];
+          setLatestDemo(latest);
+          await dispatch(getDemoSubImages(latest.id)).unwrap();
           setS3ImageUrls({});
           setMainDemoS3Url(null);
           setCustomerFeedbackS3Url(null);
@@ -430,6 +436,7 @@ const DesignRequests = () => {
         }
       } catch (error) {
         console.error("Error refreshing demo data:", error);
+        setLatestDemo(null);
       }
     }
   };
@@ -447,7 +454,7 @@ const DesignRequests = () => {
     }
   };
 
-  // (removed) refreshAllData was unused
+  // Removed unused refreshAllData to satisfy ESLint
 
   // Function để reset về trang đầu tiên khi tìm kiếm
   const resetToFirstPage = () => {
@@ -516,14 +523,10 @@ const DesignRequests = () => {
     fetchMainDemoS3Url();
   }, [latestDemo, dispatch, mainDemoS3Url]);
 
-  // Fetch S3 URL cho ảnh phản hồi của khách khi latestDemo thay đổi
+  // Fetch S3 URL for customer's feedback image when latestDemo changes
   useEffect(() => {
-    const fetchCustomerFeedbackS3 = async () => {
-      if (
-        latestDemo &&
-        latestDemo.customerFeedbackImage &&
-        !customerFeedbackS3Url
-      ) {
+    const fetchFeedbackS3Url = async () => {
+      if (latestDemo && latestDemo.customerFeedbackImage) {
         try {
           const result = await dispatch(
             fetchImageFromS3(latestDemo.customerFeedbackImage)
@@ -531,15 +534,18 @@ const DesignRequests = () => {
           setCustomerFeedbackS3Url(result.url);
         } catch (error) {
           console.error(
-            "Error fetching customer feedback S3 image:",
+            "Error fetching feedback S3 image:",
             latestDemo.customerFeedbackImage,
             error
           );
+          setCustomerFeedbackS3Url(null);
         }
+      } else {
+        setCustomerFeedbackS3Url(null);
       }
     };
-    fetchCustomerFeedbackS3();
-  }, [latestDemo, dispatch, customerFeedbackS3Url]);
+    fetchFeedbackS3Url();
+  }, [latestDemo, dispatch]);
 
   // Fetch S3 URLs cho final design sub images
   useEffect(() => {
@@ -927,6 +933,7 @@ const DesignRequests = () => {
                   },
                 }));
 
+                // Fetch avatar từ S3 nếu có
                 if (detail.users?.avatar) {
                   getPresignedUrl(detail.users.avatar)
                     .then((result) => {
@@ -941,14 +948,12 @@ const DesignRequests = () => {
                       console.error("Error fetching avatar:", error);
                     });
                 }
-                fetchedCustomerIdsRef.current.add(id);
               })
               .catch(() => {
                 setCustomerDetails((prev) => ({
                   ...prev,
                   [id]: { companyName: "Không rõ", avatar: null },
                 }));
-                fetchedCustomerIdsRef.current.add(id);
               });
           }
         });
@@ -1061,7 +1066,7 @@ const DesignRequests = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchKeyword, designerId, handleSearch]); // Thêm designerId và handleSearch vào dependencies
+  }, [searchKeyword, designerId, handleSearch]); // include handleSearch in deps
 
   // Cập nhật useEffect để xử lý pagination cho cả tìm kiếm và danh sách gốc
   useEffect(() => {
@@ -2333,26 +2338,46 @@ const DesignRequests = () => {
                           <Box
                             display="flex"
                             alignItems="center"
-                            gap={1.5}
+                            justifyContent="space-between"
                             mb={1.5}
                           >
-                            <Typography
-                              variant="subtitle1"
-                              fontWeight={700}
-                              color="#065f46"
-                            >
-                              Demo bạn đã gửi
-                            </Typography>
-                            {typeof latestDemo.version !== "undefined" && (
-                              <Chip
+                            <Box display="flex" alignItems="center" gap={1.5}>
+                              <Typography
+                                variant="subtitle1"
+                                fontWeight={700}
+                                color="#065f46"
+                              >
+                                Demo bạn đã gửi
+                              </Typography>
+                              {typeof latestDemo.version !== "undefined" && (
+                                <Chip
+                                  size="small"
+                                  label={`v${latestDemo.version}`}
+                                  sx={{
+                                    bgcolor: "#ecfdf5",
+                                    color: "#065f46",
+                                    height: 22,
+                                  }}
+                                />
+                              )}
+                            </Box>
+                            {(latestDemo?.customerNote ||
+                              latestDemo?.customerFeedbackImage) && (
+                              <Button
                                 size="small"
-                                label={`v${latestDemo.version}`}
+                                variant="outlined"
+                                onClick={() => setOpenFeedbackDialog(true)}
                                 sx={{
-                                  bgcolor: "#ecfdf5",
+                                  borderColor: "#10b981",
                                   color: "#065f46",
-                                  height: 22,
+                                  "&:hover": {
+                                    borderColor: "#065f46",
+                                    bgcolor: "#ecfdf5",
+                                  },
                                 }}
-                              />
+                              >
+                                Xem phản hồi
+                              </Button>
                             )}
                           </Box>
 
@@ -2537,115 +2562,51 @@ const DesignRequests = () => {
                             </Grid>
                           </Grid>
 
-                          {/* Status */}
-                          <Box mt={1.5}>
+                          {/* Demo Status */}
+                          <Box mt={2.5} pt={2} borderTop="1px solid #e2e8f0">
+                            <Typography
+                              variant="body2"
+                              color="#64748b"
+                              fontWeight={600}
+                              mb={1}
+                              sx={{
+                                fontSize: "0.9rem",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Trạng thái demo
+                            </Typography>
                             <Chip
-                              size="small"
                               label={
                                 latestDemo.status === "APPROVED"
-                                  ? "Đã chấp nhận"
+                                  ? " Đã chấp nhận"
                                   : latestDemo.status === "REJECTED"
-                                  ? "Đã từ chối"
-                                  : "Chờ phản hồi"
+                                  ? " Đã từ chối"
+                                  : " Chờ phản hồi"
                               }
+                              size="small"
                               sx={{
                                 bgcolor:
                                   latestDemo.status === "APPROVED"
                                     ? "#dcfce7"
                                     : latestDemo.status === "REJECTED"
-                                    ? "#fee2e2"
+                                    ? "#fef2f2"
                                     : "#fef3c7",
                                 color:
                                   latestDemo.status === "APPROVED"
-                                    ? "#166534"
+                                    ? "#16a34a"
                                     : latestDemo.status === "REJECTED"
-                                    ? "#991b1b"
-                                    : "#92400e",
+                                    ? "#dc2626"
+                                    : "#d97706",
+                                fontSize: "0.8rem",
                                 fontWeight: 600,
-                                height: 22,
                               }}
                             />
                           </Box>
                         </CardContent>
                       </Card>
                     </Grid>
-
-                    {/* Customer Feedback CTA Section */}
-                    <Grid item xs={12} md={6}>
-                      <Card
-                        sx={{
-                          borderRadius: 2,
-                          boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-                          borderLeft: "4px solid #3b82f6",
-                        }}
-                      >
-                        <CardContent sx={{ p: 2.5 }}>
-                          <Box
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="space-between"
-                            gap={1.5}
-                            mb={1.5}
-                          >
-                            <Typography
-                              variant="subtitle1"
-                              fontWeight={700}
-                              color="#1e3a8a"
-                            >
-                              Phản hồi của Khách hàng
-                            </Typography>
-                            {latestDemo.customerNote ||
-                            latestDemo.customerFeedbackImage ? (
-                              <Chip
-                                size="small"
-                                label="Đã có phản hồi"
-                                sx={{
-                                  bgcolor: "#dbeafe",
-                                  color: "#1e3a8a",
-                                  height: 22,
-                                }}
-                              />
-                            ) : (
-                              <Chip
-                                size="small"
-                                label="Chưa có phản hồi"
-                                sx={{
-                                  bgcolor: "#f1f5f9",
-                                  color: "#64748b",
-                                  height: 22,
-                                }}
-                              />
-                            )}
-                          </Box>
-
-                          <Typography
-                            variant="body2"
-                            color="#475569"
-                            sx={{ mb: 2 }}
-                          >
-                            Nhấn "Xem phản hồi" để mở hộp thoại và xem ghi
-                            chú/ảnh khách hàng gửi.
-                          </Typography>
-
-                          <Button
-                            variant="contained"
-                            onClick={() => setOpenFeedbackDialog(true)}
-                            disabled={
-                              !latestDemo.customerNote &&
-                              !latestDemo.customerFeedbackImage
-                            }
-                            sx={{
-                              borderRadius: 2,
-                              fontWeight: 700,
-                              bgcolor: "#3b82f6",
-                              "&:hover": { bgcolor: "#2563eb" },
-                            }}
-                          >
-                            Xem phản hồi
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </Grid>
+                    {/* End Designer Demo Section; close Grid container and Box */}
                   </Grid>
                 </Box>
               )}
@@ -3701,8 +3662,8 @@ const DesignRequests = () => {
         <DialogTitle>Cập nhật thiết kế mẫu</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Bạn có thể cập nhật mô tả, hình ảnh chính và hình ảnh phụ của thiết kế mẫu
-            hiện tại.
+            Bạn có thể cập nhật mô tả, hình ảnh chính và hình ảnh phụ của thiết
+            kế mẫu hiện tại.
           </Typography>
 
           {/* Mô tả demo */}
