@@ -737,6 +737,30 @@ const CustomerRequests = () => {
 
   const [selectedStatus, setSelectedStatus] = useState(""); // Mặc định là tất cả trạng thái
 
+  // ===== Input money formatting helpers (display 1,000,000 while storing numeric) =====
+  // Format a number (or numeric-like) into a grouping string. Empty stays empty.
+  const formatMoneyInput = (val) => {
+    if (val === "" || val === null || val === undefined) return "";
+    const num =
+      typeof val === "number" ? val : Number(String(val).replace(/[^\d]/g, ""));
+    if (Number.isNaN(num)) return "";
+    return new Intl.NumberFormat("en-US", {
+      style: "decimal",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  // Generic change handler for money inputs; keeps only digits in state as number
+  const handleMoneyChange = (field) => (e) => {
+    const raw = e?.target?.value ?? "";
+    const digits = raw.replace(/[^\d]/g, "");
+    setPriceForm((prev) => ({
+      ...prev,
+      [field]: digits === "" ? "" : Number(digits),
+    }));
+  };
+
   /*
    * CÁCH SỬ DỤNG CÁC FUNCTION REFRESH:
    *
@@ -885,6 +909,16 @@ const CustomerRequests = () => {
     totalPrice: "",
     depositAmount: "",
   });
+
+  // Money formatting handler for update dialog
+  const handleUpdateMoneyChange = (field) => (e) => {
+    const raw = e?.target?.value ?? "";
+    const digits = raw.replace(/[^\d]/g, "");
+    setUpdateForm((prev) => ({
+      ...prev,
+      [field]: digits === "" ? "" : Number(digits),
+    }));
+  };
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
@@ -4691,14 +4725,10 @@ const CustomerRequests = () => {
                                 ? "Tổng giá mới (VND)"
                                 : "Tổng giá (VND)"
                             }
-                            type="number"
-                            value={priceForm.totalPrice}
-                            onChange={(e) =>
-                              setPriceForm((f) => ({
-                                ...f,
-                                totalPrice: e.target.value,
-                              }))
-                            }
+                            type="text"
+                            inputProps={{ inputMode: "numeric" }}
+                            value={formatMoneyInput(priceForm.totalPrice)}
+                            onChange={handleMoneyChange("totalPrice")}
                             sx={{ flex: 1 }}
                             error={
                               priceForm.totalPrice &&
@@ -4719,14 +4749,10 @@ const CustomerRequests = () => {
                                 ? "Tiền cọc mới (VND)"
                                 : "Tiền cọc (VND)"
                             }
-                            type="number"
-                            value={priceForm.depositAmount}
-                            onChange={(e) =>
-                              setPriceForm((f) => ({
-                                ...f,
-                                depositAmount: e.target.value,
-                              }))
-                            }
+                            type="text"
+                            inputProps={{ inputMode: "numeric" }}
+                            value={formatMoneyInput(priceForm.depositAmount)}
+                            onChange={handleMoneyChange("depositAmount")}
                             sx={{ flex: 1 }}
                             error={
                               priceForm.depositAmount &&
@@ -5182,16 +5208,12 @@ const CustomerRequests = () => {
             >
               <TextField
                 label="Tổng giá mới"
-                type="number"
+                type="text"
                 fullWidth
                 size="small"
-                value={updateForm.totalPrice}
-                onChange={(e) =>
-                  setUpdateForm((f) => ({
-                    ...f,
-                    totalPrice: e.target.value,
-                  }))
-                }
+                inputProps={{ inputMode: "numeric" }}
+                value={formatMoneyInput(updateForm.totalPrice)}
+                onChange={handleUpdateMoneyChange("totalPrice")}
                 InputProps={{
                   inputProps: { min: 1000 },
                   startAdornment: (
@@ -5214,16 +5236,12 @@ const CustomerRequests = () => {
 
               <TextField
                 label="Tiền cọc mới"
-                type="number"
+                type="text"
                 fullWidth
                 size="small"
-                value={updateForm.depositAmount}
-                onChange={(e) =>
-                  setUpdateForm((f) => ({
-                    ...f,
-                    depositAmount: e.target.value,
-                  }))
-                }
+                inputProps={{ inputMode: "numeric" }}
+                value={formatMoneyInput(updateForm.depositAmount)}
+                onChange={handleUpdateMoneyChange("depositAmount")}
                 InputProps={{
                   inputProps: { min: 1000 },
                   startAdornment: (

@@ -1515,6 +1515,19 @@ const OrderHistory = () => {
   });
   const [actionLoading, setActionLoading] = useState(false);
 
+  // ===== Money input formatting for offer dialog (display 1,000,000 VND) =====
+  const formatMoneyInput = (val) => {
+    if (val === "" || val === null || val === undefined) return "";
+    const num =
+      typeof val === "number" ? val : Number(String(val).replace(/[^\d]/g, ""));
+    if (Number.isNaN(num)) return "";
+    return new Intl.NumberFormat("en-US", {
+      style: "decimal",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
   // const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [depositLoadingId, setDepositLoadingId] = useState(null);
   const [cancelingOrderId, setCancelingOrderId] = useState(null);
@@ -2752,6 +2765,23 @@ const OrderHistory = () => {
   const [designerMap, setDesignerMap] = useState({});
   const [demoList, setDemoList] = useState([]);
   const [latestDemo, setLatestDemo] = useState(null);
+  // Show newest demo first in UI
+  const sortedDemoList = useMemo(() => {
+    const arr = Array.isArray(demoList) ? [...demoList] : [];
+    arr.sort((a, b) => {
+      const ta = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
+      const tb = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
+      if (tb !== ta) return tb - ta; // newer first
+      // Fallback by version then id if timestamps equal
+      const va = a?.version ?? 0;
+      const vb = b?.version ?? 0;
+      if (vb !== va) return vb - va;
+      const ia = typeof a?.id === "number" ? a.id : 0;
+      const ib = typeof b?.id === "number" ? b.id : 0;
+      return ib - ia;
+    });
+    return arr;
+  }, [demoList]);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [feedbackImage, setFeedbackImage] = useState(null);
@@ -7524,10 +7554,10 @@ const OrderHistory = () => {
                         </Typography>
                       </Box>
 
-                      {demoList.map((demo, idx) => (
+                      {sortedDemoList.map((demo, idx) => (
                         <Box
                           key={demo.id}
-                          mb={idx < demoList.length - 1 ? 4 : 0}
+                          mb={idx < sortedDemoList.length - 1 ? 4 : 0}
                         >
                           <Typography
                             variant="subtitle1"
@@ -7780,8 +7810,9 @@ const OrderHistory = () => {
                             </Grid>
                           </Grid>
 
-                          {/* Demo Action Buttons */}
-                          {idx === demoList.length - 1 &&
+                          {/* Demo Action Buttons (show for newest demo at top) */}
+                          {latestDemo &&
+                            demo.id === latestDemo.id &&
                             (currentDesignRequest.status === "DEMO_SUBMITTED" ||
                               currentDesignRequest.status ===
                                 "REVISION_REQUESTED") &&
@@ -8651,15 +8682,24 @@ const OrderHistory = () => {
                     />
                     <TextField
                       label="Giá thương lượng (VND)"
-                      type="number"
+                      type="text"
                       fullWidth
                       margin="normal"
                       placeholder="Ví dụ: 5000000 (5 triệu VND)"
-                      value={offerForm.totalPriceOffer}
+                      inputProps={{
+                        inputMode: "numeric",
+                        min: 1,
+                        max: 10000000000,
+                      }}
+                      value={formatMoneyInput(offerForm.totalPriceOffer)}
                       onChange={(e) => {
+                        const digits = (e.target.value || "").replace(
+                          /[^\d]/g,
+                          ""
+                        );
                         setOfferForm((f) => ({
                           ...f,
-                          totalPriceOffer: e.target.value,
+                          totalPriceOffer: digits === "" ? "" : Number(digits),
                         }));
                         // Clear error khi user nhập
                         if (offerFormErrors.totalPriceOffer) {
@@ -8680,28 +8720,40 @@ const OrderHistory = () => {
                           );
                         }
                       }}
-                      onBlur={(e) =>
-                        validateOfferField("totalPriceOffer", e.target.value)
+                      onBlur={() =>
+                        validateOfferField(
+                          "totalPriceOffer",
+                          offerForm.totalPriceOffer
+                        )
                       }
                       error={!!offerFormErrors.totalPriceOffer}
                       helperText={
                         offerFormErrors.totalPriceOffer ||
                         "Nhập giá thương lượng bằng số (tối đa 10 tỷ VND)"
                       }
-                      inputProps={{ min: 1, max: 10000000000 }}
                       required
                     />
                     <TextField
                       label="Tiền cọc thương lượng (VND)"
-                      type="number"
+                      type="text"
                       fullWidth
                       margin="normal"
                       placeholder="Ví dụ: 1000000 (1 triệu VND)"
-                      value={offerForm.depositAmountOffer}
+                      inputProps={{
+                        inputMode: "numeric",
+                        min: 1,
+                        max: 10000000000,
+                      }}
+                      value={formatMoneyInput(offerForm.depositAmountOffer)}
                       onChange={(e) => {
+                        const digits = (e.target.value || "").replace(
+                          /[^\d]/g,
+                          ""
+                        );
                         setOfferForm((f) => ({
                           ...f,
-                          depositAmountOffer: e.target.value,
+                          depositAmountOffer:
+                            digits === "" ? "" : Number(digits),
                         }));
                         // Clear error khi user nhập
                         if (offerFormErrors.depositAmountOffer) {
@@ -8711,15 +8763,17 @@ const OrderHistory = () => {
                           }));
                         }
                       }}
-                      onBlur={(e) =>
-                        validateOfferField("depositAmountOffer", e.target.value)
+                      onBlur={() =>
+                        validateOfferField(
+                          "depositAmountOffer",
+                          offerForm.depositAmountOffer
+                        )
                       }
                       error={!!offerFormErrors.depositAmountOffer}
                       helperText={
                         offerFormErrors.depositAmountOffer ||
                         "Tiền cọc phải nhỏ hơn hoặc bằng giá thương lượng"
                       }
-                      inputProps={{ min: 1, max: 10000000000 }}
                       required
                     />
                   </DialogContent>
