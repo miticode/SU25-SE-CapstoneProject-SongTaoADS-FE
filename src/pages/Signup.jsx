@@ -29,7 +29,6 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
@@ -158,11 +157,6 @@ const Signup = () => {
       return false;
     }
 
-    // Kiểm tra đồng ý điều khoản
-    if (!agreeTerms) {
-      setFormError("Bạn phải đồng ý với điều khoản sử dụng");
-      return false;
-    }
 
     return true;
   };
@@ -528,33 +522,6 @@ const Signup = () => {
             </div>
           </div>
 
-          <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-2xl border border-blue-200">
-            <input
-              id="terms"
-              type="checkbox"
-              checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              required
-              className="h-5 w-5 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-300 mt-0.5"
-              disabled={status === "loading"}
-            />
-            <label htmlFor="terms" className="text-sm text-gray-700 font-medium">
-              📋 Tôi đồng ý với{" "}
-              <Link
-                to="/terms"
-                className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
-              >
-                Điều khoản sử dụng
-              </Link>{" "}
-              và{" "}
-              <Link
-                to="/privacy"
-                className="text-blue-600 hover:text-blue-800 font-bold hover:underline transition-colors duration-300"
-              >
-                Chính sách bảo mật
-              </Link>
-            </label>
-          </div>
 
           <button
             type="submit"

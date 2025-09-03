@@ -14,6 +14,10 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+// Carousel images from assets
+import carouselImg1 from "../assets/images/CAROUSEL1.jpg";
+import carouselImg2 from "../assets/images/CAROUSEL2.jpg";
+import carouselImg3 from "../assets/images/CAROUSEL3.jpg";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -35,22 +39,19 @@ const Home = () => {
 
   const carouselItems = [
     {
-      image: "https://placehold.co/1200x600/2B2F4A/FFF?text=AI+Marketing+Tool",
-      title: "AI Marketing Tool",
-      description:
-        "Tự động tạo nội dung tiếp thị hấp dẫn với công nghệ AI tiên tiến",
+  image: carouselImg1,
+  title: "Giải pháp Thiết kế Thông minh",
+  description: "Tạo biển hiệu & quảng cáo nhanh chóng bằng AI",
     },
     {
-      image: "https://placehold.co/1200x600/3B4164/FFF?text=Banner+Designer",
-      title: "Banner Designer",
-      description: "Thiết kế banner quảng cáo chuyên nghiệp chỉ trong vài phút",
+  image: carouselImg2,
+  title: "Phân tích & Tối ưu",
+  description: "Đo lường hiệu suất, đề xuất cải thiện tự động",
     },
     {
-      image:
-        "https://placehold.co/1200x600/505694/FFF?text=Analytics+Dashboard",
-      title: "Analytics Dashboard",
-      description:
-        "Theo dõi hiệu suất chiến dịch với bảng điều khiển phân tích toàn diện",
+  image: carouselImg3,
+  title: "Tự động hoá quy trình",
+  description: "Tiết kiệm chi phí – Tăng tốc triển khai chiến dịch",
     },
   ];
   const handleDesignClick = () => {
@@ -85,15 +86,15 @@ const Home = () => {
           </Typography>
         </DialogContent>
         <DialogActions className="justify-center pb-4">
-          <Button
-            onClick={onLogin}
-            variant="contained"
-            color="primary"
-            className="mr-2"
-          >
+             <Button
+               onClick={onLogin}
+               variant="contained"
+               color="primary"
+               className="mr-2 cursor-pointer"
+             >
             Đăng nhập ngay
           </Button>
-          <Button onClick={onClose} variant="outlined" color="secondary">
+             <Button onClick={onClose} variant="outlined" color="secondary" className="cursor-pointer">
             Hủy
           </Button>
         </DialogActions>
@@ -215,17 +216,13 @@ const Home = () => {
                   className="relative rounded-full shadow-2xl max-w-full h-auto border-4 border-white/20 backdrop-blur-sm hover:scale-105 transition-transform duration-500 -mt-10"
                 />
 
-                {/* Floating elements */}
-                <div className="absolute -top-4 -right-4 w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-black font-bold animate-bounce">
-                  AI
-                </div>
              
               </div>
             </motion.div>
           </div>
         </div>
 
-        {/* Wave decoration */}
+        
         <div className="absolute bottom-0 left-0 w-full overflow-hidden">
           <svg
             xmlns="http://www.w3.org/2000/svg"
