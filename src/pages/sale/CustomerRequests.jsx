@@ -118,6 +118,7 @@ import { castPaidThunk } from "../../store/features/payment/paymentSlice"; // s�
 // import S3Avatar from "../../components/S3Avatar";
 // import UploadRevisedContract from "../../components/UploadRevisedContract";
 import S3Avatar from "../../components/S3Avatar";
+import { useMemo } from 'react';
 import { getPresignedUrl } from "../../api/s3Service";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -138,6 +139,11 @@ const ContractorListDialog = ({
   const [selectedContractorId, setSelectedContractorId] = useState(null);
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Chỉ lấy nhà thầu khả dụng
+  const availableContractors = useMemo(
+    () => (contractors || []).filter(c => c?.isAvailable),
+    [contractors]
+  );
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -193,12 +199,10 @@ const ContractorListDialog = ({
         </DialogTitle>
         <DialogContent>
           <Box sx={{ py: 2 }}>
-            {contractors && contractors.length > 0 ? (
+    {availableContractors && availableContractors.length > 0 ? (
               <>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Chọn đơn vị thi công và báo ngày giao dự kiến cho đơn hàng{" "}
-                  {order ? order.orderCode || order.id : ""} (
-                  {contractors.length} đơn vị thi công có sẵn)
+      Chọn đơn vị thi công và báo ngày giao dự kiến cho đơn hàng {order ? order.orderCode || order.id : ""} ({availableContractors.length} đơn vị khả dụng)
                 </Typography>
 
                 {/* Date Picker */}
@@ -236,7 +240,7 @@ const ContractorListDialog = ({
                 </Typography>
 
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                  {contractors.map((contractor) => (
+                  {availableContractors.map((contractor) => (
                     <Grid item xs={12} md={6} key={contractor.id}>
                       <Card
                         elevation={
@@ -410,15 +414,14 @@ const ContractorListDialog = ({
                   ))}
                 </Grid>
               </>
-            ) : (
+    ) : (
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <ShippingIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Chưa có đơn vị thi công nào để báo ngày giao
+      Chưa có đơn vị thi công khả dụng để báo ngày giao
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Hiện tại chưa có đơn vị thi công nào có sẵn để báo ngày giao
-                  dự kiến cho đơn hàng này
+      Hiện tại tất cả đơn vị thi công đều không khả dụng. Vui lòng thử lại sau.
                 </Typography>
               </Box>
             )}
