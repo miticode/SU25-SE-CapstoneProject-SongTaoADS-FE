@@ -3182,10 +3182,16 @@ const OrderHistory = () => {
           getDemoDesigns(currentDesignRequest.id)
         ).unwrap();
         if (res && res.length > 0) {
-          setDemoList(res);
-          setLatestDemo(res[res.length - 1]);
+          // Sắp xếp demo mới nhất lên trên cùng
+          const sorted = [...res].sort((a, b) => {
+            const ta = new Date(a?.createdAt || a?.updatedAt || 0).getTime();
+            const tb = new Date(b?.createdAt || b?.updatedAt || 0).getTime();
+            return tb - ta; // desc
+          });
+          setDemoList(sorted);
+          setLatestDemo(sorted[0] || null);
           // Preload tất cả ảnh demo nếu là key (không phải url)
-          res.forEach((demo) => {
+          sorted.forEach((demo) => {
             if (
               demo.demoImage &&
               !demo.demoImage.startsWith("http") &&
@@ -7537,6 +7543,22 @@ const OrderHistory = () => {
                                   "vi-VN"
                                 )
                               : "N/A"}
+                            {(latestDemo
+                              ? demo.id === latestDemo.id
+                              : idx === 0) && (
+                              <Chip
+                                label="Mới nhất"
+                                size="small"
+                                sx={{
+                                  ml: 1,
+                                  height: 22,
+                                  fontSize: "0.7rem",
+                                  bgcolor: "#10b981",
+                                  color: "white",
+                                  fontWeight: 700,
+                                }}
+                              />
+                            )}
                           </Typography>
 
                           {/* Main Demo Image */}
@@ -7775,13 +7797,11 @@ const OrderHistory = () => {
                             </Grid>
                           </Grid>
 
-                          {/* Demo Action Buttons */}
-                          {idx === demoList.length - 1 &&
-                            (currentDesignRequest.status === "DEMO_SUBMITTED" ||
-                              currentDesignRequest.status ===
-                                "REVISION_REQUESTED") &&
-                            demo.status !== "APPROVED" &&
-                            demo.status !== "REJECTED" && (
+                          {/* Demo Action Buttons (only for newest pending demo) */}
+                          {(latestDemo
+                            ? demo.id === latestDemo.id
+                            : idx === 0) &&
+                            demo.status === "PENDING" && (
                               <Box
                                 mt={3}
                                 p={3}

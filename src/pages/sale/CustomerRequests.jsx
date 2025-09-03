@@ -2107,6 +2107,14 @@ const CustomerRequests = () => {
     );
   };
 
+  // Format for typing: show thousand separators while storing raw digits in state
+  const formatNumberInput = (value) => {
+    if (value === undefined || value === null) return "";
+    const digits = String(value).replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
   // Hàm báo giá
   const handleCreateProposal = async () => {
     if (!selectedRequest) return;
@@ -4691,14 +4699,16 @@ const CustomerRequests = () => {
                                 ? "Tổng giá mới (VND)"
                                 : "Tổng giá (VND)"
                             }
-                            type="number"
-                            value={priceForm.totalPrice}
-                            onChange={(e) =>
-                              setPriceForm((f) => ({
-                                ...f,
-                                totalPrice: e.target.value,
-                              }))
-                            }
+                            type="text"
+                            inputProps={{
+                              inputMode: "numeric",
+                              pattern: "\\d*",
+                            }}
+                            value={formatNumberInput(priceForm.totalPrice)}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
+                              setPriceForm((f) => ({ ...f, totalPrice: raw }));
+                            }}
                             sx={{ flex: 1 }}
                             error={
                               priceForm.totalPrice &&
@@ -4719,14 +4729,19 @@ const CustomerRequests = () => {
                                 ? "Tiền cọc mới (VND)"
                                 : "Tiền cọc (VND)"
                             }
-                            type="number"
-                            value={priceForm.depositAmount}
-                            onChange={(e) =>
+                            type="text"
+                            inputProps={{
+                              inputMode: "numeric",
+                              pattern: "\\d*",
+                            }}
+                            value={formatNumberInput(priceForm.depositAmount)}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
                               setPriceForm((f) => ({
                                 ...f,
-                                depositAmount: e.target.value,
-                              }))
-                            }
+                                depositAmount: raw,
+                              }));
+                            }}
                             sx={{ flex: 1 }}
                             error={
                               priceForm.depositAmount &&
@@ -5182,16 +5197,15 @@ const CustomerRequests = () => {
             >
               <TextField
                 label="Tổng giá mới"
-                type="number"
+                type="text"
                 fullWidth
                 size="small"
-                value={updateForm.totalPrice}
-                onChange={(e) =>
-                  setUpdateForm((f) => ({
-                    ...f,
-                    totalPrice: e.target.value,
-                  }))
-                }
+                inputProps={{ inputMode: "numeric", pattern: "\\d*" }}
+                value={formatNumberInput(updateForm.totalPrice)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setUpdateForm((f) => ({ ...f, totalPrice: raw }));
+                }}
                 InputProps={{
                   inputProps: { min: 1000 },
                   startAdornment: (
@@ -5214,16 +5228,15 @@ const CustomerRequests = () => {
 
               <TextField
                 label="Tiền cọc mới"
-                type="number"
+                type="text"
                 fullWidth
                 size="small"
-                value={updateForm.depositAmount}
-                onChange={(e) =>
-                  setUpdateForm((f) => ({
-                    ...f,
-                    depositAmount: e.target.value,
-                  }))
-                }
+                inputProps={{ inputMode: "numeric", pattern: "\\d*" }}
+                value={formatNumberInput(updateForm.depositAmount)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setUpdateForm((f) => ({ ...f, depositAmount: raw }));
+                }}
                 InputProps={{
                   inputProps: { min: 1000 },
                   startAdornment: (
