@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -60,6 +60,7 @@ import {
   setCurrentDesignRequest,
   selectCurrentDesignRequest,
   getFinalDesignSubImages,
+  selectPagination as selectCustomDesignPagination,
 } from "../store/features/customeDesign/customerDesignSlice";
 import {
   createOrderFromDesignRequest,
@@ -1392,6 +1393,42 @@ const OrderHistory = () => {
     status: customStatus,
     error: customError,
   } = customDesignState;
+  const customPagination = useSelector(selectCustomDesignPagination);
+
+  // Local search for Custom Design Requests tab
+  const [customSearch, setCustomSearch] = useState("");
+  const filteredDesignRequests = useMemo(() => {
+    const norm = (s) =>
+      (s || "")
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    const q = norm(customSearch);
+    if (!q) return designRequests;
+    return designRequests.filter((req) => {
+      const code = norm(req.code);
+      const requirements = norm(req.requirements);
+      const status = norm(req.status);
+      const statusLabel = norm(statusMap[req.status]?.label);
+      const designerName = norm(req.assignDesigner?.fullName);
+      const designerEmail = norm(req.assignDesigner?.email);
+      const designerPhone = norm(req.assignDesigner?.phone);
+      const created = req.createdAt
+        ? norm(new Date(req.createdAt).toLocaleDateString("vi-VN"))
+        : "";
+      return (
+        code.includes(q) ||
+        requirements.includes(q) ||
+        status.includes(q) ||
+        statusLabel.includes(q) ||
+        designerName.includes(q) ||
+        designerEmail.includes(q) ||
+        designerPhone.includes(q) ||
+        created.includes(q)
+      );
+    });
+  }, [customSearch, designRequests]);
 
   // Redux state for orders
   const orders = useSelector((state) => state.order.orders);
@@ -1934,8 +1971,8 @@ const OrderHistory = () => {
       await dispatch(
         fetchCustomDesignRequestsByCustomerDetail({
           customerDetailId: customerDetailId,
-          page: 1,
-          size: 10,
+          page: customPagination?.currentPage || 1,
+          size: customPagination?.pageSize || 10,
         })
       );
 
@@ -1976,6 +2013,21 @@ const OrderHistory = () => {
       await dispatch(fetchImpressionsByOrderId(orderId));
     }
   };
+
+  // Pagination handler for Custom Design Requests tab
+  const handleCustomDesignPageChange = useCallback(
+    (event, newPage) => {
+      if (!customerDetailId || customStatus === "loading") return;
+      dispatch(
+        fetchCustomDesignRequestsByCustomerDetail({
+          customerDetailId,
+          page: newPage,
+          size: customPagination?.pageSize || 10,
+        })
+      );
+    },
+    [dispatch, customerDetailId, customPagination?.pageSize, customStatus]
+  );
 
   // Function refresh tổng thể - có thể gọi từ bất kỳ đâu
   // Sử dụng khi cần refresh cả 2 tab hoặc không chắc chắn đang ở tab nào
@@ -2949,12 +3001,20 @@ const OrderHistory = () => {
       dispatch(
         fetchCustomDesignRequestsByCustomerDetail({
           customerDetailId: customerDetailId,
-          page: 1,
-          size: 10,
+          page: customPagination?.currentPage || 1,
+          size: customPagination?.pageSize || 10,
         })
       );
     }
-  }, [isAuthenticated, user, tab, customerDetailId, dispatch]);
+  }, [
+    isAuthenticated,
+    user,
+    tab,
+    customerDetailId,
+    dispatch,
+    customPagination?.currentPage,
+    customPagination?.pageSize,
+  ]);
 
   // Fetch price proposals when openDetail or currentDesignRequest changes
   useEffect(() => {
@@ -3989,7 +4049,13 @@ const OrderHistory = () => {
                 <Button
                   variant="outlined"
                   size="medium"
-                  startIcon={orderLoading ? <CircularProgress size={16} /> : <RefreshIcon fontSize="small" />}
+                  startIcon={
+                    orderLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <RefreshIcon fontSize="small" />
+                    )
+                  }
                   disabled={orderLoading || searchStatus === "loading"}
                   onClick={() => {
                     // Nếu đang ở trạng thái search thì refetch search, ngược lại refetch danh sách đơn
@@ -4106,7 +4172,10 @@ const OrderHistory = () => {
                   const orderDetails = getOrderDetails(order.id);
                   const loadingDetails = isLoadingOrderDetails(order.id);
                   // ✅ Lấy thông tin custom design từ order hoặc từ orderDetails (API details mới)
-                  const customDesign = order.customDesignRequests || orderDetails?.customDesignRequests || null;
+                  const customDesign =
+                    order.customDesignRequests ||
+                    orderDetails?.customDesignRequests ||
+                    null;
 
                   return (
                     <Card
@@ -4490,7 +4559,15 @@ const OrderHistory = () => {
                                 border: "1px solid rgba(226, 232, 240, 0.8)",
                               }}
                             >
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  mb: 0.5,
+                                }}
+                              >
                                 <Typography
                                   variant="h5"
                                   fontWeight={700}
@@ -4503,37 +4580,106 @@ const OrderHistory = () => {
                                 >
                                   Mã Đơn: {order.orderCode || order.id}
                                 </Typography>
-                                {(order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' || order.orderType === 'CUSTOM_DESIGN_WITHOUT_CONSTRUCTION') && customDesign && (
-                                  <Box sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    flexWrap: 'wrap',
-                                    gap: 1,
-                                    px: 1.2,
-                                    py: 0.6,
-                                    backgroundColor: order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? 'rgba(33,150,243,0.06)' : 'rgba(255,152,0,0.08)',
-                                    border: '1px solid',
-                                    borderColor: order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? 'rgba(33,150,243,0.25)' : 'rgba(255,152,0,0.25)',
-                                    borderRadius: 2,
-                                    fontSize: 13,
-                                  }}>
-                                    <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13, fontWeight: 500, color: order.orderType === 'CUSTOM_DESIGN_WITH_CONSTRUCTION' ? '#1565c0' : '#e65100' }}>
-                                      Mã YC: <Box component='span' sx={{ fontWeight: 700 }}>{customDesign.code || '(N/A)'}</Box>
-                                    </Typography>
-                                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.3)' }} />
-                                    <Typography variant='body2' sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 13, color: 'text.secondary' }}>
-                                      Designer:
-                                      <Box component='span' sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                        {customDesign.assignDesigner ? (customDesign.assignDesigner.fullName || customDesign.assignDesigner.email || '(Không rõ)') : 'Chưa phân công'}
-                                      </Box>
-                                      {customDesign.assignDesigner?.phone && (
-                                        <Box component='span' sx={{ fontSize: 12, color: 'text.secondary' }}>
-                                          SĐT: {customDesign.assignDesigner.phone}
+                                {(order.orderType ===
+                                  "CUSTOM_DESIGN_WITH_CONSTRUCTION" ||
+                                  order.orderType ===
+                                    "CUSTOM_DESIGN_WITHOUT_CONSTRUCTION") &&
+                                  customDesign && (
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        flexWrap: "wrap",
+                                        gap: 1,
+                                        px: 1.2,
+                                        py: 0.6,
+                                        backgroundColor:
+                                          order.orderType ===
+                                          "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                            ? "rgba(33,150,243,0.06)"
+                                            : "rgba(255,152,0,0.08)",
+                                        border: "1px solid",
+                                        borderColor:
+                                          order.orderType ===
+                                          "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                            ? "rgba(33,150,243,0.25)"
+                                            : "rgba(255,152,0,0.25)",
+                                        borderRadius: 2,
+                                        fontSize: 13,
+                                      }}
+                                    >
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                          fontSize: 13,
+                                          fontWeight: 500,
+                                          color:
+                                            order.orderType ===
+                                            "CUSTOM_DESIGN_WITH_CONSTRUCTION"
+                                              ? "#1565c0"
+                                              : "#e65100",
+                                        }}
+                                      >
+                                        Mã YC:{" "}
+                                        <Box
+                                          component="span"
+                                          sx={{ fontWeight: 700 }}
+                                        >
+                                          {customDesign.code || "(N/A)"}
                                         </Box>
-                                      )}
-                                    </Typography>
-                                  </Box>
-                                )}
+                                      </Typography>
+                                      <Box
+                                        sx={{
+                                          width: 4,
+                                          height: 4,
+                                          borderRadius: "50%",
+                                          backgroundColor: "rgba(0,0,0,0.3)",
+                                        }}
+                                      />
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                          fontSize: 13,
+                                          color: "text.secondary",
+                                        }}
+                                      >
+                                        Designer:
+                                        <Box
+                                          component="span"
+                                          sx={{
+                                            fontWeight: 600,
+                                            color: "text.primary",
+                                          }}
+                                        >
+                                          {customDesign.assignDesigner
+                                            ? customDesign.assignDesigner
+                                                .fullName ||
+                                              customDesign.assignDesigner
+                                                .email ||
+                                              "(Không rõ)"
+                                            : "Chưa phân công"}
+                                        </Box>
+                                        {customDesign.assignDesigner?.phone && (
+                                          <Box
+                                            component="span"
+                                            sx={{
+                                              fontSize: 12,
+                                              color: "text.secondary",
+                                            }}
+                                          >
+                                            SĐT:{" "}
+                                            {customDesign.assignDesigner.phone}
+                                          </Box>
+                                        )}
+                                      </Typography>
+                                    </Box>
+                                  )}
                               </Box>
 
                               {(order.orderType ===
@@ -5697,27 +5843,77 @@ const OrderHistory = () => {
           </>
         ) : (
           <Stack spacing={3}>
-            {/* Refresh button for Custom Design Requests tab */}
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <Button
-                variant="contained"
-                color="secondary"
-                size="small"
-                startIcon={
-                  customStatus === "loading" ? (
-                    <CircularProgress size={16} />
-                  ) : (
-                    <RefreshIcon fontSize="small" />
-                  )
-                }
-                disabled={customStatus === "loading"}
-                onClick={() => {
-                  refreshCustomDesignData();
+            {/* Search bar + actions for Custom Design Requests */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                gap: 2,
+                alignItems: { xs: "stretch", md: "center" },
+                justifyContent: "space-between",
+                background: "rgba(255,255,255,0.98)",
+                p: 2.5,
+                borderRadius: 4,
+                border: "1px solid rgba(220,225,235,0.6)",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.05)",
+              }}
+            >
+              <TextField
+                fullWidth
+                placeholder="Tìm kiếm yêu cầu (mã yêu cầu, ví dụ: TK-XYZ)"
+                value={customSearch}
+                onChange={(e) => setCustomSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setCustomSearch("");
                 }}
-                sx={{ borderRadius: 3, fontWeight: 600, textTransform: "none" }}
-              >
-                Làm mới
-              </Button>
+                size="medium"
+                variant="outlined"
+                InputProps={{
+                  sx: {
+                    borderRadius: 3,
+                    backgroundColor: "rgba(255,255,255,0.9)",
+                  },
+                }}
+              />
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  size="medium"
+                  startIcon={
+                    customStatus === "loading" ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <RefreshIcon fontSize="small" />
+                    )
+                  }
+                  disabled={customStatus === "loading"}
+                  onClick={() => {
+                    refreshCustomDesignData();
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    fontWeight: 600,
+                    textTransform: "none",
+                  }}
+                >
+                  Làm mới
+                </Button>
+                {customSearch && (
+                  <Button
+                    variant="outlined"
+                    size="medium"
+                    onClick={() => setCustomSearch("")}
+                    sx={{
+                      borderRadius: 3,
+                      fontWeight: 600,
+                      textTransform: "none",
+                    }}
+                  >
+                    Xóa
+                  </Button>
+                )}
+              </Stack>
             </Box>
             {customStatus === "loading" ? (
               <Box
@@ -5781,8 +5977,27 @@ const OrderHistory = () => {
                   mới!
                 </Typography>
               </Box>
+            ) : customSearch.trim() && filteredDesignRequests.length === 0 ? (
+              <Box
+                sx={{
+                  background: "rgba(249, 250, 251, 0.98)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(209, 213, 219, 0.4)",
+                  borderRadius: 4,
+                  p: 6,
+                  textAlign: "center",
+                  boxShadow: "0 8px 20px rgba(0, 0, 0, 0.04)",
+                }}
+              >
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                  Không tìm thấy yêu cầu phù hợp
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Hãy thử từ khóa khác (mã, mô tả, tên designer, trạng thái...)
+                </Typography>
+              </Box>
             ) : (
-              designRequests.map((req) => (
+              filteredDesignRequests.map((req) => (
                 <Card
                   key={req.id}
                   sx={{
@@ -6059,6 +6274,40 @@ const OrderHistory = () => {
                   </CardContent>
                 </Card>
               ))
+            )}
+            {customPagination && customPagination.totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={customPagination.totalPages}
+                  page={customPagination.currentPage || 1}
+                  onChange={handleCustomDesignPageChange}
+                  color="primary"
+                  size="large"
+                  showFirstButton
+                  showLastButton
+                  disabled={customStatus === "loading"}
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      borderRadius: 3,
+                      fontWeight: 600,
+                      color: "rgba(55, 65, 81, 0.7)",
+                      border: "1px solid rgba(209, 213, 219, 0.4)",
+                      "&.Mui-selected": {
+                        background:
+                          "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                        color: "white",
+                        border: "1px solid transparent",
+                        boxShadow: "0 4px 12px rgba(79, 70, 229, 0.25)",
+                      },
+                      "&:hover:not(.Mui-selected)": {
+                        backgroundColor: "rgba(79, 70, 229, 0.08)",
+                        border: "1px solid rgba(79, 70, 229, 0.2)",
+                        color: "rgba(55, 65, 81, 1)",
+                      },
+                    },
+                  }}
+                />
+              </Box>
             )}
           </Stack>
         )}
@@ -7259,7 +7508,7 @@ const OrderHistory = () => {
                           mb={1}
                           letterSpacing="-0.015em"
                         >
-                           Thiết Kế Mẫu
+                          Thiết Kế Mẫu
                         </Typography>
                         <Typography
                           variant="body2"
@@ -8360,7 +8609,6 @@ const OrderHistory = () => {
                     </CardContent>
                   </Card>
                 )}
-
 
                 {/* Dialog offer giá khác */}
                 <Dialog

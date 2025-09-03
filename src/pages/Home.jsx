@@ -581,20 +581,20 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                name: "Nguyễn Văn A",
-                position: "CEO, Công ty XYZ",
+                name: "Nguyễn Văn Tiến",
+                position: "Công ty nhựa PVC",
                 comment:
                   "Song Tạo ADS đã giúp chúng tôi tiết kiệm thời gian và nguồn lực đáng kể trong việc tạo nội dung quảng cáo. Kết quả đạt được vượt xa mong đợi của chúng tôi.",
               },
               {
-                name: "Trần Thị B",
-                position: "Marketing Director, Công ty ABC",
+                name: "Trần Thanh Tâm",
+                position: "Cửa hàng quần áo 2hand",
                 comment:
                   "Nhờ công nghệ AI tiên tiến, chúng tôi đã tăng tỷ lệ chuyển đổi lên 45% chỉ trong vòng 3 tháng. Song Tạo ADS thực sự là một công cụ tuyệt vời!",
               },
               {
-                name: "Lê Văn C",
-                position: "Founder, Startup DEF",
+                name: "Lê Văn Cường",
+                position: "Kinh doanh tự do",
                 comment:
                   "Với ngân sách hạn chế của một startup, Song Tạo ADS đã giúp chúng tôi tạo ra các chiến dịch quảng cáo chuyên nghiệp và hiệu quả như một công ty lớn.",
               },
