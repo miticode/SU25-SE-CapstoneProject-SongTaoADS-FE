@@ -6504,6 +6504,7 @@ const CustomerRequests = () => {
                     "NEED_FULLY_PAID_DESIGN",
                     "WAITING_FINAL_DESIGN",
                     "DESIGN_COMPLETED",
+                    "CANCELLED",
                   ].includes(selectedOrder.status) && (
                     <Box sx={{ mt: 4 }}>
                       <Typography variant="h6" gutterBottom>

@@ -1890,7 +1890,7 @@ const ModernBillboardForm = ({
                                         {displayLabel}:{" "}
                                         <span className="font-bold ml-1">
                                           {displayValue}
-                                          {isMultiplier ? "" : " đ"}
+                                          {isMultiplier ? "" : " VNĐ"}
                                         </span>
                                       </Typography>
                                     );
@@ -1946,7 +1946,7 @@ const ModernBillboardForm = ({
                     color="success.main"
                     sx={{ fontSize: "1.1rem" }}
                   >
-                    {totalAmount.toLocaleString("vi-VN")} đ
+                    {totalAmount.toLocaleString("vi-VN")} VNĐ
                   </Typography>
                 )}
               </Box>
