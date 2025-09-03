@@ -17,6 +17,7 @@ import {
   Button,
   TextField,
   InputAdornment,
+  Autocomplete,
   Card,
   CardContent,
   Grid,
@@ -121,6 +122,8 @@ const CostTypeManager = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  // List filter by product type (separate from dialog selection)
+  const [listFilterProductType, setListFilterProductType] = useState(null);
 
   // Dialog state
   const [openDialog, setOpenDialog] = useState(false);
@@ -156,6 +159,13 @@ const CostTypeManager = () => {
     );
   }, [dispatch, page, rowsPerPage]);
 
+  // Ensure product types are loaded for list filtering (outside dialog)
+  useEffect(() => {
+    if (productTypes.length === 0) {
+      dispatch(fetchProductTypes({ page: 1, size: 100 }));
+    }
+  }, [dispatch, productTypes.length]);
+
   // Fetch product types when dialog opens
   useEffect(() => {
     if (openDialog && productTypes.length === 0) {
@@ -179,10 +189,11 @@ const CostTypeManager = () => {
 
   // Clear product type cost types when dialog closes
   useEffect(() => {
-    if (!openDialog) {
+    // Only clear when dialog closes AND list filter is not active
+    if (!openDialog && !listFilterProductType) {
       dispatch(clearProductTypeCostTypes());
     }
-  }, [dispatch, openDialog]);
+  }, [dispatch, openDialog, listFilterProductType]);
   const handleEditCostType = (costType) => {
     setIsEditMode(true);
     setEditingCostType(costType);
@@ -263,12 +274,16 @@ const CostTypeManager = () => {
     setSearchTerm(event.target.value);
   };
 
+  // Determine which list to display (global or filtered by product type)
+  const displayedCostTypes = listFilterProductType
+    ? productTypeCostTypes
+    : costTypes;
+
   // Filter cost types based on search term
-  const filteredCostTypes = costTypes.filter(
-    (costType) =>
-      costType.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      costType.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      costType.formula?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCostTypes = displayedCostTypes.filter((costType) =>
+    [costType.name, costType.description, costType.formula]
+      .filter(Boolean)
+      .some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Filter product types based on search term
@@ -285,12 +300,16 @@ const CostTypeManager = () => {
   // Handle refresh
   const handleRefresh = () => {
     dispatch(clearError());
-    dispatch(
-      fetchCostTypes({
-        page: page + 1,
-        size: rowsPerPage,
-      })
-    );
+    if (listFilterProductType) {
+      dispatch(fetchCostTypesByProductTypeId(listFilterProductType.id));
+    } else {
+      dispatch(
+        fetchCostTypes({
+          page: page + 1,
+          size: rowsPerPage,
+        })
+      );
+    }
   };
 
   // Handle dialog open
@@ -1356,7 +1375,9 @@ const CostTypeManager = () => {
           >
             <CardContent sx={{ textAlign: "center", py: 2 }}>
               <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-                {pagination.totalElements || 0}
+                {listFilterProductType
+                  ? displayedCostTypes.length
+                  : pagination.totalElements || 0}
               </Typography>
               <Typography
                 variant="body2"
@@ -1384,7 +1405,7 @@ const CostTypeManager = () => {
           >
             <CardContent sx={{ textAlign: "center", py: 2 }}>
               <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-                {costTypes.filter((ct) => ct.isAvailable).length || 0}
+                {displayedCostTypes.filter((ct) => ct.isAvailable).length || 0}
               </Typography>
               <Typography
                 variant="body2"
@@ -1412,7 +1433,7 @@ const CostTypeManager = () => {
           >
             <CardContent sx={{ textAlign: "center", py: 2 }}>
               <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-                {costTypes.filter((ct) => ct.isCore).length || 0}
+                {displayedCostTypes.filter((ct) => ct.isCore).length || 0}
               </Typography>
               <Typography
                 variant="body2"
@@ -1440,7 +1461,7 @@ const CostTypeManager = () => {
           >
             <CardContent sx={{ textAlign: "center", py: 2 }}>
               <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-                {pagination.totalPages || 0}
+                {listFilterProductType ? 1 : pagination.totalPages || 0}
               </Typography>
               <Typography
                 variant="body2"
@@ -1460,69 +1481,148 @@ const CostTypeManager = () => {
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          justifyContent: "space-between",
-          alignItems: { xs: "stretch", sm: "center" },
-          gap: { xs: 2, sm: 0 },
+          flexDirection: "column",
+          gap: 2,
           mb: 3,
         }}
       >
-        <TextField
-          placeholder="Tìm kiếm loại chi phí..."
-          value={searchTerm}
-          onChange={handleSearch}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            width: { xs: "100%", sm: 350, md: 400 },
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
-
         <Box
           sx={{
             display: "flex",
+            flexDirection: { xs: "column", md: "row" },
             gap: 2,
-            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { md: "center" },
+            justifyContent: "space-between",
           }}
         >
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={loading}
+          <Box
             sx={{
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: 500,
-              px: 3,
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
+              width: "100%",
+              maxWidth: 900,
             }}
           >
-            Làm mới
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
+            <TextField
+              placeholder="Tìm kiếm loại chi phí..."
+              value={searchTerm}
+              onChange={handleSearch}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                flex: 1,
+                minWidth: { xs: "100%", sm: 260 },
+                "& .MuiOutlinedInput-root": { borderRadius: 2 },
+              }}
+            />
+            <Autocomplete
+              options={productTypes}
+              getOptionLabel={(option) => option.name || ""}
+              value={listFilterProductType}
+              onChange={(e, newValue) => {
+                setListFilterProductType(newValue);
+                setPage(0);
+                if (newValue) {
+                  dispatch(fetchCostTypesByProductTypeId(newValue.id));
+                } else {
+                  dispatch(
+                    fetchCostTypes({
+                      page: 1,
+                      size: rowsPerPage,
+                    })
+                  );
+                }
+              }}
+              isOptionEqualToValue={(opt, val) => opt.id === val?.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Lọc theo loại sản phẩm"
+                  size="medium"
+                  InputLabelProps={{ shrink: true }}
+                />
+              )}
+              sx={{
+                flex: 1,
+                minWidth: { xs: "100%", sm: 260 },
+                "& .MuiOutlinedInput-root": { borderRadius: 2 },
+              }}
+              clearIcon={<CloseIcon fontSize="small" />}
+            />
+          </Box>
+          <Box
             sx={{
-              backgroundColor: "#2e7d32",
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: 500,
-              px: 3,
-              "&:hover": { backgroundColor: "#1b5e20" },
+              display: "flex",
+              gap: 2,
+              flexDirection: { xs: "column", sm: "row" },
             }}
-            onClick={handleOpenDialog}
           >
-            Thêm loại chi phí
-          </Button>
+            {listFilterProductType && (
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={() => {
+                  setListFilterProductType(null);
+                  setPage(0);
+                  dispatch(
+                    fetchCostTypes({
+                      page: 1,
+                      size: rowsPerPage,
+                    })
+                  );
+                }}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 500,
+                  px: 3,
+                }}
+              >
+                Bỏ lọc
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={loading}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 500,
+                px: 3,
+              }}
+            >
+              Làm mới
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              sx={{
+                backgroundColor: "#2e7d32",
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 500,
+                px: 3,
+                "&:hover": { backgroundColor: "#1b5e20" },
+              }}
+              onClick={handleOpenDialog}
+            >
+              Thêm loại chi phí
+            </Button>
+          </Box>
         </Box>
+        {listFilterProductType && (
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+            Đang lọc theo loại sản phẩm: <strong>{listFilterProductType.name}</strong> ({filteredCostTypes.length} kết quả)
+          </Typography>
+        )}
       </Box>
 
       {/* Error Alert */}
@@ -1864,31 +1964,39 @@ const CostTypeManager = () => {
             backgroundColor: "#fafafa",
           }}
         >
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            component="div"
-            count={pagination.totalElements || 0}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Số hàng:"
-            labelDisplayedRows={({ from, to, count }) =>
-              `${from}–${to} / ${count !== -1 ? count : `${to}+`}`
-            }
-            sx={{
-              "& .MuiTablePagination-toolbar": {
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
-                minHeight: { xs: 56, sm: 64 },
-              },
-              "& .MuiTablePagination-selectLabel": {
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
-              },
-              "& .MuiTablePagination-displayedRows": {
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
-              },
-            }}
-          />
+          {!listFilterProductType ? (
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={pagination.totalElements || 0}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Số hàng:"
+              labelDisplayedRows={({ from, to, count }) =>
+                `${from}–${to} / ${count !== -1 ? count : `${to}+`}`
+              }
+              sx={{
+                "& .MuiTablePagination-toolbar": {
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                  minHeight: { xs: 56, sm: 64 },
+                },
+                "& .MuiTablePagination-selectLabel": {
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                },
+                "& .MuiTablePagination-displayedRows": {
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                },
+              }}
+            />
+          ) : (
+            <Box sx={{ p: 2, textAlign: "right" }}>
+              <Typography variant="caption" color="text.secondary">
+                Hiển thị {filteredCostTypes.length} mục (đã tải tất cả cho bộ lọc này)
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Paper>
 
