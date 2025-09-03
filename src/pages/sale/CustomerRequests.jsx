@@ -84,7 +84,10 @@ import {
 } from "../../store/features/customeDesign/customerDesignSlice";
 
 import { getUsersByRoleApi } from "../../api/userService";
-import { createProposal } from "../../store/features/price/priceSlice";
+import {
+  createProposal,
+  approveProposal,
+} from "../../store/features/price/priceSlice";
 import {
   getPriceProposals,
   updatePriceProposalPricing,
@@ -118,7 +121,7 @@ import { castPaidThunk } from "../../store/features/payment/paymentSlice"; // s�
 // import S3Avatar from "../../components/S3Avatar";
 // import UploadRevisedContract from "../../components/UploadRevisedContract";
 import S3Avatar from "../../components/S3Avatar";
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import { getPresignedUrl } from "../../api/s3Service";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -141,7 +144,7 @@ const ContractorListDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Chỉ lấy nhà thầu khả dụng
   const availableContractors = useMemo(
-    () => (contractors || []).filter(c => c?.isAvailable),
+    () => (contractors || []).filter((c) => c?.isAvailable),
     [contractors]
   );
 
@@ -199,10 +202,12 @@ const ContractorListDialog = ({
         </DialogTitle>
         <DialogContent>
           <Box sx={{ py: 2 }}>
-    {availableContractors && availableContractors.length > 0 ? (
+            {availableContractors && availableContractors.length > 0 ? (
               <>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-      Chọn đơn vị thi công và báo ngày giao dự kiến cho đơn hàng {order ? order.orderCode || order.id : ""} ({availableContractors.length} đơn vị khả dụng)
+                  Chọn đơn vị thi công và báo ngày giao dự kiến cho đơn hàng{" "}
+                  {order ? order.orderCode || order.id : ""} (
+                  {availableContractors.length} đơn vị khả dụng)
                 </Typography>
 
                 {/* Date Picker */}
@@ -414,14 +419,15 @@ const ContractorListDialog = ({
                   ))}
                 </Grid>
               </>
-    ) : (
+            ) : (
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <ShippingIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-      Chưa có đơn vị thi công khả dụng để báo ngày giao
+                  Chưa có đơn vị thi công khả dụng để báo ngày giao
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-      Hiện tại tất cả đơn vị thi công đều không khả dụng. Vui lòng thử lại sau.
+                  Hiện tại tất cả đơn vị thi công đều không khả dụng. Vui lòng
+                  thử lại sau.
                 </Typography>
               </Box>
             )}
@@ -2181,7 +2187,7 @@ const CustomerRequests = () => {
     });
   };
 
-  // Function để chấp nhận offer và tự động tạo báo giá mới
+  // Function để chấp nhận offer: TẠO báo giá mới từ offer VÀ duyệt ngay báo giá mới
   const handleAcceptOffer = async (proposal) => {
     if (!proposal.totalPriceOffer || !proposal.depositAmountOffer) {
       setNotification({
@@ -2203,51 +2209,93 @@ const CustomerRequests = () => {
 
     setCreatingProposal(true);
     try {
-      const data = {
+      // 1) Tạo báo giá mới từ giá OFFER
+      const createData = {
         totalPrice: Number(proposal.totalPriceOffer),
         depositAmount: Number(proposal.depositAmountOffer),
       };
 
-      const resultAction = await dispatch(
+      const createAction = await dispatch(
         createProposal({
           customDesignRequestId: selectedRequest.id,
-          data,
+          data: createData,
         })
       );
 
-      if (createProposal.fulfilled.match(resultAction)) {
+      if (!createProposal.fulfilled.match(createAction)) {
         setNotification({
           open: true,
-          message: "Đã chấp nhận offer và tạo báo giá mới thành công!",
+          message: createAction.payload || "Không thể tạo báo giá từ offer",
+          severity: "error",
+        });
+        setCreatingProposal(false);
+        return;
+      }
+
+      // Lấy ID báo giá mới tạo từ payload; nếu không có, fallback refetch
+      let newProposalId = createAction.payload?.id;
+      if (!newProposalId) {
+        const refresh = await getPriceProposals(selectedRequest.id);
+        if (refresh.success) {
+          setPriceProposals(refresh.result);
+          const sorted = [...refresh.result].sort(
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+          );
+          const candidate = sorted.find((p) => !p.totalPriceOffer);
+          newProposalId = candidate?.id;
+        }
+      }
+
+      if (!newProposalId) {
+        setNotification({
+          open: true,
+          message: "Không xác định được báo giá mới tạo để duyệt",
+          severity: "error",
+        });
+        setCreatingProposal(false);
+        return;
+      }
+
+      // 2) Duyệt (approve) báo giá mới tạo
+      const approveAction = await dispatch(approveProposal(newProposalId));
+
+      if (approveProposal.fulfilled.match(approveAction)) {
+        setNotification({
+          open: true,
+          message: "Đã chấp nhận offer, tạo và duyệt báo giá thành công!",
           severity: "success",
         });
 
-        // Cập nhật status của selectedRequest ngay lập tức để UI hiển thị đúng
         setSelectedRequest((prevRequest) => ({
           ...prevRequest,
-          status: "PRICING_NOTIFIED",
+          status: "APPROVED_PRICING",
         }));
 
-        // Reset form báo giá (ẩn form)
         setPriceForm({ totalPrice: "", depositAmount: "" });
 
-        // Reload proposals to show the new one
-        getPriceProposals(selectedRequest.id).then((res) => {
-          if (res.success) {
-            setPriceProposals(res.result);
-          }
-        });
+        // Reload proposals để hiển thị báo giá đã duyệt
+        const refreshed = await getPriceProposals(selectedRequest.id);
+        if (refreshed.success) {
+          setPriceProposals(refreshed.result);
+        }
 
-        // Refresh design requests data
         await refreshDesignRequestsData();
       } else {
         setNotification({
           open: true,
-          message: resultAction.payload || "Không thể tạo báo giá",
+          message:
+            approveAction.payload ||
+            "Đã tạo báo giá từ offer nhưng duyệt báo giá thất bại",
           severity: "error",
         });
+
+        // Vẫn reload proposals để hiển thị báo giá mới tạo
+        const refreshed = await getPriceProposals(selectedRequest.id);
+        if (refreshed.success) {
+          setPriceProposals(refreshed.result);
+        }
       }
-    } catch (error) {
+    } catch {
       setNotification({
         open: true,
         message: "Có lỗi xảy ra khi tạo báo giá",
