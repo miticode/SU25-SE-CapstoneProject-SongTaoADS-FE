@@ -959,7 +959,7 @@ const BackgroundManager = () => {
                   <Stack direction="row" spacing={1} alignItems="center" mt={1}>
                     <Chip
                       label={bg.isAvailable ? "Hiển thị" : "Ẩn"}
-                      color={bg.isAvailable ? "success" : "default"}
+                      color={bg.isAvailable ? "warning" : "error"}
                       size="small"
                     />
                   </Stack>
@@ -982,8 +982,13 @@ const BackgroundManager = () => {
                   </Tooltip>
                   <Tooltip title={bg.isAvailable ? "Tạm ẩn" : "Hiển thị"}>
                     <IconButton
-                      color={bg.isAvailable ? "error" : "success"}
                       onClick={() => handleToggleStatus(bg)}
+                      sx={{
+                        color: bg.isAvailable ? "#EAB308" : "#EF4444",
+                        "&:hover": {
+                          color: bg.isAvailable ? "#CA8A04" : "#DC2626",
+                        },
+                      }}
                     >
                       {bg.isAvailable ? <ToggleOnIcon /> : <ToggleOffIcon />}
                     </IconButton>
@@ -1145,14 +1150,14 @@ const BackgroundManager = () => {
                             : "Đã ẩn"
                         }
                         color={
-                          selectedBackground.isAvailable ? "success" : "default"
+                          selectedBackground.isAvailable ? "warning" : "error"
                         }
                         className="font-medium"
                         icon={
                           selectedBackground.isAvailable ? (
-                            <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                            <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
                           ) : (
-                            <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                            <span className="w-2 h-2 bg-red-400 rounded-full"></span>
                           )
                         }
                       />
@@ -1226,8 +1231,8 @@ const BackgroundManager = () => {
                       <span
                         className={`w-3 h-3 rounded-full ${
                           selectedBackground.isAvailable
-                            ? "bg-green-500"
-                            : "bg-gray-400"
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
                         }`}
                       ></span>
                       <span className="text-gray-800 font-medium">
@@ -1607,8 +1612,8 @@ const BackgroundManager = () => {
         <DialogTitle
           className={`text-white ${
             toggleDialog.background?.isAvailable
-              ? "bg-gradient-to-r from-red-500 to-pink-500"
-              : "bg-gradient-to-r from-green-500 to-emerald-500"
+              ? "bg-yellow-500"
+              : "bg-gradient-to-r from-red-500 to-pink-500"
           }`}
         >
           <div className="flex items-center space-x-3">
@@ -1644,18 +1649,18 @@ const BackgroundManager = () => {
               <div
                 className={`w-16 h-16 rounded-full flex items-center justify-center ${
                   toggleDialog.background.isAvailable
-                    ? "bg-red-100"
-                    : "bg-green-100"
+                    ? "bg-yellow-100"
+                    : "bg-red-100"
                 }`}
               >
                 {toggleDialog.background.isAvailable ? (
                   <ToggleOffIcon
-                    className="text-red-500"
+                    className="text-yellow-500"
                     sx={{ fontSize: 32 }}
                   />
                 ) : (
                   <ToggleOnIcon
-                    className="text-green-500"
+                    className="text-red-500"
                     sx={{ fontSize: 32 }}
                   />
                 )}
@@ -1671,12 +1676,12 @@ const BackgroundManager = () => {
                   className={`text-sm p-3 rounded-lg ${
                     toggleDialog.background.isAvailable
                       ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
-                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                      : "text-red-800 bg-red-50 border border-red-200"
                   }`}
                 >
                   {toggleDialog.background.isAvailable
                     ? "⚠️ Nền mẫu sẽ được ẩn khỏi danh sách hiển thị cho người dùng."
-                    : "ℹ️ Nền mẫu sẽ được hiển thị trở lại cho người dùng."}
+                    : "⚠️ Nền mẫu sẽ được hiển thị trở lại cho người dùng."}
                 </Typography>
               </div>
             </div>
@@ -1697,8 +1702,8 @@ const BackgroundManager = () => {
               variant="contained"
               className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
                 toggleDialog.background?.isAvailable
-                  ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
-                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  ? "bg-yellow-500 hover:bg-yellow-600"
+                  : "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
               }`}
               startIcon={
                 toggleDialog.background?.isAvailable ? (

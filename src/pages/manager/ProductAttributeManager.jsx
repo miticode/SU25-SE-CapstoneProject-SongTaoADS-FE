@@ -189,7 +189,6 @@ const ProductAttributeManager = () => {
 
     // Check for adjacent size variables without operators between them
     const sizeVarPattern = /#[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞŸĐ0-9]+/g;
-    const sizeVars = formula.match(sizeVarPattern) || [];
 
     // Find positions of all size variables in the string
     const sizePositions = [];
@@ -209,7 +208,7 @@ const ProductAttributeManager = () => {
       const next = sizePositions[i + 1];
 
       const textBetween = formula.substring(current.end, next.start).trim();
-      if (!textBetween || !/[+\-*\/()]/.test(textBetween)) {
+      if (!textBetween || !/[+\-*/()]/.test(textBetween)) {
         errors.push(`Cần phép tính giữa ${current.var} và ${next.var}`);
       }
     }
@@ -233,7 +232,7 @@ const ProductAttributeManager = () => {
     }
 
     // Check for single operators (++, --, etc.)
-    const operatorPattern = /[+\-*\/]{2,}/g;
+    const operatorPattern = /[+\-*/]{2,}/g;
     if (operatorPattern.test(formula)) {
       errors.push("Không được có hai phép tính liền nhau");
     }
@@ -571,7 +570,7 @@ const ProductAttributeManager = () => {
                       <TableCell>
                         <Chip
                           label={attr.isAvailable ? "Hiển thị" : "Ẩn"}
-                          color={attr.isAvailable ? "success" : "default"}
+                          color={attr.isAvailable ? "warning" : "error"}
                           size="small"
                         />
                       </TableCell>
@@ -589,9 +588,17 @@ const ProductAttributeManager = () => {
                           title={attr.isAvailable ? "Tạm ẩn" : "Hiển thị"}
                         >
                           <IconButton
-                            color={attr.isAvailable ? "error" : "success"}
                             onClick={() => handleToggleStatus(attr)}
-                            sx={{ borderRadius: 2 }}
+                            sx={{
+                              borderRadius: 2,
+                              color: attr.isAvailable ? "#EAB308" : "#EF4444",
+                              "&:hover": {
+                                color: attr.isAvailable ? "#CA8A04" : "#DC2626",
+                                backgroundColor: attr.isAvailable
+                                  ? "rgba(234,179,8,0.12)"
+                                  : "rgba(239,68,68,0.12)",
+                              },
+                            }}
                           >
                             {attr.isAvailable ? (
                               <ToggleOffIcon fontSize="small" />
@@ -1033,7 +1040,7 @@ const ProductAttributeManager = () => {
           className={`text-white ${
             toggleDialog.attribute?.isAvailable
               ? "bg-gradient-to-r from-red-500 to-pink-500"
-              : "bg-gradient-to-r from-green-500 to-emerald-500"
+              : "bg-yellow-500"
           }`}
         >
           <div className="flex items-center space-x-3">
@@ -1070,7 +1077,7 @@ const ProductAttributeManager = () => {
                 className={`w-16 h-16 rounded-full flex items-center justify-center ${
                   toggleDialog.attribute.isAvailable
                     ? "bg-red-100"
-                    : "bg-green-100"
+                    : "bg-yellow-100"
                 }`}
               >
                 {toggleDialog.attribute.isAvailable ? (
@@ -1080,7 +1087,7 @@ const ProductAttributeManager = () => {
                   />
                 ) : (
                   <ToggleOnIcon
-                    className="text-green-500"
+                    className="text-yellow-500"
                     sx={{ fontSize: 32 }}
                   />
                 )}
@@ -1096,7 +1103,7 @@ const ProductAttributeManager = () => {
                   className={`text-sm p-3 rounded-lg ${
                     toggleDialog.attribute.isAvailable
                       ? "text-yellow-800 bg-yellow-50 border border-yellow-200"
-                      : "text-blue-800 bg-blue-50 border border-blue-200"
+                      : "text-yellow-800 bg-yellow-50 border border-yellow-200"
                   }`}
                 >
                   {toggleDialog.attribute.isAvailable
@@ -1123,7 +1130,7 @@ const ProductAttributeManager = () => {
               className={`flex-1 text-white rounded-lg py-2 shadow-md hover:shadow-lg transition-all duration-300 ${
                 toggleDialog.attribute?.isAvailable
                   ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
-                  : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  : "bg-yellow-500 hover:bg-yellow-600"
               }`}
               startIcon={
                 toggleDialog.attribute?.isAvailable ? (

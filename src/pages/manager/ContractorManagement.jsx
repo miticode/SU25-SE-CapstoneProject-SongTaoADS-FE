@@ -344,11 +344,14 @@ const ContractorManagement = () => {
         alignItems="center"
         justifyContent="space-between"
         mb={2}
+        sx={{ flexWrap: "wrap", gap: 1.5 }}
       >
         <Typography variant="h5" fontWeight={700}>
           Quản lý đơn vị thi công
         </Typography>
-        <Box>
+        <Box
+          sx={{ mt: { xs: 1, sm: 0 }, display: "flex", alignItems: "center" }}
+        >
           <Tooltip title="Làm mới danh sách">
             <IconButton
               onClick={() => {
@@ -399,17 +402,25 @@ const ContractorManagement = () => {
       </Paper>
 
       <Paper elevation={2}>
-        <TableContainer>
+        <TableContainer sx={{ overflowX: "auto" }}>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>STT</TableCell>
                 <TableCell>Logo</TableCell>
                 <TableCell>Tên đơn vị</TableCell>
-                <TableCell>Địa chỉ</TableCell>
-                <TableCell>Số điện thoại</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Loại</TableCell>
+                <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                  Địa chỉ
+                </TableCell>
+                <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                  Số điện thoại
+                </TableCell>
+                <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                  Email
+                </TableCell>
+                <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                  Loại
+                </TableCell>
                 <TableCell>Trạng thái</TableCell>
                 <TableCell align="right">Hành động</TableCell>
               </TableRow>
@@ -437,10 +448,24 @@ const ContractorManagement = () => {
                       />
                     </TableCell>
                     <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.address}</TableCell>
-                    <TableCell>{row.phone}</TableCell>
-                    <TableCell>{row.email}</TableCell>
-                    <TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", md: "table-cell" } }}
+                    >
+                      {row.address}
+                    </TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", sm: "table-cell" } }}
+                    >
+                      {row.phone}
+                    </TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", md: "table-cell" } }}
+                    >
+                      {row.email}
+                    </TableCell>
+                    <TableCell
+                      sx={{ display: { xs: "none", sm: "table-cell" } }}
+                    >
                       <Chip
                         label={row.isInternal ? "Nội bộ" : "Bên ngoài"}
                         color={row.isInternal ? "primary" : "default"}
@@ -452,36 +477,56 @@ const ContractorManagement = () => {
                         label={
                           row.isAvailable ? "Hoạt động" : "Không hoạt động"
                         }
-                        color={row.isAvailable ? "success" : "error"}
+                        color={row.isAvailable ? "warning" : "error"}
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Xem chi tiết">
-                        <IconButton onClick={() => handleViewDetail(row.id)}>
-                          <VisibilityIcon color="primary" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Sửa">
-                        <IconButton onClick={() => handleOpenDialog(row)}>
-                          <EditIcon color="primary" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip
-                        title={
-                          row.isAvailable
-                            ? "Tạm ngưng hoạt động"
-                            : "Kích hoạt hoạt động"
-                        }
-                      >
-                        <IconButton onClick={() => handleToggleStatus(row)}>
-                          {row.isAvailable ? (
-                            <ToggleOnIcon color="success" />
-                          ) : (
-                            <ToggleOffIcon color="error" />
-                          )}
-                        </IconButton>
-                      </Tooltip>
+                      <Box sx={{ display: "inline-flex", gap: 0.5 }}>
+                        <Tooltip title="Xem chi tiết">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewDetail(row.id)}
+                          >
+                            <VisibilityIcon color="primary" fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Sửa">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(row)}
+                          >
+                            <EditIcon color="primary" fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            row.isAvailable
+                              ? "Tạm ngưng hoạt động"
+                              : "Kích hoạt hoạt động"
+                          }
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={() => handleToggleStatus(row)}
+                            sx={{
+                              color: row.isAvailable ? "#EAB308" : "#EF4444",
+                              "&:hover": {
+                                color: row.isAvailable ? "#CA8A04" : "#DC2626",
+                                backgroundColor: row.isAvailable
+                                  ? "rgba(234,179,8,0.12)"
+                                  : "rgba(239,68,68,0.12)",
+                              },
+                            }}
+                          >
+                            {row.isAvailable ? (
+                              <ToggleOnIcon fontSize="small" />
+                            ) : (
+                              <ToggleOffIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
@@ -498,7 +543,12 @@ const ContractorManagement = () => {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <Box display="flex" justifyContent="center" p={2}>
+          <Box
+            display="flex"
+            justifyContent="center"
+            p={2}
+            sx={{ overflowX: "auto" }}
+          >
             <Pagination
               count={pagination.totalPages}
               page={paginationParams.page}
@@ -730,8 +780,17 @@ const ContractorManagement = () => {
           </Button>
           <Button
             onClick={handleConfirmToggleStatus}
-            color={toggleDialog.contractor?.isAvailable ? "error" : "success"}
             variant="contained"
+            sx={{
+              bgcolor: toggleDialog.contractor?.isAvailable
+                ? "#EF4444"
+                : "#EAB308",
+              "&:hover": {
+                bgcolor: toggleDialog.contractor?.isAvailable
+                  ? "#DC2626"
+                  : "#CA8A04",
+              },
+            }}
           >
             {toggleDialog.contractor?.isAvailable ? "Tạm ngưng" : "Kích hoạt"}
           </Button>

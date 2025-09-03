@@ -489,11 +489,11 @@ const TicketManager = () => {
                 sx={{
                   color: "white",
                   borderColor: "rgba(255,255,255,0.4)",
-                  textTransform: 'none',
-                  '&:hover': {
-                    borderColor: 'white',
-                    backgroundColor: 'rgba(255,255,255,0.12)'
-                  }
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "white",
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  },
                 }}
               >
                 Làm mới
@@ -865,7 +865,7 @@ const TicketManager = () => {
 
               {/* Thông tin khách hàng */}
               <Typography variant="h6" sx={{ mb: 2, color: "info.main" }}>
-                 Thông tin khách hàng
+                Thông tin khách hàng
               </Typography>
 
               <Box
@@ -950,7 +950,7 @@ const TicketManager = () => {
 
               {/* Thông tin đơn hàng */}
               <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
-               Thông tin đơn hàng
+                Thông tin đơn hàng
               </Typography>
 
               <Box
@@ -1074,7 +1074,7 @@ const TicketManager = () => {
 
               {/* Thông tin tài chính */}
               <Typography variant="h6" sx={{ mb: 2, color: "success.main" }}>
-             Thông tin tài chính
+                Thông tin tài chính
               </Typography>
 
               <Box
